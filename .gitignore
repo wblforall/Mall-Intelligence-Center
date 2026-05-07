@@ -1,0 +1,47 @@
+# Environment
+.env
+env
+
+# Dependencies
+vendor/
+
+# Writable (cache, logs, sessions)
+writable/cache/*
+writable/logs/*
+writable/session/*
+writable/uploads/*
+writable/debugbar/*
+!writable/cache/.gitkeep
+!writable/logs/.gitkeep
+!writable/session/.gitkeep
+!writable/uploads/.gitkeep
+
+# User uploads (data, bukan kode)
+public/uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Build artifacts
+builds/
+
+# Reference images (besar, bukan kode)
+ref visual style.jpg
+ref vs2.jpg
+ref vs3.jpg
+ref vs4.jpg
+MIC logo.png
+
+# Spreadsheet & HTML docs
+*.xlsx
+ARCHITECTURE_HANDOUT.html
+DEVELOPMENT_ROADMAP.html
+
+# Logs
+*.log
