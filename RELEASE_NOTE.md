@@ -1,5 +1,7 @@
 # Release Note — Mall Intelligence Center
 
+> Versi saat ini: **v1.2** (Mei 2026)
+
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
 
@@ -8,6 +10,41 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 1.2
+
+**Tanggal Rilis:** Mei 2026
+
+### Perubahan dari v1.1
+
+#### Fitur Baru
+
+- **VM Deadline** — field `Tanggal Deadline` ditambahkan pada item Dekorasi & VM, tersedia di halaman event VM maupun standalone. Jika sudah melewati deadline, ditampilkan badge merah **Lewat Deadline** di samping tanggal. Kolom Deadline juga ditambahkan di tabel Summary Bulanan VM.
+- **Sort Event berdasarkan Start Date** — daftar event kini diurutkan berdasarkan `start_date ASC` (event terlama di atas) menggantikan `created_at DESC`.
+
+#### Animasi & UX
+
+- **Animasi halaman Events** — entrance animation `fadeUp` pada baris tabel dengan stagger per baris (capped 8 baris), serta slide compare bar.
+- **Animasi halaman Summary Event** — KPI cards fade-up bertahap, count-up angka Rp untuk nilai budget, realisasi, revenue, dan profit.
+- **Animasi halaman Content Event** — header, description card, KPI row, section header, dan item card stagger via JavaScript (program & biaya cards masing-masing stagger terpisah).
+
+#### Activity Log
+
+- `ActivityLog::write()` ditambahkan ke controller yang sebelumnya belum mencatat operasi write:
+  - **Departments** — create, update, delete
+  - **LoyaltyCtrl** — 16 operasi: hadiah item, hadiah realisasi, voucher item, voucher realisasi, program (create/update/delete), toggleStatus, lock, unlock, realisasi member
+  - **EventTracking** — create, update, delete
+  - **EventTenants** — store, update, delete, saveImpact
+  - **EventBaseline** — save
+  - **EventInputs** — save (create & update path)
+
+#### Dev & Ops
+
+- **Git versioning** — repository diinisialisasi dengan `git init`, `.gitignore` dikonfigurasi (exclude `vendor/`, `writable/`, `public/uploads/`, `.env`, file referensi besar).
+- **DEPLOY.html** — panduan deploy lengkap untuk transfer via USB ke server lokal: export DB, copy kode, git pull, migrate, serta prosedur update rutin.
+- **Versi & copyright** ditampilkan di sidebar footer aplikasi.
 
 ---
 

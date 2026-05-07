@@ -309,6 +309,9 @@ body { min-height: 100vh; }
             <i class="bi bi-box-arrow-right"></i>
         </a>
     </div>
+    <div style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5">
+        v1.2 &nbsp;·&nbsp; © 2026 IT Dept WBL
+    </div>
 
 </div>
 

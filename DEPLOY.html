@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panduan Deploy — Mall Intelligence Center</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: .9rem; margin-bottom: 40px; }
+
+  h2 { font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 16px;
+       display: flex; align-items: center; gap: 8px; }
+  h2 .num { width: 28px; height: 28px; border-radius: 50%; background: #2563eb;
+             color: #fff; font-size: .8rem; display: flex; align-items: center;
+             justify-content: center; flex-shrink: 0; }
+
+  .card { background: #fff; border-radius: 12px; padding: 24px;
+          margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card.warning { border-left: 4px solid #f59e0b; background: #fffbeb; }
+  .card.success { border-left: 4px solid #10b981; background: #f0fdf4; }
+  .card.info    { border-left: 4px solid #3b82f6; background: #eff6ff; }
+
+  .step { display: flex; gap: 14px; margin-bottom: 18px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-num { width: 26px; height: 26px; border-radius: 50%; background: #e2e8f0;
+              color: #475569; font-size: .75rem; font-weight: 700;
+              display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .step-body { flex: 1; }
+  .step-title { font-weight: 600; font-size: .9rem; margin-bottom: 4px; }
+  .step-desc { font-size: .82rem; color: #64748b; line-height: 1.6; }
+
+  code, .cmd { display: block; background: #1e293b; color: #e2e8f0;
+               font-family: 'Consolas', 'Courier New', monospace;
+               font-size: .82rem; padding: 12px 16px; border-radius: 8px;
+               margin: 8px 0; white-space: pre; overflow-x: auto; }
+  .cmd .comment { color: #64748b; }
+  .cmd .highlight { color: #fbbf24; }
+  .inline-code { background: #f1f5f9; color: #0f172a; font-family: monospace;
+                 font-size: .82rem; padding: 1px 6px; border-radius: 4px; }
+
+  .badge { display: inline-block; font-size: .68rem; font-weight: 700;
+           padding: 2px 8px; border-radius: 20px; text-transform: uppercase;
+           letter-spacing: .04em; }
+  .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+  .badge-green  { background: #d1fae5; color: #065f46; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-red    { background: #fee2e2; color: #991b1b; }
+
+  .note { font-size: .8rem; color: #94a3b8; margin-top: 8px; }
+  .divider { border: none; border-top: 1px solid #e2e8f0; margin: 8px 0 16px; }
+  ul { padding-left: 18px; }
+  ul li { font-size: .85rem; color: #475569; margin-bottom: 4px; line-height: 1.6; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+  .label { font-size: .72rem; font-weight: 700; text-transform: uppercase;
+           letter-spacing: .06em; color: #94a3b8; margin-bottom: 6px; }
+  .tag-safe   { color: #10b981; font-weight: 700; }
+  .tag-danger { color: #ef4444; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>🚀 Panduan Deploy — Mall Intelligence Center</h1>
+  <p class="subtitle">Prosedur transfer kode via USB + update database ke server lokal tujuan</p>
+
+  <!-- PERINGATAN -->
+  <div class="card warning">
+    <h2 style="margin-bottom:10px"><span style="font-size:1.2rem">⚠️</span> Sebelum Mulai</h2>
+    <ul>
+      <li><strong>Data di server tujuan TIDAK akan hilang</strong> — Git hanya mengubah kode, bukan database.</li>
+      <li>Folder <span class="inline-code">public/uploads/</span> tidak disentuh sama sekali.</li>
+      <li>File <span class="inline-code">.env</span> di server tujuan tidak akan tertimpa.</li>
+      <li>Migration hanya <em>menambah</em> kolom/tabel, tidak menghapus data.</li>
+    </ul>
+  </div>
+
+  <!-- BAGIAN A: MESIN SUMBER -->
+  <h2><span class="num">A</span> Di Mesin Sumber (XAMPP Development)</h2>
+
+  <div class="card">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Commit semua perubahan terbaru</div>
+        <div class="step-desc">Buka <strong>Command Prompt</strong> atau <strong>Terminal</strong>, arahkan ke folder proyek:</div>
+        <code class="cmd">cd C:\xampp\htdocs\mall-intelligence-center</code>
+        <div class="step-desc" style="margin-top:8px">Cek apakah ada perubahan yang belum di-commit:</div>
+        <code class="cmd">git status</code>
+        <div class="step-desc" style="margin-top:8px">Kalau ada file yang berubah, commit sekarang:</div>
+        <code class="cmd">git add .
+git commit -m "Update sebelum deploy ke production"</code>
+        <div class="note">Kalau output git status sudah "nothing to commit", lewati langkah commit.</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Export database</div>
+        <div class="step-desc">Buka Command Prompt, jalankan:</div>
+        <code class="cmd">C:\xampp\mysql\bin\mysqldump -u root <span class="highlight">nama_database</span> > C:\export_mic.sql</code>
+        <div class="note">Ganti <span class="inline-code">nama_database</span> dengan nama DB yang ada di <span class="inline-code">.env</span> (cek nilai <span class="inline-code">database.default.database</span>).</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Copy ke USB</div>
+        <div class="step-desc">Salin dua hal ini ke USB:</div>
+        <ul style="margin-top:8px">
+          <li>Seluruh folder <span class="inline-code">mall-intelligence-center/</span></li>
+          <li>File <span class="inline-code">C:\export_mic.sql</span></li>
+        </ul>
+        <div class="note">
+          Yang <span class="tag-danger">TIDAK perlu</span> ikut disalin (boleh dihapus dari USB untuk menghemat ruang):
+          <span class="inline-code">vendor/</span>, <span class="inline-code">writable/cache/</span>, <span class="inline-code">writable/session/</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BAGIAN B: SERVER TUJUAN — PERTAMA KALI -->
+  <h2><span class="num">B</span> Di Server Tujuan — Jika Belum Ada Kode Sama Sekali</h2>
+
+  <div class="card info">
+    <div class="step-desc" style="margin-bottom:14px">Ikuti bagian ini hanya jika server tujuan <strong>belum pernah</strong> diisi kode MIC sebelumnya.</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Tancapkan USB, copy folder ke htdocs</div>
+        <code class="cmd">xcopy /E /I E:\mall-intelligence-center C:\xampp\htdocs\mall-intelligence-center</code>
+        <div class="note">Sesuaikan huruf drive USB (E:) jika berbeda.</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Install dependencies</div>
+        <code class="cmd">cd C:\xampp\htdocs\mall-intelligence-center
+php composer.phar install --no-dev</code>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Buat file .env</div>
+        <code class="cmd">copy env .env</code>
+        <div class="step-desc" style="margin-top:8px">Edit file <span class="inline-code">.env</span>, sesuaikan:</div>
+        <code class="cmd">CI_ENVIRONMENT = production
+app.baseURL = 'http://localhost/mall-intelligence-center/public/'
+
+database.default.hostname = localhost
+database.default.database = <span class="highlight">nama_database</span>
+database.default.username = root
+database.default.password =
+database.default.DBDriver = MySQLi</code>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Import database</div>
+        <div class="step-desc">Buat database dulu di phpMyAdmin, lalu import:</div>
+        <code class="cmd">C:\xampp\mysql\bin\mysql -u root <span class="highlight">nama_database</span> < E:\export_mic.sql</code>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Jalankan migration</div>
+        <code class="cmd">php spark migrate</code>
+        <div class="note">Untuk memastikan semua migration sudah jalan, terutama jika SQL export lebih lama dari kode.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BAGIAN C: SERVER TUJUAN — UPDATE -->
+  <h2><span class="num">C</span> Di Server Tujuan — Update Rutin (Sudah Ada Kode Sebelumnya)</h2>
+
+  <div class="card">
+    <div class="step-desc" style="margin-bottom:14px">Ini yang dilakukan setiap kali ada update dari development.</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Tancapkan USB</div>
+        <div class="step-desc">Pastikan folder <span class="inline-code">mall-intelligence-center/</span> dari USB sudah berisi commit terbaru (sudah dicommit di langkah A).</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Pull perubahan dari USB menggunakan Git</div>
+        <div class="step-desc">Buka Command Prompt di server tujuan, arahkan ke folder proyek:</div>
+        <code class="cmd">cd C:\xampp\htdocs\mall-intelligence-center</code>
+        <div class="step-desc" style="margin-top:8px">Tambahkan USB sebagai remote (hanya sekali, pertama kali saja):</div>
+        <code class="cmd">git remote add usb E:\mall-intelligence-center</code>
+        <div class="step-desc" style="margin-top:8px">Setiap update berikutnya, cukup jalankan:</div>
+        <code class="cmd">git pull usb main</code>
+        <div class="note">Ganti <span class="inline-code">E:</span> dengan huruf drive USB yang aktif. Kalau drive berubah, update dengan: <span class="inline-code">git remote set-url usb F:\mall-intelligence-center</span></div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Jalankan migration (jika ada)</div>
+        <code class="cmd">php spark migrate</code>
+        <div class="note">Aman dijalankan meski tidak ada migration baru — tidak akan mengubah data.</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Clear cache (opsional)</div>
+        <code class="cmd">php spark cache:clear</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- BAGIAN D: JIKA ADA UPLOAD BARU -->
+  <h2><span class="num">D</span> Kalau Ada File Upload Baru yang Perlu Dipindah</h2>
+
+  <div class="card warning">
+    <div class="step-desc" style="margin-bottom:12px">
+      File upload user (foto dokumentasi, bukti tanda terima, dll.) tidak ditrack Git.
+      Kalau ada file baru di development yang perlu ada di production, salin manual:
+    </div>
+    <code class="cmd"><span class="comment"># Copy folder uploads dari development ke USB</span>
+xcopy /E /I C:\xampp\htdocs\mall-intelligence-center\public\uploads E:\uploads_mic
+
+<span class="comment"># Di server tujuan, merge ke folder uploads production</span>
+xcopy /E E:\uploads_mic C:\xampp\htdocs\mall-intelligence-center\public\uploads</code>
+    <div class="note">Gunakan flag <span class="inline-code">/Y</span> jika ingin skip konfirmasi overwrite.</div>
+  </div>
+
+  <!-- RINGKASAN -->
+  <div class="card success">
+    <h2 style="margin-bottom:14px"><span style="font-size:1.1rem">✅</span> Ringkasan Perintah Update Rutin</h2>
+    <div class="label">Di server tujuan — setiap ada update</div>
+    <code class="cmd">cd C:\xampp\htdocs\mall-intelligence-center
+git pull usb main
+php spark migrate</code>
+    <div class="note" style="margin-top:4px">Tiga baris ini sudah cukup untuk update rutin.</div>
+  </div>
+
+  <p class="note" style="text-align:center; margin-top:32px">Mall Intelligence Center — PT. Wulandari Bangun Laksana Tbk. · IT Department</p>
+
+</div>
+</body>
+</html>
