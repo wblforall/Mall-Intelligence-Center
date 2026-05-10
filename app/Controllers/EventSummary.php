@@ -347,6 +347,7 @@ class EventSummary extends BaseController
             'chartPenta'            => $chartPenta,
             'chartMobil'            => $chartMobil,
             'chartMotor'            => $chartMotor,
+            'eventLocations'        => (new EventLocationModel())->getEventLocations($eventId),
         ]);
     }
 

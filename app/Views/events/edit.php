@@ -66,14 +66,6 @@
         <?php endif; ?>
     </div>
 
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Status</label>
-        <select name="status" class="form-select">
-            <?php foreach (['draft','active','completed'] as $s): ?>
-            <option value="<?= $s ?>" <?= $event['status'] === $s ? 'selected' : '' ?>><?= ucfirst($s) ?></option>
-            <?php endforeach; ?>
-        </select>
-    </div>
     <div class="d-flex gap-2 mt-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Simpan</button>
         <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="btn btn-outline-secondary">Batal</a>

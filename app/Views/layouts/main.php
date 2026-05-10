@@ -57,7 +57,8 @@ body { min-height: 100vh; }
 [aria-expanded="true"] #loyaltyChevron { transform: rotate(-180deg); }
 [aria-expanded="true"] #creativeChevron{ transform: rotate(-180deg); }
 [aria-expanded="true"] #vmChevron      { transform: rotate(-180deg); }
-#eventsChevron, #loyaltyChevron, #creativeChevron, #vmChevron { transition: transform .2s; }
+[aria-expanded="true"] #sponsorChevron { transform: rotate(-180deg); }
+#eventsChevron, #loyaltyChevron, #creativeChevron, #vmChevron, #sponsorChevron { transition: transform .2s; }
 </style>
 <?= $this->renderSection('styles') ?>
 </head>
@@ -94,13 +95,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('events') ?>" class="nav-link <?= str_starts_with(uri_string(), 'events') && !isset($event) && ! str_starts_with(uri_string(), 'events/monthly-summary') ? 'active' : '' ?>"
            data-bs-toggle="collapse" data-bs-target="#eventsSubmenu" aria-expanded="<?= $_eventsOpen ? 'true' : 'false' ?>">
             <i class="bi bi-calendar-event-fill"></i> Events
-            <?php
-            try {
-                $_allEvts = (new \App\Models\EventModel())->findAll();
-                $_wc = count(array_filter($_allEvts, fn($e) => $e['status'] === 'waiting_data'));
-                if ($_wc > 0) echo '<span class="badge bg-warning text-dark ms-1 rounded-pill" style="font-size:.65rem">' . $_wc . '</span>';
-            } catch (\Exception $_e) {}
-            ?>
+            <?php if (!empty($_waitingDataCount)): ?>
+            <span class="badge bg-warning text-dark ms-1 rounded-pill" style="font-size:.65rem"><?= $_waitingDataCount ?></span>
+            <?php endif; ?>
             <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="eventsChevron"></i>
         </a>
         <div class="collapse <?= $_eventsOpen ? 'show' : '' ?>" id="eventsSubmenu">
@@ -119,7 +116,7 @@ body { min-height: 100vh; }
         if ($_canSeeLoyalty):
             $_loyaltyOpen = str_starts_with(uri_string(), 'loyalty');
         ?>
-        <a href="<?= base_url('loyalty') ?>" class="nav-link <?= uri_string() === 'loyalty' ? 'active' : '' ?>"
+        <a href="<?= base_url('loyalty') ?>" class="nav-link"
            data-bs-toggle="collapse" data-bs-target="#loyaltySubmenu" aria-expanded="<?= $_loyaltyOpen ? 'true' : 'false' ?>">
             <i class="bi bi-star-fill"></i> Program Loyalty
             <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="loyaltyChevron"></i>
@@ -135,13 +132,35 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
+        $_deptMenusSp = session()->get('dept_menus');
+        $_canSeeSponsor = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
+            || $_deptMenusSp === null || ($_deptMenusSp['sponsorship_main']['can_view'] ?? false);
+        if ($_canSeeSponsor):
+            $_sponsorOpen = str_starts_with(uri_string(), 'sponsorship');
+        ?>
+        <a href="<?= base_url('sponsorship') ?>" class="nav-link"
+           data-bs-toggle="collapse" data-bs-target="#sponsorSubmenu" aria-expanded="<?= $_sponsorOpen ? 'true' : 'false' ?>">
+            <i class="bi bi-trophy-fill"></i> Sponsorship
+            <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="sponsorChevron"></i>
+        </a>
+        <div class="collapse <?= $_sponsorOpen ? 'show' : '' ?>" id="sponsorSubmenu">
+            <a href="<?= base_url('sponsorship') ?>" class="nav-link <?= uri_string() === 'sponsorship' ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+                <i class="bi bi-list-ul"></i> Semua Program
+            </a>
+            <a href="<?= base_url('sponsorship/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'sponsorship/summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+                <i class="bi bi-bar-chart-line"></i> Summary Bulanan
+            </a>
+        </div>
+        <?php endif; ?>
+
+        <?php
         $_creativeMainOpen = str_starts_with(uri_string(), 'creative') && !isset($event);
         $_deptMenusC = session()->get('dept_menus');
         $_canSeeCreativeMain = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
             || $_deptMenusC === null || ($_deptMenusC['creative_main']['can_view'] ?? false);
         if ($_canSeeCreativeMain):
         ?>
-        <a href="<?= base_url('creative') ?>" class="nav-link <?= uri_string() === 'creative' ? 'active' : '' ?>"
+        <a href="<?= base_url('creative') ?>" class="nav-link"
            data-bs-toggle="collapse" data-bs-target="#creativeSubmenu" aria-expanded="<?= $_creativeMainOpen ? 'true' : 'false' ?>">
             <i class="bi bi-vector-pen"></i> Creative &amp; Design
             <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="creativeChevron"></i>
@@ -163,7 +182,7 @@ body { min-height: 100vh; }
         $_vmOpen = str_starts_with(uri_string(), 'vm') && ! isset($event);
         if ($canSeeVM):
         ?>
-        <a href="<?= base_url('vm') ?>" class="nav-link <?= uri_string() === 'vm' ? 'active' : '' ?>"
+        <a href="<?= base_url('vm') ?>" class="nav-link"
            data-bs-toggle="collapse" data-bs-target="#vmSubmenu" aria-expanded="<?= $_vmOpen ? 'true' : 'false' ?>">
             <i class="bi bi-palette-fill"></i> Dekorasi &amp; VM
             <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="vmChevron"></i>
@@ -267,6 +286,32 @@ body { min-height: 100vh; }
         </div>
         <?php endif; ?>
 
+        <div class="nav-label">People Development</div>
+        <a href="<?= base_url('people/dashboard') ?>" class="nav-link <?= uri_string() === 'people/dashboard' ? 'active' : '' ?>">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+        <a href="<?= base_url('people/employees') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/employees') ? 'active' : '' ?>">
+            <i class="bi bi-person-vcard-fill"></i> Data Karyawan
+        </a>
+        <a href="<?= base_url('people/competencies') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/competencies') ? 'active' : '' ?>">
+            <i class="bi bi-diagram-2-fill"></i> Competency Framework
+        </a>
+        <a href="<?= base_url('people/training') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/training') && !str_starts_with(uri_string(), 'people/training/budget') ? 'active' : '' ?>">
+            <i class="bi bi-mortarboard-fill"></i> Program Training
+        </a>
+        <a href="<?= base_url('people/training/budget') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/training/budget') ? 'active' : '' ?>">
+            <i class="bi bi-wallet2"></i> Budget Training
+        </a>
+        <a href="<?= base_url('people/tna') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/tna') ? 'active' : '' ?>">
+            <i class="bi bi-clipboard2-pulse-fill"></i> TNA Assessment
+        </a>
+        <a href="<?= base_url('people/eei') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/eei') ? 'active' : '' ?>">
+            <i class="bi bi-heart-pulse-fill"></i> EEI Survey
+        </a>
+        <a href="<?= base_url('people/orgchart') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/orgchart') ? 'active' : '' ?>">
+            <i class="bi bi-diagram-3-fill"></i> Struktur Organisasi
+        </a>
+
         <?php if (session()->get('role_perms')['can_view_logs'] ?? session()->get('role_is_admin') || session()->get('user_role') === 'admin'): ?>
         <div class="nav-label">System</div>
         <a href="<?= base_url('logs') ?>" class="nav-link <?= str_starts_with(uri_string(), 'logs') ? 'active' : '' ?>">
@@ -278,6 +323,15 @@ body { min-height: 100vh; }
         <div class="nav-label">Admin</div>
         <a href="<?= base_url('departments') ?>" class="nav-link <?= str_starts_with(uri_string(), 'departments') ? 'active' : '' ?>">
             <i class="bi bi-diagram-3-fill"></i> Departemen
+        </a>
+        <a href="<?= base_url('divisions') ?>" class="nav-link <?= str_starts_with(uri_string(), 'divisions') ? 'active' : '' ?>">
+            <i class="bi bi-layers-fill"></i> Divisi
+        </a>
+        <a href="<?= base_url('admin/clusters') ?>" class="nav-link <?= str_starts_with(uri_string(), 'admin/clusters') ? 'active' : '' ?>">
+            <i class="bi bi-collection-fill"></i> Cluster Kompetensi
+        </a>
+        <a href="<?= base_url('jabatans') ?>" class="nav-link <?= str_starts_with(uri_string(), 'jabatans') ? 'active' : '' ?>">
+            <i class="bi bi-person-badge-fill"></i> Master Jabatan
         </a>
         <a href="<?= base_url('users') ?>" class="nav-link <?= str_starts_with(uri_string(), 'users') ? 'active' : '' ?>">
             <i class="bi bi-people-fill"></i> Users
@@ -310,7 +364,7 @@ body { min-height: 100vh; }
         </a>
     </div>
     <div style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5">
-        v1.2 &nbsp;·&nbsp; © 2026 IT Dept WBL
+        v1.3 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
 </div>
@@ -385,6 +439,18 @@ body { min-height: 100vh; }
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Persist sidebar scroll position across page loads
+(function() {
+    const nav = document.querySelector('.sidebar .nav-section');
+    if (!nav) return;
+    const saved = sessionStorage.getItem('sidebarScroll');
+    if (saved) nav.scrollTop = parseInt(saved);
+    nav.addEventListener('scroll', function() {
+        sessionStorage.setItem('sidebarScroll', this.scrollTop);
+    }, { passive: true });
+})();
+</script>
 <script>
 if (typeof Chart !== 'undefined') {
     const _dark = document.documentElement.getAttribute('data-theme') === 'dark';

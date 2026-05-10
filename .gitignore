@@ -45,3 +45,9 @@ DEVELOPMENT_ROADMAP.html
 
 # Logs
 *.log
+
+# Claude Code internal settings
+.claude/
+
+# Database dumps
+*.sql

@@ -49,6 +49,13 @@ abstract class BaseController extends Controller
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
     {
         parent::initController($request, $response, $logger);
+
+        if (session()->has('user_id')) {
+            $wc = db_connect()->table('events')
+                ->where('status', 'waiting_data')
+                ->countAllResults();
+            \CodeIgniter\Config\Services::renderer()->setData(['_waitingDataCount' => $wc], 'raw');
+        }
     }
 
     protected function currentUser(): array

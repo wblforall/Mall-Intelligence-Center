@@ -109,7 +109,6 @@ class Events extends BaseController
             'mall'       => 'required',
             'start_date' => 'required|valid_date',
             'end_date'   => 'required|valid_date',
-            'status'     => 'required|in_list[draft,active,completed]',
         ];
 
         if (! $this->validate($rules)) {
@@ -126,14 +125,13 @@ class Events extends BaseController
             'mall'       => $this->request->getPost('mall'),
             'start_date' => $startDate,
             'event_days' => $eventDays,
-            'status'     => $this->request->getPost('status'),
         ]);
         $locationIds = array_filter(array_map('intval', (array)($this->request->getPost('location_ids') ?? [])));
         (new EventLocationModel())->syncEventLocations($id, $locationIds);
 
         ActivityLog::write('update', 'event', (string)$id, $this->request->getPost('name'), [
-            'before' => ['name' => $event['name'], 'status' => $event['status'], 'mall' => $event['mall']],
-            'after'  => ['name' => $this->request->getPost('name'), 'status' => $this->request->getPost('status'), 'mall' => $this->request->getPost('mall')],
+            'before' => ['name' => $event['name'], 'mall' => $event['mall']],
+            'after'  => ['name' => $this->request->getPost('name'), 'mall' => $this->request->getPost('mall')],
         ]);
         return redirect()->to("/events/{$id}/summary")->with('success', 'Event berhasil diperbarui.');
     }

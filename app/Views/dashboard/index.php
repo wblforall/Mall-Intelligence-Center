@@ -22,6 +22,9 @@
 .event-row { transition: background .15s; }
 .event-row:hover { background: rgba(99,102,241,.07); }
 
+/* ── Eco news hover ── */
+.eco-news-item:hover .text-body { color: var(--bs-primary) !important; }
+
 /* ── Traffic card bar ── */
 .traffic-bar {
     height: 4px;
@@ -31,6 +34,18 @@
     transition: transform .8s cubic-bezier(.22,.68,0,1.1);
 }
 .traffic-bar.animate { transform: scaleX(1); }
+
+/* ── News skeleton shimmer ── */
+@keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+}
+.news-skel {
+    background: linear-gradient(90deg, var(--bs-secondary-bg) 25%, var(--bs-tertiary-bg) 50%, var(--bs-secondary-bg) 75%);
+    background-size: 800px 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+    border-radius: 4px;
+}
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -194,8 +209,456 @@ foreach ($trafficMalls as $mall => $cfg):
 
 </div>
 
+<!-- ══ Economic Snapshot ═══════════════════════════════════════════════════ -->
+<?php
+$eco = $economicData;
+function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); }
+?>
+<div class="card mb-4 fade-up" style="animation-delay:.52s">
+<div class="card-header d-flex align-items-center justify-content-between py-2">
+    <div class="fw-semibold small">
+        <i class="bi bi-graph-up-arrow me-2 text-primary"></i>Kondisi Ekonomi
+    </div>
+    <span class="text-muted small" id="ecoRefreshedAt"></span>
+</div>
+<div class="card-body">
+<div class="row g-4">
+
+<!-- Col 1: Kurs Valuta (live) + Indikator Makro -->
+<div class="col-12 col-md-4">
+
+    <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
+        <i class="bi bi-currency-exchange me-1"></i>Kurs Valuta
+        <span class="badge bg-success-subtle text-success border ms-1" style="font-size:.58rem;vertical-align:middle">LIVE</span>
+    </div>
+
+    <div id="kursLoading" class="text-muted small mb-3 d-flex align-items-center gap-2">
+        <span class="spinner-border spinner-border-sm"></span>Memuat kurs...
+    </div>
+    <table id="kursTable" class="table table-sm mb-3" style="display:none;font-size:.82rem">
+    <tbody>
+        <tr><td class="text-muted pe-2">🇺🇸 USD/IDR</td><td id="k-usd" class="fw-bold text-end"></td><td id="k-usd-chg" class="text-end" style="font-size:.72rem;min-width:52px"></td></tr>
+        <tr><td class="text-muted pe-2">🇪🇺 EUR/IDR</td><td id="k-eur" class="fw-bold text-end"></td><td id="k-eur-chg" class="text-end" style="font-size:.72rem"></td></tr>
+        <tr><td class="text-muted pe-2">🇸🇬 SGD/IDR</td><td id="k-sgd" class="fw-bold text-end"></td><td id="k-sgd-chg" class="text-end" style="font-size:.72rem"></td></tr>
+        <tr><td class="text-muted pe-2">🇯🇵 JPY/IDR</td><td id="k-jpy" class="fw-bold text-end"></td><td id="k-jpy-chg" class="text-end" style="font-size:.72rem"></td></tr>
+    </tbody>
+    </table>
+    <div id="kursError" class="text-danger small mb-3" style="display:none">
+        <i class="bi bi-exclamation-circle me-1"></i>Gagal memuat kurs.
+    </div>
+
+    <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
+        <i class="bi bi-bank me-1"></i>Indikator Makro
+    </div>
+    <div class="d-flex flex-column gap-2">
+        <?php
+        $indicators = [
+            ['label' => 'BI Rate (7-Day RRR)',      'key' => 'bi_rate',   'color' => 'text-primary'],
+            ['label' => 'Inflasi YoY',              'key' => 'inflation', 'color' => 'text-info'],
+            ['label' => 'Pertumbuhan Ekonomi 🇮🇩',  'key' => 'gdp',       'color' => 'text-success'],
+            ['label' => 'PDRB Balikpapan 🏙️',       'key' => 'gdp_bpn',  'color' => 'text-success'],
+        ];
+        foreach ($indicators as $ind):
+            $d = $eco[$ind['key']];
+        ?>
+        <div class="d-flex align-items-center justify-content-between rounded border px-3 py-2" style="background:var(--bs-tertiary-bg)">
+            <div>
+                <div style="font-size:.7rem" class="text-muted d-flex align-items-center gap-1">
+                    <?= $ind['label'] ?>
+                    <?php if (! empty($d['live'])): ?>
+                    <span class="badge bg-success-subtle text-success border" style="font-size:.55rem">LIVE</span>
+                    <?php endif; ?>
+                </div>
+                <div class="fw-bold <?= $ind['color'] ?>" style="font-size:1.1rem"><?= $d['pct'] ?>%</div>
+            </div>
+            <div class="text-end text-muted" style="font-size:.68rem"><?= esc($d['per']) ?></div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+</div>
+
+<!-- Col 2: Harga BBM -->
+<div class="col-12 col-md-3">
+    <div class="small fw-semibold text-muted text-uppercase mb-2 d-flex align-items-center justify-content-between" style="letter-spacing:.05em">
+        <span><i class="bi bi-fuel-pump me-1"></i>Harga BBM Pertamina</span>
+        <?php if ($user['role'] === 'admin'): ?>
+        <button class="btn btn-outline-secondary border-0 p-0 px-1" style="font-size:.7rem"
+                data-bs-toggle="modal" data-bs-target="#bbmModal" title="Update harga BBM">
+            <i class="bi bi-pencil-square"></i>
+        </button>
+        <?php endif; ?>
+    </div>
+
+    <div class="d-flex flex-column gap-1 mb-2">
+    <?php foreach ($eco['bbm'] as $b): ?>
+    <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1" style="font-size:.8rem;background:var(--bs-tertiary-bg)">
+        <div>
+            <span><?= esc($b['nama']) ?></span>
+            <?php if ($b['subsidi']): ?>
+            <span class="badge bg-warning-subtle text-warning border ms-1" style="font-size:.6rem">PSO</span>
+            <?php endif; ?>
+        </div>
+        <span class="fw-bold ms-2 text-nowrap"><?= fmtRp($b['harga']) ?></span>
+    </div>
+    <?php endforeach; ?>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mb-3" style="font-size:.68rem">
+        <span class="text-muted"><i class="bi bi-info-circle me-1"></i>per <?= esc($eco['bbm_per']) ?> · harga per liter</span>
+        <a href="https://pertaminapatraniaga.com/page/harga-terbaru-bbm" target="_blank" rel="noopener"
+           class="text-primary text-decoration-none" title="Cek harga terbaru di Pertamina Patra Niaga">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Cek terbaru
+        </a>
+    </div>
+
+    <div id="bbmNewsSection">
+    <?php if (! empty($bbmNews)): ?>
+    <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
+        <i class="bi bi-newspaper me-1"></i>Berita BBM Terkini
+    </div>
+    <div class="d-flex flex-column gap-1">
+    <?php foreach ($bbmNews as $bn): ?>
+    <a href="<?= esc($bn['link']) ?>" target="_blank" rel="noopener"
+       class="text-decoration-none border rounded px-2 py-1 eco-news-item" style="background:var(--bs-tertiary-bg)">
+        <div class="text-body" style="font-size:.75rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">
+            <?= esc($bn['title']) ?>
+        </div>
+        <?php if ($bn['date_fmt']): ?>
+        <div class="text-muted mt-1" style="font-size:.65rem">
+            <i class="bi bi-clock me-1"></i>
+            <?php if ($bn['age_min'] !== null && $bn['age_min'] < 60): ?>
+                <?= $bn['age_min'] ?> mnt lalu
+            <?php elseif ($bn['age_min'] !== null && $bn['age_min'] < 1440): ?>
+                <?= floor($bn['age_min'] / 60) ?> jam lalu
+            <?php else: ?>
+                <?= $bn['date_fmt'] ?>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+    </a>
+    <?php endforeach; ?>
+    </div>
+    <?php else: ?>
+    <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
+        <i class="bi bi-lightning-charge me-1"></i>Dampak BBM ke Mall
+    </div>
+    <div class="d-flex flex-column gap-1" style="font-size:.78rem">
+        <div class="d-flex gap-2 align-items-start">
+            <span class="text-warning">⚡</span>
+            <span class="text-muted">Logistik tenant naik → tekanan harga jual</span>
+        </div>
+        <div class="d-flex gap-2 align-items-start">
+            <span class="text-primary">🚗</span>
+            <span class="text-muted">Mobilitas pengunjung naik → potensi turun traffic</span>
+        </div>
+        <div class="d-flex gap-2 align-items-start">
+            <span class="text-success">🏪</span>
+            <span class="text-muted">Operasional mall sensitif terhadap harga solar</span>
+        </div>
+    </div>
+    <?php endif; ?>
+    </div>
+</div>
+
+<!-- Col 3: Berita (tabbed) -->
+<div class="col-12 col-md-5">
+    <ul class="nav nav-tabs nav-tabs-sm border-bottom mb-2" style="font-size:.78rem" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active px-2 py-1" data-bs-toggle="tab" data-bs-target="#tabEkoNas">
+                <i class="bi bi-globe me-1"></i>Ekonomi Nasional
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link px-2 py-1" data-bs-toggle="tab" data-bs-target="#tabBpn">
+                🏙️ Balikpapan
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="tabEkoNas">
+            <div class="text-muted mb-2" style="font-size:.65rem">
+                <i class="bi bi-arrow-clockwise me-1"></i>diperbarui tiap pagi
+                · CNBC · CNN · Detik Finance · ANTARA
+            </div>
+            <div id="newsEkoContent" class="d-flex flex-column gap-2">
+                <div class="news-skel" style="height:36px"></div>
+                <div class="news-skel" style="height:36px"></div>
+                <div class="news-skel" style="height:36px"></div>
+                <div class="news-skel" style="height:36px"></div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="tabBpn">
+            <div class="text-muted mb-2" style="font-size:.65rem">
+                <i class="bi bi-arrow-clockwise me-1"></i>diperbarui tiap pagi
+                · IniBalikpapan · Tribun Kaltim
+            </div>
+            <div id="newsBpnContent" class="d-flex flex-column gap-2">
+                <div class="news-skel" style="height:36px"></div>
+                <div class="news-skel" style="height:36px"></div>
+                <div class="news-skel" style="height:36px"></div>
+                <div class="news-skel" style="height:36px"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /row -->
+
+<!-- ── Insight Ekonomi ──────────────────────────────────────────────────── -->
+<?php
+$bi   = $eco['bi_rate'];
+$infl = $eco['inflation'];
+$gdp  = $eco['gdp'];
+$gpbn = $eco['gdp_bpn'];
+
+$biNum   = (float)str_replace(',', '.', $bi['pct']);
+$inflNum = (float)str_replace(',', '.', $infl['pct']);
+$gdpNum  = (float)str_replace(',', '.', $gdp['pct']);
+$gpbnNum = (float)str_replace(',', '.', $gpbn['pct']);
+
+// Ekstrak harga BBM dari database
+$bbmMap = [];
+foreach ($eco['bbm'] as $b) {
+    $key = mb_strtolower(preg_replace('/\s+/', '_', $b['nama']));
+    $bbmMap[$key] = $b['harga'];
+}
+$hrgDexlite   = $bbmMap['dexlite']          ?? 0;   // non-subsidi solar, patokan logistik
+$hrgDex       = $bbmMap['pertamina_dex']    ?? 0;
+$hrgPertalite = $bbmMap['pertalite_ron_90'] ?? 0;   // subsidi, patokan mobilitas rakyat
+$hrgPertamax  = $bbmMap['pertamax_ron_92']  ?? 0;
+
+// Sinyal gabungan
+$logistikBerat  = $hrgDexlite > 20000;  // solar non-subsidi sangat mahal → tekanan supply chain
+$mobilityOk     = $hrgPertalite <= 10500; // Pertalite stabil → daya beli transportasi terjaga
+$cicilanMurah   = $biNum < 5.5;
+$dayaBeliOk     = $inflNum < 3 && $mobilityOk;
+$ekonomiTumbuh  = $gdpNum > 5 && $gpbnNum > 5;
+
+// Scoring per sektor — kombinasi BBM + makro
+$sectors = [
+    [
+        'nama'  => 'F&B / Kuliner',
+        'trend' => $logistikBerat ? 'down' : ($dayaBeliOk ? 'up' : 'flat'),
+        'reason'=> $logistikBerat
+            ? 'Dexlite Rp ' . number_format($hrgDexlite,0,',','.') . '/L → biaya distribusi bahan baku naik signifikan'
+            : ($dayaBeliOk ? 'Inflasi rendah & Pertalite stabil jaga daya beli konsumen' : 'Tekanan inflasi kurangi frekuensi makan di luar'),
+    ],
+    [
+        'nama'  => 'Fashion & Lifestyle',
+        'trend' => $dayaBeliOk && $gdpNum > 5 ? 'up' : ($logistikBerat ? 'flat' : 'flat'),
+        'reason'=> $dayaBeliOk && $gdpNum > 5
+            ? 'Ekonomi tumbuh ' . $gdp['pct'] . '%, daya beli terjaga → belanja non-primer naik'
+            : 'Biaya logistik tinggi tekan margin tenant fashion',
+    ],
+    [
+        'nama'  => 'Elektronik & Gadget',
+        'trend' => $cicilanMurah && ! $logistikBerat ? 'up' : ($cicilanMurah ? 'flat' : 'down'),
+        'reason'=> $cicilanMurah
+            ? 'BI Rate ' . $bi['pct'] . '% permudah cicilan; ' . ($logistikBerat ? 'namun logistik impor tertekan BBM' : 'logistik relatif aman')
+            : 'Suku bunga tinggi rem pembelian barang mahal',
+    ],
+    [
+        'nama'  => 'Properti & Dekorasi',
+        'trend' => $cicilanMurah ? 'up' : 'down',
+        'reason'=> $cicilanMurah
+            ? 'BI Rate ' . $bi['pct'] . '% dorong KPR & renovasi; efek IKN perkuat demand di Balikpapan'
+            : 'Suku bunga tinggi hambat kredit properti & renovasi',
+    ],
+    [
+        'nama'  => 'Jasa & Hiburan',
+        'trend' => $gpbnNum > 6 && $mobilityOk ? 'up' : 'flat',
+        'reason'=> $gpbnNum > 6 && $mobilityOk
+            ? 'PDRB Balikpapan ' . $gpbn['pct'] . '% + Pertalite stabil → mobilitas pengunjung terjaga'
+            : 'Pertumbuhan lokal moderat atau biaya mobilitas mulai terasa',
+    ],
+    [
+        'nama'  => 'Logistik & Distribusi',
+        'trend' => $logistikBerat ? 'down' : 'flat',
+        'reason'=> $logistikBerat
+            ? 'Dexlite Rp ' . number_format($hrgDexlite,0,',','.') . ' & Pertamina Dex Rp ' . number_format($hrgDex,0,',','.') . '/L — tekanan besar pada armada truk & kapal'
+            : 'Harga solar non-subsidi dalam batas wajar',
+    ],
+    [
+        'nama'  => 'Otomotif & Aksesori',
+        'trend' => $cicilanMurah && $ekonomiTumbuh ? 'up' : ($logistikBerat ? 'flat' : 'flat'),
+        'reason'=> $cicilanMurah && $ekonomiTumbuh
+            ? 'Cicilan murah + IKN dorong demand kendaraan; meski BBM non-subsidi mahal'
+            : 'Harga BBM non-subsidi tinggi kurangi minat kendaraan diesel',
+    ],
+];
+
+$upSectors   = array_filter($sectors, fn($s) => $s['trend'] === 'up');
+$downSectors = array_filter($sectors, fn($s) => $s['trend'] === 'down');
+$flatSectors = array_filter($sectors, fn($s) => $s['trend'] === 'flat');
+?>
+<div class="border-top pt-3 mt-1">
+    <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
+        <i class="bi bi-lightbulb me-1 text-warning"></i>Insight Ekonomi
+        <span class="fw-normal text-lowercase ms-1" style="font-size:.65rem">berdasarkan indikator saat ini</span>
+    </div>
+    <div class="row g-2">
+        <?php if (! empty($upSectors)): ?>
+        <div class="col-12 col-sm-4">
+            <div class="rounded border px-2 py-2" style="background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.3)!important">
+                <div class="small fw-semibold text-success mb-1"><i class="bi bi-arrow-up-circle-fill me-1"></i>Menguat</div>
+                <?php foreach ($upSectors as $s): ?>
+                <div class="mb-1">
+                    <div style="font-size:.78rem" class="fw-semibold"><?= $s['nama'] ?></div>
+                    <div style="font-size:.68rem" class="text-muted"><?= $s['reason'] ?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        <?php if (! empty($downSectors)): ?>
+        <div class="col-12 col-sm-4">
+            <div class="rounded border px-2 py-2" style="background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.3)!important">
+                <div class="small fw-semibold text-danger mb-1"><i class="bi bi-arrow-down-circle-fill me-1"></i>Melemah</div>
+                <?php foreach ($downSectors as $s): ?>
+                <div class="mb-1">
+                    <div style="font-size:.78rem" class="fw-semibold"><?= $s['nama'] ?></div>
+                    <div style="font-size:.68rem" class="text-muted"><?= $s['reason'] ?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        <?php if (! empty($flatSectors)): ?>
+        <div class="col-12 col-sm-4">
+            <div class="rounded border px-2 py-2" style="background:var(--bs-tertiary-bg)">
+                <div class="small fw-semibold text-muted mb-1"><i class="bi bi-dash-circle me-1"></i>Stabil</div>
+                <?php foreach ($flatSectors as $s): ?>
+                <div class="mb-1">
+                    <div style="font-size:.78rem" class="fw-semibold"><?= $s['nama'] ?></div>
+                    <div style="font-size:.68rem" class="text-muted"><?= $s['reason'] ?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- ── Daya Beli & Segmen ───────────────────────────────────────────────── -->
+<?php
+// Tentukan status tiap segmen berdasarkan indikator
+// Segmen Bawah: pakai Pertalite, sensitif harga sembako
+$segBawahStatus = ($mobilityOk && $inflNum < 3) ? 'terjaga'
+    : (($inflNum > 4 || $hrgPertalite > 10500) ? 'tertekan' : 'waspada');
+
+// Segmen Menengah: pakai Pertamax, punya cicilan, belanja di mall
+$segMenengahStatus = ($cicilanMurah && $inflNum < 3 && $hrgPertamax < 14000) ? 'membaik'
+    : ($logistikBerat && $inflNum > 3 ? 'tertekan' : 'terjaga');
+
+// Segmen Atas: pakai Pertamax Turbo, investasi properti, less price-sensitive
+$segAtasStatus = $cicilanMurah ? 'membaik' : 'terjaga';
+
+// UMKM & Logistik: pakai Dexlite/Solar, sangat terdampak kenaikan BBM non-subsidi
+$segUmkmStatus = $logistikBerat ? 'tertekan' : 'terjaga';
+
+$statusCfg = [
+    'membaik'  => ['color' => 'success', 'icon' => 'bi-arrow-up-circle-fill',   'label' => 'Membaik'],
+    'terjaga'  => ['color' => 'primary', 'icon' => 'bi-shield-check-fill',      'label' => 'Terjaga'],
+    'waspada'  => ['color' => 'warning', 'icon' => 'bi-exclamation-triangle-fill','label'=> 'Waspada'],
+    'tertekan' => ['color' => 'danger',  'icon' => 'bi-arrow-down-circle-fill', 'label' => 'Tertekan'],
+];
+
+$segments = [
+    [
+        'nama'   => 'Kelas Bawah',
+        'desc'   => 'Pekerja harian, buruh, pengguna angkutan umum',
+        'bbm'    => 'Pertalite Rp ' . number_format($hrgPertalite,0,',','.'),
+        'status' => $segBawahStatus,
+        'poin'   => [
+            $mobilityOk ? '✔ Transportasi: Pertalite stabil, biaya mobilitas ke mall tidak naik' : '✘ Pertalite naik, mobilitas terbebani',
+            $inflNum < 3 ? '✔ Inflasi ' . $infl['pct'] . '% — harga kebutuhan pokok masih terkendali' : '✘ Inflasi tinggi gerus daya beli',
+            $logistikBerat ? '⚠ Harga barang di warung/pasar berpotensi naik imbas Dexlite mahal' : '✔ Rantai pasok relatif stabil',
+        ],
+        'spend'  => 'F&B murah, fashion entry-level, kebutuhan sehari-hari',
+    ],
+    [
+        'nama'   => 'Kelas Menengah',
+        'desc'   => 'Karyawan swasta/PNS, pengguna Pertamax, punya cicilan',
+        'bbm'    => 'Pertamax Rp ' . number_format($hrgPertamax,0,',','.'),
+        'status' => $segMenengahStatus,
+        'poin'   => [
+            $hrgPertamax < 14000 ? '✔ Pertamax Rp ' . number_format($hrgPertamax,0,',','.') . ' — beban BBM relatif ringan' : '⚠ Pertamax cukup mahal',
+            $cicilanMurah ? '✔ BI Rate ' . $bi['pct'] . '% — cicilan KPR & kredit lebih ringan' : '⚠ Suku bunga tinggi bebani cicilan',
+            $logistikBerat ? '⚠ Harga barang kebutuhan naik imbas biaya distribusi' : '✔ Rantai pasok terjaga',
+            $gdpNum > 5 ? '✔ Ekonomi tumbuh ' . $gdp['pct'] . '% — income relatif terjaga' : '',
+        ],
+        'spend'  => 'F&B mid-range, fashion branded, elektronik cicilan, bioskop',
+    ],
+    [
+        'nama'   => 'Kelas Atas',
+        'desc'   => 'Eksekutif, pengusaha, pekerja migas/IKN, investor',
+        'bbm'    => 'Pertamax Turbo Rp ' . number_format($hrgPertamax > 0 ? ($bbmMap['pertamax_turbo'] ?? 19900) : 19900, 0, ',', '.'),
+        'status' => $segAtasStatus,
+        'poin'   => [
+            '⚠ Pertamax Turbo Rp ' . number_format($bbmMap['pertamax_turbo'] ?? 19900,0,',','.') . ' — naik, tapi proporsi ke pengeluaran kecil',
+            $cicilanMurah ? '✔ BI Rate rendah — investasi properti & bisnis makin menarik' : '⚠ Suku bunga tinggi rem investasi',
+            $gpbnNum > 6 ? '✔ PDRB Balikpapan ' . $gpbn['pct'] . '% — aktivitas bisnis lokal bergairah' : '',
+            '✔ Efek IKN Nusantara perkuat aktivitas ekonomi di Balikpapan',
+        ],
+        'spend'  => 'Fine dining, lifestyle, elektronik premium, properti & dekorasi',
+    ],
+    [
+        'nama'   => 'UMKM & Pelaku Usaha',
+        'desc'   => 'Tenant mall, pedagang, pengusaha distribusi & logistik',
+        'bbm'    => 'Dexlite Rp ' . number_format($hrgDexlite,0,',','.'),
+        'status' => $segUmkmStatus,
+        'poin'   => [
+            $logistikBerat ? '✘ Dexlite Rp ' . number_format($hrgDexlite,0,',','.') . ' & Pertamina Dex Rp ' . number_format($hrgDex,0,',','.') . ' — biaya armada naik drastis' : '✔ Harga solar non-subsidi dalam batas wajar',
+            $logistikBerat ? '⚠ Margin tenant tergerus; risiko kenaikan harga jual produk' : '',
+            $inflNum < 3 ? '✔ Inflasi rendah bantu jaga volume permintaan konsumen' : '⚠ Inflasi tinggi turunkan volume penjualan',
+            $cicilanMurah ? '✔ Kredit usaha lebih murah — peluang ekspansi & restocking' : '',
+        ],
+        'spend'  => 'Biaya operasional, restocking, sewa & utilitas',
+    ],
+];
+?>
+<div class="border-top pt-3 mt-2">
+    <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
+        <i class="bi bi-people-fill me-1 text-primary"></i>Daya Beli & Dampak ke Segmen Pengunjung
+    </div>
+    <div class="row g-2">
+    <?php foreach ($segments as $seg):
+        $cfg = $statusCfg[$seg['status']];
+    ?>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="rounded border h-100 px-2 py-2" style="font-size:.78rem">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="fw-bold"><?= $seg['nama'] ?></span>
+                <span class="badge bg-<?= $cfg['color'] ?>-subtle text-<?= $cfg['color'] ?> border" style="font-size:.62rem">
+                    <i class="bi <?= $cfg['icon'] ?> me-1"></i><?= $cfg['label'] ?>
+                </span>
+            </div>
+            <div class="text-muted mb-1" style="font-size:.68rem"><?= $seg['desc'] ?></div>
+            <div class="badge bg-secondary-subtle text-secondary border mb-2" style="font-size:.62rem">
+                <i class="bi bi-fuel-pump me-1"></i><?= $seg['bbm'] ?>
+            </div>
+            <div class="d-flex flex-column gap-1 mb-2">
+            <?php foreach (array_filter($seg['poin']) as $p): ?>
+                <div class="text-muted" style="font-size:.7rem;line-height:1.3"><?= $p ?></div>
+            <?php endforeach; ?>
+            </div>
+            <div class="border-top pt-1 mt-1" style="font-size:.65rem">
+                <span class="text-muted"><i class="bi bi-bag me-1"></i><?= $seg['spend'] ?></span>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; ?>
+    </div>
+</div>
+
+</div><!-- /card-body -->
+</div>
+<!-- ══ /Economic Snapshot ══════════════════════════════════════════════════ -->
+
 <!-- Events -->
-<div class="card fade-up" style="animation-delay:.52s">
+<div class="card fade-up" style="animation-delay:.60s">
 <div class="card-header d-flex justify-content-between align-items-center">
     <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-event me-2"></i>Event</h6>
     <a href="<?= base_url('events') ?>" class="btn btn-sm btn-outline-primary">Lihat Semua</a>
@@ -288,6 +751,67 @@ foreach ($sections as $sec):
 </div>
 </div>
 
+<?php if ($user['role'] === 'admin'): ?>
+<!-- ══ BBM Update Modal ════════════════════════════════════════════════════ -->
+<div class="modal fade" id="bbmModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content">
+<form method="POST" action="<?= base_url('dashboard/update-bbm') ?>">
+<?= csrf_field() ?>
+<div class="modal-header">
+    <h6 class="modal-title fw-semibold"><i class="bi bi-fuel-pump me-2"></i>Update Harga BBM</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Berlaku Per</label>
+        <input type="text" name="bbm_per" class="form-control form-control-sm"
+               value="<?= esc($eco['bbm_per']) ?>" placeholder="cth: Mei 2025" required>
+    </div>
+    <div class="small fw-semibold text-muted mb-2">Harga per Liter (Rupiah)</div>
+    <div class="d-flex flex-column gap-2" id="bbmRows">
+    <?php foreach ($eco['bbm'] as $idx => $b): ?>
+    <div class="border rounded px-3 py-2 bbm-row" style="background:var(--bs-tertiary-bg)">
+        <div class="row g-2 align-items-center">
+            <div class="col-5">
+                <input type="text" name="nama[]" class="form-control form-control-sm"
+                       value="<?= esc($b['nama']) ?>" placeholder="Nama BBM" required>
+            </div>
+            <div class="col-4">
+                <input type="number" name="harga[]" class="form-control form-control-sm"
+                       value="<?= $b['harga'] ?>" min="100" step="50" placeholder="Harga" required>
+            </div>
+            <div class="col-2 text-center">
+                <div class="form-check form-check-inline m-0" title="PSO / Subsidi">
+                    <input class="form-check-input" type="checkbox" name="subsidi[<?= $idx ?>]"
+                           value="1" <?= $b['subsidi'] ? 'checked' : '' ?>>
+                    <label class="form-check-label small">PSO</label>
+                </div>
+            </div>
+            <div class="col-1 text-end">
+                <button type="button" class="btn btn-sm btn-outline-danger border-0 p-0 px-1 remove-row"
+                        title="Hapus baris"><i class="bi bi-x"></i></button>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; ?>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="addBbmRow">
+        <i class="bi bi-plus me-1"></i>Tambah Jenis BBM
+    </button>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+    <button type="submit" class="btn btn-sm btn-primary">
+        <i class="bi bi-check-lg me-1"></i>Simpan
+    </button>
+</div>
+</form>
+</div>
+</div>
+</div>
+<?php endif; ?>
+
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
@@ -332,6 +856,129 @@ foreach ($sections as $sec):
             bar.classList.add('animate');
         });
     }, 600);
+
+    /* ── Exchange rates (live, no API key) ─────────────────────────────── */
+    (async function loadKurs() {
+        const API_BASE = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@';
+        const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+        const chg = (cur, prev) => {
+            if (! prev) return '';
+            const d = ((cur - prev) / prev) * 100;
+            const sign = d > 0 ? '▲' : d < 0 ? '▼' : '─';
+            const cls  = d > 0 ? 'text-danger' : d < 0 ? 'text-success' : 'text-muted';
+            return `<span class="${cls}">${sign} ${Math.abs(d).toFixed(2)}%</span>`;
+        };
+
+        try {
+            const yd = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+            const [todayRes, yestRes] = await Promise.all([
+                fetch(API_BASE + 'latest/v1/currencies/usd.json').then(r => r.json()),
+                fetch(API_BASE + yd + '/v1/currencies/usd.json').then(r => r.json()).catch(() => null),
+            ]);
+
+            const t = todayRes.usd;
+            const y = yestRes?.usd ?? null;
+
+            // Derive IDR per foreign unit: idr / foreign_usd_rate
+            const pairs = [
+                { id: 'usd', label: 'usd', idr_t: t.idr,             idr_y: y?.idr             },
+                { id: 'eur', label: 'eur', idr_t: t.idr / t.eur,     idr_y: y ? y.idr / y.eur : null },
+                { id: 'sgd', label: 'sgd', idr_t: t.idr / t.sgd,     idr_y: y ? y.idr / y.sgd : null },
+                { id: 'jpy', label: 'jpy', idr_t: t.idr / t.jpy * 100, idr_y: y ? y.idr / y.jpy * 100 : null, note: '/100' },
+            ];
+
+            pairs.forEach(p => {
+                const elV = document.getElementById('k-' + p.id);
+                const elC = document.getElementById('k-' + p.id + '-chg');
+                if (elV) elV.textContent = fmt(p.idr_t) + (p.note ?? '');
+                if (elC) elC.innerHTML  = chg(p.idr_t, p.idr_y);
+            });
+
+            document.getElementById('kursLoading').style.display = 'none';
+            document.getElementById('kursTable').style.display   = '';
+            const now = new Date();
+            const elR = document.getElementById('ecoRefreshedAt');
+            if (elR) elR.textContent = 'Kurs: ' + now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+        } catch (e) {
+            document.getElementById('kursLoading').style.display = 'none';
+            document.getElementById('kursError').style.display   = '';
+        }
+    })();
+
+    /* ── News lazy-load ─────────────────────────────────────────────────── */
+    function escH(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function renderNewsItems(containerId, items, max) {
+        const el = document.getElementById(containerId);
+        if (! el) return;
+        if (! items || ! items.length) {
+            el.innerHTML = '<div class="text-muted small fst-italic"><i class="bi bi-wifi-off me-1"></i>Tidak dapat memuat berita.</div>';
+            return;
+        }
+        const rows = items.slice(0, max).map((n, i, arr) => {
+            const border = i < arr.length - 1 ? 'border-bottom' : '';
+            const age    = n.age_min;
+            const lbl    = age === null ? escH(n.date_fmt)
+                         : age < 60    ? age + ' mnt lalu'
+                         : age < 1440  ? Math.floor(age / 60) + ' jam lalu'
+                         : escH(n.date_fmt);
+            return `<a href="${escH(n.link)}" target="_blank" rel="noopener"
+                       class="text-decoration-none py-2 ${border} eco-news-item">
+                <div class="text-body fw-medium" style="font-size:.82rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escH(n.title)}</div>
+                ${lbl ? `<div class="text-muted mt-1" style="font-size:.68rem"><i class="bi bi-clock me-1"></i>${lbl}</div>` : ''}
+            </a>`;
+        });
+        el.innerHTML = '<div class="d-flex flex-column">' + rows.join('') + '</div>';
+    }
+    function renderBbmNews(items) {
+        const el = document.getElementById('bbmNewsSection');
+        if (! el || ! items || ! items.length) return;
+        const rows = items.map(n => {
+            const age = n.age_min;
+            const lbl = age === null ? escH(n.date_fmt)
+                      : age < 60    ? age + ' mnt lalu'
+                      : age < 1440  ? Math.floor(age / 60) + ' jam lalu'
+                      : escH(n.date_fmt);
+            return `<a href="${escH(n.link)}" target="_blank" rel="noopener"
+                       class="text-decoration-none border rounded px-2 py-1 eco-news-item" style="background:var(--bs-tertiary-bg)">
+                <div class="text-body" style="font-size:.75rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escH(n.title)}</div>
+                ${lbl ? `<div class="text-muted mt-1" style="font-size:.65rem"><i class="bi bi-clock me-1"></i>${lbl}</div>` : ''}
+            </a>`;
+        });
+        el.innerHTML = `<div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
+            <i class="bi bi-newspaper me-1"></i>Berita BBM Terkini</div>
+            <div class="d-flex flex-column gap-1">${rows.join('')}</div>`;
+    }
+
+    (async function loadNews() {
+        try {
+            const res  = await fetch('<?= base_url('dashboard/news-feed') ?>');
+            const data = await res.json();
+            renderNewsItems('newsEkoContent', data.eco, 7);
+            renderNewsItems('newsBpnContent', data.bpn, 7);
+            if (data.bbm && data.bbm.length) renderBbmNews(data.bbm);
+        } catch (e) {
+            renderNewsItems('newsEkoContent', [], 7);
+            renderNewsItems('newsBpnContent', [], 7);
+        }
+    })();
+
+    /* ── BBM modal: add/remove rows ── */
+    document.getElementById('addBbmRow')?.addEventListener('click', function () {
+        const tpl = document.querySelector('.bbm-row');
+        if (! tpl) return;
+        const idx  = document.querySelectorAll('.bbm-row').length;
+        const clone = tpl.cloneNode(true);
+        clone.querySelectorAll('input[type=text], input[type=number]').forEach(i => i.value = '');
+        clone.querySelector('input[type=checkbox]').checked = false;
+        clone.querySelector('input[type=checkbox]').name = 'subsidi[' + idx + ']';
+        document.getElementById('bbmRows').appendChild(clone);
+    });
+    document.getElementById('bbmRows')?.addEventListener('click', function (e) {
+        const btn = e.target.closest('.remove-row');
+        if (btn && document.querySelectorAll('.bbm-row').length > 1) btn.closest('.bbm-row').remove();
+    });
 
     /* ── Event row stagger ── */
     document.querySelectorAll('.event-row').forEach((row, i) => {

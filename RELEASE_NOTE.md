@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v1.2** (Mei 2026)
+> Versi saat ini: **v1.3** (Mei 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,38 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 1.3
+
+**Tanggal Rilis:** 10 Mei 2026
+
+### Perubahan dari v1.2
+
+#### Fitur Baru
+
+- **Modul Sponsorship Standalone** — modul baru untuk mengelola program sponsorship di luar event, mengikuti pola kerja Loyalty Standalone.
+  - **Program** — buat program sponsorship dengan target sponsor, target nilai, tanggal, status aktif/nonaktif, dan lock/unlock (admin only).
+  - **Deal Sponsor** — kelola sponsor per program: nama, kategori (Platinum/Gold/Silver/Bronze/Media Partner/In-kind/Lainnya), jenis (Cash / Barang), status deal (Prospek → Negosiasi → Terkonfirmasi → Lunas / Batal), detail, catatan.
+  - **Rincian Barang** — untuk jenis Barang/In-kind, input item per baris (deskripsi, qty, nilai); nilai deal dihitung otomatis dari total item.
+  - **Realisasi** — catat penerimaan aktual per sponsor (tanggal, nilai, catatan, upload bukti). Mendukung realisasi parsial (multiple entries).
+  - **Budget Auto-Sync** — budget program dihitung otomatis dari total nilai sponsor berstatus Terkonfirmasi dan Lunas.
+  - **KPI Dashboard** — 4 KPI card: Program Aktif, Sponsor Konfirmasi, Nilai Deal, Total Terkumpul beserta progress vs target.
+  - **Collection Rate** — progress bar persentase realisasi vs nilai deal konfirmasi per program.
+  - **Halaman Summary Bulanan** — trend realisasi bulanan (tahun berjalan), chart realisasi harian (Chart.js bar), tabel breakdown per program (target nilai, dikonfirmasi, bulan ini, all-time, progress bar), dan breakdown status deal per program.
+
+#### UX & Tampilan
+
+- **Thousand separator otomatis** — semua input nilai Rp di modul Sponsorship (target nilai, nilai deal, nilai item barang, nilai realisasi) menampilkan separator ribuan titik secara real-time saat mengetik. Nilai juga diformat saat modal edit dibuka.
+- **Indikator realisasi parsial** — kolom Terkumpul pada tabel sponsor menampilkan persentase pencapaian (mis. `67%`) untuk realisasi parsial, dan badge ✓ hijau saat realisasi sudah mencapai atau melewati nilai deal.
+- **Edit sponsor barang** — modal Edit Sponsor kini mendukung rincian barang: item yang sudah tersimpan ditampilkan dan bisa diubah, ditambah, atau dihapus. Toggle otomatis antara field Nilai (cash) dan tabel items (barang).
+- **Urutan kategori sponsor** diperbaiki: Platinum → Gold → Silver → Bronze → Media Partner → In-kind → Lainnya.
+
+#### Perbaikan Bug
+
+- **Fix: badge Cash/Barang dan badge item barang tidak terbaca di dark mode** — `bg-light text-dark` diganti dengan warna eksplisit (`#e2e8f0 / #334155`) agar konsisten di semua tema.
+- **Fix: double-highlight nav parent + child** — link toggle sidebar (Sponsorship, Loyalty, Creative & Design, Dekorasi & VM) tidak lagi mendapat class `active` bersamaan dengan item submenu yang aktif.
 
 ---
 

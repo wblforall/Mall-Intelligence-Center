@@ -9,8 +9,14 @@ $routes->get('login', 'Auth::index');
 $routes->post('login', 'Auth::login');
 $routes->get('logout', 'Auth::logout');
 
+// Public EEI Survey (no login required)
+$routes->get('eei/(:segment)', 'PeopleEei::publicSurvey/$1');
+$routes->post('eei/(:segment)/submit', 'PeopleEei::publicSubmit/$1');
+
 // Dashboard
 $routes->get('/', 'Dashboard::index', ['filter' => 'auth']);
+$routes->post('dashboard/update-bbm', 'Dashboard::updateBbm', ['filter' => 'auth']);
+$routes->get('dashboard/news-feed',  'Dashboard::newsFeed',   ['filter' => 'auth']);
 
 // Events
 $routes->get('events', 'Events::index', ['filter' => 'auth']);
@@ -147,6 +153,21 @@ $routes->post('loyalty/(:num)/voucher/(:num)/delete', 'LoyaltyCtrl::deleteVouche
 $routes->post('loyalty/(:num)/voucher/(:num)/realisasi/add', 'LoyaltyCtrl::storeVoucherRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/voucher/(:num)/realisasi/(:num)/delete', 'LoyaltyCtrl::deleteVoucherRealisasi/$1/$2/$3', ['filter' => 'auth']);
 
+// Sponsorship Standalone
+$routes->get('sponsorship', 'SponsorshipCtrl::index', ['filter' => 'auth']);
+$routes->get('sponsorship/summary', 'SponsorshipCtrl::summary', ['filter' => 'auth']);
+$routes->post('sponsorship/add', 'SponsorshipCtrl::storeProgram', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/edit', 'SponsorshipCtrl::updateProgram/$1', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/delete', 'SponsorshipCtrl::deleteProgram/$1', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/toggle', 'SponsorshipCtrl::toggleStatus/$1', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/lock', 'SponsorshipCtrl::lock/$1', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/unlock', 'SponsorshipCtrl::unlock/$1', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/sponsor/add', 'SponsorshipCtrl::storeSponsor/$1', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/sponsor/(:num)/edit', 'SponsorshipCtrl::updateSponsor/$1/$2', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/sponsor/(:num)/delete', 'SponsorshipCtrl::deleteSponsor/$1/$2', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/sponsor/(:num)/realisasi/add', 'SponsorshipCtrl::storeRealisasi/$1/$2', ['filter' => 'auth']);
+$routes->post('sponsorship/(:num)/sponsor/(:num)/realisasi/(:num)/delete', 'SponsorshipCtrl::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
+
 // VM Standalone (non-event)
 $routes->get('vm/monthly-summary', 'VMStandalone::monthly', ['filter' => 'auth']);
 $routes->get('vm', 'VMStandalone::index', ['filter' => 'auth']);
@@ -198,12 +219,114 @@ $routes->get('departments/(:num)/edit', 'Departments::edit/$1', ['filter' => 'au
 $routes->post('departments/(:num)/edit', 'Departments::update/$1', ['filter' => 'auth:admin']);
 $routes->get('departments/(:num)/delete', 'Departments::delete/$1', ['filter' => 'auth:admin']);
 
+// Divisions (admin only)
+$routes->get('admin/clusters',                  'AdminClusters::index',       ['filter' => 'auth:admin']);
+$routes->post('admin/clusters/store',           'AdminClusters::store',       ['filter' => 'auth:admin']);
+$routes->post('admin/clusters/(:num)/update',   'AdminClusters::update/$1',   ['filter' => 'auth:admin']);
+$routes->get('admin/clusters/(:num)/delete',    'AdminClusters::delete/$1',   ['filter' => 'auth:admin']);
+$routes->get('divisions', 'Divisions::index', ['filter' => 'auth:admin']);
+$routes->post('divisions/store', 'Divisions::store', ['filter' => 'auth:admin']);
+$routes->post('divisions/(:num)/update', 'Divisions::update/$1', ['filter' => 'auth:admin']);
+$routes->get('divisions/(:num)/delete', 'Divisions::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('divisions/assign-dept', 'Divisions::assignDept', ['filter' => 'auth:admin']);
+
+// Jabatans (admin only)
+$routes->get('jabatans', 'Jabatans::index', ['filter' => 'auth:admin']);
+$routes->post('jabatans/store', 'Jabatans::store', ['filter' => 'auth:admin']);
+$routes->post('jabatans/(:num)/update', 'Jabatans::update/$1', ['filter' => 'auth:admin']);
+$routes->get('jabatans/(:num)/delete', 'Jabatans::delete/$1', ['filter' => 'auth:admin']);
+
 // Users (admin only)
 $routes->get('users', 'Users::index', ['filter' => 'auth:admin']);
 $routes->post('users/add', 'Users::store', ['filter' => 'auth:admin']);
 $routes->post('users/(:num)/edit', 'Users::update/$1', ['filter' => 'auth:admin']);
 $routes->get('users/(:num)/toggle', 'Users::toggle/$1', ['filter' => 'auth:admin']);
 $routes->get('users/(:num)/delete', 'Users::delete/$1', ['filter' => 'auth:admin']);
+
+// People Development — Dashboard
+$routes->get('people/dashboard', 'PeopleDashboard::index', ['filter' => 'auth']);
+
+// People Development — Training Programs
+$routes->get('people/training',                                              'PeopleTraining::index',             ['filter' => 'auth']);
+$routes->get('people/training/budget',                                       'PeopleTraining::budget',            ['filter' => 'auth']);
+$routes->post('people/training/budget/save',                                 'PeopleTraining::saveBudget',        ['filter' => 'auth']);
+$routes->get('people/training/budget-detail/(:num)',                         'PeopleTraining::budgetDetail/$1',   ['filter' => 'auth']);
+$routes->post('people/training/add',                                         'PeopleTraining::store',             ['filter' => 'auth']);
+$routes->get('people/training/(:num)',                                        'PeopleTraining::show/$1',           ['filter' => 'auth']);
+$routes->post('people/training/(:num)/edit',                                 'PeopleTraining::update/$1',         ['filter' => 'auth']);
+$routes->get('people/training/(:num)/delete',                                'PeopleTraining::delete/$1',         ['filter' => 'auth']);
+$routes->post('people/training/(:num)/participants/add',                     'PeopleTraining::addParticipant/$1', ['filter' => 'auth']);
+$routes->get('people/training/(:num)/participants/(:num)/remove',            'PeopleTraining::removeParticipant/$1/$2', ['filter' => 'auth']);
+$routes->post('people/training/(:num)/participants/(:num)/update',           'PeopleTraining::updateParticipant/$1/$2', ['filter' => 'auth']);
+
+// People Development — TNA Assessment 360°
+$routes->get('people/tna',                                               'PeopleTna::index',           ['filter' => 'auth']);
+$routes->post('people/tna/periods/add',                                  'PeopleTna::storePeriod',     ['filter' => 'auth']);
+$routes->post('people/tna/periods/(:num)/edit',                          'PeopleTna::updatePeriod/$1', ['filter' => 'auth']);
+$routes->get('people/tna/periods/(:num)/delete',                         'PeopleTna::deletePeriod/$1', ['filter' => 'auth']);
+$routes->get('people/tna/periods/(:num)/toggle-close',                   'PeopleTna::toggleClose/$1',  ['filter' => 'auth']);
+$routes->get('people/tna/period/(:num)',                                  'PeopleTna::period/$1',       ['filter' => 'auth']);
+$routes->post('people/tna/period/(:num)/employees/add',                  'PeopleTna::addEmployee/$1',  ['filter' => 'auth']);
+$routes->get('people/tna/period/(:num)/employees/(:num)/remove',         'PeopleTna::removeEmployee/$1/$2',  ['filter' => 'auth']);
+$routes->post('people/tna/period/(:num)/employees/(:num)/assessors/add', 'PeopleTna::addAssessor/$1/$2',     ['filter' => 'auth']);
+$routes->get('people/tna/period/(:num)/assessors/(:num)/remove',         'PeopleTna::removeAssessor/$1/$2',  ['filter' => 'auth']);
+$routes->get('people/tna/assess/(:num)',                                  'PeopleTna::assess/$1',             ['filter' => 'auth']);
+$routes->post('people/tna/assess/(:num)/submit',                         'PeopleTna::submitAssessment/$1',   ['filter' => 'auth']);
+$routes->get('people/tna/period/(:num)/result/(:num)',                   'PeopleTna::result/$1/$2',                ['filter' => 'auth']);
+$routes->get('people/tna/assessments/(:num)/regenerate-token',           'PeopleTna::regenerateToken/$1',          ['filter' => 'auth']);
+
+// TNA Fill — public token-based (no auth required)
+$routes->get('tna/fill/(:segment)',        'TnaFill::show/$1');
+$routes->post('tna/fill/(:segment)/submit', 'TnaFill::submit/$1');
+
+// People Development — EEI
+$routes->get('people/eei',                                          'PeopleEei::index',                    ['filter' => 'auth']);
+$routes->get('people/eei/manage',                                   'PeopleEei::manage',                   ['filter' => 'auth']);
+$routes->get('people/eei/survey',                                   'PeopleEei::survey',                   ['filter' => 'auth']);
+$routes->post('people/eei/submit',                                  'PeopleEei::submit',                   ['filter' => 'auth']);
+$routes->post('people/eei/dimension/add',                           'PeopleEei::storeDimension',           ['filter' => 'auth:admin']);
+$routes->post('people/eei/dimension/(:num)/edit',                   'PeopleEei::updateDimension/$1',       ['filter' => 'auth:admin']);
+$routes->get('people/eei/dimension/(:num)/delete',                  'PeopleEei::deleteDimension/$1',       ['filter' => 'auth:admin']);
+$routes->post('people/eei/dimension/(:num)/questions/add',          'PeopleEei::storeQuestion/$1',         ['filter' => 'auth:admin']);
+$routes->get('people/eei/question/(:num)/delete',                   'PeopleEei::deleteQuestion/$1',        ['filter' => 'auth:admin']);
+$routes->post('people/eei/period/add',                              'PeopleEei::storePeriod',              ['filter' => 'auth:admin']);
+$routes->post('people/eei/period/(:num)/edit',                      'PeopleEei::updatePeriod/$1',          ['filter' => 'auth:admin']);
+$routes->get('people/eei/period/(:num)/delete',                     'PeopleEei::deletePeriod/$1',          ['filter' => 'auth:admin']);
+$routes->get('people/eei/period/(:num)/activate',                   'PeopleEei::activatePeriod/$1',        ['filter' => 'auth:admin']);
+
+// People Development — Org Chart
+$routes->get('people/orgchart', 'PeopleOrgChart::index', ['filter' => 'auth']);
+
+// People Development — Competencies
+$routes->get('people/competencies',                               'PeopleCompetencies::index',           ['filter' => 'auth']);
+$routes->post('people/competencies/add',                          'PeopleCompetencies::store',           ['filter' => 'auth']);
+$routes->post('people/competencies/(:num)/edit',                  'PeopleCompetencies::update/$1',       ['filter' => 'auth']);
+$routes->get('people/competencies/(:num)/delete',                 'PeopleCompetencies::delete/$1',       ['filter' => 'auth']);
+$routes->post('people/competencies/targets/save',                 'PeopleCompetencies::saveTargets',     ['filter' => 'auth']);
+$routes->get('people/competencies/(:num)/questions',              'PeopleCompetencies::questions/$1',    ['filter' => 'auth']);
+$routes->post('people/competencies/(:num)/questions/add',         'PeopleCompetencies::storeQuestion/$1',   ['filter' => 'auth']);
+$routes->get('people/competencies/questions/(:num)/delete',       'PeopleCompetencies::deleteQuestion/$1',  ['filter' => 'auth']);
+$routes->post('people/competencies/questions/(:num)/levels',      'PeopleCompetencies::updateQuestionLevels/$1', ['filter' => 'auth']);
+$routes->get('people/competencies/dept/(:num)/assign',            'PeopleCompetencies::manageAssignments/$1',        ['filter' => 'auth']);
+$routes->post('people/competencies/dept/(:num)/assign',           'PeopleCompetencies::saveAssignments/$1',          ['filter' => 'auth']);
+$routes->get('people/competencies/jabatan/(:num)/assign',         'PeopleCompetencies::manageJabatanAssignments/$1', ['filter' => 'auth']);
+$routes->post('people/competencies/jabatan/(:num)/assign',        'PeopleCompetencies::saveJabatanAssignments/$1',   ['filter' => 'auth']);
+$routes->get('people/competencies/import',                        'PeopleCompetencies::importForm',      ['filter' => 'auth']);
+$routes->get('people/competencies/import/template',               'PeopleCompetencies::importTemplate',  ['filter' => 'auth']);
+$routes->post('people/competencies/import/parse',                 'PeopleCompetencies::importParse',     ['filter' => 'auth']);
+$routes->get('people/competencies/import/preview',                'PeopleCompetencies::importPreview',   ['filter' => 'auth']);
+$routes->post('people/competencies/import/confirm',               'PeopleCompetencies::importConfirm',   ['filter' => 'auth']);
+
+// People Development — Employees
+$routes->get('people/employees',                                          'PeopleEmployees::index',             ['filter' => 'auth']);
+$routes->post('people/employees/add',                                     'PeopleEmployees::store',             ['filter' => 'auth']);
+$routes->get('people/employees/(:num)',                                   'PeopleEmployees::show/$1',           ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/edit',                             'PeopleEmployees::update/$1',         ['filter' => 'auth']);
+$routes->get('people/employees/(:num)/delete',                            'PeopleEmployees::delete/$1',         ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/positions/add',                    'PeopleEmployees::storePosition/$1',  ['filter' => 'auth']);
+$routes->get('people/employees/(:num)/positions/(:num)/delete',           'PeopleEmployees::deletePosition/$1/$2', ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/certificates/add',                 'PeopleEmployees::storeCertificate/$1',  ['filter' => 'auth']);
+$routes->get('people/employees/(:num)/certificates/(:num)/delete',        'PeopleEmployees::deleteCertificate/$1/$2', ['filter' => 'auth']);
 
 // Profile
 $routes->get('profile', 'Users::profile', ['filter' => 'auth']);

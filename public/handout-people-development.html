@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handout — People Development · Mall Intelligence Center</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary:       #1e40af;
+  --primary-light: #dbeafe;
+  --primary-mid:   #3b82f6;
+  --accent:        #0ea5e9;
+  --success:       #16a34a;
+  --success-light: #dcfce7;
+  --warning:       #d97706;
+  --warning-light: #fef3c7;
+  --danger:        #dc2626;
+  --danger-light:  #fee2e2;
+  --purple:        #7c3aed;
+  --purple-light:  #ede9fe;
+  --gray-50:  #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+  --font: 'Segoe UI', system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 10pt;
+  color: var(--gray-800);
+  background: #fff;
+  line-height: 1.55;
+}
+
+/* ── Cover ── */
+.cover {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 64px;
+  background: linear-gradient(140deg, #0f172a 0%, #1e3a8a 55%, #0369a1 100%);
+  color: #fff;
+  page-break-after: always;
+  position: relative;
+  overflow: hidden;
+}
+.cover::before {
+  content: '';
+  position: absolute;
+  right: -80px; top: -80px;
+  width: 420px; height: 420px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.04);
+}
+.cover::after {
+  content: '';
+  position: absolute;
+  right: 60px; bottom: -60px;
+  width: 260px; height: 260px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.03);
+}
+.cover-tag {
+  font-size: 8pt;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  opacity: .55;
+  margin-bottom: 16px;
+}
+.cover h1 {
+  font-size: 38pt;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 14px;
+}
+.cover h1 span { color: #7dd3fc; }
+.cover-sub {
+  font-size: 11.5pt;
+  opacity: .72;
+  margin-bottom: 36px;
+  max-width: 520px;
+  line-height: 1.65;
+}
+.cover-modules {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 660px;
+  margin-bottom: 48px;
+}
+.cover-module {
+  background: rgba(255,255,255,.09);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.cover-module .icon { font-size: 17pt; margin-bottom: 5px; }
+.cover-module .num  { font-size: 7pt; opacity: .5; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 2px; }
+.cover-module .label { font-size: 9pt; font-weight: 700; line-height: 1.3; }
+.cover-module .desc  { font-size: 7.5pt; opacity: .55; margin-top: 3px; }
+.cover-meta {
+  display: flex;
+  gap: 36px;
+  border-top: 1px solid rgba(255,255,255,.18);
+  padding-top: 20px;
+}
+.cover-meta div { font-size: 8pt; opacity: .6; }
+.cover-meta strong { display: block; font-size: 9.5pt; opacity: 1; margin-bottom: 2px; color: #bae6fd; }
+
+/* ── Page Layout ── */
+.page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 44px 56px 52px;
+}
+@media print {
+  .page { padding: 30px 40px; }
+  .page-break { page-break-before: always; }
+}
+
+/* ── Module Header ── */
+.mod-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 26px;
+  padding-bottom: 14px;
+  border-bottom: 2.5px solid var(--primary-light);
+}
+.mod-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20pt;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.mod-num {
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin-bottom: 3px;
+}
+.mod-header h2 {
+  font-size: 16pt;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+.mod-header p {
+  font-size: 9pt;
+  color: var(--gray-500);
+  margin: 0;
+}
+
+/* ── Sub-section headings ── */
+h3 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin: 22px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+h3:first-child { margin-top: 0; }
+h3 .h3-icon { font-size: 11pt; }
+h4 {
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: var(--gray-700);
+  margin: 14px 0 7px;
+}
+p { margin-bottom: 10px; color: var(--gray-600); font-size: 9pt; }
+
+/* ── Cards ── */
+.card {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+.card-title {
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-blue   { border-left: 3px solid var(--primary-mid); }
+.card-green  { border-left: 3px solid var(--success); }
+.card-orange { border-left: 3px solid var(--warning); }
+.card-purple { border-left: 3px solid var(--purple); }
+.card-red    { border-left: 3px solid var(--danger); }
+
+/* ── Steps (numbered) ── */
+.steps { counter-reset: step; display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+.step  { display: flex; gap: 11px; align-items: flex-start; }
+.step::before {
+  counter-increment: step;
+  content: counter(step);
+  min-width: 22px; height: 22px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 7.5pt;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.step-body { font-size: 9pt; color: var(--gray-600); padding-top: 2px; }
+.step-body strong { color: var(--gray-800); }
+.step-body code {
+  font-family: 'Consolas', monospace;
+  background: var(--gray-200);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 8pt;
+  color: var(--primary);
+}
+
+/* sub-steps */
+.sub-steps { list-style: disc; padding-left: 18px; margin-top: 5px; }
+.sub-steps li { font-size: 8.5pt; color: var(--gray-600); margin-bottom: 3px; }
+
+/* ── Flow diagram ── */
+.flow {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 12px 0 18px;
+}
+.flow-node {
+  background: var(--primary-light);
+  border: 1.5px solid #93c5fd;
+  color: var(--primary);
+  border-radius: 8px;
+  padding: 8px 13px;
+  font-size: 7.5pt;
+  font-weight: 600;
+  text-align: center;
+  min-width: 82px;
+  line-height: 1.35;
+}
+.flow-node.green  { background: var(--success-light); border-color: #86efac; color: var(--success); }
+.flow-node.orange { background: var(--warning-light); border-color: #fcd34d; color: var(--warning); }
+.flow-node.purple { background: var(--purple-light);  border-color: #c4b5fd; color: var(--purple); }
+.flow-node.gray   { background: var(--gray-100);      border-color: var(--gray-300); color: var(--gray-600); }
+.flow-arrow { color: var(--gray-400); font-size: 13pt; padding: 0 4px; display: flex; align-items: center; flex-shrink: 0; }
+.flow-num {
+  font-size: 6.5pt;
+  font-weight: 700;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 5px;
+  margin-bottom: 3px;
+  display: inline-block;
+}
+.flow-node.green .flow-num   { background: var(--success); }
+.flow-node.orange .flow-num  { background: var(--warning); }
+.flow-node.purple .flow-num  { background: var(--purple); }
+.flow-node.gray .flow-num    { background: var(--gray-500); }
+
+/* ── Grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+
+/* ── Badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 7.5pt;
+  font-weight: 600;
+  gap: 4px;
+  white-space: nowrap;
+}
+.badge-blue   { background: var(--primary-light); color: var(--primary); }
+.badge-green  { background: var(--success-light); color: var(--success); }
+.badge-orange { background: var(--warning-light); color: var(--warning); }
+.badge-red    { background: var(--danger-light);  color: var(--danger); }
+.badge-purple { background: var(--purple-light);  color: var(--purple); }
+.badge-gray   { background: var(--gray-100);      color: var(--gray-600); }
+
+/* ── Table ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+  margin-bottom: 14px;
+}
+th {
+  background: var(--primary);
+  color: #fff;
+  padding: 7px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 7.5pt;
+  letter-spacing: .04em;
+}
+th:first-child { border-radius: 6px 0 0 0; }
+th:last-child  { border-radius: 0 6px 0 0; }
+td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--gray-200);
+  color: var(--gray-600);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:nth-child(even) td { background: var(--gray-50); }
+td strong { color: var(--gray-800); }
+
+/* ── Highlights / callouts ── */
+.callout {
+  border-left: 4px solid var(--primary);
+  background: var(--primary-light);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  font-size: 8.5pt;
+  color: var(--gray-800);
+  margin-bottom: 14px;
+  line-height: 1.55;
+}
+.callout.green  { border-color: var(--success);  background: var(--success-light); }
+.callout.orange { border-color: var(--warning);  background: var(--warning-light); }
+.callout.red    { border-color: var(--danger);   background: var(--danger-light); }
+.callout.purple { border-color: var(--purple);   background: var(--purple-light); }
+
+/* ── Scale visual ── */
+.scale { display: flex; gap: 5px; margin: 10px 0 14px; }
+.scale-item {
+  flex: 1;
+  text-align: center;
+  border-radius: 8px;
+  padding: 9px 4px;
+  font-weight: 700;
+  font-size: 13pt;
+  line-height: 1;
+}
+.scale-item .scale-label { font-size: 7pt; font-weight: 500; margin-top: 4px; display: block; line-height: 1.3; }
+
+/* ── Priority stack ── */
+.priority { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 14px; }
+.priority-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  font-size: 8.5pt;
+}
+.priority-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-size: 8pt;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+/* ── Field list ── */
+.field-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.field-item {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 8.5pt;
+}
+.field-name {
+  font-weight: 600;
+  color: var(--gray-800);
+  min-width: 130px;
+  flex-shrink: 0;
+}
+.field-desc { color: var(--gray-500); }
+.field-req  { color: var(--danger); font-size: 7pt; font-weight: 700; margin-left: 3px; }
+.field-opt  { color: var(--gray-400); font-size: 7pt; margin-left: 3px; }
+
+/* ── Assessment type cards ── */
+.assessor-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0 18px; }
+.assessor-card {
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+  border: 1.5px solid transparent;
+}
+.assessor-card .ac-icon { font-size: 22pt; margin-bottom: 6px; }
+.assessor-card .ac-title { font-size: 9pt; font-weight: 700; margin-bottom: 3px; }
+.assessor-card .ac-sub { font-size: 7.5pt; line-height: 1.4; }
+.assessor-card .ac-weight { margin-top: 8px; }
+
+/* ── Gap table ── */
+.gap-legend { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 8pt; margin: 6px 0 14px; }
+.gap-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+/* ── Divider ── */
+.divider { border: none; border-top: 1.5px solid var(--gray-200); margin: 32px 0; }
+.divider-sm { border: none; border-top: 1px dashed var(--gray-200); margin: 18px 0; }
+
+/* ── Screen mockup ── */
+.screen {
+  background: #fff;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+.screen-bar {
+  background: var(--gray-800);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.screen-dot { width: 7px; height: 7px; border-radius: 50%; }
+.screen-url {
+  background: var(--gray-700);
+  color: var(--gray-400);
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-size: 7pt;
+  font-family: monospace;
+  margin-left: 8px;
+  flex: 1;
+}
+.screen-body { padding: 12px 14px; font-size: 8.5pt; }
+
+/* ── Footer bar ── */
+.footer-bar {
+  margin-top: 40px;
+  padding: 14px 20px;
+  background: var(--gray-900);
+  border-radius: 10px;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.footer-bar .title { font-weight: 700; font-size: 10pt; }
+.footer-bar .sub { font-size: 7.5pt; opacity: .5; margin-top: 2px; }
+.footer-bar .right { font-size: 7.5pt; opacity: .45; text-align: right; }
+
+/* ── Print ── */
+@media print {
+  body { font-size: 9pt; }
+  .cover { min-height: auto; padding: 40px 48px; }
+  h3 { margin-top: 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <div class="cover-tag">Mall Intelligence Center · PT. Wulandari Bangun Laksana Tbk.</div>
+  <h1>People<br><span>Development</span></h1>
+  <p class="cover-sub">Panduan lengkap operasional modul pengelolaan karyawan, kompetensi, pelatihan, dan penilaian kebutuhan pengembangan SDM. Mencakup flow penginputan, fungsi setiap fitur, dan panduan langkah demi langkah.</p>
+
+  <div class="cover-modules">
+    <div class="cover-module">
+      <div class="num">Modul 1</div>
+      <div class="icon">👤</div>
+      <div class="label">Data Karyawan</div>
+      <div class="desc">Master data, riwayat jabatan, sertifikasi</div>
+    </div>
+    <div class="cover-module">
+      <div class="num">Modul 2</div>
+      <div class="icon">🎯</div>
+      <div class="label">Competency Framework</div>
+      <div class="desc">Cluster, kompetensi, target level</div>
+    </div>
+    <div class="cover-module">
+      <div class="num">Modul 3</div>
+      <div class="icon">🎓</div>
+      <div class="label">Program Training</div>
+      <div class="desc">Program, peserta, pre/post test, budget</div>
+    </div>
+    <div class="cover-module">
+      <div class="num">Modul 4</div>
+      <div class="icon">🔄</div>
+      <div class="label">TNA Assessment 360°</div>
+      <div class="desc">Gap analysis multi-rater berbasis token</div>
+    </div>
+    <div class="cover-module">
+      <div class="num">Modul 5</div>
+      <div class="icon">📊</div>
+      <div class="label">EEI Survey</div>
+      <div class="desc">Employee engagement per dimensi</div>
+    </div>
+    <div class="cover-module">
+      <div class="num">Referensi</div>
+      <div class="icon">⚡</div>
+      <div class="label">Panduan Cepat</div>
+      <div class="desc">Ringkasan aksi paling sering</div>
+    </div>
+  </div>
+
+  <div class="cover-meta">
+    <div><strong>Versi</strong>v1.2 — Mei 2026</div>
+    <div><strong>Departemen</strong>IT Dept WBL</div>
+    <div><strong>Dokumen</strong>Handout Pengguna</div>
+    <div><strong>Sifat</strong>Internal</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 1 — Data Karyawan -->
+<div class="page">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#eff6ff">👤</div>
+    <div>
+      <div class="mod-num">Modul 1</div>
+      <h2>Data Karyawan</h2>
+      <p>Master data karyawan aktif/non-aktif, riwayat jabatan & mutasi, sertifikasi, dan riwayat pelatihan. Data di modul ini menjadi fondasi untuk TNA dan training.</p>
+    </div>
+  </div>
+
+  <!-- Fungsi Utama -->
+  <h3><span class="h3-icon">⚙️</span> Fungsi Utama</h3>
+  <div class="grid-3">
+    <div class="card card-blue">
+      <div class="card-title">📋 Master Data</div>
+      <p style="margin:0;font-size:8.5pt">Kelola data pribadi, jabatan, departemen, atasan langsung, dan status aktif karyawan.</p>
+    </div>
+    <div class="card card-green">
+      <div class="card-title">📁 Riwayat Jabatan</div>
+      <p style="margin:0;font-size:8.5pt">Catat mutasi dan promosi lengkap dengan tanggal mulai/selesai per posisi.</p>
+    </div>
+    <div class="card card-orange">
+      <div class="card-title">🏅 Sertifikasi</div>
+      <p style="margin:0;font-size:8.5pt">Upload dan pantau sertifikat dengan status valid, akan expired, atau sudah expired.</p>
+    </div>
+  </div>
+
+  <!-- Alur: Tambah Karyawan Baru -->
+  <h3><span class="h3-icon">➕</span> Flow: Tambah Karyawan Baru</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Menu<br>People</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Data<br>Karyawan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Tambah<br>Karyawan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Isi<br>Formulir</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Simpan<br>→ Detail</div>
+  </div>
+
+  <h4>Field Formulir Karyawan</h4>
+  <div class="grid-2">
+    <div>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">NIK<span class="field-opt">opsional</span></span><span class="field-desc">Nomor induk karyawan perusahaan</span></div>
+        <div class="field-item"><span class="field-name">Nama Lengkap<span class="field-req">*wajib</span></span><span class="field-desc">Nama lengkap karyawan</span></div>
+        <div class="field-item"><span class="field-name">Jenis Kelamin</span><span class="field-desc">L / P</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Lahir</span><span class="field-desc">Format YYYY-MM-DD</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Masuk<span class="field-req">*wajib</span></span><span class="field-desc">Digunakan hitung masa kerja otomatis</span></div>
+        <div class="field-item"><span class="field-name">Foto<span class="field-opt">opsional</span></span><span class="field-desc">Upload foto profil (JPG/PNG)</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Departemen</span><span class="field-desc">Pilih dari master departemen</span></div>
+        <div class="field-item"><span class="field-name">Jabatan</span><span class="field-desc">Pilih dari master jabatan (isi grade & link ke TNA) atau ketik manual</span></div>
+        <div class="field-item"><span class="field-name">Atasan Langsung</span><span class="field-desc">Pilih karyawan lain sebagai atasan. Dipakai rantai TNA</span></div>
+        <div class="field-item"><span class="field-name">No. HP / Email</span><span class="field-desc">Kontak karyawan</span></div>
+        <div class="field-item"><span class="field-name">Status</span><span class="field-desc">Aktif / Tidak Aktif</span></div>
+        <div class="field-item"><span class="field-name">Catatan</span><span class="field-desc">Keterangan bebas</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout green">
+    <strong>Auto-record:</strong> Saat karyawan baru disimpan dengan jabatan terisi, sistem otomatis mencatat entri pertama di Riwayat Jabatan dengan tanggal mulai = tanggal masuk karyawan.
+  </div>
+
+  <!-- Flow: Tambah Riwayat Jabatan / Mutasi -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">🔀</span> Flow: Tambah Riwayat Jabatan / Mutasi</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Detail<br>Karyawan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Tab Riwayat<br>Posisi</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Tambah<br>Posisi</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Isi Jabatan,<br>Dept, Tgl Mulai</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Simpan</div>
+  </div>
+  <p>Sistem otomatis menutup posisi lama (mengisi <em>tanggal_selesai</em> = satu hari sebelum tanggal mulai posisi baru) dan memperbarui jabatan & departemen aktif di data utama karyawan.</p>
+
+  <!-- Flow: Sertifikasi -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">🏅</span> Flow: Tambah Sertifikasi</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Detail<br>Karyawan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Tab<br>Sertifikasi</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Tambah<br>Sertifikat</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Isi Data +<br>Upload File</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Simpan</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h4>Field Sertifikasi</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Nama Sertifikat<span class="field-req">*</span></span><span class="field-desc">Nama lengkap sertifikasi</span></div>
+        <div class="field-item"><span class="field-name">Nomor Sertifikat</span><span class="field-desc">Nomor referensi/sertifikat</span></div>
+        <div class="field-item"><span class="field-name">Penerbit</span><span class="field-desc">Lembaga penerbit</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Terbit</span><span class="field-desc">Kapan diterbitkan</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Kadaluarsa</span><span class="field-desc">Digunakan untuk status otomatis</span></div>
+        <div class="field-item"><span class="field-name">File</span><span class="field-desc">Upload scan sertifikat (PDF/JPG)</span></div>
+      </div>
+    </div>
+    <div>
+      <h4>Status Sertifikat (Otomatis)</h4>
+      <table style="margin-bottom:0">
+        <tr><th>Status</th><th>Kondisi</th></tr>
+        <tr><td><span class="badge badge-green">Valid</span></td><td>Belum kadaluarsa</td></tr>
+        <tr><td><span class="badge badge-orange">Expiring Soon</span></td><td>Kadaluarsa dalam 30 hari</td></tr>
+        <tr><td><span class="badge badge-red">Expired</span></td><td>Sudah melewati tanggal kadaluarsa</td></tr>
+        <tr><td><span class="badge badge-gray">No Expiry</span></td><td>Tidak ada tanggal kadaluarsa</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Tab Training History:</strong> Riwayat pelatihan karyawan ditampilkan otomatis dari data peserta di modul Program Training. Tidak perlu input manual — cukup daftarkan karyawan ke program training.
+  </div>
+
+  <div class="callout orange">
+    <strong>Penting — Atasan Langsung:</strong> Field <em>atasan_id</em> menentukan rantai penilaian di TNA. Isi dengan benar untuk setiap karyawan. Jika posisi atasan sedang kosong (tidak ada pemegang), sistem TNA akan otomatis menelusuri ke level lebih atas.
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 2 — Competency Framework -->
+<div class="page page-break">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#eff6ff">🎯</div>
+    <div>
+      <div class="mod-num">Modul 2</div>
+      <h2>Competency Framework</h2>
+      <p>Pengelolaan master kompetensi beserta pertanyaan penilaian, pemetaan per departemen/jabatan, penetapan target level, dan import massal via CSV.</p>
+    </div>
+  </div>
+
+  <!-- Struktur Hierarki -->
+  <h3><span class="h3-icon">🏗️</span> Struktur Hierarki</h3>
+  <div class="grid-3">
+    <div class="card" style="text-align:center">
+      <div style="font-size:22pt;margin-bottom:6px">🗂️</div>
+      <div style="font-weight:700;font-size:9.5pt;margin-bottom:4px">Cluster</div>
+      <div style="font-size:8pt;color:var(--gray-500)">Pengelompokan besar<br>mis: Technical &amp; Digital,<br>Communication &amp; Interpersonal</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:22pt;margin-bottom:6px">⚙️</div>
+      <div style="font-weight:700;font-size:9.5pt;margin-bottom:4px">Kompetensi</div>
+      <div style="font-size:8pt;color:var(--gray-500)"><span class="badge badge-blue" style="margin:2px">Hard Skill</span> <span class="badge badge-purple" style="margin:2px">Soft Skill</span><br>Deskripsi + 5 level behavior</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:22pt;margin-bottom:6px">❓</div>
+      <div style="font-weight:700;font-size:9.5pt;margin-bottom:4px">Pertanyaan</div>
+      <div style="font-size:8pt;color:var(--gray-500)">Pernyataan Likert 1–5<br>Dinilai assessor saat<br>mengisi form TNA</div>
+    </div>
+  </div>
+
+  <!-- Skala -->
+  <h3><span class="h3-icon">📏</span> Skala Penilaian Likert 1–5</h3>
+  <div class="scale">
+    <div class="scale-item" style="background:#fee2e2;color:#dc2626">1<span class="scale-label">Tidak Pernah / Tidak Kompeten</span></div>
+    <div class="scale-item" style="background:#fef3c7;color:#d97706">2<span class="scale-label">Jarang / Perlu Bimbingan</span></div>
+    <div class="scale-item" style="background:#fef9c3;color:#ca8a04">3<span class="scale-label">Kadang / Cukup Kompeten</span></div>
+    <div class="scale-item" style="background:#dcfce7;color:#16a34a">4<span class="scale-label">Sering / Kompeten</span></div>
+    <div class="scale-item" style="background:#dbeafe;color:#1d4ed8">5<span class="scale-label">Selalu / Sangat Kompeten</span></div>
+  </div>
+
+  <!-- Flow A: Master Kompetensi -->
+  <h3><span class="h3-icon">➕</span> Flow A: Tambah Kompetensi & Pertanyaan (Manual)</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>People →<br>Competency</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Tambah<br>Kompetensi</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Isi Form<br>+ Level 1–5</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Simpan →<br>Kelola Pertanyaan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Tambah<br>Pertanyaan</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h4>Field Kompetensi</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Nama<span class="field-req">*</span></span><span class="field-desc">Nama singkat kompetensi</span></div>
+        <div class="field-item"><span class="field-name">Kategori<span class="field-req">*</span></span><span class="field-desc">Hard Skill atau Soft Skill</span></div>
+        <div class="field-item"><span class="field-name">Cluster</span><span class="field-desc">Pengelompokan (pilih dari master)</span></div>
+        <div class="field-item"><span class="field-name">Deskripsi</span><span class="field-desc">Penjelasan singkat kompetensi</span></div>
+        <div class="field-item"><span class="field-name">Level 1–5</span><span class="field-desc">Deskripsi perilaku tiap level</span></div>
+      </div>
+    </div>
+    <div>
+      <h4>Field Pertanyaan</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Pertanyaan<span class="field-req">*</span></span><span class="field-desc">Pernyataan yang dinilai assessor</span></div>
+        <div class="field-item"><span class="field-name">Urutan</span><span class="field-desc">Otomatis increment per kompetensi</span></div>
+        <div class="field-item"><span class="field-name">Level 1–5</span><span class="field-desc">Deskripsi perilaku tiap level per pertanyaan (opsional)</span></div>
+      </div>
+      <div class="callout" style="margin-top:8px">Satu kompetensi bisa memiliki banyak pertanyaan. Rata-rata skor semua pertanyaan menjadi nilai akhir kompetensi tersebut.</div>
+    </div>
+  </div>
+
+  <!-- Flow B: Import CSV -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">📥</span> Flow B: Import Kompetensi via CSV (Massal)</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Competency →<br>Import CSV</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Unduh<br>Template</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Isi CSV<br>(Excel/Sheets)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Upload →<br>Preview</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Konfirmasi<br>→ Selesai</div>
+  </div>
+
+  <div class="card card-orange">
+    <div class="card-title">📋 Format CSV (satu baris per pertanyaan)</div>
+    <table style="margin:0;font-size:8pt">
+      <tr><th style="background:#d97706">cluster</th><th style="background:#d97706">kategori</th><th style="background:#d97706">nama</th><th style="background:#d97706">deskripsi</th><th style="background:#d97706">pertanyaan</th></tr>
+      <tr><td>Technical &amp; Digital</td><td>hard</td><td>AI Prompting</td><td>Kemampuan menggunakan AI...</td><td>Apakah mampu menyusun prompt yang efektif?</td></tr>
+      <tr><td>Technical &amp; Digital</td><td>hard</td><td>AI Prompting</td><td>Kemampuan menggunakan AI...</td><td>Apakah menggunakan AI untuk efisiensi kerja?</td></tr>
+    </table>
+  </div>
+  <p><strong>Catatan:</strong> Jika kompetensi dengan nama yang sama sudah ada, pertanyaan ditambahkan ke kompetensi tersebut (tidak duplikasi). Cluster baru otomatis dibuat jika belum tersedia.</p>
+
+  <!-- Flow C: Assign ke Departemen -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">🏢</span> Flow C: Assign Kompetensi ke Departemen</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Competency<br>Framework</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Pilih Dept<br>(dropdown atas)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Klik<br>"Kompetensi Dept"</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Centang<br>Kompetensi</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Simpan<br>Assignment</div>
+  </div>
+
+  <!-- Flow D: Assign ke Jabatan -->
+  <h3><span class="h3-icon">💼</span> Flow D: Assign Kompetensi per Jabatan (Khusus)</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Pilih Dept<br>→ Pilih Jabatan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Klik<br>"Kompetensi Jabatan"</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Centang<br>Kompetensi</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">4</div>Simpan</div>
+  </div>
+  <p>Jika jabatan memiliki set kompetensi sendiri, kompetensi ini yang dipakai di TNA — <em>menggantikan</em> kompetensi departemen untuk karyawan dengan jabatan tersebut.</p>
+
+  <!-- Flow E: Target Level -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">🎯</span> Flow E: Set Target Level per Departemen / Jabatan</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Competency<br>Framework</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Tab Pemetaan<br>Target</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Pilih Dept /<br>Jabatan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Klik angka<br>target (1–5)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Simpan<br>Target</div>
+  </div>
+  <p>Target jabatan otomatis menggantikan target departemen untuk karyawan di jabatan tersebut. Jika tidak diset, nilai target kosong dan gap tidak dihitung.</p>
+
+  <!-- Prioritas -->
+  <h3><span class="h3-icon">📊</span> Prioritas Resolusi Kompetensi (Penting!)</h3>
+  <p>Sistem menentukan kompetensi yang ditampilkan di TNA berdasarkan urutan berikut:</p>
+  <div class="priority">
+    <div class="priority-item" style="background:#dbeafe">
+      <div class="priority-num" style="background:#1d4ed8">1</div>
+      <div><strong>Per Jabatan</strong> — Jika jabatan karyawan memiliki kompetensi yang di-assign khusus via Flow D, set ini yang digunakan. Mengabaikan set departemen.</div>
+    </div>
+    <div class="priority-item" style="background:var(--success-light)">
+      <div class="priority-num" style="background:var(--success)">2</div>
+      <div><strong>Per Departemen</strong> — Jika tidak ada set jabatan, gunakan kompetensi yang di-assign ke departemen karyawan via Flow C.</div>
+    </div>
+    <div class="priority-item" style="background:var(--gray-100)">
+      <div class="priority-num" style="background:var(--gray-500)">3</div>
+      <div><strong>Semua Kompetensi</strong> — Fallback jika departemen dan jabatan belum punya assignment. Semua kompetensi aktif ditampilkan.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 3 — Program Training -->
+<div class="page page-break">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#f0fdf4">🎓</div>
+    <div>
+      <div class="mod-num">Modul 3</div>
+      <h2>Program Training</h2>
+      <p>Pengelolaan program pelatihan internal &amp; eksternal, manajemen peserta, pre/post test, anggaran training per departemen, dan linkage ke kompetensi untuk rekomendasi TNA.</p>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <h3><span class="h3-icon">🚦</span> Status Program Training</h3>
+  <table>
+    <tr>
+      <th>Status</th><th>Keterangan</th><th>Kapan Digunakan</th>
+    </tr>
+    <tr>
+      <td><span class="badge badge-gray">Draft</span></td>
+      <td>Program dalam persiapan, belum dikonfirmasi</td>
+      <td>Saat pertama dibuat / rencana sementara</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-blue">Upcoming</span></td>
+      <td>Sudah terjadwal, belum mulai</td>
+      <td>Setelah jadwal dikonfirmasi vendor/trainer</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-green">Ongoing</span></td>
+      <td>Sedang berlangsung</td>
+      <td>Update saat pelatihan mulai berjalan</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-orange">Completed</span></td>
+      <td>Selesai dilaksanakan</td>
+      <td>Setelah semua sesi selesai + nilai diinput</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-red">Cancelled</span></td>
+      <td>Dibatalkan</td>
+      <td>Jika program tidak jadi dilaksanakan</td>
+    </tr>
+  </table>
+
+  <div class="callout orange">
+    <strong>Rekomendasi TNA:</strong> Hanya program berstatus <span class="badge badge-blue">Upcoming</span> atau <span class="badge badge-green">Ongoing</span> yang muncul sebagai rekomendasi training di hasil TNA. Program <em>Completed</em> tidak ditampilkan karena sudah berlalu.
+  </div>
+
+  <!-- Flow A: Buat Program -->
+  <h3><span class="h3-icon">➕</span> Flow A: Buat Program Training Baru</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>People →<br>Program Training</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Buat<br>Program</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Isi Data<br>Program</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Link ke<br>Kompetensi</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Simpan<br>→ Detail</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h4>Field Program Training</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Nama Program<span class="field-req">*</span></span><span class="field-desc">Nama lengkap program pelatihan</span></div>
+        <div class="field-item"><span class="field-name">Tipe<span class="field-req">*</span></span><span class="field-desc">In-house / Eksternal / Online / dll</span></div>
+        <div class="field-item"><span class="field-name">Vendor / Trainer</span><span class="field-desc">Nama lembaga atau trainer</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Mulai</span><span class="field-desc">Tanggal mulai program</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Selesai</span><span class="field-desc">Tanggal akhir program</span></div>
+        <div class="field-item"><span class="field-name">Lokasi</span><span class="field-desc">Tempat pelaksanaan</span></div>
+        <div class="field-item"><span class="field-name">Biaya per Peserta</span><span class="field-desc">Digunakan hitung realisasi budget</span></div>
+        <div class="field-item"><span class="field-name">Kuota</span><span class="field-desc">Batas maksimal peserta</span></div>
+        <div class="field-item"><span class="field-name">Status</span><span class="field-desc">Draft / Upcoming / Ongoing / dst</span></div>
+      </div>
+    </div>
+    <div>
+      <h4>Link ke Kompetensi (Penting!)</h4>
+      <div class="card card-green">
+        <div class="card-title">🔗 Mengapa Perlu Di-link?</div>
+        <p style="font-size:8.5pt;margin-bottom:10px">Linkage ini yang membuat program training muncul sebagai <strong>rekomendasi otomatis</strong> di hasil TNA ketika seorang karyawan memiliki gap pada kompetensi terkait.</p>
+        <div class="steps" style="gap:7px">
+          <div class="step"><div class="step-body">Di halaman detail program, scroll ke bagian <strong>Kompetensi</strong></div></div>
+          <div class="step"><div class="step-body">Centang kompetensi yang <strong>dikembangkan</strong> oleh program ini</div></div>
+          <div class="step"><div class="step-body">Klik <strong>Simpan Kompetensi</strong></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flow B: Kelola Peserta -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">👥</span> Flow B: Kelola Peserta &amp; Nilai</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Detail<br>Program</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Tambah<br>Peserta</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Input<br>Pre-Test</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node orange"><div class="flow-num">4</div>Update<br>Kehadiran</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Input<br>Post-Test</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h4>Menambah Peserta</h4>
+      <p>Pilih karyawan aktif dari dropdown yang belum terdaftar di program ini. Setelah ditambahkan, status kehadiran otomatis menjadi <span class="badge badge-gray">Registered</span>.</p>
+    </div>
+    <div>
+      <h4>Status Kehadiran</h4>
+      <table style="margin:0">
+        <tr><td><span class="badge badge-gray">Registered</span></td><td>Terdaftar, belum konfirmasi hadir</td></tr>
+        <tr><td><span class="badge badge-green">Hadir</span></td><td>Dihitung dalam realisasi budget</td></tr>
+        <tr><td><span class="badge badge-red">Tidak Hadir</span></td><td>Tidak dihitung realisasi budget</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h4>Update Nilai Peserta</h4>
+  <p>Klik ikon edit di baris peserta untuk mengisi: Status Kehadiran, Nilai Pre-Test (0–100), Nilai Post-Test (0–100), dan Catatan. Sistem menampilkan rata-rata pre/post test secara otomatis di header program.</p>
+
+  <!-- Flow C: Budget -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">💰</span> Flow C: Kelola Anggaran Training</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Program Training<br>→ Budget</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Pilih<br>Tahun</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Set Anggaran<br>per Dept</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">4</div>Simpan</div>
+  </div>
+
+  <div class="card card-blue">
+    <div class="card-title">💡 Perhitungan Realisasi (Otomatis)</div>
+    <table style="margin:0">
+      <tr><th>Komponen</th><th>Cara Hitung</th></tr>
+      <tr><td><strong>Realisasi</strong></td><td>Jumlah (Biaya per Peserta × jumlah peserta <span class="badge badge-green">Hadir</span>) dari semua program di tahun tersebut, per dept</td></tr>
+      <tr><td><strong>Sisa Anggaran</strong></td><td>Anggaran yang ditetapkan − Realisasi</td></tr>
+      <tr><td><strong>% Penyerapan</strong></td><td>Realisasi ÷ Anggaran × 100%</td></tr>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>Detail per Dept:</strong> Klik nama departemen di halaman Budget untuk melihat breakdown program-program yang berkontribusi ke realisasi departemen tersebut.
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 4 — TNA Setup -->
+<div class="page page-break">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#fef3c7">🔄</div>
+    <div>
+      <div class="mod-num">Modul 4</div>
+      <h2>TNA Assessment 360°</h2>
+      <p>Training Needs Analysis berbasis penilaian multi-rater: Self, Atasan, dan Rekan Kerja. Menghasilkan gap analysis per kompetensi beserta rekomendasi program training.</p>
+    </div>
+  </div>
+
+  <!-- Konsep 360 -->
+  <h3><span class="h3-icon">🔄</span> Konsep Multi-Rater 360°</h3>
+  <div class="assessor-cards">
+    <div class="assessor-card" style="background:#eff6ff;border-color:#93c5fd">
+      <div class="ac-icon">👤</div>
+      <div class="ac-title">Self Assessment</div>
+      <div class="ac-sub" style="color:var(--gray-500)">Karyawan menilai kompetensi diri sendiri secara mandiri</div>
+      <div class="ac-weight"><span class="badge badge-blue">Default Bobot: 20%</span></div>
+    </div>
+    <div class="assessor-card" style="background:var(--success-light);border-color:#86efac">
+      <div class="ac-icon">⬆️</div>
+      <div class="ac-title">Penilaian Atasan</div>
+      <div class="ac-sub" style="color:var(--gray-500)">Dinilai atasan langsung hingga level G1 dalam rantai jabatan</div>
+      <div class="ac-weight"><span class="badge badge-green">Default Bobot: 50%</span></div>
+    </div>
+    <div class="assessor-card" style="background:var(--purple-light);border-color:#c4b5fd">
+      <div class="ac-icon">👥</div>
+      <div class="ac-title">Penilaian Rekan</div>
+      <div class="ac-sub" style="color:var(--gray-500)">Dinilai rekan kerja satu dept atau lintas dept se-level</div>
+      <div class="ac-weight"><span class="badge badge-purple">Default Bobot: 30%</span></div>
+    </div>
+  </div>
+  <p>Total bobot (Self + Atasan + Rekan) dapat dikustomisasi per periode TNA sesuai kebutuhan, namun disarankan totalnya = 100.</p>
+
+  <!-- Flow Keseluruhan -->
+  <h3><span class="h3-icon">🗺️</span> Alur Pelaksanaan TNA (End-to-End)</h3>
+  <div class="flow" style="flex-wrap:wrap;gap:4px">
+    <div class="flow-node"><div class="flow-num">1</div>Buat<br>Periode</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Tambah<br>Karyawan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Tambah<br>Assessor</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node orange"><div class="flow-num">4</div>Salin &amp;<br>Kirim Link</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node purple"><div class="flow-num">5</div>Assessor<br>Isi Form</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">6</div>Lihat<br>Hasil</div>
+  </div>
+
+  <!-- Langkah 1: Buat Periode -->
+  <h3><span class="h3-icon">📅</span> Langkah 1: Buat Periode TNA</h3>
+  <div class="grid-2">
+    <div>
+      <div class="steps">
+        <div class="step"><div class="step-body">Buka <strong>People → TNA Assessment</strong></div></div>
+        <div class="step"><div class="step-body">Klik <strong>Buat Periode Baru</strong></div></div>
+        <div class="step"><div class="step-body">Isi nama periode (mis: <em>TNA 2026 – Semester 1</em>), tahun, tanggal mulai/selesai</div></div>
+        <div class="step"><div class="step-body">Set bobot: <strong>Self / Atasan / Rekan</strong> (angka, bukan persen)</div></div>
+        <div class="step"><div class="step-body">Tambahkan catatan opsional → <strong>Simpan</strong></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card card-orange">
+        <div class="card-title">⚖️ Cara Set Bobot</div>
+        <p style="font-size:8.5pt;margin-bottom:6px">Bobot menentukan seberapa besar kontribusi masing-masing assessor ke nilai akhir.</p>
+        <table style="margin:0;font-size:8pt">
+          <tr><th>Assessor</th><th>Bobot Default</th><th>Contoh Custom</th></tr>
+          <tr><td>Self</td><td>20</td><td>10</td></tr>
+          <tr><td>Atasan</td><td>50</td><td>60</td></tr>
+          <tr><td>Rekan</td><td>30</td><td>30</td></tr>
+          <tr><td><strong>Total</strong></td><td>100</td><td>100</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Langkah 2: Tambah Karyawan -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">👤</span> Langkah 2: Tambah Karyawan ke Periode</h3>
+  <div class="steps">
+    <div class="step"><div class="step-body">Buka halaman periode TNA yang ingin dikelola</div></div>
+    <div class="step"><div class="step-body">Klik <strong>+ Tambah Karyawan</strong> → pilih dari dropdown karyawan aktif yang belum ada di periode ini</div></div>
+    <div class="step"><div class="step-body">Klik <strong>Tambahkan</strong> — sistem otomatis membuat record <em>self-assessment</em> untuk karyawan tersebut</div></div>
+    <div class="step"><div class="step-body">Ulangi untuk semua karyawan yang akan masuk periode ini</div></div>
+  </div>
+
+  <!-- Langkah 3: Tambah Assessor -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">👥</span> Langkah 3: Tambah Assessor (Atasan &amp; Rekan)</h3>
+  <div class="grid-2">
+    <div>
+      <h4>Assessor Atasan</h4>
+      <p>Klik <strong>+ Atasan</strong> di card karyawan. Sistem otomatis menampilkan <em>rantai atasan</em> dari data master:</p>
+      <ul class="sub-steps">
+        <li>Atasan langsung karyawan ditampilkan pertama</li>
+        <li>Jika atasan tidak aktif / posisi kosong, sistem lanjut ke level atas</li>
+        <li>Rantai terus sampai tidak ada lagi atasan atau mencapai level G1</li>
+        <li>Centang atasan yang akan menjadi assessor → <strong>Simpan</strong></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Assessor Rekan</h4>
+      <p>Klik <strong>+ Rekan</strong> di card karyawan. Picker menampilkan semua karyawan aktif:</p>
+      <ul class="sub-steps">
+        <li>Karyawan se-departemen ditampilkan di bagian atas</li>
+        <li>Karyawan lintas dept di bagian bawah</li>
+        <li>Ketik nama untuk filter cepat</li>
+        <li>Centang satu atau lebih rekan → <strong>Simpan</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout green">
+    <strong>Rantai Atasan Otomatis:</strong> Sistem menelusuri rantai atasan berdasarkan field <em>atasan_id</em> di data karyawan. Jika ada posisi kosong (atasan tidak aktif), sistem tetap menelusuri ke atasnya lagi — sehingga tidak ada rantai yang putus.
+  </div>
+
+  <!-- Langkah 4: Kirim Link -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">🔗</span> Langkah 4: Distribusi Link Token ke Assessor</h3>
+  <div class="card card-purple">
+    <div class="card-title" style="color:var(--purple)">🔐 Sistem Token Unik — Assessor Tidak Perlu Login</div>
+    <p style="font-size:8.5pt;margin-bottom:10px">Setiap record assessment (self, atasan, rekan) memiliki <strong>token 64-karakter unik</strong> yang berfungsi sebagai password form isian. Link bisa dibagikan langsung tanpa perlu buat akun.</p>
+    <div class="grid-2" style="gap:10px;margin:0">
+      <div>
+        <div class="steps" style="gap:6px">
+          <div class="step"><div class="step-body">Di card karyawan, temukan baris nama assessor</div></div>
+          <div class="step"><div class="step-body">Klik ikon <strong>🔗</strong> (salin link) di ujung kanan baris</div></div>
+          <div class="step"><div class="step-body">Link tersalin ke clipboard → tempel ke <strong>WhatsApp / Email</strong></div></div>
+          <div class="step"><div class="step-body">Jika link perlu diganti (expired/salah kirim): klik ikon <strong>🔄 Regenerate Token</strong></div></div>
+        </div>
+      </div>
+      <div>
+        <table style="margin:0">
+          <tr><th colspan="2">Informasi Link</th></tr>
+          <tr><td><strong>Format URL</strong></td><td><code style="font-size:7.5pt;font-family:monospace">tna/fill/[64-char-token]</code></td></tr>
+          <tr><td><strong>Akses</strong></td><td>Publik — tidak perlu login</td></tr>
+          <tr><td><strong>Bisa dipakai ulang?</strong></td><td>Ya, selama belum submit</td></tr>
+          <tr><td><strong>Reset link?</strong></td><td>Klik Regenerate Token</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 5 — TNA Pengisian & Hasil -->
+<div class="page page-break">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#fef3c7">📊</div>
+    <div>
+      <div class="mod-num">Modul 4 — Lanjutan</div>
+      <h2>TNA: Pengisian Form &amp; Analisis Hasil</h2>
+      <p>Panduan pengisian form assessment oleh assessor dan cara membaca laporan gap analysis.</p>
+    </div>
+  </div>
+
+  <!-- Langkah 5: Pengisian -->
+  <h3><span class="h3-icon">✏️</span> Langkah 5: Assessor Mengisi Form (via Link)</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Buka link<br>di browser</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Form terbuka<br>(tanpa login)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Beri skor<br>1–5 per poin</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node orange"><div class="flow-num">4</div>Simpan<br>Draft</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Submit<br>(Final)</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h4>Tampilan Form Assessor</h4>
+      <ul class="sub-steps" style="margin-top:0">
+        <li>Nama karyawan yang dinilai dan periode ditampilkan di atas</li>
+        <li>Kompetensi dikelompokkan per kategori (Hard Skill / Soft Skill)</li>
+        <li>Per kompetensi tampil pertanyaan-pertanyaan penilaian dengan radio button 1–5</li>
+        <li>Bisa simpan draft untuk dilanjutkan nanti via link yang sama</li>
+        <li>Setelah submit, form terkunci (tidak bisa diubah)</li>
+      </ul>
+    </div>
+    <div>
+      <div class="grid-2" style="gap:10px">
+        <div class="card card-orange" style="margin:0">
+          <div class="card-title" style="color:var(--warning)">📝 Draft</div>
+          <p style="font-size:8pt;margin:0">Tersimpan, bisa dilanjutkan. Belum masuk perhitungan hasil.</p>
+        </div>
+        <div class="card card-green" style="margin:0">
+          <div class="card-title" style="color:var(--success)">✅ Submitted</div>
+          <p style="font-size:8pt;margin:0">Final, tidak bisa diubah. Masuk ke perhitungan nilai akhir.</p>
+        </div>
+      </div>
+      <div class="callout orange" style="margin-top:10px;font-size:8pt">
+        Hanya assessor yang sudah <strong>Submit</strong> yang dihitung dalam hasil. Assessor Draft diabaikan.
+      </div>
+    </div>
+  </div>
+
+  <!-- Langkah 6: Hasil -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">📊</span> Langkah 6: Melihat &amp; Membaca Hasil Gap Analysis</h3>
+  <div class="steps">
+    <div class="step"><div class="step-body">Di halaman periode, klik tombol <strong>"Lihat Hasil"</strong> (atau ikon grafik) di card karyawan</div></div>
+    <div class="step"><div class="step-body">Tabel gap analysis tampil per kompetensi. Tersedia kolom: Target, Self, Atasan, Rekan, Avg Tertimbang, Gap, Status</div></div>
+    <div class="step"><div class="step-body">Bagian bawah menampilkan <strong>Rekomendasi Training</strong> untuk semua kompetensi dengan gap positif (di bawah target)</div></div>
+    <div class="step"><div class="step-body">Klik <strong>Print</strong> untuk cetak laporan</div></div>
+  </div>
+
+  <!-- Rumus -->
+  <h3><span class="h3-icon">🧮</span> Rumus Perhitungan Nilai Akhir</h3>
+  <div class="card" style="background:#f8fafc">
+    <div style="text-align:center;padding:10px 0">
+      <div style="font-size:11pt;font-weight:700;color:var(--gray-800);margin-bottom:6px">
+        Avg = (Self × W<sub>self</sub> + Atasan × W<sub>atasan</sub> + Rekan × W<sub>rekan</sub>) ÷ ΣW
+      </div>
+      <div style="font-size:8pt;color:var(--gray-500)">
+        Hanya assessor yang sudah <strong>Submit</strong> yang masuk perhitungan. Bobot assessor yang belum submit tidak dihitung.
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--gray-200);margin-top:10px;padding-top:10px;font-size:8pt;color:var(--gray-600)">
+      <strong>Contoh:</strong> Bobot Self=20, Atasan=50, Rekan=30. Atasan belum submit. Maka:<br>
+      Avg = (Self × 20 + Rekan × 30) ÷ (20 + 30) = (Self × 20 + Rekan × 30) ÷ 50
+    </div>
+  </div>
+
+  <!-- Membaca Gap -->
+  <h3><span class="h3-icon">🎯</span> Membaca Hasil Gap</h3>
+  <p><strong>Gap = Target − Avg.</strong> Nilai positif berarti karyawan masih di bawah target; nilai negatif berarti melampaui.</p>
+  <table>
+    <tr><th>Gap</th><th>Status</th><th>Arti</th><th>Tindakan yang Disarankan</th></tr>
+    <tr>
+      <td><span class="badge badge-red">+1.01 ke atas</span></td>
+      <td><span class="badge badge-red">Perlu Perhatian</span></td>
+      <td>Jauh di bawah target — lebih dari 1 level</td>
+      <td>Prioritas training / coaching intensif</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-orange">+0.01 – +1.00</span></td>
+      <td><span class="badge badge-orange">Di Bawah Target</span></td>
+      <td>Di bawah target, selisih kecil</td>
+      <td>Cek rekomendasi training / mentoring</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-green">0</span></td>
+      <td><span class="badge badge-green">Sesuai Target</span></td>
+      <td>Tepat di level target</td>
+      <td>Pertahankan — monitor berkala</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-blue">−0.01 ke bawah</span></td>
+      <td><span class="badge badge-blue">Melampaui Target</span></td>
+      <td>Di atas target</td>
+      <td>Kandidat mentor atau promosi jabatan</td>
+    </tr>
+  </table>
+
+  <!-- Rekomendasi Training -->
+  <h3><span class="h3-icon">🎓</span> Rekomendasi Training Otomatis</h3>
+  <div class="card card-green">
+    <div class="card-title">Bagaimana Rekomendasi Muncul?</div>
+    <div class="grid-2" style="gap:12px;margin:0">
+      <div>
+        <div class="steps" style="gap:7px">
+          <div class="step"><div class="step-body">Sistem mengidentifikasi semua kompetensi dengan gap &gt; 0</div></div>
+          <div class="step"><div class="step-body">Untuk setiap kompetensi tersebut, query program training yang ter-<strong>link ke kompetensi itu</strong></div></div>
+          <div class="step"><div class="step-body">Filter: hanya program berstatus <span class="badge badge-blue">Upcoming</span> atau <span class="badge badge-green">Ongoing</span></div></div>
+          <div class="step"><div class="step-body">Ditampilkan di bagian bawah hasil TNA, dikelompokkan per kompetensi</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="callout orange">
+          <strong>Syarat agar muncul:</strong>
+          <ol style="padding-left:16px;margin-top:6px;font-size:8.5pt">
+            <li style="margin-bottom:4px">Program training sudah di-<strong>link</strong> ke kompetensi yang relevan (di halaman detail program)</li>
+            <li>Status program harus <strong>Upcoming</strong> atau <strong>Ongoing</strong></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Periode -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">🔒</span> Menutup / Membuka Kembali Periode</h3>
+  <div class="grid-2">
+    <div>
+      <p>Periode dapat ditutup setelah semua assessor submit. Klik <strong>Tutup Periode</strong> di header halaman periode.</p>
+      <ul class="sub-steps">
+        <li>Status <span class="badge badge-red">Closed</span>: tidak bisa tambah karyawan atau assessor baru</li>
+        <li>Status <span class="badge badge-green">Open</span>: masih bisa dimodifikasi</li>
+        <li>Untuk membuka kembali, klik tombol yang sama (<strong>Buka Kembali</strong>)</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card" style="margin:0">
+        <div class="card-title">🗑️ Hapus Karyawan dari Periode</div>
+        <p style="font-size:8.5pt;margin:0">Klik ikon hapus di card karyawan. Sistem akan menghapus <strong>semua</strong> data assessment (self, atasan, rekan) beserta item penilaiannya dalam satu transaksi.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 6 — EEI Survey -->
+<div class="page page-break">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#f0fdf4">📊</div>
+    <div>
+      <div class="mod-num">Modul 5</div>
+      <h2>EEI Survey — Employee Engagement Index</h2>
+      <p>Mengukur tingkat keterlibatan dan kepuasan karyawan secara periodik. Hasilnya diagregat per departemen, per level jabatan, dan per dimensi engagement.</p>
+    </div>
+  </div>
+
+  <!-- Konsep -->
+  <h3><span class="h3-icon">💡</span> Konsep EEI</h3>
+  <div class="grid-2">
+    <div>
+      <p>EEI mengukur seberapa terlibat dan puas karyawan terhadap pekerjaan dan lingkungan kerja mereka. Survei diisi secara <strong>anonim</strong> oleh karyawan yang login ke sistem.</p>
+      <ul class="sub-steps" style="margin-top:0">
+        <li>Tersusun dari beberapa <strong>Dimensi</strong> (mis: Keterlibatan Kerja, Pengembangan Karir, dll)</li>
+        <li>Setiap dimensi berisi beberapa <strong>Pertanyaan</strong> dengan skor Likert 1–5</li>
+        <li>Hasil dikumpulkan per periode, bisa dibanding antar periode</li>
+        <li>Bisa ada <strong>reversed question</strong> (pertanyaan negatif, skor dibalik)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">📐 Contoh Dimensi</div>
+      <table style="margin:0">
+        <tr><td>Keterlibatan Kerja</td></tr>
+        <tr><td>Kepuasan Lingkungan Kerja</td></tr>
+        <tr><td>Hubungan dengan Atasan</td></tr>
+        <tr><td>Pengembangan Karir</td></tr>
+        <tr><td>Keseimbangan Kerja-Hidup</td></tr>
+        <tr><td>Kolaborasi Tim</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Flow Admin -->
+  <h3><span class="h3-icon">⚙️</span> Flow A: Setup Survei (Admin)</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>People →<br>EEI → Kelola</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Tambah<br>Dimensi</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Tambah<br>Pertanyaan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Buat<br>Periode</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Aktifkan<br>Periode</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h4>Kelola Dimensi</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Nama Dimensi<span class="field-req">*</span></span><span class="field-desc">Nama kategori engagement</span></div>
+        <div class="field-item"><span class="field-name">Deskripsi</span><span class="field-desc">Penjelasan singkat dimensi</span></div>
+        <div class="field-item"><span class="field-name">Urutan</span><span class="field-desc">Otomatis berurutan; bisa diubah</span></div>
+      </div>
+      <h4>Kelola Pertanyaan per Dimensi</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Pertanyaan<span class="field-req">*</span></span><span class="field-desc">Teks pernyataan untuk dinilai</span></div>
+        <div class="field-item"><span class="field-name">Reversed</span><span class="field-desc">Centang jika pernyataan negatif (skor 1 = baik)</span></div>
+        <div class="field-item"><span class="field-name">Urutan</span><span class="field-desc">Urutan tampil dalam form</span></div>
+      </div>
+    </div>
+    <div>
+      <h4>Kelola Periode Survei</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Nama Periode<span class="field-req">*</span></span><span class="field-desc">mis: EEI Q1 2026</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Mulai<span class="field-req">*</span></span><span class="field-desc">Kapan periode dibuka</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Selesai<span class="field-req">*</span></span><span class="field-desc">Kapan periode ditutup</span></div>
+      </div>
+      <div class="callout orange" style="font-size:8.5pt">
+        <strong>Hanya satu periode yang bisa aktif sekaligus.</strong> Mengaktifkan periode baru otomatis menonaktifkan yang lama.
+      </div>
+    </div>
+  </div>
+
+  <!-- Flow Karyawan -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">✏️</span> Flow B: Pengisian Survei oleh Karyawan</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Login ke<br>sistem</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>People →<br>EEI Survey</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Isi skor<br>1–5 per poin</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Pilih Level<br>Jabatan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Submit</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <p>Form survei hanya muncul jika ada periode yang aktif. Karyawan hanya bisa mengisi satu kali per periode. Setelah submit, tidak bisa diubah.</p>
+      <p>Jawaban disimpan <strong>anonim</strong> — tidak ada nama karyawan yang tercatat per jawaban, hanya departemen dan level jabatan.</p>
+    </div>
+    <div class="card" style="margin:0">
+      <div class="card-title">ℹ️ Jika Periode Tidak Aktif</div>
+      <p style="font-size:8.5pt;margin:0">Menu EEI Survey tetap bisa dibuka, namun karyawan hanya melihat pesan bahwa tidak ada survei aktif saat ini. Tidak ada form yang ditampilkan.</p>
+    </div>
+  </div>
+
+  <!-- Flow Lihat Hasil -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">📈</span> Flow C: Melihat Hasil EEI (Admin)</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>People →<br>EEI</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Pilih<br>Periode</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">3</div>Lihat Dashboard<br>Hasil</div>
+  </div>
+
+  <h4>Dimensi Laporan EEI</h4>
+  <div class="grid-2">
+    <table style="margin-bottom:0">
+      <tr><th>Tampilan</th><th>Isi</th></tr>
+      <tr><td><strong>Overall Score</strong></td><td>Rata-rata total semua dimensi semua responden</td></tr>
+      <tr><td><strong>Skor per Dimensi</strong></td><td>Rata-rata tiap dimensi engagement</td></tr>
+      <tr><td><strong>Skor per Departemen</strong></td><td>Rata-rata per dept dari responden</td></tr>
+    </table>
+    <table style="margin-bottom:0">
+      <tr><th>Tampilan</th><th>Isi</th></tr>
+      <tr><td><strong>Skor per Level</strong></td><td>Rata-rata berdasarkan level jabatan responden</td></tr>
+      <tr><td><strong>Partisipasi</strong></td><td>Jumlah yang sudah isi ÷ total karyawan aktif × 100%</td></tr>
+      <tr><td><strong>Rincian Jawaban</strong></td><td>Distribusi skor per pertanyaan</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 7 — Quick Reference -->
+<div class="page page-break">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#f1f5f9">⚡</div>
+    <div>
+      <div class="mod-num">Referensi Cepat</div>
+      <h2>Panduan Cepat &amp; Troubleshooting</h2>
+      <p>Ringkasan aksi yang paling sering dilakukan dan solusi untuk masalah umum.</p>
+    </div>
+  </div>
+
+  <!-- Quick Reference Table -->
+  <h3><span class="h3-icon">📋</span> Tabel Aksi Paling Sering</h3>
+  <table>
+    <tr>
+      <th style="width:26%">Tujuan</th>
+      <th style="width:36%">Lokasi di Sistem</th>
+      <th>Langkah Singkat</th>
+    </tr>
+    <tr>
+      <td><strong>Tambah karyawan baru</strong></td>
+      <td>People → Data Karyawan → Tambah Karyawan</td>
+      <td>Isi NIK, Nama, Tgl Masuk, Jabatan, Atasan, Dept → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Catat mutasi jabatan</strong></td>
+      <td>Detail Karyawan → Tab Riwayat Posisi → Tambah</td>
+      <td>Isi jabatan baru, dept, tgl mulai → Simpan (posisi lama otomatis ditutup)</td>
+    </tr>
+    <tr>
+      <td><strong>Upload sertifikat</strong></td>
+      <td>Detail Karyawan → Tab Sertifikasi → Tambah</td>
+      <td>Isi nama, penerbit, tgl kadaluarsa, upload file → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Tambah kompetensi baru</strong></td>
+      <td>People → Competency → Tambah Kompetensi</td>
+      <td>Isi nama, kategori (hard/soft), cluster, level 1–5 → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Tambah pertanyaan TNA</strong></td>
+      <td>Competency → klik kompetensi → Kelola Pertanyaan</td>
+      <td>Klik Tambah Pertanyaan → isi teks → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Import kompetensi CSV</strong></td>
+      <td>Competency → Import CSV</td>
+      <td>Unduh template → isi → upload → preview → Konfirmasi</td>
+    </tr>
+    <tr>
+      <td><strong>Assign kompetensi ke dept</strong></td>
+      <td>Competency → Pilih Dept → Kompetensi Dept</td>
+      <td>Centang kompetensi yang relevan → Simpan Assignment</td>
+    </tr>
+    <tr>
+      <td><strong>Assign kompetensi ke jabatan</strong></td>
+      <td>Competency → Pilih Dept → Pilih Jabatan → Kompetensi Jabatan</td>
+      <td>Centang kompetensi khusus jabatan → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Set target level</strong></td>
+      <td>Competency → Tab Pemetaan Target</td>
+      <td>Pilih dept/jabatan → klik angka target → Simpan Target</td>
+    </tr>
+    <tr>
+      <td><strong>Buat program training</strong></td>
+      <td>People → Program Training → Buat Program</td>
+      <td>Isi data program + link kompetensi → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Daftarkan peserta training</strong></td>
+      <td>Program Training → Detail Program → Tambah Peserta</td>
+      <td>Pilih karyawan dari dropdown → Tambahkan</td>
+    </tr>
+    <tr>
+      <td><strong>Input nilai pre/post test</strong></td>
+      <td>Detail Program → klik edit peserta</td>
+      <td>Isi nilai pre-test / post-test / kehadiran → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Set budget training</strong></td>
+      <td>Program Training → Budget</td>
+      <td>Pilih tahun → isi anggaran per dept → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Buat periode TNA</strong></td>
+      <td>People → TNA Assessment → Buat Periode</td>
+      <td>Isi nama, tahun, bobot self/atasan/rekan → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Tambah karyawan ke TNA</strong></td>
+      <td>TNA → buka periode → + Tambah Karyawan</td>
+      <td>Pilih dari dropdown → Tambahkan</td>
+    </tr>
+    <tr>
+      <td><strong>Tambah assessor atasan</strong></td>
+      <td>TNA → card karyawan → + Atasan</td>
+      <td>Centang dari rantai atasan otomatis → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Kirim link ke assessor</strong></td>
+      <td>TNA → card karyawan → ikon 🔗 di baris assessor</td>
+      <td>Klik ikon → link tersalin → tempel ke WhatsApp/Email</td>
+    </tr>
+    <tr>
+      <td><strong>Reset link assessor</strong></td>
+      <td>TNA → card karyawan → ikon 🔄 di baris assessor</td>
+      <td>Klik Regenerate Token → link lama tidak berlaku lagi</td>
+    </tr>
+    <tr>
+      <td><strong>Lihat hasil TNA</strong></td>
+      <td>TNA → card karyawan → tombol "Hasil"</td>
+      <td>Tersedia setelah minimal 1 assessor submit</td>
+    </tr>
+    <tr>
+      <td><strong>Cetak laporan TNA</strong></td>
+      <td>Halaman Hasil TNA → tombol Print</td>
+      <td>Klik Print → atur printer/PDF → cetak</td>
+    </tr>
+    <tr>
+      <td><strong>Buka/tutup periode TNA</strong></td>
+      <td>Halaman Periode TNA → tombol Tutup / Buka Kembali</td>
+      <td>Klik tombol — toggle otomatis</td>
+    </tr>
+    <tr>
+      <td><strong>Setup EEI Survey</strong></td>
+      <td>People → EEI → Kelola</td>
+      <td>Tambah dimensi → tambah pertanyaan → buat periode → aktifkan</td>
+    </tr>
+    <tr>
+      <td><strong>Isi EEI Survey</strong></td>
+      <td>People → EEI Survey (karyawan)</td>
+      <td>Isi skor per pertanyaan → pilih level jabatan → Submit</td>
+    </tr>
+  </table>
+
+  <!-- Troubleshooting -->
+  <h3><span class="h3-icon">🔧</span> Troubleshooting Umum</h3>
+  <table>
+    <tr>
+      <th>Masalah</th>
+      <th>Penyebab</th>
+      <th>Solusi</th>
+    </tr>
+    <tr>
+      <td>Semua kompetensi tampil di TNA, bukan yang sudah dipilih</td>
+      <td>Dept atau jabatan belum punya assignment kompetensi</td>
+      <td>Lakukan Flow C (assign ke dept) atau Flow D (assign ke jabatan) di Competency Framework</td>
+    </tr>
+    <tr>
+      <td>Gap tidak tampil di hasil TNA</td>
+      <td>Target level belum di-set untuk dept/jabatan tersebut</td>
+      <td>Buka Tab Pemetaan Target → set angka target → Simpan</td>
+    </tr>
+    <tr>
+      <td>Rekomendasi training tidak muncul</td>
+      <td>Program belum di-link ke kompetensi, atau statusnya bukan Upcoming/Ongoing</td>
+      <td>Buka detail program training → centang kompetensi → Simpan. Pastikan status = Upcoming/Ongoing</td>
+    </tr>
+    <tr>
+      <td>Assessor tidak bisa buka link form</td>
+      <td>Token sudah direset / link salah</td>
+      <td>Klik Regenerate Token di baris assessor → salin link baru → kirim ulang</td>
+    </tr>
+    <tr>
+      <td>Rantai atasan tidak tampil / kosong</td>
+      <td>Field atasan_id di data karyawan kosong atau semua atasan tidak aktif</td>
+      <td>Cek data karyawan → pastikan atasan_id terisi dan ada setidaknya satu atasan aktif di rantai</td>
+    </tr>
+    <tr>
+      <td>Tidak bisa tambah karyawan/assessor ke TNA</td>
+      <td>Periode berstatus Closed</td>
+      <td>Klik tombol "Buka Kembali" di header halaman periode</td>
+    </tr>
+    <tr>
+      <td>EEI Survey tidak muncul untuk karyawan</td>
+      <td>Tidak ada periode aktif</td>
+      <td>People → EEI → Kelola → Aktifkan periode yang diinginkan</td>
+    </tr>
+    <tr>
+      <td>Realisasi budget training = 0</td>
+      <td>Status kehadiran peserta belum diupdate ke "Hadir"</td>
+      <td>Detail program → edit peserta → set Status Kehadiran = Hadir</td>
+    </tr>
+  </table>
+
+  <!-- Alur Data -->
+  <h3><span class="h3-icon">🔗</span> Keterkaitan Antar Modul</h3>
+  <div class="card" style="padding:16px 18px">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:8.5pt">
+      <div style="background:var(--primary-light);border:1.5px solid #93c5fd;border-radius:7px;padding:8px 12px;color:var(--primary);font-weight:600">
+        Data Karyawan<br><span style="font-weight:400;font-size:7.5pt">atasan_id, jabatan_id, dept_id</span>
+      </div>
+      <div style="color:var(--gray-400);font-size:16pt">↓</div>
+      <div style="background:var(--success-light);border:1.5px solid #86efac;border-radius:7px;padding:8px 12px;color:var(--success);font-weight:600">
+        Competency Framework<br><span style="font-weight:400;font-size:7.5pt">Kompetensi per jabatan/dept + target</span>
+      </div>
+      <div style="color:var(--gray-400);font-size:16pt">↓</div>
+      <div style="background:var(--warning-light);border:1.5px solid #fcd34d;border-radius:7px;padding:8px 12px;color:var(--warning);font-weight:600">
+        TNA Assessment<br><span style="font-weight:400;font-size:7.5pt">Penilaian 360° → Gap analysis</span>
+      </div>
+      <div style="color:var(--gray-400);font-size:16pt">↓</div>
+      <div style="background:var(--purple-light);border:1.5px solid #c4b5fd;border-radius:7px;padding:8px 12px;color:var(--purple);font-weight:600">
+        Program Training<br><span style="font-weight:400;font-size:7.5pt">Rekomendasi otomatis via linkage</span>
+      </div>
+    </div>
+    <p style="margin-top:12px;margin-bottom:0;font-size:8pt;color:var(--gray-500)">
+      <strong>Alur data:</strong> Data karyawan (jabatan &amp; atasan) dipakai TNA untuk menentukan kompetensi yang dinilai dan membangun rantai assessor. Competency Framework menyediakan kompetensi + target. Hasil TNA (gap) memicu rekomendasi dari Program Training yang ter-link ke kompetensi tersebut.
+    </p>
+  </div>
+
+  <div class="footer-bar">
+    <div>
+      <div class="title">Mall Intelligence Center · People Development</div>
+      <div class="sub">v1.2 — Mei 2026 · IT Dept PT. Wulandari Bangun Laksana Tbk.</div>
+    </div>
+    <div class="right">
+      Dokumen bersifat internal.<br>
+      Dilarang disebarluaskan.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
