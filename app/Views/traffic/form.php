@@ -121,14 +121,38 @@ $grandTotal = array_sum($hourTotals);
 
     <div class="col-auto">
         <label class="form-label small fw-semibold mb-1">Mobil</label>
-        <input type="number" name="total_mobil" class="form-control form-control-sm" style="width:90px"
+        <input type="number" name="total_mobil" class="form-control form-control-sm" style="width:78px"
                value="<?= $vehicleRow ? $vehicleRow['total_mobil'] : 0 ?>" min="0">
     </div>
 
     <div class="col-auto">
         <label class="form-label small fw-semibold mb-1">Motor</label>
-        <input type="number" name="total_motor" class="form-control form-control-sm" style="width:90px"
+        <input type="number" name="total_motor" class="form-control form-control-sm" style="width:78px"
                value="<?= $vehicleRow ? $vehicleRow['total_motor'] : 0 ?>" min="0">
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label small fw-semibold mb-1">Mobil Box</label>
+        <input type="number" name="total_mobil_box" class="form-control form-control-sm" style="width:78px"
+               value="<?= $vehicleRow ? ($vehicleRow['total_mobil_box'] ?? 0) : 0 ?>" min="0">
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label small fw-semibold mb-1">Bus</label>
+        <input type="number" name="total_bus" class="form-control form-control-sm" style="width:78px"
+               value="<?= $vehicleRow ? ($vehicleRow['total_bus'] ?? 0) : 0 ?>" min="0">
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label small fw-semibold mb-1">Truck</label>
+        <input type="number" name="total_truck" class="form-control form-control-sm" style="width:78px"
+               value="<?= $vehicleRow ? ($vehicleRow['total_truck'] ?? 0) : 0 ?>" min="0">
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label small fw-semibold mb-1">Taxi</label>
+        <input type="number" name="total_taxi" class="form-control form-control-sm" style="width:78px"
+               value="<?= $vehicleRow ? ($vehicleRow['total_taxi'] ?? 0) : 0 ?>" min="0">
     </div>
 
     <?php if (! empty($doors)): ?>

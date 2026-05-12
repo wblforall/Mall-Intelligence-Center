@@ -10,10 +10,12 @@ class SectionConfig
     const MENU_LABELS = [
         // ── Standalone (Main Sidebar) ────────────────────────────
         'events'        => 'Daftar Event',
-        'loyalty_main'  => 'Loyalty — Standalone',
-        'creative_main' => 'Creative — Standalone',
-        'vm_main'       => 'VM — Standalone',
-        'traffic'       => 'Daily Traffic',
+        'loyalty_main'       => 'Loyalty — Standalone',
+        'creative_main'      => 'Creative — Standalone',
+        'vm_main'            => 'VM — Standalone',
+        'sponsorship_main'   => 'Sponsorship — Standalone',
+        'people_dev'         => 'People Development',
+        'traffic'            => 'Daily Traffic',
         // ── Per-Event (Event Sub-menu) ───────────────────────────
         'summary'       => 'Event Summary',
         'content'       => 'Content & Rundown',

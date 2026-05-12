@@ -286,6 +286,12 @@ body { min-height: 100vh; }
         </div>
         <?php endif; ?>
 
+        <?php
+        $_isAdmin = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+        $_deptMenusPd = session()->get('dept_menus');
+        $_canViewPd   = $_isAdmin || $_deptMenusPd === null || ($_deptMenusPd['people_dev']['can_view'] ?? false);
+        if ($_canViewPd):
+        ?>
         <div class="nav-label">People Development</div>
         <a href="<?= base_url('people/dashboard') ?>" class="nav-link <?= uri_string() === 'people/dashboard' ? 'active' : '' ?>">
             <i class="bi bi-speedometer2"></i> Dashboard
@@ -311,6 +317,7 @@ body { min-height: 100vh; }
         <a href="<?= base_url('people/orgchart') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/orgchart') ? 'active' : '' ?>">
             <i class="bi bi-diagram-3-fill"></i> Struktur Organisasi
         </a>
+        <?php endif; ?>
 
         <?php if (session()->get('role_perms')['can_view_logs'] ?? session()->get('role_is_admin') || session()->get('user_role') === 'admin'): ?>
         <div class="nav-label">System</div>

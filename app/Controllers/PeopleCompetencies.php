@@ -13,6 +13,7 @@ class PeopleCompetencies extends BaseController
 {
     public function index()
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $compModel   = new CompetencyModel();
         $targetModel = new CompetencyTargetModel();
         $deptId      = (int)($this->request->getGet('dept_id') ?? 0);
@@ -82,6 +83,7 @@ class PeopleCompetencies extends BaseController
 
     public function store()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post  = $this->request->getPost();
         $model = new CompetencyModel();
 
@@ -103,6 +105,7 @@ class PeopleCompetencies extends BaseController
 
     public function update(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         (new CompetencyModel())->update($id, [
             'nama'       => trim($post['nama']),
@@ -122,6 +125,7 @@ class PeopleCompetencies extends BaseController
 
     public function delete(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $comp = (new CompetencyModel())->find($id);
         $db   = db_connect();
         $db->transStart();
@@ -136,6 +140,7 @@ class PeopleCompetencies extends BaseController
 
     public function questions(int $id)
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $comp = (new CompetencyModel())->find($id);
         if (! $comp) return redirect()->to('/people/competencies')->with('error', 'Kompetensi tidak ditemukan.');
 
@@ -148,6 +153,7 @@ class PeopleCompetencies extends BaseController
 
     public function storeQuestion(int $compId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post  = $this->request->getPost();
         $model = new CompetencyQuestionModel();
         $id = $model->insert([
@@ -161,6 +167,7 @@ class PeopleCompetencies extends BaseController
 
     public function updateQuestionLevels(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         (new CompetencyQuestionModel())->update($id, [
             'level_1' => trim($post['level_1'] ?? '') ?: null,
@@ -175,6 +182,7 @@ class PeopleCompetencies extends BaseController
 
     public function deleteQuestion(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $q = (new CompetencyQuestionModel())->find($id);
         if ($q) {
             // tna_assessment_items cascade-deletes via FK
@@ -186,6 +194,7 @@ class PeopleCompetencies extends BaseController
 
     public function manageAssignments(int $deptId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $dept = (new DepartmentModel())->find($deptId);
         if (! $dept) return redirect()->to('/people/competencies')->with('error', 'Dept tidak ditemukan.');
 
@@ -200,6 +209,7 @@ class PeopleCompetencies extends BaseController
 
     public function saveAssignments(int $deptId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $ids = array_map('intval', $this->request->getPost('competency_ids') ?? []);
         (new CompetencyModel())->saveAssignmentsForDept($deptId, $ids);
         ActivityLog::write('update', 'competency_dept_map', (string)$deptId, count($ids) . ' kompetensi di-assign');
@@ -209,6 +219,7 @@ class PeopleCompetencies extends BaseController
 
     public function manageJabatanAssignments(int $jabatanId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $jabatan = (new \App\Models\JabatanModel())->find($jabatanId);
         if (! $jabatan) return redirect()->to('/people/competencies')->with('error', 'Jabatan tidak ditemukan.');
 
@@ -223,6 +234,7 @@ class PeopleCompetencies extends BaseController
 
     public function saveJabatanAssignments(int $jabatanId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $ids = array_map('intval', $this->request->getPost('competency_ids') ?? []);
         (new CompetencyModel())->saveAssignmentsForJabatan($jabatanId, $ids);
         ActivityLog::write('update', 'competency_jabatan_map', (string)$jabatanId, count($ids) . ' kompetensi di-assign');
@@ -232,11 +244,13 @@ class PeopleCompetencies extends BaseController
 
     public function importForm()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         return view('people/competencies/import', ['user' => $this->currentUser()]);
     }
 
     public function importTemplate()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $rows = [
             ['cluster', 'kategori', 'nama', 'deskripsi', 'pertanyaan'],
             ['Technical & Digital', 'hard', 'AI Prompting', 'Kemampuan menggunakan AI generatif untuk produktivitas', 'Apakah karyawan mampu menyusun prompt yang spesifik dan terstruktur?'],
@@ -263,6 +277,7 @@ class PeopleCompetencies extends BaseController
 
     public function importParse()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $file = $this->request->getFile('csv_file');
         if (! $file || ! $file->isValid() || $file->getExtension() !== 'csv') {
             return redirect()->to('/people/competencies/import')->with('error', 'Upload file CSV yang valid.');
@@ -324,6 +339,7 @@ class PeopleCompetencies extends BaseController
 
     public function importPreview()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $data = session()->get('ci_import_competency');
         if (empty($data)) return redirect()->to('/people/competencies/import');
 
@@ -335,6 +351,7 @@ class PeopleCompetencies extends BaseController
 
     public function importConfirm()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $data = session()->get('ci_import_competency');
         if (empty($data)) return redirect()->to('/people/competencies/import');
 
@@ -397,6 +414,7 @@ class PeopleCompetencies extends BaseController
 
     public function saveTargets()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post    = $this->request->getPost();
         $deptId  = (int)($post['dept_id'] ?? 0);
         $jabatan = trim($post['jabatan'] ?? '');

@@ -9,6 +9,7 @@ class PeopleOrgChart extends BaseController
 {
     public function index()
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $db = db_connect();
 
         $divisions = (new DivisionModel())->orderBy('nama')->findAll();

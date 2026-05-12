@@ -10,6 +10,7 @@ class PeopleDashboard extends BaseController
 {
     public function index()
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $db    = db_connect();
         $tahun = (int)date('Y');
 

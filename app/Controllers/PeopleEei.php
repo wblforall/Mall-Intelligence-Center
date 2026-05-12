@@ -14,6 +14,7 @@ class PeopleEei extends BaseController
     // Results dashboard (admin / HR)
     public function index()
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $periodModel = new EeiPeriodModel();
         $periods     = $periodModel->orderBy('start_date', 'DESC')->findAll();
 
@@ -42,6 +43,7 @@ class PeopleEei extends BaseController
     // Admin: manage dimensions, questions, periods
     public function manage()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         return view('people/eei/manage', [
             'user'       => $this->currentUser(),
             'dimensions' => (new EeiDimensionModel())->getWithQuestions(),
@@ -199,6 +201,7 @@ class PeopleEei extends BaseController
 
     public function storePeriod()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post  = $this->request->getPost();
         $model = new EeiPeriodModel();
         $id    = $model->insert([
@@ -214,6 +217,7 @@ class PeopleEei extends BaseController
 
     public function updatePeriod(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         (new EeiPeriodModel())->update($id, [
             'nama'       => trim($post['nama']),
@@ -226,6 +230,7 @@ class PeopleEei extends BaseController
 
     public function deletePeriod(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $p = (new EeiPeriodModel())->find($id);
         (new EeiPeriodModel())->delete($id);
         ActivityLog::write('delete', 'eei_period', (string)$id, $p['nama'] ?? '');
@@ -234,6 +239,7 @@ class PeopleEei extends BaseController
 
     public function activatePeriod(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         (new EeiPeriodModel())->activate($id);
         ActivityLog::write('update', 'eei_period_activate', (string)$id, 'activated');
         return redirect()->to('/people/eei/manage')->with('success', 'Periode diaktifkan.');
@@ -243,6 +249,7 @@ class PeopleEei extends BaseController
 
     public function storeDimension()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post  = $this->request->getPost();
         $model = new EeiDimensionModel();
         $id    = $model->insert([
@@ -256,6 +263,7 @@ class PeopleEei extends BaseController
 
     public function updateDimension(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         (new EeiDimensionModel())->update($id, [
             'nama'      => trim($post['nama']),
@@ -267,6 +275,7 @@ class PeopleEei extends BaseController
 
     public function deleteDimension(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $dim = (new EeiDimensionModel())->find($id);
         (new EeiDimensionModel())->delete($id);
         ActivityLog::write('delete', 'eei_dimension', (string)$id, $dim['nama'] ?? '');
@@ -277,6 +286,7 @@ class PeopleEei extends BaseController
 
     public function storeQuestion(int $dimId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post  = $this->request->getPost();
         $model = new EeiQuestionModel();
         $id    = $model->insert([
@@ -291,6 +301,7 @@ class PeopleEei extends BaseController
 
     public function deleteQuestion(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $q = (new EeiQuestionModel())->find($id);
         (new EeiQuestionModel())->delete($id);
         ActivityLog::write('delete', 'eei_question', (string)$id, substr($q['pertanyaan'] ?? '', 0, 60));

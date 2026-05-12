@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handout — Mall Intelligence Center v1.3</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary:       #1e40af;
+  --primary-light: #dbeafe;
+  --primary-mid:   #3b82f6;
+  --accent:        #0ea5e9;
+  --success:       #16a34a;
+  --success-light: #dcfce7;
+  --warning:       #d97706;
+  --warning-light: #fef3c7;
+  --danger:        #dc2626;
+  --danger-light:  #fee2e2;
+  --purple:        #7c3aed;
+  --purple-light:  #ede9fe;
+  --teal:          #0d9488;
+  --teal-light:    #ccfbf1;
+  --orange:        #ea580c;
+  --orange-light:  #ffedd5;
+  --gray-50:  #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+  --font: 'Segoe UI', system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 10pt;
+  color: var(--gray-800);
+  background: #fff;
+  line-height: 1.55;
+}
+
+/* ── Cover ── */
+.cover {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 64px;
+  background: linear-gradient(140deg, #0f172a 0%, #1e3a8a 55%, #0369a1 100%);
+  color: #fff;
+  page-break-after: always;
+  position: relative;
+  overflow: hidden;
+}
+.cover::before {
+  content: '';
+  position: absolute;
+  right: -80px; top: -80px;
+  width: 420px; height: 420px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.04);
+}
+.cover::after {
+  content: '';
+  position: absolute;
+  left: -60px; bottom: -60px;
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.03);
+}
+.cover-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 100px;
+  padding: 6px 16px;
+  font-size: 8.5pt;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+  width: fit-content;
+}
+.cover-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+.cover h1 { font-size: 34pt; font-weight: 800; line-height: 1.1; margin-bottom: 12px; }
+.cover h1 span { color: #93c5fd; }
+.cover .subtitle { font-size: 14pt; color: rgba(255,255,255,.75); margin-bottom: 10px; font-weight: 300; }
+.cover .tagline { font-size: 10pt; color: rgba(255,255,255,.5); margin-bottom: 48px; }
+.cover-meta { display: flex; gap: 32px; }
+.cover-meta-item { border-left: 2px solid rgba(255,255,255,.2); padding-left: 16px; }
+.cover-meta-item .label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.5); }
+.cover-meta-item .value { font-size: 11pt; font-weight: 600; color: rgba(255,255,255,.9); }
+
+/* ── Page layout ── */
+.page { padding: 40px 56px; max-width: 210mm; margin: 0 auto; }
+@media print {
+  .page { padding: 28px 40px; }
+  .page-break { page-break-before: always; }
+}
+
+/* ── TOC ── */
+.toc { padding: 40px 56px 32px; }
+.toc h2 { font-size: 15pt; font-weight: 700; color: var(--primary); margin-bottom: 20px; }
+.toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 32px; }
+.toc-item { display: flex; align-items: baseline; gap: 6px; padding: 4px 0; border-bottom: 1px dotted var(--gray-200); font-size: 9pt; }
+.toc-item .num { font-weight: 700; color: var(--primary); min-width: 22px; }
+.toc-item .title { flex: 1; color: var(--gray-700); }
+.toc-item .pg { color: var(--gray-400); font-size: 8pt; }
+.toc-section { grid-column: 1 / -1; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--gray-400); margin-top: 10px; padding-top: 6px; border-bottom: none; }
+
+/* ── Section header ── */
+.section-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--gray-100);
+}
+.section-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.section-header h2 { font-size: 13pt; font-weight: 700; color: var(--gray-900); }
+.section-header .url { font-size: 8pt; color: var(--gray-400); font-family: monospace; }
+.section-header .role-badge {
+  display: inline-block;
+  font-size: 7.5pt;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* ── Chapter divider ── */
+.chapter-divider {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  color: #fff;
+  padding: 20px 56px;
+  margin: 0 -56px;
+  font-size: 9pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+/* ── Feature blocks ── */
+.feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.feature-grid.col3 { grid-template-columns: 1fr 1fr 1fr; }
+.feature-box {
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.feature-box h4 { font-size: 8.5pt; font-weight: 700; color: var(--gray-700); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.feature-box ul { padding-left: 14px; }
+.feature-box li { font-size: 8.5pt; color: var(--gray-600); margin-bottom: 3px; line-height: 1.4; }
+
+/* ── Field table ── */
+.field-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 8.5pt; }
+.field-table th { background: var(--gray-100); padding: 6px 10px; text-align: left; font-weight: 700; color: var(--gray-700); border: 1px solid var(--gray-200); }
+.field-table td { padding: 5px 10px; border: 1px solid var(--gray-200); color: var(--gray-600); vertical-align: top; }
+.field-table tr:nth-child(even) td { background: var(--gray-50); }
+
+/* ── Info box ── */
+.info-box {
+  border-left: 3px solid var(--primary-mid);
+  background: var(--primary-light);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 8.5pt;
+  color: var(--primary);
+}
+.info-box.warning { border-color: var(--warning); background: var(--warning-light); color: #92400e; }
+.info-box.success { border-color: var(--success); background: var(--success-light); color: #14532d; }
+.info-box strong { display: block; margin-bottom: 3px; }
+
+/* ── Step list ── */
+.steps { counter-reset: step; list-style: none; padding: 0; }
+.steps li { counter-increment: step; display: flex; gap: 10px; margin-bottom: 8px; font-size: 8.5pt; color: var(--gray-700); }
+.steps li::before {
+  content: counter(step);
+  min-width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 7.5pt; font-weight: 700; flex-shrink: 0;
+}
+
+/* ── Pill tags ── */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tag {
+  font-size: 7.5pt; font-weight: 600;
+  padding: 2px 10px; border-radius: 100px;
+  border: 1px solid currentColor;
+}
+.tag.blue   { color: var(--primary); background: var(--primary-light); }
+.tag.green  { color: var(--success); background: var(--success-light); }
+.tag.purple { color: var(--purple); background: var(--purple-light); }
+.tag.teal   { color: var(--teal); background: var(--teal-light); }
+.tag.orange { color: var(--orange); background: var(--orange-light); }
+.tag.gray   { color: var(--gray-600); background: var(--gray-100); }
+
+/* ── URL ref ── */
+.url-ref { font-family: monospace; font-size: 8pt; background: var(--gray-100); padding: 2px 6px; border-radius: 4px; color: var(--gray-600); }
+
+/* ── Status flow ── */
+.flow { display: flex; align-items: center; gap: 0; margin-bottom: 12px; font-size: 8pt; flex-wrap: wrap; }
+.flow-item { padding: 5px 12px; background: var(--gray-100); border: 1px solid var(--gray-200); font-weight: 600; color: var(--gray-700); }
+.flow-item:first-child { border-radius: 6px 0 0 6px; }
+.flow-item:last-child { border-radius: 0 6px 6px 0; }
+.flow-arrow { color: var(--gray-400); font-size: 10pt; padding: 0 2px; }
+.flow-item.active { background: var(--success-light); color: var(--success); border-color: var(--success); }
+.flow-item.draft  { background: var(--warning-light); color: var(--warning); border-color: var(--warning); }
+.flow-item.wait   { background: var(--orange-light);  color: var(--orange);  border-color: var(--orange); }
+.flow-item.done   { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+/* ── Module checklist ── */
+.checklist { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.check-item { display: flex; align-items: center; gap: 5px; font-size: 8pt; padding: 4px 10px; border-radius: 6px; background: var(--gray-100); color: var(--gray-600); }
+.check-item .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── Two-col layout ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* ── Page title strip ── */
+.page-title {
+  background: var(--gray-900);
+  color: #fff;
+  padding: 10px 56px;
+  font-size: 8.5pt;
+  font-weight: 600;
+  letter-spacing: .05em;
+  margin: 0 -56px 24px;
+}
+
+/* ── Typography ── */
+h3 { font-size: 10.5pt; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; margin-top: 14px; }
+p  { font-size: 9pt; color: var(--gray-600); margin-bottom: 10px; line-height: 1.55; }
+ul.plain { padding-left: 16px; margin-bottom: 10px; }
+ul.plain li { font-size: 9pt; color: var(--gray-600); margin-bottom: 4px; }
+hr { border: none; border-top: 1px solid var(--gray-200); margin: 20px 0; }
+
+/* ── Print ── */
+@page { size: A4; margin: 0; }
+
+@media print {
+  body { font-size: 9pt; }
+
+  .cover {
+    width: 210mm;
+    height: 297mm;
+    min-height: 297mm;
+    padding: 60px 64px;
+  }
+  .cover h1 { font-size: 28pt; }
+
+  .toc {
+    padding: 22mm 22mm 16mm;
+  }
+  .page {
+    width: 210mm;
+    padding: 22mm 22mm 18mm;
+  }
+  .chapter-divider { margin: 0 -22mm; padding: 16px 22mm; }
+  .page-title      { margin: -22mm -22mm 20px; padding: 14px 22mm; }
+
+  /* Cegah elemen terpotong di tengah halaman */
+  .feature-box, .info-box, .two-col, .flow,
+  .checklist, .field-table { break-inside: avoid; page-break-inside: avoid; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+  tr      { break-inside: avoid; page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     COVER
+══════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <img src="img/mic-logo.png" alt="Mall Intelligence Center"
+       style="width:220px;margin-bottom:28px;filter:drop-shadow(0 4px 24px rgba(0,0,0,.4))">
+  <div class="cover-badge">
+    <div class="dot"></div>
+    PT. Wulandari Bangun Laksana Tbk.
+  </div>
+  <h1>Mall <span>Intelligence</span><br>Center</h1>
+  <div class="subtitle">Panduan Pengguna Lengkap</div>
+  <div class="tagline">Sistem Manajemen Event & Operasional — eWalk Simply FUNtastic & Pentacity Shopping Venue</div>
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <div class="label">Versi</div>
+      <div class="value">v1.3 — Mei 2026</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Platform</div>
+      <div class="value">CodeIgniter 4 · MySQL · Bootstrap 5</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Departemen</div>
+      <div class="value">IT — PT. Wulandari Bangun Laksana Tbk.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     TABLE OF CONTENTS
+══════════════════════════════════════════════════════════════════ -->
+<div class="toc page-break">
+  <h2>Daftar Isi</h2>
+  <div class="toc-grid">
+    <div class="toc-section">Pengantar Sistem</div>
+    <div class="toc-item"><span class="num">1</span><span class="title">Gambaran Umum & Arsitektur</span></div>
+    <div class="toc-item"><span class="num">2</span><span class="title">Sistem Akses & Role</span></div>
+
+    <div class="toc-section">Modul Utama — Event Management</div>
+    <div class="toc-item"><span class="num">3</span><span class="title">Dashboard Utama</span></div>
+    <div class="toc-item"><span class="num">4</span><span class="title">Manajemen Event</span></div>
+    <div class="toc-item"><span class="num">5</span><span class="title">Event Summary & KPI</span></div>
+    <div class="toc-item"><span class="num">6</span><span class="title">Event Content & Rundown</span></div>
+    <div class="toc-item"><span class="num">7</span><span class="title">Event Loyalty Program</span></div>
+    <div class="toc-item"><span class="num">8</span><span class="title">Event VM / Dekorasi</span></div>
+    <div class="toc-item"><span class="num">9</span><span class="title">Event Sponsorship</span></div>
+    <div class="toc-item"><span class="num">10</span><span class="title">Event Exhibitors</span></div>
+
+    <div class="toc-section">Modul Analitik & Operasional</div>
+    <div class="toc-item"><span class="num">11</span><span class="title">Traffic Pengunjung</span></div>
+    <div class="toc-item"><span class="num">12</span><span class="title">Loyalty Program Standalone</span></div>
+    <div class="toc-item"><span class="num">13</span><span class="title">Sponsorship Standalone</span></div>
+    <div class="toc-item"><span class="num">14</span><span class="title">Event ROI & Funnel Analysis</span></div>
+    <div class="toc-item"><span class="num">15</span><span class="title">Perbandingan Event</span></div>
+
+    <div class="toc-section">Modul People Development</div>
+    <div class="toc-item"><span class="num">16</span><span class="title">People Dashboard</span></div>
+    <div class="toc-item"><span class="num">17</span><span class="title">Data Karyawan</span></div>
+    <div class="toc-item"><span class="num">18</span><span class="title">Employee Engagement Index (EEI)</span></div>
+    <div class="toc-item"><span class="num">19</span><span class="title">Training Needs Analysis (TNA)</span></div>
+    <div class="toc-item"><span class="num">20</span><span class="title">Program Pelatihan</span></div>
+
+    <div class="toc-section">Referensi</div>
+    <div class="toc-item"><span class="num">21</span><span class="title">Daftar URL & Navigasi</span></div>
+    <div class="toc-item"><span class="num">22</span><span class="title">Pertanyaan Umum (FAQ)</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     BAB 1 — GAMBARAN UMUM
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="page-title">BAB 1 — PENGANTAR SISTEM</div>
+
+  <div class="section-header">
+    <div class="section-icon" style="background:#eff6ff">🏢</div>
+    <div>
+      <h2>1. Gambaran Umum & Arsitektur</h2>
+      <div class="url">http://localhost/mall-intelligence-center/public/</div>
+    </div>
+  </div>
+
+  <p>Mall Intelligence Center (MIC) adalah sistem manajemen operasional terpadu untuk dua properti PT. Wulandari Bangun Laksana Tbk.: <strong>eWalk Simply FUNtastic</strong> dan <strong>Pentacity Shopping Venue</strong>. Sistem ini mencakup perencanaan dan evaluasi event, monitoring traffic pengunjung, analisis ekonomi, hingga pengembangan SDM.</p>
+
+  <div class="feature-grid col3">
+    <div class="feature-box">
+      <h4>🎪 Event Management</h4>
+      <ul>
+        <li>Perencanaan event dual-mall</li>
+        <li>Pengelolaan konten & rundown</li>
+        <li>Koordinasi exhibitor & sponsor</li>
+        <li>Visual merchandising</li>
+        <li>Loyalty program per event</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📊 Analytics & Intelligence</h4>
+      <ul>
+        <li>Traffic harian & jam-an per pintu</li>
+        <li>KPI event (budget vs realisasi)</li>
+        <li>ROI & funnel conversion</li>
+        <li>Perbandingan antar event</li>
+        <li>Indikator ekonomi makro real-time</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>👥 People Development</h4>
+      <ul>
+        <li>Master data karyawan</li>
+        <li>Survey keterlibatan (EEI)</li>
+        <li>Training Needs Analysis (TNA)</li>
+        <li>Manajemen program pelatihan</li>
+        <li>Budget pelatihan per departemen</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Alur Status Event</h3>
+  <p>Status event dihitung otomatis oleh sistem berdasarkan tanggal hari ini — tidak perlu diubah manual.</p>
+  <div class="flow">
+    <div class="flow-item draft">DRAFT</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item active">ACTIVE</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item wait">WAITING DATA</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item done">COMPLETED</div>
+  </div>
+  <table class="field-table">
+    <tr><th>Status</th><th>Kondisi</th></tr>
+    <tr><td><strong>DRAFT</strong></td><td>Hari ini belum mencapai tanggal mulai event</td></tr>
+    <tr><td><strong>ACTIVE</strong></td><td>Hari ini ≥ tanggal mulai event</td></tr>
+    <tr><td><strong>WAITING DATA</strong></td><td>Event sudah selesai tapi ada modul yang belum di-mark complete</td></tr>
+    <tr><td><strong>COMPLETED</strong></td><td>Semua 6 modul wajib sudah selesai</td></tr>
+  </table>
+
+  <h3>6 Modul Wajib Event</h3>
+  <div class="checklist">
+    <div class="check-item"><div class="dot" style="background:#3b82f6"></div>Content & Rundown</div>
+    <div class="check-item"><div class="dot" style="background:#8b5cf6"></div>Loyalty Program</div>
+    <div class="check-item"><div class="dot" style="background:#f59e0b"></div>VM / Dekorasi</div>
+    <div class="check-item"><div class="dot" style="background:#ec4899"></div>Creative</div>
+    <div class="check-item"><div class="dot" style="background:#10b981"></div>Exhibitors</div>
+    <div class="check-item"><div class="dot" style="background:#06b6d4"></div>Sponsors</div>
+  </div>
+  <div class="info-box">
+    <strong>Form Lock</strong>
+    Setelah sebuah modul di-mark selesai, form berubah menjadi <em>read-only</em>. Admin dapat membuka kembali dengan menghapus record di tabel <code>event_completions</code>.
+  </div>
+
+  <!-- ── Role System ── -->
+  <hr>
+  <div class="section-header" style="margin-top:20px">
+    <div class="section-icon" style="background:#ede9fe">🔐</div>
+    <div>
+      <h2>2. Sistem Akses & Role</h2>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>Role Pengguna</h3>
+      <table class="field-table">
+        <tr><th>Role</th><th>Hak Akses</th></tr>
+        <tr><td><strong>Admin</strong></td><td>Bypass semua pemeriksaan — akses penuh ke seluruh modul, termasuk lock/unlock, delete, dan konfigurasi</td></tr>
+        <tr><td><strong>User</strong></td><td>Akses dibatasi oleh dept_menus (menu yang bisa dilihat) dan role_perms (aksi yang boleh dilakukan)</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Cara Kerja Akses</h3>
+      <ul class="plain">
+        <li><strong>canViewMenu(key)</strong> — cek apakah user boleh melihat menu tertentu</li>
+        <li><strong>canEditMenu(key)</strong> — cek apakah user boleh mengedit di modul tersebut</li>
+        <li>Jika akses ditolak → otomatis redirect ke halaman /events</li>
+        <li>Konfigurasi per departemen dikelola Admin di menu Settings</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="info-box success">
+    <strong>Activity Log</strong>
+    Semua operasi create, update, dan delete dicatat secara otomatis ke tabel <code>activity_logs</code>. Log bersifat append-only untuk keperluan audit trail.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     BAB 2 — EVENT MANAGEMENT
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="page-title">BAB 2 — MODUL EVENT MANAGEMENT</div>
+
+  <!-- DASHBOARD -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#eff6ff">🏠</div>
+    <div>
+      <h2>3. Dashboard Utama</h2>
+      <div class="url">/</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">Semua Role</span>
+    <span class="tag green">Real-time</span>
+  </div>
+  <p>Halaman utama yang menampilkan ringkasan seluruh operasional mall: status event aktif, traffic harian, dan kondisi ekonomi terkini.</p>
+
+  <div class="feature-grid col3">
+    <div class="feature-box">
+      <h4>📅 Ringkasan Event</h4>
+      <ul>
+        <li>Jumlah event (total, aktif, draft, selesai)</li>
+        <li>Daftar event aktif dengan countdown berakhir</li>
+        <li>Daftar event akan datang dengan countdown mulai</li>
+        <li>Shortcut input traffic & import Excel</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>🚶 Traffic Pengunjung</h4>
+      <ul>
+        <li>Traffic hari ini — eWalk & Pentacity</li>
+        <li>Akumulasi traffic bulan berjalan</li>
+        <li>Indikator status data (sudah/belum diisi)</li>
+        <li>Tombol shortcut ke form input traffic</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📈 Indikator Ekonomi</h4>
+      <ul>
+        <li>BI Rate — di-scrape otomatis dari bi.go.id (cache 6 jam)</li>
+        <li>Inflasi YoY — di-scrape otomatis dari bi.go.id</li>
+        <li>Pertumbuhan Ekonomi Nasional & PDRB Balikpapan</li>
+        <li>Harga BBM Pertamina (update manual admin)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>💱 Kurs & Berita</h4>
+      <ul>
+        <li>Kurs USD, EUR, SGD, JPY terhadap IDR (live API)</li>
+        <li>Indikator ▲▼ perubahan vs hari sebelumnya</li>
+        <li>Berita Ekonomi Nasional (CNBC, CNN, Detik, ANTARA)</li>
+        <li>Berita lokal Balikpapan (IniBalikpapan, Tribun Kaltim)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>💡 Insight Ekonomi</h4>
+      <ul>
+        <li>Analisis sektor yang menguat / melemah / stabil</li>
+        <li>Berdasarkan harga BBM aktual + indikator makro</li>
+        <li>7 sektor tenant: F&B, Fashion, Elektronik, Properti, dll.</li>
+        <li>Dampak ke daya beli 4 segmen pengunjung mall</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>⛽ Update Harga BBM (Admin)</h4>
+      <ul>
+        <li>Modal form untuk update harga BBM</li>
+        <li>Input nama, harga, status subsidi (PSO)</li>
+        <li>Tambah/hapus jenis BBM</li>
+        <li>Harga tersimpan di database, cache 1 jam</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <strong>Berita dimuat secara AJAX (lazy-load)</strong>
+    Halaman dashboard tampil instan. Berita ekonomi & Balikpapan dimuat di background setelah halaman render, sehingga tidak memperlambat loading. Cache berita diperbarui otomatis setiap pagi.
+  </div>
+
+  <hr>
+
+  <!-- EVENTS -->
+  <div class="section-header" style="margin-top:20px">
+    <div class="section-icon" style="background:#fef3c7">🎪</div>
+    <div>
+      <h2>4. Manajemen Event</h2>
+      <div class="url">/events &nbsp;·&nbsp; /events/create &nbsp;·&nbsp; /events/{id}/edit</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">Admin</span>
+    <span class="tag orange">Event & Promo</span>
+  </div>
+  <p>Pusat pencatatan dan pengelolaan semua event yang diselenggarakan di kedua mall.</p>
+
+  <div class="two-col">
+    <div>
+      <h3>Membuat Event Baru</h3>
+      <ol class="steps">
+        <li>Buka menu <strong>Events</strong> → klik <strong>Buat Event</strong></li>
+        <li>Isi nama, tema, deskripsi singkat</li>
+        <li>Pilih mall: eWalk, Pentacity, atau Keduanya</li>
+        <li>Tentukan tanggal mulai dan tanggal selesai</li>
+        <li>Jumlah hari event dihitung otomatis</li>
+        <li>Klik <strong>Simpan</strong> — event masuk status DRAFT</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Field Utama Event</h3>
+      <table class="field-table">
+        <tr><th>Field</th><th>Keterangan</th></tr>
+        <tr><td>Nama Event</td><td>Nama resmi event</td></tr>
+        <tr><td>Tema</td><td>Tema / konsep kreatif</td></tr>
+        <tr><td>Mall</td><td>eWalk / Pentacity / Keduanya</td></tr>
+        <tr><td>Start Date</td><td>Tanggal pertama event</td></tr>
+        <tr><td>End Date</td><td>Tanggal terakhir event</td></tr>
+        <tr><td>Event Days</td><td>Dihitung otomatis</td></tr>
+        <tr><td>Status</td><td>Computed (draft/active/completed)</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     EVENT SUMMARY
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4">📊</div>
+    <div>
+      <h2>5. Event Summary & KPI</h2>
+      <div class="url">/events/{id}/summary</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">Semua Role</span>
+  </div>
+  <p>Halaman ringkasan terpusat untuk setiap event, tersedia dalam 5 tab yang mencakup seluruh aspek event dari perencanaan hingga evaluasi.</p>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>📋 Tab Summary (KPI Utama)</h4>
+      <ul>
+        <li>Budget total vs realisasi (%) dengan color indicator</li>
+        <li>Revenue total (exhibitor dealing + sponsor cash)</li>
+        <li>Profit margin (%)</li>
+        <li>Total traffic event (eWalk + Pentacity)</li>
+        <li>Progress completion 6 modul wajib</li>
+        <li>Chart traffic harian & per jam</li>
+        <li>Chart kendaraan (mobil & motor)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>🗒️ Tab Technical Meeting</h4>
+      <ul>
+        <li>Full rundown event per hari (dari modul Content)</li>
+        <li>Checklist VM / dekorasi yang diperlukan</li>
+        <li>Daftar exhibitor per kategori & booth</li>
+        <li>Program loyalty & voucher/hadiah</li>
+        <li>Daftar sponsor & kontribusi</li>
+        <li>Item creative per tipe</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>✅ Tab Post-Event</h4>
+      <ul>
+        <li>Realisasi detail tiap modul</li>
+        <li>KPI final vs target</li>
+        <li>Target vs actual exhibitor (jumlah & nilai)</li>
+        <li>Realisasi loyalty (member, voucher, hadiah)</li>
+        <li>Revenue final (sponsor + exhibitor)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>💰 Tab Budget</h4>
+      <ul>
+        <li>Breakdown budget per departemen</li>
+        <li>Budget loyalty, VM, content, creative</li>
+        <li>Total budget vs total revenue</li>
+        <li>Estimasi profit / loss event</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📅 Tab Monthly Summary</h4>
+      <ul>
+        <li>Daftar semua event dalam bulan yang dipilih</li>
+        <li>Pivot: budget, revenue, profit, traffic per event</li>
+        <li>Agregat total traffic bulan ke mall</li>
+        <li>Totals: budget, revenue, profit bulan berjalan</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📈 Fitur Tambahan</h4>
+      <ul>
+        <li>Chart traffic: daily line + hourly bar</li>
+        <li>Vehicle chart: mobil vs motor harian</li>
+        <li>Exhibitor progress bar (actual vs target)</li>
+        <li>Sponsor cash progress bar</li>
+        <li>Download / print-friendly view (Technical Meeting)</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- CONTENT -->
+  <div class="section-header" style="margin-top:20px">
+    <div class="section-icon" style="background:#ede9fe">📝</div>
+    <div>
+      <h2>6. Event Content & Rundown</h2>
+      <div class="url">/events/{id}/content</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag purple">Event & Promo</span>
+    <span class="tag gray">Modul Wajib</span>
+  </div>
+  <p>Pengelolaan seluruh program (kegiatan) dan biaya dalam sebuah event, sekaligus rundown harian yang otomatis tersinkronisasi.</p>
+
+  <div class="two-col">
+    <div>
+      <h3>Jenis Item</h3>
+      <table class="field-table">
+        <tr><th>Tipe</th><th>Fungsi</th><th>Masuk Rundown?</th></tr>
+        <tr><td><strong>Program</strong></td><td>Kegiatan / sesi event</td><td>✅ Ya (jika ada tanggal)</td></tr>
+        <tr><td><strong>Biaya</strong></td><td>Pengeluaran / cost item</td><td>❌ Tidak</td></tr>
+      </table>
+      <div class="info-box" style="margin-top:10px">
+        <strong>Auto-sync Rundown</strong>
+        Item program yang memiliki tanggal otomatis masuk ke rundown harian. Edit item → rundown ikut terupdate.
+      </div>
+    </div>
+    <div>
+      <h3>Field Item Content</h3>
+      <table class="field-table">
+        <tr><th>Field</th><th>Keterangan</th></tr>
+        <tr><td>Nama</td><td>Nama program / item biaya</td></tr>
+        <tr><td>Tipe</td><td>program / biaya</td></tr>
+        <tr><td>Tanggal</td><td>Hari pelaksanaan (program)</td></tr>
+        <tr><td>Waktu</td><td>Jam mulai & selesai</td></tr>
+        <tr><td>Jenis</td><td>Kategori program</td></tr>
+        <tr><td>PIC</td><td>Penanggung jawab</td></tr>
+        <tr><td>Lokasi</td><td>Area / stage</td></tr>
+        <tr><td>Budget</td><td>Estimasi biaya (Rp)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h3>Realisasi Content</h3>
+  <ul class="plain">
+    <li>Setiap item dapat diisi realisasi: tanggal pelaksanaan, nilai realisasi (Rp), catatan</li>
+    <li>Upload foto dokumentasi & file bukti penerimaan</li>
+    <li>Progress bar global: total realisasi vs total budget</li>
+    <li>Setelah semua selesai → klik <strong>Tandai Selesai</strong> → form terkunci</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     LOYALTY, VM, SPONSORS, EXHIBITORS
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <!-- LOYALTY EVENT -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#fdf4ff">🎁</div>
+    <div>
+      <h2>7. Event Loyalty Program</h2>
+      <div class="url">/events/{id}/loyalty</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag purple">Loyalty / Engagement</span>
+    <span class="tag gray">Modul Wajib</span>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>📦 Program & Budget</h4>
+      <ul>
+        <li>Buat beberapa program loyalty dalam 1 event</li>
+        <li>Nama, mekanisme, target peserta, target member aktif</li>
+        <li>Budget dihitung otomatis dari item voucher & hadiah</li>
+        <li>Sinkronisasi budget ke event budget departemen</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>🎫 Voucher & Hadiah</h4>
+      <ul>
+        <li>Voucher: nama, nilai (Rp), total diterbitkan, target penyerapan (%)</li>
+        <li>Hadiah barang: nama, stok, nilai satuan (Rp)</li>
+        <li>Realisasi voucher: tersebar & terpakai per tanggal</li>
+        <li>Realisasi hadiah: jumlah dibagikan per tanggal</li>
+        <li>Realisasi member: jumlah member & member aktif per tanggal</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- VM -->
+  <div class="section-header" style="margin-top:16px">
+    <div class="section-icon" style="background:#fff7ed">🎨</div>
+    <div>
+      <h2>8. Event VM / Visual Merchandising</h2>
+      <div class="url">/events/{id}/vm</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag orange">VM / Dekorasi</span>
+    <span class="tag gray">Modul Wajib</span>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>Item Dekorasi</h3>
+      <ul class="plain">
+        <li>Nama item, deskripsi referensi (acuan desain)</li>
+        <li>Budget estimasi (Rp) dan deadline pemasangan</li>
+        <li>Catatan teknis untuk tim lapangan</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Realisasi VM</h3>
+      <ul class="plain">
+        <li>Upload foto hasil pemasangan</li>
+        <li>Tanggal realisasi & catatan kondisi</li>
+        <li>Progress bar: item selesai vs total</li>
+        <li>Tandai selesai → form terkunci</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- SPONSORS -->
+  <div class="section-header" style="margin-top:16px">
+    <div class="section-icon" style="background:#ecfdf5">🤝</div>
+    <div>
+      <h2>9. Event Sponsorship</h2>
+      <div class="url">/events/{id}/sponsors</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag teal">Sponsorship</span>
+    <span class="tag gray">Modul Wajib</span>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>💵 Jenis Sponsor</h4>
+      <ul>
+        <li><strong>Cash</strong>: nilai kontribusi tunai (Rp)</li>
+        <li><strong>Barang/In-kind</strong>: itemized (deskripsi barang, qty, nilai per item)</li>
+        <li>KPI: total cash, total nilai barang, realisasi (%)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📎 Realisasi Sponsor</h4>
+      <ul>
+        <li>Tanggal dan nilai realisasi (Rp)</li>
+        <li>Upload foto bukti & file surat penerimaan</li>
+        <li>Catatan tambahan per realisasi</li>
+        <li>Hapus otomatis cleanup file fisik</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- EXHIBITORS -->
+  <div class="section-header" style="margin-top:16px">
+    <div class="section-icon" style="background:#f0f9ff">🏪</div>
+    <div>
+      <h2>10. Event Exhibitors</h2>
+      <div class="url">/events/{id}/exhibitors</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">Exhibition</span>
+    <span class="tag gray">Modul Wajib</span>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>Data Exhibitor</h3>
+      <table class="field-table">
+        <tr><th>Field</th><th>Keterangan</th></tr>
+        <tr><td>Nama Exhibitor</td><td>Nama tenant / peserta pameran</td></tr>
+        <tr><td>Kategori</td><td>Jenis produk / usaha</td></tr>
+        <tr><td>Nilai Dealing</td><td>Nilai kontrak booth (Rp)</td></tr>
+        <tr><td>Lokasi Booth</td><td>Nomor / area booth</td></tr>
+        <tr><td>Program</td><td>Jadwal kegiatan exhibitor</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Target & Progress</h3>
+      <ul class="plain">
+        <li>Set target jumlah exhibitor & nilai dealing total</li>
+        <li>Progress bar: actual vs target (warna berubah sesuai ketercapaian)</li>
+        <li>Program per exhibitor: nama program, tanggal, jam, lokasi</li>
+        <li>Laporan exhibitor masuk ringkasan KPI event</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     BAB 3 — ANALITIK & OPERASIONAL
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="page-title">BAB 3 — MODUL ANALITIK & OPERASIONAL</div>
+
+  <!-- TRAFFIC -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#eff6ff">🚶</div>
+    <div>
+      <h2>11. Traffic Pengunjung</h2>
+      <div class="url">/traffic</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">Semua</span>
+    <span class="tag orange">Logistik / Operasional (Input)</span>
+    <span class="tag blue">Admin (Import)</span>
+  </div>
+  <p>Sistem pencatatan dan analitik pengunjung harian per pintu masuk, tersedia untuk kedua mall secara terpisah.</p>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>✏️ Input Traffic Harian</h4>
+      <ul>
+        <li>Grid input: jam (10:00–23:00) × pintu mall</li>
+        <li>Isi jumlah pengunjung per sel; total per jam dihitung otomatis</li>
+        <li>Input kendaraan: total mobil & motor</li>
+        <li>Data tersimpan per tanggal per mall</li>
+        <li>Overwrite jika sudah ada data hari itu</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📊 Traffic Summary</h4>
+      <ul>
+        <li>Pilih rentang tanggal (from–to)</li>
+        <li>KPI: total pengunjung, total mobil, total motor</li>
+        <li>Chart: tren harian eWalk vs Pentacity</li>
+        <li>Chart: tren kendaraan (mobil & motor)</li>
+        <li>Chart: distribusi jam-an per mall</li>
+        <li>Breakdown per pintu masuk</li>
+        <li>Insight: peak hour, best day, rata-rata harian</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>⚖️ Traffic Compare</h4>
+      <ul>
+        <li>Bandingkan dua periode berbeda</li>
+        <li>Chart daily: H1, H2, ... per periode (side by side)</li>
+        <li>Chart hourly per mall</li>
+        <li>% perubahan per periode</li>
+        <li>Best day comparison</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📥 Import Excel (Bulk)</h4>
+      <ul>
+        <li>Upload 1 file → preview detail + konfirmasi tanggal manual</li>
+        <li>Upload banyak file → preview summary (file, tanggal, total, pintu)</li>
+        <li>Parser otomatis: deteksi tanggal, jam (baris) × pintu (kolom)</li>
+        <li>eWalk: baris UG Funstation & FF XXI dikenali khusus</li>
+        <li>Semua import dicatat di activity log</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <strong>Relasi Traffic ↔ Event</strong>
+    Traffic tidak disimpan per event — data tersimpan per tanggal. Saat menghitung traffic sebuah event, sistem mengambil data dari tanggal mulai hingga tanggal selesai event secara otomatis.
+  </div>
+
+  <hr>
+
+  <!-- LOYALTY STANDALONE -->
+  <div class="section-header" style="margin-top:20px">
+    <div class="section-icon" style="background:#fdf4ff">🎯</div>
+    <div>
+      <h2>12. Loyalty Program Standalone</h2>
+      <div class="url">/loyalty</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag purple">Loyalty / Engagement</span>
+  </div>
+  <p>Program loyalty yang berjalan sepanjang tahun (tidak terikat event tertentu), seperti program membership reguler atau campaign bulanan.</p>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>📋 Tampilan Gabungan</h4>
+      <ul>
+        <li>Menampilkan loyalty standalone + loyalty event dalam satu list</li>
+        <li>Filter berdasarkan sumber (standalone / event)</li>
+        <li>KPI: total member, total voucher terpakai, total budget</li>
+        <li>Status program: aktif / tidak aktif</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📈 Monthly Summary</h4>
+      <ul>
+        <li>Pilih bulan untuk melihat realisasi</li>
+        <li>Breakdown per program: member, voucher tersebar, voucher terpakai, hadiah dibagikan</li>
+        <li>Chart harian: member, voucher, hadiah</li>
+        <li>Trend year-to-date semua bulan</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Fitur CRUD (Standalone)</h3>
+  <ul class="plain">
+    <li>Buat program: nama, tanggal mulai/selesai, jam operasional, mekanisme, target peserta, budget (auto dari items)</li>
+    <li>Tambah voucher item & hadiah barang per program</li>
+    <li>Input realisasi: member, voucher tersebar/terpakai, hadiah dibagikan</li>
+    <li>Toggle status aktif/nonaktif — Lock program (admin only)</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SPONSORSHIP STANDALONE, ROI, COMPARE
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <!-- SPONSORSHIP STANDALONE -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#ecfdf5">💼</div>
+    <div>
+      <h2>13. Sponsorship Standalone</h2>
+      <div class="url">/sponsorship</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag teal">Sponsorship</span>
+  </div>
+  <p>Program sponsorship jangka panjang yang tidak terikat dengan event tertentu — misalnya kerjasama tahunan dengan brand atau institusi.</p>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>📂 Manajemen Program</h4>
+      <ul>
+        <li>Nama, tanggal, deskripsi, target jumlah sponsor & nilai</li>
+        <li>Status: aktif / tidak aktif; Lock (admin only)</li>
+        <li>Budget = total nilai sponsor yang terkonfirmasi</li>
+        <li>KPI: total committed, total realisasi, jumlah sponsor</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>🤝 Manajemen Sponsor</h4>
+      <ul>
+        <li>Nama, kategori, jenis (cash / barang), status deal</li>
+        <li>Status deal: prospek → terkonfirmasi → lunas</li>
+        <li>Jenis barang: itemized (deskripsi, qty, nilai)</li>
+        <li>Realisasi: tanggal, nilai, catatan, file bukti</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ROI & FUNNEL -->
+  <div class="section-header" style="margin-top:20px">
+    <div class="section-icon" style="background:#fef9c3">📐</div>
+    <div>
+      <h2>14. Event ROI & Funnel Analysis</h2>
+      <div class="url">/events/{id}/roi &nbsp;·&nbsp; /events/{id}/funnel</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">Finance / Analysis</span>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>ROI Analysis</h3>
+      <table class="field-table">
+        <tr><th>Metrik</th><th>Kalkulasi</th></tr>
+        <tr><td>Direct ROI</td><td>Total Revenue / Total Cost</td></tr>
+        <tr><td>Event Impact Ratio</td><td>(Revenue + Tenant Uplift) / Cost</td></tr>
+        <tr><td>Net Direct Impact</td><td>Total Revenue − Total Cost</td></tr>
+        <tr><td>Break-even Daily</td><td>Total Cost / Hari Event</td></tr>
+      </table>
+      <ul class="plain" style="margin-top:8px">
+        <li>Cost: royalty karakter, operasional MG, produksi dekorasi, promosi media, security, lain-lain</li>
+        <li>Revenue: sponsor, booth, media, parking uplift</li>
+        <li>Tenant uplift: actual vs baseline tenant sales</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Funnel Analysis</h3>
+      <p style="font-size:8.5pt">Analisis konversi multi-tahap dengan perbandingan target vs aktual:</p>
+      <ol class="steps">
+        <li>Visit — Total Traffic Pengunjung</li>
+        <li>Event Exposure — Pengunjung Area Event</li>
+        <li>Engagement — Interaksi aktif</li>
+        <li>Loyalty — New PAM Members</li>
+        <li>Voucher Interest — Klaim Voucher</li>
+        <li>Voucher Usage — Pemakaian Voucher</li>
+        <li>Transaction — Receipt Upload</li>
+        <li>Direct Revenue — Sponsor + Booth + Media</li>
+      </ol>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- COMPARE -->
+  <div class="section-header" style="margin-top:20px">
+    <div class="section-icon" style="background:#f0f9ff">🔄</div>
+    <div>
+      <h2>15. Perbandingan Event</h2>
+      <div class="url">/events/compare?ids=1,2,3</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">Semua</span>
+  </div>
+  <p>Bandingkan hingga 3 event secara berdampingan (side-by-side) untuk evaluasi dan pembelajaran.</p>
+
+  <div class="feature-grid col3">
+    <div class="feature-box">
+      <h4>💰 Budget</h4>
+      <ul>
+        <li>Total budget per event</li>
+        <li>Breakdown per sumber (dept, loyalty, VM, dll)</li>
+        <li>Budget realisasi & % ketercapaian</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📈 Revenue & Profit</h4>
+      <ul>
+        <li>Revenue total (exhibitor + sponsor)</li>
+        <li>Profit dan margin (%)</li>
+        <li>Perbandingan profitabilitas antar event</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>🚶 Traffic & Lainnya</h4>
+      <ul>
+        <li>Total traffic & split eWalk vs Pentacity</li>
+        <li>Jumlah exhibitor & sponsor</li>
+        <li>Progress completion modul</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     BAB 4 — PEOPLE DEVELOPMENT
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="page-title">BAB 4 — MODUL PEOPLE DEVELOPMENT</div>
+
+  <!-- PEOPLE DASHBOARD -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#eff6ff">👥</div>
+    <div>
+      <h2>16. People Dashboard</h2>
+      <div class="url">/people</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">HR / People</span>
+  </div>
+  <p>Ringkasan kondisi SDM perusahaan dalam satu halaman — dari jumlah karyawan, sertifikat kadaluarsa, pelatihan aktif, hingga gap kompetensi.</p>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>👤 Statistik Karyawan</h4>
+      <ul>
+        <li>Jumlah karyawan aktif, cuti, resign</li>
+        <li>Breakdown jumlah per departemen</li>
+        <li>Distribusi jabatan level</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>🏅 Alert Sertifikat</h4>
+      <ul>
+        <li>Sertifikat kadaluarsa dalam 60 hari</li>
+        <li>Alert merah jika ada yang kadaluarsa &lt; 30 hari</li>
+        <li>Nama karyawan, sertifikat, sisa hari</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📚 Pelatihan</h4>
+      <ul>
+        <li>Program pelatihan aktif & akan datang (6 terbaru)</li>
+        <li>Jumlah pelatihan bulan berjalan</li>
+        <li>Status per program (planned/ongoing/completed)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📊 TNA & Kompetensi</h4>
+      <ul>
+        <li>Periode TNA yang sedang berjalan</li>
+        <li>Top 8 gap kompetensi terbesar (avg_gap tertinggi)</li>
+        <li>Budget pelatihan vs realisasi per departemen</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- EMPLOYEES -->
+  <div class="section-header" style="margin-top:20px">
+    <div class="section-icon" style="background:#f0fdf4">🪪</div>
+    <div>
+      <h2>17. Data Karyawan</h2>
+      <div class="url">/people/employees</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag blue">HR</span>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>Data Utama Karyawan</h3>
+      <table class="field-table">
+        <tr><th>Field</th><th>Keterangan</th></tr>
+        <tr><td>NIK</td><td>Nomor induk karyawan</td></tr>
+        <tr><td>Nama</td><td>Nama lengkap</td></tr>
+        <tr><td>Departemen</td><td>Unit kerja</td></tr>
+        <tr><td>Jabatan</td><td>Dari master jabatan</td></tr>
+        <tr><td>Atasan</td><td>Direct supervisor</td></tr>
+        <tr><td>Tanggal Masuk</td><td>Mulai bergabung</td></tr>
+        <tr><td>Status</td><td>Aktif / Cuti / Resign / Permanent</td></tr>
+        <tr><td>Foto</td><td>Foto profil karyawan</td></tr>
+        <tr><td>Kontak</td><td>No. HP & email</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Halaman Detail Karyawan</h3>
+      <ul class="plain">
+        <li><strong>Riwayat Jabatan</strong> — semua posisi yang pernah dijabat, lengkap dengan departemen dan tanggal aktif</li>
+        <li><strong>Sertifikasi</strong> — daftar sertifikat: nomor, penerbit, tanggal terbit & kadaluarsa, file (bisa diunduh)</li>
+        <li><strong>Riwayat Pelatihan</strong> — semua program training yang pernah diikuti dan status kehadiran</li>
+      </ul>
+      <div class="info-box" style="margin-top:10px">
+        <strong>Riwayat Jabatan Otomatis</strong>
+        Saat jabatan diubah, posisi lama otomatis ditutup (tanggal selesai diisi) dan posisi baru dibuat.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     EEI, TNA, TRAINING
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <!-- EEI -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#fdf4ff">❤️</div>
+    <div>
+      <h2>18. Employee Engagement Index (EEI)</h2>
+      <div class="url">/people/eei</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag purple">HR</span>
+    <span class="tag gray">Semua Karyawan (Survey)</span>
+  </div>
+  <p>Survey keterlibatan karyawan yang bersifat anonim, dikelola per periode, dengan hasil agregat per dimensi, departemen, dan level jabatan.</p>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>📊 Dashboard Hasil</h4>
+      <ul>
+        <li>Overall score EEI (0–100) dengan gauge visual</li>
+        <li>Skor per dimensi dengan progress bar warna</li>
+        <li>Skor per departemen (tabel + indikator Engaged/Moderate/Disengaged)</li>
+        <li>Skor per level jabatan</li>
+        <li>Matriks Departemen × Level Jabatan (cross-tab)</li>
+        <li>Tingkat partisipasi: selesai / total karyawan aktif (%)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📝 Survey Karyawan</h4>
+      <ul>
+        <li>Hanya bisa diisi saat periode aktif</li>
+        <li>Pertanyaan skala Likert 1–5 per dimensi</li>
+        <li>Pengisian sekali per periode (prevention double submit)</li>
+        <li>Hasil disimpan secara anonim</li>
+        <li>Link publik via token (tanpa login) untuk distribusi ke semua karyawan</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>⚙️ Kelola Survey (Admin/HR)</h4>
+      <ul>
+        <li>Buat dan edit dimensi survey</li>
+        <li>Tambah pertanyaan per dimensi (incl. reverse-scored)</li>
+        <li>Kelola periode: buat, edit, aktifkan, hapus</li>
+        <li>Hanya 1 periode bisa aktif sekaligus</li>
+        <li>Salin link publik survey untuk distribusi</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>🏷️ Interpretasi Skor</h4>
+      <ul>
+        <li>≥ 75 → <strong style="color:#16a34a">Engaged</strong></li>
+        <li>55–74 → <strong style="color:#d97706">Moderate</strong></li>
+        <li>&lt; 55 → <strong style="color:#dc2626">Disengaged</strong></li>
+        <li>Skor dinormalisasi dari rata-rata Likert 1–5</li>
+        <li>Reverse-scored questions dihitung terbalik otomatis</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- TNA -->
+  <div class="section-header" style="margin-top:20px">
+    <div class="section-icon" style="background:#fff7ed">🎯</div>
+    <div>
+      <h2>19. Training Needs Analysis (TNA)</h2>
+      <div class="url">/people/tna</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag orange">HR</span>
+  </div>
+  <p>Sistem asesmen kompetensi karyawan berbasis multi-rater (self, atasan, rekan) dengan pembobotan yang dapat dikonfigurasi per periode.</p>
+
+  <div class="two-col">
+    <div>
+      <h3>Alur TNA</h3>
+      <ol class="steps">
+        <li>HR buat <strong>Periode TNA</strong> (nama, tahun, tanggal, bobot)</li>
+        <li>HR tambahkan <strong>karyawan</strong> yang akan diases</li>
+        <li>HR tambahkan <strong>assessor</strong> (atasan & rekan) per karyawan</li>
+        <li>Sistem generate <strong>link token</strong> unik per assessor</li>
+        <li>Assessor isi form kompetensi via link (tanpa login)</li>
+        <li>HR tutup periode → sistem hitung hasil weighted average</li>
+        <li>Lihat hasil: gap kompetensi & rekomendasi pelatihan</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Konfigurasi Bobot Penilaian</h3>
+      <table class="field-table">
+        <tr><th>Sumber Penilaian</th><th>Default Bobot</th></tr>
+        <tr><td>Self Assessment</td><td>20%</td></tr>
+        <tr><td>Atasan Langsung</td><td>50%</td></tr>
+        <tr><td>Rekan Kerja</td><td>30%</td></tr>
+      </table>
+      <div class="info-box" style="margin-top:10px">
+        Bobot dapat diubah per periode sesuai kebutuhan organisasi.
+      </div>
+      <h3 style="margin-top:12px">Hasil TNA per Karyawan</h3>
+      <ul class="plain">
+        <li>Matrix: kompetensi × [self, atasan, rekan, overall]</li>
+        <li>Target kompetensi per jabatan/dept</li>
+        <li>Gap = overall − target → kompetensi di bawah target → masuk daftar kebutuhan training</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Training — halaman sendiri ── -->
+<div class="page page-break">
+
+  <!-- TRAINING -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4">📚</div>
+    <div>
+      <h2>20. Program Pelatihan</h2>
+      <div class="url">/people/training</div>
+    </div>
+  </div>
+  <div class="tags">
+    <span class="tag green">HR</span>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-box">
+      <h4>📋 Manajemen Program</h4>
+      <ul>
+        <li>Nama, tipe, vendor / fasilitator</li>
+        <li>Tanggal mulai & selesai, lokasi</li>
+        <li>Biaya per peserta (Rp), kuota peserta</li>
+        <li>Status: planned / scheduled / ongoing / completed</li>
+        <li>Kompetensi yang ditingkatkan (linked ke TNA)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>👤 Manajemen Peserta</h4>
+      <ul>
+        <li>Tambah peserta dari daftar karyawan aktif</li>
+        <li>Status kehadiran: registered / hadir / tidak hadir</li>
+        <li>Pre-test & post-test score</li>
+        <li>Catatan per peserta</li>
+        <li>Statistik: avg pre-test vs avg post-test</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>💰 Budget Pelatihan</h4>
+      <ul>
+        <li>Anggaran per departemen per tahun</li>
+        <li>Realisasi = jumlah peserta × biaya per peserta per program</li>
+        <li>Progress bar budget vs realisasi per dept</li>
+        <li>Selector tahun untuk historis budget</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>📈 Evaluasi Dampak</h4>
+      <ul>
+        <li>Rata-rata pre-test vs post-test (kenaikan skor)</li>
+        <li>Kompetensi yang dituju vs gap TNA</li>
+        <li>Riwayat training per karyawan tersedia di halaman detail karyawan</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     BAB 5 — REFERENSI
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="page-title">BAB 5 — REFERENSI</div>
+
+  <!-- URL TABLE -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#f8fafc">🗺️</div>
+    <div><h2>21. Daftar URL & Navigasi</h2></div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>Event Management</h3>
+      <table class="field-table">
+        <tr><th>URL</th><th>Halaman</th></tr>
+        <tr><td><span class="url-ref">/</span></td><td>Dashboard Utama</td></tr>
+        <tr><td><span class="url-ref">/events</span></td><td>Daftar Event</td></tr>
+        <tr><td><span class="url-ref">/events/create</span></td><td>Buat Event Baru</td></tr>
+        <tr><td><span class="url-ref">/events/{id}/summary</span></td><td>KPI Summary Event</td></tr>
+        <tr><td><span class="url-ref">/events/{id}/content</span></td><td>Content & Rundown</td></tr>
+        <tr><td><span class="url-ref">/events/{id}/loyalty</span></td><td>Loyalty Program Event</td></tr>
+        <tr><td><span class="url-ref">/events/{id}/vm</span></td><td>VM / Dekorasi</td></tr>
+        <tr><td><span class="url-ref">/events/{id}/sponsors</span></td><td>Sponsorship Event</td></tr>
+        <tr><td><span class="url-ref">/events/{id}/exhibitors</span></td><td>Exhibition / Booth</td></tr>
+        <tr><td><span class="url-ref">/events/{id}/roi</span></td><td>ROI Analysis</td></tr>
+        <tr><td><span class="url-ref">/events/{id}/funnel</span></td><td>Funnel Analysis</td></tr>
+        <tr><td><span class="url-ref">/events/compare</span></td><td>Perbandingan Event</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Traffic & Program</h3>
+      <table class="field-table">
+        <tr><th>URL</th><th>Halaman</th></tr>
+        <tr><td><span class="url-ref">/traffic</span></td><td>Index Traffic</td></tr>
+        <tr><td><span class="url-ref">/traffic/form/{mall}/{date}</span></td><td>Input Traffic Harian</td></tr>
+        <tr><td><span class="url-ref">/traffic/summary</span></td><td>Analytics Traffic</td></tr>
+        <tr><td><span class="url-ref">/traffic/compare</span></td><td>Bandingkan Periode</td></tr>
+        <tr><td><span class="url-ref">/traffic/import</span></td><td>Import Excel</td></tr>
+        <tr><td><span class="url-ref">/loyalty</span></td><td>Loyalty Program</td></tr>
+        <tr><td><span class="url-ref">/sponsorship</span></td><td>Sponsorship Standalone</td></tr>
+      </table>
+      <h3 style="margin-top:14px">People Development</h3>
+      <table class="field-table">
+        <tr><th>URL</th><th>Halaman</th></tr>
+        <tr><td><span class="url-ref">/people</span></td><td>People Dashboard</td></tr>
+        <tr><td><span class="url-ref">/people/employees</span></td><td>Data Karyawan</td></tr>
+        <tr><td><span class="url-ref">/people/eei</span></td><td>Hasil EEI Survey</td></tr>
+        <tr><td><span class="url-ref">/people/eei/survey</span></td><td>Isi Survey (karyawan)</td></tr>
+        <tr><td><span class="url-ref">/people/eei/manage</span></td><td>Kelola Survey (HR)</td></tr>
+        <tr><td><span class="url-ref">/people/tna</span></td><td>TNA Periods</td></tr>
+        <tr><td><span class="url-ref">/people/training</span></td><td>Program Pelatihan</td></tr>
+        <tr><td><span class="url-ref">/people/training/budget</span></td><td>Budget Pelatihan</td></tr>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── FAQ — halaman sendiri ── -->
+<div class="page page-break">
+  <div class="page-title">BAB 5 — REFERENSI (lanjutan)</div>
+
+  <!-- FAQ -->
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef9c3">❓</div>
+    <div><h2>22. Pertanyaan Umum (FAQ)</h2></div>
+  </div>
+
+  <div class="feature-grid col3">
+    <div class="feature-box">
+      <h4>Kenapa status event tidak berubah ke COMPLETED?</h4>
+      <ul>
+        <li>Pastikan 6 modul wajib sudah di-mark selesai: Content, Loyalty, VM, Creative, Exhibitors, Sponsors</li>
+        <li>Klik tombol "Tandai Selesai" di masing-masing modul setelah semua data diisi</li>
+        <li>Status COMPLETED baru muncul setelah semua 6 modul selesai</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>Form modul jadi read-only, bagaimana membukanya?</h4>
+      <ul>
+        <li>Form terkunci karena modul sudah di-mark selesai</li>
+        <li>Hanya Admin yang bisa membuka kembali</li>
+        <li>Admin: hapus record di tabel <code>event_completions</code> untuk modul tersebut</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>Berita di dashboard tidak muncul atau lambat?</h4>
+      <ul>
+        <li>Berita dimuat via AJAX setelah halaman tampil — tunggu beberapa detik</li>
+        <li>Jika gagal total, kemungkinan server tidak bisa mengakses internet</li>
+        <li>Berita di-cache hingga tengah malam — fresh setiap pagi</li>
+        <li>Cache bisa dihapus manual oleh Admin</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>Traffic event tidak sesuai dengan yang diinput?</h4>
+      <ul>
+        <li>Traffic dihitung berdasarkan rentang tanggal event (start_date s.d. end_date)</li>
+        <li>Pastikan tanggal input traffic sesuai dengan tanggal event</li>
+        <li>Jika 2 event berlangsung bersamaan di mall berbeda, traffic terhitung di keduanya</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>Harga BBM tidak update otomatis?</h4>
+      <ul>
+        <li>Harga BBM dikelola manual (sumber tidak bisa di-scrape otomatis)</li>
+        <li>Admin klik ikon pensil di kartu BBM dashboard untuk update</li>
+        <li>Link "Cek terbaru" membuka situs resmi Pertamina Patra Niaga</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>Link survey EEI untuk karyawan yang tidak punya akun?</h4>
+      <ul>
+        <li>Di menu <span class="url-ref">/people/eei/manage</span>, setiap periode punya <strong>survey token</strong></li>
+        <li>URL publik: <span class="url-ref">/eei/{token}</span> — bisa dibagikan tanpa login</li>
+        <li>Double submit dicegah via cookie browser</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>Bagaimana import traffic dari Excel?</h4>
+      <ul>
+        <li>Buka <span class="url-ref">/traffic/import</span></li>
+        <li>Upload file Excel — sistem deteksi tanggal & format pintu otomatis</li>
+        <li>Preview hasil parsing sebelum simpan</li>
+        <li>Bisa upload banyak file sekaligus (multi-upload)</li>
+      </ul>
+    </div>
+    <div class="feature-box">
+      <h4>Apakah data bisa diekspor ke Excel / PDF?</h4>
+      <ul>
+        <li>Technical Meeting Summary: ada tampilan print-friendly (Ctrl+P)</li>
+        <li>Export Excel native belum tersedia di v1.3</li>
+        <li>Data dapat diakses via query database untuk kebutuhan reporting khusus</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="margin-top:32px;padding-top:16px;border-top:2px solid var(--gray-200);display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;align-items:center;gap:12px">
+      <img src="img/mic-logo.png" alt="MIC" style="height:44px;opacity:.85">
+      <div>
+        <div style="font-size:9pt;font-weight:700;color:var(--gray-700)">Mall Intelligence Center</div>
+        <div style="font-size:8pt;color:var(--gray-400)">PT. Wulandari Bangun Laksana Tbk. — IT Department</div>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:8pt;color:var(--gray-500)">Versi 1.3 — Mei 2026</div>
+      <div style="font-size:7.5pt;color:var(--gray-400)">Dokumen ini bersifat internal dan rahasia</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

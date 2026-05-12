@@ -15,6 +15,7 @@ class PeopleEmployees extends BaseController
 {
     public function index()
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $employees = (new EmployeeModel())->getWithDept();
 
         foreach ($employees as &$e) {
@@ -33,6 +34,7 @@ class PeopleEmployees extends BaseController
 
     public function show(int $id)
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $employee = (new EmployeeModel())->findWithDept($id);
         if (! $employee) return redirect()->to('/people/employees')->with('error', 'Karyawan tidak ditemukan.');
 
@@ -78,6 +80,7 @@ class PeopleEmployees extends BaseController
 
     public function store()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         $model = new EmployeeModel();
 
@@ -131,6 +134,7 @@ class PeopleEmployees extends BaseController
 
     public function update(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         $model = new EmployeeModel();
         $employee = $model->find($id);
@@ -177,6 +181,7 @@ class PeopleEmployees extends BaseController
 
     public function delete(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $model    = new EmployeeModel();
         $employee = $model->find($id);
         if (! $employee) return redirect()->to('/people/employees')->with('error', 'Karyawan tidak ditemukan.');
@@ -205,6 +210,7 @@ class PeopleEmployees extends BaseController
 
     public function storePosition(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         $posModel = new EmployeePositionModel();
 
@@ -235,6 +241,7 @@ class PeopleEmployees extends BaseController
 
     public function deletePosition(int $id, int $pid)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         (new EmployeePositionModel())->delete($pid);
         ActivityLog::write('delete', 'employee_position', (string)$pid, '', ['employee_id' => $id]);
         return redirect()->to('/people/employees/' . $id . '#positions')->with('success', 'Riwayat jabatan dihapus.');
@@ -242,6 +249,7 @@ class PeopleEmployees extends BaseController
 
     public function storeCertificate(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
 
         $fileName = null;
@@ -273,6 +281,7 @@ class PeopleEmployees extends BaseController
 
     public function deleteCertificate(int $id, int $cid)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $cert = (new EmployeeCertificateModel())->find($cid);
         (new EmployeeCertificateModel())->delete($cid);
 

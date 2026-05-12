@@ -15,6 +15,7 @@ class PeopleTraining extends BaseController
 {
     public function index()
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $tahun  = $this->request->getGet('tahun') ? (int)$this->request->getGet('tahun') : null;
         $status = $this->request->getGet('status') ?: null;
 
@@ -36,6 +37,7 @@ class PeopleTraining extends BaseController
 
     public function store()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         $id   = (new TrainingProgramModel())->insert([
             'nama'              => trim($post['nama']),
@@ -61,6 +63,7 @@ class PeopleTraining extends BaseController
 
     public function show(int $id)
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $program = (new TrainingProgramModel())->find($id);
         if (! $program) return redirect()->to('/people/training')->with('error', 'Program tidak ditemukan.');
 
@@ -106,6 +109,7 @@ class PeopleTraining extends BaseController
 
     public function update(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         (new TrainingProgramModel())->update($id, [
             'nama'              => trim($post['nama']),
@@ -129,6 +133,7 @@ class PeopleTraining extends BaseController
 
     public function delete(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $program = (new TrainingProgramModel())->find($id);
         $db      = db_connect();
 
@@ -144,6 +149,7 @@ class PeopleTraining extends BaseController
 
     public function addParticipant(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $empId = (int)$this->request->getPost('employee_id');
 
         $existing = (new TrainingParticipantModel())
@@ -165,6 +171,7 @@ class PeopleTraining extends BaseController
 
     public function removeParticipant(int $id, int $participantId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         (new TrainingParticipantModel())->delete($participantId);
         ActivityLog::write('delete', 'training_participant', (string)$participantId, 'program:' . $id);
         return redirect()->to('/people/training/' . $id)->with('success', 'Peserta dihapus.');
@@ -172,6 +179,7 @@ class PeopleTraining extends BaseController
 
     public function updateParticipant(int $id, int $participantId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         (new TrainingParticipantModel())->update($participantId, [
             'status_kehadiran' => $post['status_kehadiran'],
@@ -185,6 +193,7 @@ class PeopleTraining extends BaseController
 
     public function budget()
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $tahun       = $this->request->getGet('tahun') ? (int)$this->request->getGet('tahun') : (int)date('Y');
         $budgetModel = new TrainingBudgetModel();
         $progModel   = new TrainingProgramModel();
@@ -206,6 +215,7 @@ class PeopleTraining extends BaseController
 
     public function saveBudget()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post        = $this->request->getPost();
         $tahun       = (int)$post['tahun'];
         $budgets     = $post['budgets'] ?? [];
@@ -230,6 +240,7 @@ class PeopleTraining extends BaseController
 
     public function budgetDetail(int $deptId)
     {
+        if (! $this->canViewMenu('people_dev')) return $this->response->setStatusCode(403)->setJSON(['error' => 'Akses ditolak.']);
         $tahun    = $this->request->getGet('tahun') ? (int)$this->request->getGet('tahun') : (int)date('Y');
         $dept     = (new DepartmentModel())->find($deptId);
         $programs = (new TrainingProgramModel())->getProgramsByDeptYear($deptId, $tahun);

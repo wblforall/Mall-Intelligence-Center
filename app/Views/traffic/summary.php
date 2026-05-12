@@ -21,6 +21,10 @@
         <small class="text-muted"><?= date('d M Y', strtotime($from)) ?> — <?= date('d M Y', strtotime($to)) ?></small>
     </div>
     <div class="d-flex gap-2">
+        <a href="<?= base_url('traffic/print-summary') ?>?from=<?= $from ?>&to=<?= $to ?>"
+           target="_blank" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-printer me-1"></i>Print / PDF
+        </a>
         <a href="<?= base_url('traffic/compare') ?>" class="btn btn-sm btn-outline-primary">
             <i class="bi bi-arrow-left-right me-1"></i>Compare
         </a>
@@ -101,12 +105,82 @@
         <div class="card text-center h-100">
             <div class="card-body py-3">
                 <div class="small text-muted mb-1"><i class="bi bi-car-front me-1"></i>Kendaraan</div>
-                <div class="fw-bold fs-5" data-count="<?= $totalMobil + $totalMotor ?>"><?= number_format($totalMobil + $totalMotor) ?></div>
+                <div class="fw-bold fs-5" data-count="<?= $totalMobil + $totalMotor + $totalMobilBox + $totalBus + $totalTruck + $totalTaxi ?>"><?= number_format($totalMobil + $totalMotor + $totalMobilBox + $totalBus + $totalTruck + $totalTaxi) ?></div>
                 <div class="small text-muted"><?= number_format($totalMobil) ?> mobil · <?= number_format($totalMotor) ?> motor</div>
+                <?php if ($totalMobilBox + $totalBus + $totalTruck + $totalTaxi > 0): ?>
+                <div class="small text-muted mt-1">
+                    <?php $extra = array_filter([
+                        $totalMobilBox > 0 ? number_format($totalMobilBox).' box'   : null,
+                        $totalBus      > 0 ? number_format($totalBus)     .' bus'   : null,
+                        $totalTruck    > 0 ? number_format($totalTruck)   .' truck' : null,
+                        $totalTaxi     > 0 ? number_format($totalTaxi)    .' taxi'  : null,
+                    ]); echo implode(' · ', $extra); ?>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
+
+<?php if ($wdTotal + $weTotal > 0): ?>
+<div class="card mb-4 anim-fade-up" style="animation-delay:.3s">
+<div class="card-body py-0 px-0">
+<div class="row g-0">
+
+    <!-- Weekdays -->
+    <div class="col-6 border-end px-4 py-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-primary-subtle text-primary border" style="font-size:.75rem">Weekdays</span>
+            <span class="text-muted small">Senin – Kamis</span>
+            <?php if ($wdDays > 0): ?><span class="text-muted" style="font-size:.7rem">(<?= $wdDays ?> hari aktif)</span><?php endif; ?>
+        </div>
+        <div class="d-flex gap-4 align-items-end">
+            <div>
+                <div class="text-muted small mb-0">Total</div>
+                <div class="fw-bold fs-5"><?= number_format($wdTotal) ?></div>
+            </div>
+            <div>
+                <div class="text-muted small mb-0">Rata-rata/hari</div>
+                <div class="fw-semibold"><?= number_format($wdAvg) ?></div>
+            </div>
+            <?php if ($wdEwalk > 0 || $wdPenta > 0): ?>
+            <div class="ms-auto text-end">
+                <div class="text-primary small">eWalk: <?= number_format($wdEwalk) ?></div>
+                <div class="text-success small">Pentacity: <?= number_format($wdPenta) ?></div>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Weekend -->
+    <div class="col-6 px-4 py-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-warning-subtle text-warning-emphasis border" style="font-size:.75rem">Weekend</span>
+            <span class="text-muted small">Jumat – Minggu</span>
+            <?php if ($weDays > 0): ?><span class="text-muted" style="font-size:.7rem">(<?= $weDays ?> hari aktif)</span><?php endif; ?>
+        </div>
+        <div class="d-flex gap-4 align-items-end">
+            <div>
+                <div class="text-muted small mb-0">Total</div>
+                <div class="fw-bold fs-5"><?= number_format($weTotal) ?></div>
+            </div>
+            <div>
+                <div class="text-muted small mb-0">Rata-rata/hari</div>
+                <div class="fw-semibold"><?= number_format($weAvg) ?></div>
+            </div>
+            <?php if ($weEwalk > 0 || $wePenta > 0): ?>
+            <div class="ms-auto text-end">
+                <div class="text-primary small">eWalk: <?= number_format($weEwalk) ?></div>
+                <div class="text-success small">Pentacity: <?= number_format($wePenta) ?></div>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+</div>
+</div>
+</div>
+<?php endif; ?>
 
 <?php if ($totalVisitor > 0):
     $dominant  = $totalEwalk >= $totalPenta ? 'eWalk' : 'Pentacity';
@@ -211,7 +285,7 @@
 <div class="card h-100">
 <div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-car-front me-2"></i>Kendaraan Harian</h6></div>
 <div class="card-body">
-<?php if (($totalMobil + $totalMotor) === 0): ?>
+<?php if (($totalMobil + $totalMotor + $totalMobilBox + $totalBus + $totalTruck + $totalTaxi) === 0): ?>
 <p class="text-muted text-center py-4">Belum ada data kendaraan.</p>
 <?php else: ?>
 <canvas id="vehicleChart" height="160"></canvas>
@@ -279,6 +353,23 @@
 </div>
 
 </div>
+
+<?php if (! empty($periodEvents)): ?>
+<div class="card mb-4 anim-fade-up" style="animation-delay:.7s">
+<div class="card-body py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
+    <span class="small fw-semibold text-muted me-1"><i class="bi bi-calendar-event me-1"></i>Event periode ini:</span>
+    <?php foreach ($periodEvents as $ev):
+        $evEnd = date('d M Y', strtotime($ev['start_date'] . ' +' . ($ev['event_days'] - 1) . ' days'));
+        $evStart = date('d M Y', strtotime($ev['start_date']));
+    ?>
+    <span class="badge bg-primary-subtle text-primary border d-inline-flex align-items-center gap-1" style="font-size:.78rem;font-weight:500">
+        <?= esc($ev['name']) ?>
+        <span class="fw-normal text-muted" style="font-size:.72rem"><?= $evStart ?> – <?= $evEnd ?></span>
+    </span>
+    <?php endforeach; ?>
+</div>
+</div>
+<?php endif; ?>
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
@@ -380,20 +471,39 @@ new Chart(document.getElementById('hourChart'), {
 });
 <?php endif; ?>
 
-<?php if (($totalMobil + $totalMotor) > 0): ?>
+<?php
+$totalAllVehicles = $totalMobil + $totalMotor + $totalMobilBox + $totalBus + $totalTruck + $totalTaxi;
+if ($totalAllVehicles > 0):
+    $vDatasets = [
+        ['Mobil',     $chartVMobil,    'rgba(245,158,11,0.8)'],
+        ['Motor',     $chartVMotor,    'rgba(239,68,68,0.8)'],
+        ['Mobil Box', $chartVMobilBox, 'rgba(99,102,241,0.8)'],
+        ['Bus',       $chartVBus,      'rgba(16,185,129,0.8)'],
+        ['Truck',     $chartVTruck,    'rgba(139,92,246,0.8)'],
+        ['Taxi',      $chartVTaxi,     'rgba(236,72,153,0.8)'],
+    ];
+    $vDatasets = array_filter($vDatasets, fn($d) => array_sum($d[1]) > 0);
+?>
 new Chart(document.getElementById('vehicleChart'), {
     type: 'bar',
     data: {
         labels: <?= json_encode($chartDates) ?>,
         datasets: [
-            { label: 'Mobil', data: <?= json_encode($chartVMobil) ?>, backgroundColor: 'rgba(245,158,11,0.75)', borderRadius: 3 },
-            { label: 'Motor', data: <?= json_encode($chartVMotor) ?>, backgroundColor: 'rgba(239,68,68,0.75)',  borderRadius: 3 },
+            <?php foreach ($vDatasets as [$vLabel, $vData, $vColor]): ?>
+            { label: '<?= $vLabel ?>', data: <?= json_encode($vData) ?>, backgroundColor: '<?= $vColor ?>', borderRadius: 3 },
+            <?php endforeach; ?>
         ]
     },
     options: {
         responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: { x: { stacked: false }, y: { beginAtZero: true } }
+        plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12 } },
+            tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('id-ID') } }
+        },
+        scales: {
+            x: { stacked: false },
+            y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('id-ID') } }
+        }
     }
 });
 <?php endif; ?>

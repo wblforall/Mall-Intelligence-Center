@@ -16,6 +16,7 @@ class PeopleTna extends BaseController
 {
     public function index()
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         return view('people/tna/index', [
             'user'    => $this->currentUser(),
             'periods' => (new TnaPeriodModel())->getAllWithStats(),
@@ -24,6 +25,7 @@ class PeopleTna extends BaseController
 
     public function storePeriod()
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         $id = (new TnaPeriodModel())->insert([
             'nama'            => trim($post['nama']),
@@ -41,6 +43,7 @@ class PeopleTna extends BaseController
 
     public function updatePeriod(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         (new TnaPeriodModel())->update($id, [
             'nama'            => trim($post['nama']),
@@ -58,6 +61,7 @@ class PeopleTna extends BaseController
 
     public function deletePeriod(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $period = (new TnaPeriodModel())->find($id);
         $db = db_connect();
 
@@ -80,6 +84,7 @@ class PeopleTna extends BaseController
 
     public function toggleClose(int $id)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $period = (new TnaPeriodModel())->find($id);
         if (! $period) return redirect()->to('/people/tna');
 
@@ -92,6 +97,7 @@ class PeopleTna extends BaseController
 
     public function period(int $periodId)
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $period = (new TnaPeriodModel())->find($periodId);
         if (! $period) return redirect()->to('/people/tna')->with('error', 'Periode tidak ditemukan.');
 
@@ -132,6 +138,7 @@ class PeopleTna extends BaseController
 
     public function addEmployee(int $periodId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $period = (new TnaPeriodModel())->find($periodId);
         if (! $period || $period['status'] === 'closed') {
             return redirect()->to('/people/tna/period/' . $periodId)->with('error', 'Periode sudah ditutup.');
@@ -165,6 +172,7 @@ class PeopleTna extends BaseController
 
     public function removeEmployee(int $periodId, int $empId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $db = db_connect();
         $assessmentIds = array_column(
             $db->table('tna_assessments')
@@ -187,6 +195,7 @@ class PeopleTna extends BaseController
 
     public function addAssessor(int $periodId, int $empId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $period = (new TnaPeriodModel())->find($periodId);
         if (! $period || $period['status'] === 'closed') {
             return redirect()->to('/people/tna/period/' . $periodId)->with('error', 'Periode sudah ditutup.');
@@ -225,6 +234,7 @@ class PeopleTna extends BaseController
 
     public function removeAssessor(int $periodId, int $assessmentId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $assessment = (new TnaAssessmentModel())->find($assessmentId);
         if ($assessment && $assessment['assessor_type'] === 'self') {
             return redirect()->to('/people/tna/period/' . $periodId)->with('error', 'Self-assessment tidak dapat dihapus. Hapus karyawan dari periode jika perlu.');
@@ -240,6 +250,7 @@ class PeopleTna extends BaseController
 
     public function assess(int $assessmentId)
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $assessment = (new TnaAssessmentModel())->find($assessmentId);
         if (! $assessment) return redirect()->to('/people/tna')->with('error', 'Assessment tidak ditemukan.');
 
@@ -262,6 +273,7 @@ class PeopleTna extends BaseController
 
     public function submitAssessment(int $assessmentId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $assessment = (new TnaAssessmentModel())->find($assessmentId);
         if (! $assessment) return redirect()->to('/people/tna')->with('error', 'Assessment tidak ditemukan.');
 
@@ -292,6 +304,7 @@ class PeopleTna extends BaseController
 
     public function regenerateToken(int $assessmentId)
     {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $assessment = (new TnaAssessmentModel())->find($assessmentId);
         if (! $assessment) return redirect()->to('/people/tna')->with('error', 'Assessment tidak ditemukan.');
 
@@ -326,6 +339,7 @@ class PeopleTna extends BaseController
 
     public function result(int $periodId, int $empId)
     {
+        if (! $this->canViewMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $period   = (new TnaPeriodModel())->find($periodId);
         $employee = (new EmployeeModel())->findWithDept($empId);
         if (! $period || ! $employee) return redirect()->to('/people/tna')->with('error', 'Data tidak ditemukan.');

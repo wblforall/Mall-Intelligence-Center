@@ -40,13 +40,26 @@ class Dashboard extends BaseController
 
         $bbmNews = $this->filterBbmNews(cache('eco_news') ?? []);
 
+        // Gunakan cache saja — jika kosong, tandai loading agar view fetch async
+        $biRate  = cache('eco_bi_rate') ?? ['pct' => '4,75', 'per' => '22 Apr 2026',         'live' => false, 'loading' => true];
+        $inflasi = cache('eco_inflasi') ?? ['pct' => '2,42', 'per' => 'Apr 2026 (YoY, BPS)', 'live' => false, 'loading' => true];
+
+        $economicData = [
+            'bi_rate'   => $biRate,
+            'inflation' => $inflasi,
+            'gdp'       => ['pct' => '5,61', 'per' => 'Q1 2026 (YoY, BPS)', 'live' => false],
+            'gdp_bpn'   => ['pct' => '7,97', 'per' => 'Q1 2025 (YoY, BPS Balikpapan)', 'live' => false],
+            'bbm'       => $this->getBbmPrices(),
+            'bbm_per'   => $this->getBbmPer(),
+        ];
+
         return view('dashboard/index', [
             'user'         => $user,
             'events'       => $events,
             'counts'       => $counts,
             'traffic'      => $traffic,
             'today'        => $today,
-            'economicData' => $this->getEconomicData(),
+            'economicData' => $economicData,
             'bbmNews'      => $bbmNews,
         ]);
     }
@@ -97,6 +110,16 @@ class Dashboard extends BaseController
             'eco' => $eco,
             'bpn' => $bpn,
             'bbm' => $this->filterBbmNews($eco),
+        ]);
+    }
+
+    // JSON endpoint — fetch BI Rate & Inflasi secara async (dipanggil jika cache kosong)
+    public function economicLive()
+    {
+        $data = $this->getEconomicData();
+        return $this->response->setJSON([
+            'bi_rate'   => $data['bi_rate'],
+            'inflation' => $data['inflation'],
         ]);
     }
 

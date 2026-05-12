@@ -16,7 +16,8 @@ $routes->post('eei/(:segment)/submit', 'PeopleEei::publicSubmit/$1');
 // Dashboard
 $routes->get('/', 'Dashboard::index', ['filter' => 'auth']);
 $routes->post('dashboard/update-bbm', 'Dashboard::updateBbm', ['filter' => 'auth']);
-$routes->get('dashboard/news-feed',  'Dashboard::newsFeed',   ['filter' => 'auth']);
+$routes->get('dashboard/news-feed',  'Dashboard::newsFeed',    ['filter' => 'auth']);
+$routes->get('dashboard/economic',   'Dashboard::economicLive', ['filter' => 'auth']);
 
 // Events
 $routes->get('events', 'Events::index', ['filter' => 'auth']);
@@ -179,7 +180,11 @@ $routes->get('vm/(:num)/realisasi/(:num)/delete', 'VMStandalone::deleteRealisasi
 
 // Daily Traffic (Operasional — standalone)
 $routes->get('traffic', 'Traffic::index', ['filter' => 'auth']);
-$routes->get('traffic/summary', 'Traffic::summary', ['filter' => 'auth']);
+$routes->get('traffic/export',         'Traffic::export',        ['filter' => 'auth']);
+$routes->get('traffic/summary',        'Traffic::summary',       ['filter' => 'auth']);
+$routes->get('traffic/export-summary', 'Traffic::exportSummary', ['filter' => 'auth']);
+$routes->get('traffic/print-summary',  'Traffic::printSummary',  ['filter' => 'auth']);
+$routes->get('traffic/print-compare',  'Traffic::printCompare',  ['filter' => 'auth']);
 $routes->get('traffic/import', 'Traffic::importForm', ['filter' => 'auth']);
 $routes->post('traffic/import', 'Traffic::importPreview', ['filter' => 'auth']);
 $routes->post('traffic/import/save', 'Traffic::importSave', ['filter' => 'auth']);

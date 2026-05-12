@@ -259,9 +259,12 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
             ['label' => 'PDRB Balikpapan 🏙️',       'key' => 'gdp_bpn',  'color' => 'text-success'],
         ];
         foreach ($indicators as $ind):
-            $d = $eco[$ind['key']];
+            $d       = $eco[$ind['key']];
+            $loading = ! empty($d['loading']);
         ?>
-        <div class="d-flex align-items-center justify-content-between rounded border px-3 py-2" style="background:var(--bs-tertiary-bg)">
+        <div class="d-flex align-items-center justify-content-between rounded border px-3 py-2"
+             id="macro-<?= $ind['key'] ?>"
+             style="background:var(--bs-tertiary-bg)">
             <div>
                 <div style="font-size:.7rem" class="text-muted d-flex align-items-center gap-1">
                     <?= $ind['label'] ?>
@@ -269,9 +272,20 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
                     <span class="badge bg-success-subtle text-success border" style="font-size:.55rem">LIVE</span>
                     <?php endif; ?>
                 </div>
-                <div class="fw-bold <?= $ind['color'] ?>" style="font-size:1.1rem"><?= $d['pct'] ?>%</div>
+                <?php if ($loading): ?>
+                <div class="d-flex align-items-center gap-2 mt-1" id="macro-<?= $ind['key'] ?>-val">
+                    <span class="spinner-border spinner-border-sm text-secondary" style="width:.85rem;height:.85rem;border-width:2px"></span>
+                    <span class="text-muted" style="font-size:.8rem">Memuat...</span>
+                </div>
+                <?php else: ?>
+                <div class="fw-bold <?= $ind['color'] ?>" style="font-size:1.1rem" id="macro-<?= $ind['key'] ?>-val">
+                    <?= $d['pct'] ?>%
+                </div>
+                <?php endif; ?>
             </div>
-            <div class="text-end text-muted" style="font-size:.68rem"><?= esc($d['per']) ?></div>
+            <div class="text-end text-muted" style="font-size:.68rem" id="macro-<?= $ind['key'] ?>-per">
+                <?= $loading ? '' : esc($d['per']) ?>
+            </div>
         </div>
         <?php endforeach; ?>
     </div>
@@ -963,6 +977,40 @@ foreach ($sections as $sec):
             renderNewsItems('newsBpnContent', [], 7);
         }
     })();
+
+    /* ── Kondisi Ekonomi: fetch async jika BI Rate / Inflasi belum di-cache ── */
+    <?php $needsEcoFetch = !empty($economicData['bi_rate']['loading']) || !empty($economicData['inflation']['loading']); ?>
+    <?php if ($needsEcoFetch): ?>
+    (async function loadEconomic() {
+        const colorMap = { bi_rate: 'text-primary', inflation: 'text-info' };
+        try {
+            const res  = await fetch('<?= base_url('dashboard/economic') ?>');
+            const data = await res.json();
+            ['bi_rate', 'inflation'].forEach(function (key) {
+                const d = data[key];
+                if (! d) return;
+                const valEl   = document.getElementById('macro-' + key + '-val');
+                const perEl   = document.getElementById('macro-' + key + '-per');
+                const labelEl = valEl ? valEl.previousElementSibling : null;
+                if (valEl) {
+                    valEl.className   = 'fw-bold ' + (colorMap[key] || '');
+                    valEl.style.fontSize = '1.1rem';
+                    valEl.textContent = d.pct + '%';
+                }
+                if (perEl) perEl.textContent = d.per;
+                if (d.live && labelEl && ! labelEl.querySelector('.badge')) {
+                    labelEl.insertAdjacentHTML('beforeend',
+                        '<span class="badge bg-success-subtle text-success border" style="font-size:.55rem">LIVE</span>');
+                }
+            });
+        } catch (e) {
+            ['bi_rate', 'inflation'].forEach(function (key) {
+                const valEl = document.getElementById('macro-' + key + '-val');
+                if (valEl) valEl.innerHTML = '<span class="text-muted" style="font-size:.82rem">—</span>';
+            });
+        }
+    })();
+    <?php endif; ?>
 
     /* ── BBM modal: add/remove rows ── */
     document.getElementById('addBbmRow')?.addEventListener('click', function () {

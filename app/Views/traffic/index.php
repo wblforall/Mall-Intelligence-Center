@@ -6,16 +6,19 @@
         <h4 class="fw-bold mb-0"><i class="bi bi-person-walking me-2"></i>Daily Traffic</h4>
         <small class="text-muted">Input traffic pengunjung harian per pintu masuk</small>
     </div>
-    <?php if ($canEdit): ?>
     <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#exportModal">
+            <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+        </button>
+        <?php if ($canEdit): ?>
         <a href="<?= base_url('traffic/input/ewalk/'.date('Y-m-d')) ?>" class="btn btn-sm btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> Input Traffic eWalk
+            <i class="bi bi-plus-lg me-1"></i> Input eWalk
         </a>
         <a href="<?= base_url('traffic/input/pentacity/'.date('Y-m-d')) ?>" class="btn btn-sm btn-success">
-            <i class="bi bi-plus-lg me-1"></i> Input Traffic Pentacity
+            <i class="bi bi-plus-lg me-1"></i> Input Pentacity
         </a>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 </div>
 
 <form method="GET" class="mb-3">
@@ -110,6 +113,46 @@
 </div>
 </div>
 
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-semibold"><i class="bi bi-file-earmark-excel me-2 text-success"></i>Export Traffic ke Excel</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="GET" action="<?= base_url('traffic/export') ?>">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Dari Tanggal</label>
+                        <input type="date" name="from" class="form-control form-control-sm"
+                               value="<?= $month ?>-01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Sampai Tanggal</label>
+                        <input type="date" name="to" class="form-control form-control-sm"
+                               value="<?= $month ?>-<?= date('t', strtotime($month . '-01')) ?>">
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label small fw-semibold">Mall</label>
+                        <select name="mall" class="form-select form-select-sm">
+                            <option value="">Semua Mall</option>
+                            <option value="ewalk">eWalk</option>
+                            <option value="pentacity">Pentacity</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="bi bi-download me-1"></i>Download
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <?= $this->endSection() ?>

@@ -62,6 +62,15 @@ class EventModel extends Model
         return $this->orderBy('start_date', 'ASC')->findAll();
     }
 
+    public function getByPeriod(string $from, string $to): array
+    {
+        return $this
+            ->where('start_date <=', $to)
+            ->where('DATE_ADD(start_date, INTERVAL (event_days - 1) DAY) >=', $from)
+            ->orderBy('start_date', 'ASC')
+            ->findAll();
+    }
+
     public function canUserAccess(int $eventId, int $userId, string $role): bool
     {
         if ($role === 'admin') return true;
