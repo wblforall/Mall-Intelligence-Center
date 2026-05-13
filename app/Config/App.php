@@ -24,7 +24,8 @@ class App extends BaseConfig
 
         if (isset($_SERVER['HTTP_HOST'])) {
             $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-            $this->baseURL = $protocol . $_SERVER['HTTP_HOST'] . '/';
+            $path     = parse_url($this->baseURL, PHP_URL_PATH) ?? '/';
+            $this->baseURL = $protocol . $_SERVER['HTTP_HOST'] . $path;
         }
     }
 

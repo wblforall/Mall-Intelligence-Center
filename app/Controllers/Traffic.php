@@ -12,6 +12,24 @@ use App\Libraries\TrafficXlsxExporter;
 
 class Traffic extends BaseController
 {
+    private function mergeDoors(array $doors): array
+    {
+        $merged = [];
+        foreach ($doors as $row) {
+            $key = preg_match('/^(.*(?:Funstation|XXI))\s*\d+$/i', $row['pintu'], $m)
+                ? $m[1]
+                : $row['pintu'];
+            if (isset($merged[$key])) {
+                $merged[$key]['total'] += (int)$row['total'];
+                $merged[$key]['hari']   = max($merged[$key]['hari'], (int)$row['hari']);
+            } else {
+                $merged[$key] = ['pintu' => $key, 'total' => (int)$row['total'], 'hari' => (int)$row['hari']];
+            }
+        }
+        usort($merged, fn($a, $b) => $b['total'] - $a['total']);
+        return array_values($merged);
+    }
+
     public function index()
     {
         if (! $this->canViewMenu('traffic')) {
@@ -98,9 +116,9 @@ class Traffic extends BaseController
             $chartHourPenta[] = (int)($hourPentaMap[$h] ?? 0);
         }
 
-        // By door
-        $doorEwalk = $trafficModel->getByDoor($from, $to, 'ewalk');
-        $doorPenta = $trafficModel->getByDoor($from, $to, 'pentacity');
+        // By door — merge UG Funstation 1 & 2 → UG Funstation
+        $doorEwalk = $this->mergeDoors($trafficModel->getByDoor($from, $to, 'ewalk'));
+        $doorPenta = $this->mergeDoors($trafficModel->getByDoor($from, $to, 'pentacity'));
 
         // Insights
         $days     = max(1, (int) ((strtotime($to) - strtotime($from)) / 86400) + 1);
@@ -246,9 +264,9 @@ class Traffic extends BaseController
             $hours[] = ['jam' => sprintf('%02d:00–%02d:00', $h, $h + 1), 'ewalk' => $ew, 'pentacity' => $pt, 'total' => $ew + $pt];
         }
 
-        // Door
-        $doorEwalk = $trafficModel->getByDoor($from, $to, 'ewalk');
-        $doorPenta = $trafficModel->getByDoor($from, $to, 'pentacity');
+        // Door (printSummary — merge UG Funstation)
+        $doorEwalk = $this->mergeDoors($trafficModel->getByDoor($from, $to, 'ewalk'));
+        $doorPenta = $this->mergeDoors($trafficModel->getByDoor($from, $to, 'pentacity'));
 
         // Insights
         $activeDays  = count(array_filter(array_column($days, 'total'), fn($v) => $v > 0));
@@ -334,8 +352,8 @@ class Traffic extends BaseController
             $hours[] = ['jam' => sprintf('%02d:00–%02d:00', $h, $h + 1), 'ewalk' => $ew, 'pentacity' => $pt, 'total' => $ew + $pt];
         }
 
-        $doorEwalk = $trafficModel->getByDoor($from, $to, 'ewalk');
-        $doorPenta = $trafficModel->getByDoor($from, $to, 'pentacity');
+        $doorEwalk = $this->mergeDoors($trafficModel->getByDoor($from, $to, 'ewalk'));
+        $doorPenta = $this->mergeDoors($trafficModel->getByDoor($from, $to, 'pentacity'));
 
         $activeDays  = count(array_filter(array_column($days, 'total'), fn($v) => $v > 0));
         $avgDaily    = $activeDays > 0 ? (int) round($totalVisitor / $activeDays) : 0;
@@ -456,10 +474,10 @@ class Traffic extends BaseController
             $p2HourData[] = (int) (($h2EwalkMap[$h] ?? 0) + ($h2PentaMap[$h] ?? 0));
         }
 
-        $door1Ewalk = $trafficModel->getByDoor($from1, $to1, 'ewalk');
-        $door1Penta = $trafficModel->getByDoor($from1, $to1, 'pentacity');
-        $door2Ewalk = $trafficModel->getByDoor($from2, $to2, 'ewalk');
-        $door2Penta = $trafficModel->getByDoor($from2, $to2, 'pentacity');
+        $door1Ewalk = $this->mergeDoors($trafficModel->getByDoor($from1, $to1, 'ewalk'));
+        $door1Penta = $this->mergeDoors($trafficModel->getByDoor($from1, $to1, 'pentacity'));
+        $door2Ewalk = $this->mergeDoors($trafficModel->getByDoor($from2, $to2, 'ewalk'));
+        $door2Penta = $this->mergeDoors($trafficModel->getByDoor($from2, $to2, 'pentacity'));
 
         $p3Total    = $p3Ewalk = $p3Penta = 0;
         $p3Vehicles = ['mobil' => 0, 'motor' => 0, 'mobil_box' => 0, 'bus' => 0, 'truck' => 0, 'taxi' => 0];
@@ -489,8 +507,8 @@ class Traffic extends BaseController
                 $p3HourData[] = (int) (($h3EwalkMap[$h] ?? 0) + ($h3PentaMap[$h] ?? 0));
             }
 
-            $door3Ewalk = $trafficModel->getByDoor($from3, $to3, 'ewalk');
-            $door3Penta = $trafficModel->getByDoor($from3, $to3, 'pentacity');
+            $door3Ewalk = $this->mergeDoors($trafficModel->getByDoor($from3, $to3, 'ewalk'));
+            $door3Penta = $this->mergeDoors($trafficModel->getByDoor($from3, $to3, 'pentacity'));
         }
 
         $maxDays   = max($days1, $days2, max(1, $days3));
@@ -757,10 +775,10 @@ class Traffic extends BaseController
         }
 
         // Door
-        $door1Ewalk = $trafficModel->getByDoor($from1, $to1, 'ewalk');
-        $door1Penta = $trafficModel->getByDoor($from1, $to1, 'pentacity');
-        $door2Ewalk = $trafficModel->getByDoor($from2, $to2, 'ewalk');
-        $door2Penta = $trafficModel->getByDoor($from2, $to2, 'pentacity');
+        $door1Ewalk = $this->mergeDoors($trafficModel->getByDoor($from1, $to1, 'ewalk'));
+        $door1Penta = $this->mergeDoors($trafficModel->getByDoor($from1, $to1, 'pentacity'));
+        $door2Ewalk = $this->mergeDoors($trafficModel->getByDoor($from2, $to2, 'ewalk'));
+        $door2Penta = $this->mergeDoors($trafficModel->getByDoor($from2, $to2, 'pentacity'));
 
         // Periode 3 — opsional
         $p3Total    = $p3Ewalk = $p3Penta = 0;
@@ -790,8 +808,8 @@ class Traffic extends BaseController
                 $p3HourData[] = (int) (($h3EwalkMap[$h] ?? 0) + ($h3PentaMap[$h] ?? 0));
             }
 
-            $door3Ewalk = $trafficModel->getByDoor($from3, $to3, 'ewalk');
-            $door3Penta = $trafficModel->getByDoor($from3, $to3, 'pentacity');
+            $door3Ewalk = $this->mergeDoors($trafficModel->getByDoor($from3, $to3, 'ewalk'));
+            $door3Penta = $this->mergeDoors($trafficModel->getByDoor($from3, $to3, 'pentacity'));
         }
 
         $maxDays   = max($days1, $days2, $days3);
