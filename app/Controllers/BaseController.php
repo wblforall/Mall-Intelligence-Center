@@ -51,10 +51,16 @@ abstract class BaseController extends Controller
         parent::initController($request, $response, $logger);
 
         if (session()->has('user_id')) {
-            $wc = db_connect()->table('events')
-                ->where('status', 'waiting_data')
-                ->countAllResults();
-            \CodeIgniter\Config\Services::renderer()->setData(['_waitingDataCount' => $wc], 'raw');
+            $db = db_connect();
+            $wc = $db->table('events')->where('approval_status', 'approved')->where('status', 'waiting_data')->countAllResults();
+            $pc = 0;
+            if ($this->canApproveEvents()) {
+                $pc = $db->table('events')->where('approval_status', 'pending')->countAllResults();
+            }
+            \CodeIgniter\Config\Services::renderer()->setData([
+                '_waitingDataCount'   => $wc,
+                '_pendingApprovalCount' => $pc,
+            ], 'raw');
         }
     }
 
@@ -66,6 +72,13 @@ abstract class BaseController extends Controller
             'email' => session()->get('user_email'),
             'role'  => session()->get('user_role'),
         ];
+    }
+
+    protected function canApproveEvents(): bool
+    {
+        if ($this->isAdmin()) return true;
+        $perms = session()->get('role_perms') ?? [];
+        return (bool)($perms['can_approve_events'] ?? false);
     }
 
     protected function isAdmin(): bool

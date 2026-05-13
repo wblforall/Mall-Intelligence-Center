@@ -127,8 +127,13 @@ class EventSummary extends BaseController
             return redirect()->to('/events')->with('error', 'Akses ditolak.');
         }
 
-        $event = (new EventModel())->find($eventId);
+        $event      = (new EventModel())->find($eventId);
         if (! $event) return redirect()->to('/events')->with('error', 'Event tidak ditemukan.');
+
+        $canApprove = $this->canApproveEvents();
+        if (($event['approval_status'] ?? 'approved') !== 'approved' && ! $canApprove) {
+            return redirect()->to('/events')->with('error', 'Event belum disetujui.');
+        }
 
         // Date range for traffic/vehicle charts
         $startDate = $event['start_date'];
@@ -348,6 +353,7 @@ class EventSummary extends BaseController
             'chartMobil'            => $chartMobil,
             'chartMotor'            => $chartMotor,
             'eventLocations'        => (new EventLocationModel())->getEventLocations($eventId),
+            'canApprove'            => $canApprove,
         ]);
     }
 

@@ -8,7 +8,7 @@ class EventModel extends Model
 {
     protected $table         = 'events';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name', 'tema', 'content', 'mall', 'start_date', 'event_days', 'status', 'created_by'];
+    protected $allowedFields = ['name', 'tema', 'content', 'mall', 'start_date', 'event_days', 'status', 'created_by', 'approval_status', 'approved_by', 'approved_at', 'rejection_reason'];
     protected $useTimestamps = true;
 
     protected $afterFind = ['applyAutoStatus'];
@@ -57,18 +57,30 @@ class EventModel extends Model
         return 'completed';
     }
 
-    public function getEventsForUser(int $userId, string $role): array
+    public function getEventsForUser(int $userId, string $role, bool $canApprove = false): array
     {
-        return $this->orderBy('start_date', 'ASC')->findAll();
+        $builder = $this->orderBy('start_date', 'ASC');
+        if (! $canApprove) {
+            $builder->where('approval_status', 'approved');
+        }
+        return $builder->findAll();
     }
 
-    public function getByPeriod(string $from, string $to): array
+    public function getPendingCount(): int
     {
-        return $this
+        return $this->where('approval_status', 'pending')->countAllResults();
+    }
+
+    public function getByPeriod(string $from, string $to, bool $canApprove = false): array
+    {
+        $builder = $this
             ->where('start_date <=', $to)
             ->where('DATE_ADD(start_date, INTERVAL (event_days - 1) DAY) >=', $from)
-            ->orderBy('start_date', 'ASC')
-            ->findAll();
+            ->orderBy('start_date', 'ASC');
+        if (! $canApprove) {
+            $builder->where('approval_status', 'approved');
+        }
+        return $builder->findAll();
     }
 
     public function canUserAccess(int $eventId, int $userId, string $role): bool

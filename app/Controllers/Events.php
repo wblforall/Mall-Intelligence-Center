@@ -20,10 +20,20 @@ class Events extends BaseController
         if (! $this->canViewMenu('events')) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
-        $user            = $this->currentUser();
-        $events          = $this->eventModel->getEventsForUser($user['id'], $user['role']);
-        $incompleteCount = count(array_filter($events, fn($e) => $e['status'] === 'waiting_data'));
-        return view('events/index', ['user' => $user, 'events' => $events, 'incompleteCount' => $incompleteCount]);
+        $user       = $this->currentUser();
+        $canApprove = $this->canApproveEvents();
+        $events     = $this->eventModel->getEventsForUser($user['id'], $user['role'], $canApprove);
+
+        $incompleteCount = count(array_filter($events, fn($e) => $e['status'] === 'waiting_data' && $e['approval_status'] === 'approved'));
+        $pendingCount    = $canApprove ? count(array_filter($events, fn($e) => $e['approval_status'] === 'pending')) : 0;
+
+        return view('events/index', [
+            'user'            => $user,
+            'events'          => $events,
+            'incompleteCount' => $incompleteCount,
+            'pendingCount'    => $pendingCount,
+            'canApprove'      => $canApprove,
+        ]);
     }
 
     public function create()
@@ -147,5 +157,48 @@ class Events extends BaseController
             'mall' => $event['mall'] ?? '', 'status' => $event['status'] ?? '',
         ]);
         return redirect()->to('/events')->with('success', 'Event berhasil dihapus.');
+    }
+
+    public function approve(int $id)
+    {
+        if (! $this->canApproveEvents()) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        $event = $this->eventModel->find($id);
+        if (! $event) return redirect()->to('/events')->with('error', 'Event tidak ditemukan.');
+
+        $this->eventModel->update($id, [
+            'approval_status' => 'approved',
+            'approved_by'     => $this->currentUser()['id'],
+            'approved_at'     => date('Y-m-d H:i:s'),
+            'rejection_reason'=> null,
+        ]);
+
+        ActivityLog::write('approve', 'event', (string)$id, $event['name']);
+        return redirect()->to('/events')->with('success', 'Event "' . $event['name'] . '" telah disetujui.');
+    }
+
+    public function reject(int $id)
+    {
+        if (! $this->canApproveEvents()) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        $event = $this->eventModel->find($id);
+        if (! $event) return redirect()->to('/events')->with('error', 'Event tidak ditemukan.');
+
+        $reason = trim($this->request->getPost('rejection_reason') ?? '');
+        if ($reason === '') {
+            return redirect()->to('/events')->with('error', 'Alasan penolakan wajib diisi.');
+        }
+
+        $this->eventModel->update($id, [
+            'approval_status'  => 'rejected',
+            'approved_by'      => $this->currentUser()['id'],
+            'approved_at'      => date('Y-m-d H:i:s'),
+            'rejection_reason' => $reason,
+        ]);
+
+        ActivityLog::write('reject', 'event', (string)$id, $event['name'], ['reason' => $reason]);
+        return redirect()->to('/events')->with('success', 'Event "' . $event['name'] . '" ditolak.');
     }
 }

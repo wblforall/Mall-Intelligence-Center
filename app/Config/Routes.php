@@ -27,7 +27,9 @@ $routes->post('events/create', 'Events::store', ['filter' => 'auth']);
 $routes->get('events/(:num)', 'Events::show/$1', ['filter' => 'auth']);
 $routes->get('events/(:num)/edit', 'Events::edit/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/edit', 'Events::update/$1', ['filter' => 'auth']);
-$routes->get('events/(:num)/delete', 'Events::delete/$1', ['filter' => 'auth']);
+$routes->get('events/(:num)/delete',  'Events::delete/$1',  ['filter' => 'auth']);
+$routes->post('events/(:num)/approve', 'Events::approve/$1', ['filter' => 'auth']);
+$routes->post('events/(:num)/reject',  'Events::reject/$1',  ['filter' => 'auth']);
 
 // Event Completion
 $routes->post('events/(:num)/complete/(:alpha)', 'EventCompletion::mark/$1/$2', ['filter' => 'auth']);

@@ -114,16 +114,20 @@
 </div>
 
 <?php
-function pctDiff(int $a, int $b): ?float {
-    if ($a === 0) return null;
-    return round(($b - $a) / $a * 100, 1);
+if (! function_exists('pctDiff')) {
+    function pctDiff(int $a, int $b): ?float {
+        if ($a === 0) return null;
+        return round(($b - $a) / $a * 100, 1);
+    }
 }
-function diffBadge(int $base, int $val): string {
-    $pct = pctDiff($base, $val);
-    if ($pct === null) return '<span class="badge bg-secondary">—</span>';
-    if ($pct > 0)  return '<span class="badge" style="background:var(--c-badge-up-bg);color:var(--c-badge-up-fg)"><i class="bi bi-arrow-up-short"></i>+' . $pct . '%</span>';
-    if ($pct < 0)  return '<span class="badge" style="background:var(--c-badge-down-bg);color:var(--c-badge-down-fg)"><i class="bi bi-arrow-down-short"></i>' . $pct . '%</span>';
-    return '<span class="badge" style="background:var(--c-badge-neutral-bg);color:var(--c-badge-neutral-fg)">0%</span>';
+if (! function_exists('diffBadge')) {
+    function diffBadge(int $base, int $val): string {
+        $pct = pctDiff($base, $val);
+        if ($pct === null) return '<span class="badge bg-secondary">—</span>';
+        if ($pct > 0)  return '<span class="badge" style="background:var(--c-badge-up-bg);color:var(--c-badge-up-fg)"><i class="bi bi-arrow-up-short"></i>+' . $pct . '%</span>';
+        if ($pct < 0)  return '<span class="badge" style="background:var(--c-badge-down-bg);color:var(--c-badge-down-fg)"><i class="bi bi-arrow-down-short"></i>' . $pct . '%</span>';
+        return '<span class="badge" style="background:var(--c-badge-neutral-bg);color:var(--c-badge-neutral-fg)">0%</span>';
+    }
 }
 $p1Label = date('d M Y', strtotime($from1)) . ' — ' . date('d M Y', strtotime($to1));
 $p2Label = date('d M Y', strtotime($from2)) . ' — ' . date('d M Y', strtotime($to2));
@@ -133,6 +137,7 @@ $hasVehicleData = array_sum(array_column($p1Vehicles, null)) + array_sum(array_c
 
 <!-- KPI Helper -->
 <?php
+if (! function_exists('kpiCard')):
 function kpiCard(array $k, bool $hasP3): string {
     ob_start();
     ?>
@@ -178,6 +183,7 @@ function kpiCard(array $k, bool $hasP3): string {
     <?php
     return ob_get_clean();
 }
+endif;
 
 $visitorKpis = [
     ['label' => 'Total Pengunjung', 'icon' => 'bi-people',   'p1' => $p1Total, 'p2' => $p2Total, 'p3' => $p3Total],
