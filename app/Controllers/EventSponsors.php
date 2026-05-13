@@ -27,15 +27,15 @@ class EventSponsors extends BaseController
 
         foreach ($desks as $i => $desk) {
             $n = (int) str_replace([',', '.', ' '], '', $nilaiItems[$i] ?? 0);
-            $q = (int) ($qtys[$i] ?? 0) ?: null;
+            $q = max(0, (int)($qtys[$i] ?? 0));
             if (! $desk && ! $q && ! $n) continue;
             $itemModel->insert([
                 'sponsor_id'       => $sponsorId,
                 'deskripsi_barang' => $desk ?: null,
-                'qty'              => $q,
+                'qty'              => $q ?: null,
                 'nilai'            => $n,
             ]);
-            $total += $n;
+            $total += $n * ($q > 0 ? $q : 1);
         }
         return $total;
     }
