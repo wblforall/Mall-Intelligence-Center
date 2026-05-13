@@ -40,7 +40,26 @@
       "Bash(grep -E \"Tim Loyalty|Manajemen Departemen|Belum ada|^[0-9]+$\")",
       "Bash(curl -s -c /tmp/ec_cookies.txt -b /tmp/ec_cookies.txt http://localhost/event-conversion/public/users -w '\\\\n%{http_code}')",
       "Bash(grep -E \"Departemen|User Management|^[0-9]+$\")",
-      "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -u root event_conversion -e \"SELECT * FROM department_menu_access;\")"
+      "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -u root event_conversion -e \"SELECT * FROM department_menu_access;\")",
+      "WebFetch(domain:mypertamina.id)",
+      "WebFetch(domain:bbm.pertamina.com)",
+      "WebFetch(domain:developer.pertamina.com)",
+      "WebFetch(domain:balikpapanpos.co.id)",
+      "WebFetch(domain:kaltimpost.jawapos.com)",
+      "WebFetch(domain:radarbalikpapan.jawapos.com)",
+      "WebFetch(domain:kaltim.antaranews.com)",
+      "WebFetch(domain:www.detik.com)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Controllers/Events.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Controllers/BaseController.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Controllers/Roles.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Models/EventModel.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Models/RoleModel.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -r ' *)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Controllers/EventSummary.php)",
+      "Bash(git commit -m ' *)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(grep -r '$db->query\\(' /Applications/XAMPP/xamppfiles/htdocs/mall-intelligence-center/app/Controllers '--include=*.php')",
+      "Bash(grep -r \"echo.*\\\\$\" /Applications/XAMPP/xamppfiles/htdocs/mall-intelligence-center/app/Views --include=\"*.php\")"
     ]
   }
 }

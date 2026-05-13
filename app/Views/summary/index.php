@@ -65,6 +65,59 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
     </span>
 </div>
 
+<?php if (($canApprove ?? false) && ($event['approval_status'] ?? 'approved') !== 'approved'): ?>
+<?php $isPendingEvt = ($event['approval_status'] ?? '') === 'pending' ?>
+<div class="alert <?= $isPendingEvt ? 'alert-warning' : 'alert-danger' ?> d-flex align-items-center justify-content-between gap-3 py-2 mb-3 anim-fade-in" style="animation-delay:.10s">
+    <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-<?= $isPendingEvt ? 'hourglass-split' : 'x-circle-fill' ?> fs-5"></i>
+        <div>
+            <?php if ($isPendingEvt): ?>
+            <strong>Menunggu Persetujuan</strong> — Event ini belum disetujui dan tidak terlihat oleh pengguna lain.
+            <?php else: ?>
+            <strong>Ditolak</strong><?php if ($event['rejection_reason']): ?> — <?= esc($event['rejection_reason']) ?><?php endif; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+    <div class="d-flex gap-2 flex-shrink-0">
+        <form method="POST" action="<?= base_url('events/'.$event['id'].'/approve') ?>">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-success btn-sm"
+                onclick="return confirm('Setujui event ini?')">
+                <i class="bi bi-check-lg me-1"></i>Setujui
+            </button>
+        </form>
+        <?php if ($isPendingEvt): ?>
+        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal">
+            <i class="bi bi-x-lg me-1"></i>Tolak
+        </button>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+<div class="modal-dialog">
+<div class="modal-content">
+<form method="POST" action="<?= base_url('events/'.$event['id'].'/reject') ?>">
+<?= csrf_field() ?>
+<div class="modal-header">
+    <h5 class="modal-title fw-semibold"><i class="bi bi-x-circle me-2 text-danger"></i>Tolak Event</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <p class="text-muted small mb-2">Event: <strong><?= esc($event['name']) ?></strong></p>
+    <label class="form-label small fw-semibold">Alasan Penolakan <span class="text-danger">*</span></label>
+    <textarea name="rejection_reason" class="form-control" rows="3" required
+        placeholder="Jelaskan alasan penolakan..."></textarea>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+    <button type="submit" class="btn btn-danger">Tolak Event</button>
+</div>
+</form>
+</div></div></div>
+<?php endif; ?>
+
 <!-- KPI Cards -->
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6 anim-fade-up" style="animation-delay:.14s">

@@ -139,16 +139,20 @@ tr.head-p3 th { background: var(--c-p3-bg); color: var(--c-p3); border-color: va
 $n   = fn(int $v) => number_format($v, 0, ',', '.');
 $fmt = fn(int $v) => $v > 0 ? number_format($v, 0, ',', '.') : '—';
 
-function pctDiffPrint(int $a, int $b): ?float {
-    if ($a === 0) return null;
-    return round(($b - $a) / $a * 100, 1);
+if (! function_exists('pctDiffPrint')) {
+    function pctDiffPrint(int $a, int $b): ?float {
+        if ($a === 0) return null;
+        return round(($b - $a) / $a * 100, 1);
+    }
 }
-function diffCell(int $base, int $val, string $n): string {
-    $pct = pctDiffPrint($base, $val);
-    if ($pct === null) return '<span class="diff-nil">—</span>';
-    $cls = $pct > 0 ? 'diff-up' : ($pct < 0 ? 'diff-down' : 'diff-nil');
-    $pre = $pct > 0 ? '+' : '';
-    return '<span class="' . $cls . '">' . $pre . $pct . '%</span><br><span style="font-size:6.5pt;color:#64748b">' . $n . '</span>';
+if (! function_exists('diffCell')) {
+    function diffCell(int $base, int $val, string $n): string {
+        $pct = pctDiffPrint($base, $val);
+        if ($pct === null) return '<span class="diff-nil">—</span>';
+        $cls = $pct > 0 ? 'diff-up' : ($pct < 0 ? 'diff-down' : 'diff-nil');
+        $pre = $pct > 0 ? '+' : '';
+        return '<span class="' . $cls . '">' . $pre . $pct . '%</span><br><span style="font-size:6.5pt;color:#64748b">' . $n . '</span>';
+    }
 }
 
 $p1Label = date('d M Y', strtotime($from1)) . ' — ' . date('d M Y', strtotime($to1));
@@ -192,7 +196,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 <div class="rpt-header">
     <div>
         <h1>Perbandingan Traffic — eWalk &amp; Pentacity</h1>
-        <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.3</div>
+        <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.4</div>
     </div>
     <div class="right">
         <strong><?= $hasP3 ? 'Tiga Periode' : 'Dua Periode' ?></strong>
@@ -372,7 +376,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 </div>
 
 <div class="rpt-footer">
-    <span>Mall Intelligence Center v1.3 · PT. Wulandari Bangun Laksana Tbk.</span>
+    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Halaman 1 dari 2</span>
     <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
 </div>
@@ -386,7 +390,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
         <h1>Detail Per Pintu — Perbandingan Periode</h1>
         <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; <?= $p1Label ?> vs <?= $p2Label ?></div>
     </div>
-    <div class="right"><strong>Halaman 2 dari 2</strong>Mall Intelligence Center v1.3</div>
+    <div class="right"><strong>Halaman 2 dari 2</strong>Mall Intelligence Center v1.4</div>
 </div>
 
 <!-- Door tables -->
@@ -471,7 +475,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 </div>
 
 <div class="rpt-footer">
-    <span>Mall Intelligence Center v1.3 · PT. Wulandari Bangun Laksana Tbk.</span>
+    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Halaman 2 dari 2</span>
     <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
 </div>

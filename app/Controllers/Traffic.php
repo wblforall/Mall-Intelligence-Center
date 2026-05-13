@@ -572,7 +572,7 @@ class Traffic extends BaseController
         $out .= '<table>';
         $out .= '<tr><td colspan="7" style="background:' . $hBg . ';color:' . $hFg . ';font-size:15pt;font-weight:bold;padding:10px 14px">Traffic Summary — eWalk &amp; Pentacity</td></tr>';
         $out .= '<tr><td colspan="7" style="background:#1e40af;color:#bfdbfe;font-size:10pt;padding:6px 14px">Periode: ' . $fromFmt . ' — ' . $toFmt . '</td></tr>';
-        $out .= '<tr><td colspan="7" style="background:#1e40af;color:#93c5fd;font-size:8.5pt;padding:4px 14px">Digenerate: ' . date('d M Y H:i') . ' &nbsp;·&nbsp; Mall Intelligence Center v1.3</td></tr>';
+        $out .= '<tr><td colspan="7" style="background:#1e40af;color:#93c5fd;font-size:8.5pt;padding:4px 14px">Digenerate: ' . date('d M Y H:i') . ' &nbsp;·&nbsp; Mall Intelligence Center v1.4</td></tr>';
         $out .= '</table>';
 
         // ── KPI ───────────────────────────────────────────────────────────────

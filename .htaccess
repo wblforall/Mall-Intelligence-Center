@@ -1,0 +1,6 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(app|system|writable|tests)(/|$) - [F,L]
+</IfModule>
+
+Options -Indexes

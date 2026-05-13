@@ -29,6 +29,15 @@
     </div>
 </div>
 
+<?php if (($pendingCount ?? 0) > 0): ?>
+<div class="alert alert-info d-flex align-items-center gap-2 py-2 mb-3 anim-fade-in" style="animation-delay:.10s" role="alert">
+    <i class="bi bi-hourglass-split fs-5"></i>
+    <div>
+        <strong><?= $pendingCount ?> event</strong> menunggu persetujuan Anda.
+        Cari baris berstatus <span class="badge bg-info text-white">Pending</span> di bawah.
+    </div>
+</div>
+<?php endif; ?>
 <?php if (($incompleteCount ?? 0) > 0): ?>
 <div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-3 anim-fade-in" style="animation-delay:.15s" role="alert">
     <i class="bi bi-exclamation-triangle-fill fs-5"></i>
@@ -58,13 +67,17 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
             <table class="table table-hover mb-0">
                 <thead><tr>
                     <th style="width:36px"><input type="checkbox" id="checkAll" title="Pilih semua"></th>
-                    <th>#</th><th>Event</th><th>Tema</th><th>Mall</th><th>Periode</th><th>Status</th><th>Aksi</th>
+                    <th>#</th><th>Event</th><th>Tema</th><th>Mall</th><th>Periode</th><th>Status</th>
+                    <?php if ($canApprove ?? false): ?><th>Approval</th><?php endif; ?>
+                    <th>Aksi</th>
                 </tr></thead>
                 <tbody>
                 <?php foreach ($events as $i => $e): ?>
                 <?php $sc = ['draft'=>'warning','active'=>'success','waiting_data'=>'warning','completed'=>'secondary'][$e['status']] ?? 'secondary' ?>
                 <?php $sl = ['draft'=>'Draft','active'=>'Active','waiting_data'=>'Waiting Data','completed'=>'Completed'][$e['status']] ?? ucfirst($e['status']) ?>
-                <tr class="<?= $e['status'] === 'waiting_data' ? 'table-warning' : '' ?> anim-fade-up"
+                <?php $isPending  = ($e['approval_status'] ?? 'approved') === 'pending' ?>
+                <?php $isRejected = ($e['approval_status'] ?? 'approved') === 'rejected' ?>
+                <tr class="<?= $e['status'] === 'waiting_data' ? 'table-warning' : ($isPending ? 'table-info' : ($isRejected ? 'table-danger' : '')) ?> anim-fade-up"
                     style="animation-delay:<?= (.22 + $i * .06) ?>s"><?php /* staggered row entrance */ ?>
                     <td><input type="checkbox" class="evt-check" value="<?= $e['id'] ?>"></td>
                     <td class="text-muted small"><?= $i + 1 ?></td>
@@ -87,9 +100,21 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
                         <i class="bi bi-exclamation-circle text-warning ms-1" title="Data belum lengkap"></i>
                         <?php endif; ?>
                     </td>
+                    <?php if ($canApprove ?? false): ?>
                     <td>
-                        <a href="<?= base_url('events/'.$e['id'].'/summary') ?>" class="btn btn-sm btn-primary me-1">
-                            <i class="bi bi-speedometer2"></i>
+                        <?php if ($isPending): ?>
+                        <span class="badge bg-info text-white">Pending</span>
+                        <?php elseif ($isRejected): ?>
+                        <span class="badge bg-danger" title="<?= esc($e['rejection_reason'] ?? '') ?>">Ditolak</span>
+                        <?php else: ?>
+                        <span class="badge bg-success-subtle text-success">Disetujui</span>
+                        <?php endif; ?>
+                    </td>
+                    <?php endif; ?>
+                    <td>
+                        <a href="<?= base_url('events/'.$e['id'].'/summary') ?>" class="btn btn-sm <?= $isPending ? 'btn-outline-info' : 'btn-primary' ?> me-1"
+                           title="<?= $isPending ? 'Buka & Review' : 'Lihat Summary' ?>">
+                            <i class="bi bi-<?= $isPending ? 'eye' : 'speedometer2' ?>"></i>
                         </a>
                         <?php if ($user['role'] === 'admin' || $user['role'] === 'manager'): ?>
                         <a href="<?= base_url('events/'.$e['id'].'/edit') ?>" class="btn btn-sm btn-outline-secondary me-1">
