@@ -78,7 +78,8 @@
         <?php if ($sp['jenis'] === 'barang' && ! empty($items)): ?>
         <div class="small text-muted mt-1 d-flex flex-wrap gap-3">
             <?php foreach ($items as $itm): ?>
-            <span><i class="bi bi-box me-1"></i><?= esc($itm['deskripsi_barang'] ?: '—') ?><?= $itm['qty'] ? ' · ' . number_format($itm['qty']) . ' pcs' : '' ?><?= $itm['nilai'] ? ' · Rp ' . number_format($itm['nilai'],0,',','.') : '' ?></span>
+            <?php $lineTotal = (int)$itm['nilai'] * max(1, (int)($itm['qty'] ?? 1)); ?>
+            <span><i class="bi bi-box me-1"></i><?= esc($itm['deskripsi_barang'] ?: '—') ?><?php if ($itm['qty']): ?> · <?= number_format($itm['qty']) ?> pcs @ Rp <?= number_format($itm['nilai'],0,',','.') ?> = Rp <?= number_format($lineTotal,0,',','.') ?><?php elseif ($itm['nilai']): ?> · Rp <?= number_format($itm['nilai'],0,',','.') ?><?php endif; ?></span>
             <?php endforeach; ?>
         </div>
         <?php endif; ?>

@@ -35,16 +35,16 @@ class SponsorshipCtrl extends BaseController
 
         foreach ($desks as $i => $desk) {
             $n = (int)str_replace([',', '.', ' '], '', $values[$i] ?? 0);
-            $q = (int)($qtys[$i] ?? 0) ?: null;
+            $q = max(0, (int)($qtys[$i] ?? 0));
             if (! $desk && ! $q && ! $n) continue;
             $model->insert([
                 'program_id'       => $programId,
                 'sponsor_id'       => $sponsorId,
                 'deskripsi_barang' => $desk ?: null,
-                'qty'              => $q,
+                'qty'              => $q ?: null,
                 'nilai'            => $n,
             ]);
-            $total += $n;
+            $total += $n * ($q > 0 ? $q : 1);
         }
         return $total;
     }
@@ -74,6 +74,8 @@ class SponsorshipCtrl extends BaseController
         // KPIs
         $activeCount         = count(array_filter($programs, fn($p) => $p['status'] === 'active'));
         $totalNilaiCommitted = 0;
+        $totalNilaiCash      = 0;
+        $totalNilaiBarang    = 0;
         $totalNilaiTerkumpul = 0;
         $totalSponsorCount   = 0;
         $targetNilai         = 0;
@@ -84,6 +86,8 @@ class SponsorshipCtrl extends BaseController
             $targetSponsor += (int)($p['target_sponsor'] ?? 0);
             $c = $committedMap[$p['id']] ?? [];
             $totalNilaiCommitted += (int)($c['total_nilai']   ?? 0);
+            $totalNilaiCash      += (int)($c['total_cash']    ?? 0);
+            $totalNilaiBarang    += (int)($c['total_barang']  ?? 0);
             $totalSponsorCount   += (int)($c['total_sponsor'] ?? 0);
             $totalNilaiTerkumpul += (int)($realisasiMap[$p['id']] ?? 0);
         }
@@ -98,6 +102,8 @@ class SponsorshipCtrl extends BaseController
             'realisasiMap'        => $realisasiMap,
             'activeCount'         => $activeCount,
             'totalNilaiCommitted' => $totalNilaiCommitted,
+            'totalNilaiCash'      => $totalNilaiCash,
+            'totalNilaiBarang'    => $totalNilaiBarang,
             'totalNilaiTerkumpul' => $totalNilaiTerkumpul,
             'totalSponsorCount'   => $totalSponsorCount,
             'targetNilai'         => $targetNilai,

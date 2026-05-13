@@ -87,6 +87,10 @@ function spPct(int $actual, int $target): float {
                     <span class="small text-muted">Nilai Deal (Konfirmasi)</span>
                 </div>
                 <div class="fw-bold fs-5 text-success"><?= spFmt($totalNilaiCommitted) ?></div>
+                <div class="small text-muted">
+                    Cash: <?= spFmt($totalNilaiCash) ?>
+                    <?php if ($totalNilaiBarang > 0): ?> · Barang: <?= spFmt($totalNilaiBarang) ?><?php endif; ?>
+                </div>
                 <?php if ($targetNilai > 0): ?>
                 <div class="small text-muted">target <?= spFmt($targetNilai) ?></div>
                 <?php endif; ?>
@@ -210,7 +214,15 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
             <div class="col-6 col-md-3">
                 <div class="text-muted small">Target Nilai</div>
                 <div class="fw-semibold"><?= $prog['target_nilai'] ? spFmt((int)$prog['target_nilai']) : '—' ?></div>
-                <div class="small text-muted">Deal: <?= spFmt($committed['total_nilai']) ?></div>
+                <?php if (($committed['total_cash'] ?? 0) > 0): ?>
+                <div class="small text-muted">Cash: <?= spFmt($committed['total_cash']) ?></div>
+                <?php endif; ?>
+                <?php if (($committed['total_barang'] ?? 0) > 0): ?>
+                <div class="small text-muted">Barang: <?= spFmt($committed['total_barang']) ?></div>
+                <?php endif; ?>
+                <?php if (($committed['total_cash'] ?? 0) === 0 && ($committed['total_barang'] ?? 0) === 0): ?>
+                <div class="small text-muted">Deal: <?= spFmt($committed['total_nilai'] ?? 0) ?></div>
+                <?php endif; ?>
             </div>
             <div class="col-6 col-md-3">
                 <div class="text-muted small">Terkumpul</div>
@@ -257,11 +269,12 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                         <?php endif; ?>
                         <?php if (! empty($items)): ?>
                         <div class="mt-1">
-                            <?php foreach ($items as $item): ?>
+                            <?php foreach ($items as $item):
+                                $lineTotal = (int)$item['nilai'] * max(1, (int)($item['qty'] ?? 1));
+                            ?>
                             <span class="badge me-1" style="font-size:.7rem;background:#e2e8f0;color:#334155;font-weight:500">
                                 <?= esc($item['deskripsi_barang']) ?>
-                                <?= $item['qty'] ? '×' . $item['qty'] : '' ?>
-                                — <?= spFmt((int)$item['nilai']) ?>
+                                <?php if ($item['qty']): ?>×<?= $item['qty'] ?> @ <?= spFmt((int)$item['nilai']) ?> = <?= spFmt($lineTotal) ?><?php else: ?>— <?= spFmt((int)$item['nilai']) ?><?php endif; ?>
                             </span>
                             <?php endforeach; ?>
                         </div>
@@ -341,7 +354,16 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                 <tfoot class="table-light">
                     <tr>
                         <td colspan="3" class="fw-semibold small">Total</td>
-                        <td class="text-end fw-bold"><?= spFmt(array_sum(array_column($spList, 'nilai'))) ?></td>
+                        <td class="text-end fw-bold">
+                            <?= spFmt(array_sum(array_column($spList, 'nilai'))) ?>
+                            <?php
+                            $footCash   = array_sum(array_map(fn($s) => $s['jenis'] === 'cash'   ? (int)$s['nilai'] : 0, $spList));
+                            $footBarang = array_sum(array_map(fn($s) => $s['jenis'] !== 'cash'   ? (int)$s['nilai'] : 0, $spList));
+                            ?>
+                            <?php if ($footCash > 0 && $footBarang > 0): ?>
+                            <div class="text-muted fw-normal" style="font-size:.72rem">Cash: <?= spFmt($footCash) ?> · Barang: <?= spFmt($footBarang) ?></div>
+                            <?php endif; ?>
+                        </td>
                         <td class="text-end fw-bold text-info"><?= spFmt($terkumpul) ?></td>
                         <td colspan="<?= $canEditProg ? 2 : 1 ?>"></td>
                     </tr>
