@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <h4 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>User Management</h4>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
         <i class="bi bi-plus-lg me-1"></i> Tambah User
@@ -15,7 +15,7 @@ $roleMap = [];
 foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
 ?>
 
-<div class="card">
+<div class="card fade-up" style="animation-delay:.15s">
     <div class="card-body p-0">
     <div class="table-responsive">
     <table class="table table-hover mb-0">
@@ -27,7 +27,7 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
             $roleName = $roleRow ? $roleRow['name'] : ucfirst($u['role']);
             $roleColor = $roleRow && $roleRow['is_admin'] ? 'danger' : (in_array($u['role'], ['manager']) ? 'primary' : 'secondary');
         ?>
-        <tr>
+        <tr class="fade-up" style="animation-delay:<?= .2 + $i * .04 ?>s">
             <td class="text-muted small"><?= $i+1 ?></td>
             <td class="fw-medium"><?= esc($u['name']) ?></td>
             <td><?= esc($u['email']) ?></td>

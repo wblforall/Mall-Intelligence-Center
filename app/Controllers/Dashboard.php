@@ -38,16 +38,21 @@ class Dashboard extends BaseController
             ],
         ];
 
-        // Disable slow external fetch for better performance in dev/local network
-        $bbmNews = []; 
-        $biRate  = ['pct' => '6,00', 'per' => 'Mei 2026', 'live' => false];
-        $inflasi = ['pct' => '2,50', 'per' => 'Mei 2026', 'live' => false];
+        $bbmNews = [];
+
+        // BI Rate & Inflasi: pakai cache jika ada, fallback ke loading state (async JS fetch)
+        $biRate  = cache('eco_bi_rate')  ?? ['pct' => '—', 'per' => '', 'live' => false, 'loading' => true];
+        $inflasi = cache('eco_inflasi')  ?? ['pct' => '—', 'per' => '', 'live' => false, 'loading' => true];
+
+        // GDP & PDRB: baca dari DB (bisa di-edit admin), fallback ke nilai default
+        $gdp    = $this->getMacroIndicator('gdp',     '5,61', 'Q1 2026 (YoY, BPS)');
+        $gdpBpn = $this->getMacroIndicator('gdp_bpn', '7,97', 'Q1 2025 (YoY, BPS Balikpapan)');
 
         $economicData = [
             'bi_rate'   => $biRate,
             'inflation' => $inflasi,
-            'gdp'       => ['pct' => '5,61', 'per' => 'Q1 2026 (YoY, BPS)', 'live' => false],
-            'gdp_bpn'   => ['pct' => '7,97', 'per' => 'Q1 2025 (YoY, BPS Balikpapan)', 'live' => false],
+            'gdp'       => $gdp,
+            'gdp_bpn'   => $gdpBpn,
             'bbm'       => $this->getBbmPrices(),
             'bbm_per'   => $this->getBbmPer(),
         ];
@@ -61,6 +66,101 @@ class Dashboard extends BaseController
             'economicData' => $economicData,
             'bbmNews'      => $bbmNews,
         ]);
+    }
+
+    // Auto-fetch BBM prices from MyPertamina — available to all authenticated users
+    public function autoFetchBbm()
+    {
+        // Prevent simultaneous fetches (e.g. multiple users on dashboard at once)
+        if (cache('bbm_fetching')) {
+            return $this->response->setJSON(['ok' => false, 'msg' => 'Sedang dalam proses fetch oleh user lain.']);
+        }
+        cache()->save('bbm_fetching', true, 60);
+
+        $result = $this->fetchBbmFromPertamina();
+        cache()->delete('bbm_fetching');
+        if (! $result) {
+            return $this->response->setJSON(['ok' => false, 'msg' => 'Gagal mengambil data dari Pertamina. Coba update manual.']);
+        }
+
+        $db  = db_connect();
+        $per = date('d M Y');
+        $db->table('economic_indicators')
+           ->replace(['key' => 'bbm_prices', 'value' => json_encode($result, JSON_UNESCAPED_UNICODE)]);
+        $db->table('economic_indicators')
+           ->replace(['key' => 'bbm_per', 'value' => $per]);
+        cache()->delete('eco_bbm');
+
+        return $this->response->setJSON(['ok' => true, 'prices' => $result, 'per' => $per]);
+    }
+
+    private function fetchBbmFromPertamina(): ?array
+    {
+        // MyPertamina public API — no auth required, not Cloudflare-protected
+        $province = env('BBM_PROVINCE', 'kalimantan timur');
+        $url = 'https://api.web.mypertamina.id/price?search=' . urlencode($province);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; MallIC/1.4)',
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_ENCODING       => 'gzip, deflate',
+            CURLOPT_HTTPHEADER     => [
+                'Accept: application/json',
+                'Referer: https://mypertamina.id/about/product-price',
+            ],
+        ]);
+        $raw  = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (! $raw || $code < 200 || $code >= 300) return null;
+
+        $json = json_decode($raw, true);
+        if (($json['status'] ?? '') !== 'success') return null;
+
+        // Get the first province match
+        $provinces = $json['data']['data'] ?? [];
+        if (empty($provinces)) return null;
+
+        $listPrice = $provinces[0]['list_price'] ?? [];
+        return $this->parseBbmResponse($listPrice);
+    }
+
+    private function parseBbmResponse(array $listPrice): ?array
+    {
+        // Display name + subsidi flag per product code
+        $productMap = [
+            'PERTALITE'                   => ['Pertalite',           true],
+            'PERTAMAX'                    => ['Pertamax',            false],
+            'PERTAMAX TURBO'              => ['Pertamax Turbo',      false],
+            'PERTAMAX GREEN 95'           => ['Pertamax Green 95',   false],
+            'PERTAMAX PERTASHOP'          => ['Pertamax Pertashop',  false],
+            'DEXLITE'                     => ['Dexlite',             false],
+            'PERTAMINA DEX'               => ['Pertamina Dex',       false],
+            'PERTAMINA BIOSOLAR SUBSIDI'  => ['Solar Subsidi',       true],
+            'PERTAMINA BIOSOLAR NON SUBSIDI' => ['Biosolar Non Subsidi', false],
+        ];
+
+        $prices = [];
+        foreach ($listPrice as $item) {
+            $code = strtoupper(trim($item['product'] ?? ''));
+            if (! isset($productMap[$code])) continue;
+
+            // Normalize price: strip "Rp", dots, spaces → integer
+            $raw   = preg_replace('/[^0-9]/', '', $item['price'] ?? '0');
+            $harga = (int)$raw;
+            if ($harga < 1000 || $harga > 100000) continue; // skip zero or bogus
+
+            [$nama, $subsidi] = $productMap[$code];
+            $prices[] = ['nama' => $nama, 'harga' => $harga, 'subsidi' => $subsidi];
+        }
+
+        return count($prices) >= 2 ? $prices : null;
     }
 
     // Admin only — update BBM prices from dashboard modal
@@ -195,7 +295,7 @@ class Dashboard extends BaseController
         }
         $months = 'Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember';
         if (preg_match('/(\d{1,2}\s+(?:' . $months . ')\s+\d{4})[^%]{0,200}?(\d+[,\.]\d+)\s*%/s', $html, $m)) {
-            $result = ['pct' => str_replace('.', ',', $m[2]), 'per' => $m[1], 'live' => true];
+            $result = ['pct' => str_replace('.', ',', $m[2]), 'per' => $m[1], 'live' => true, 'fetched_at' => date('d M Y H:i')];
             cache()->save('eco_bi_rate', $result, 21600);
             return $result;
         }
@@ -212,7 +312,7 @@ class Dashboard extends BaseController
         }
         $months = 'Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember';
         if (preg_match('/((?:' . $months . ')\s+\d{4})[^%]{0,100}?(\d+[,\.]\d+)\s*%/s', $html, $m)) {
-            $result = ['pct' => str_replace('.', ',', $m[2]), 'per' => $m[1] . ' (YoY, BPS)', 'live' => true];
+            $result = ['pct' => str_replace('.', ',', $m[2]), 'per' => $m[1] . ' (YoY, BPS)', 'live' => true, 'fetched_at' => date('d M Y H:i')];
             cache()->save('eco_inflasi', $result, 21600);
             return $result;
         }
@@ -238,6 +338,45 @@ class Dashboard extends BaseController
         $row = db_connect()->table('economic_indicators')
             ->where('key', 'bbm_per')->get()->getRowArray();
         return $row ? $row['value'] : date('M Y');
+    }
+
+    private function getMacroIndicator(string $key, string $defaultPct, string $defaultPer): array
+    {
+        $cached = cache('eco_' . $key);
+        if ($cached !== null) return $cached;
+
+        $row = db_connect()->table('economic_indicators')
+            ->where('key', $key)->get()->getRowArray();
+        if ($row) {
+            $val = json_decode($row['value'], true);
+            if (is_array($val)) {
+                cache()->save('eco_' . $key, $val, 86400);
+                return $val;
+            }
+        }
+
+        return ['pct' => $defaultPct, 'per' => $defaultPer, 'live' => false];
+    }
+
+    // Admin only — update GDP & PDRB manual indicators
+    public function updateMacro()
+    {
+        if ($this->currentUser()['role'] !== 'admin') {
+            return $this->response->setStatusCode(403)->setJSON(['error' => 'Forbidden']);
+        }
+        $post = $this->request->getPost();
+        $db   = db_connect();
+        foreach (['gdp', 'gdp_bpn'] as $key) {
+            $pct = trim($post[$key . '_pct'] ?? '');
+            $per = trim($post[$key . '_per'] ?? '');
+            if (! $pct || ! $per) continue;
+            $db->table('economic_indicators')->replace([
+                'key'   => $key,
+                'value' => json_encode(['pct' => $pct, 'per' => $per, 'live' => false], JSON_UNESCAPED_UNICODE),
+            ]);
+            cache()->delete('eco_' . $key);
+        }
+        return redirect()->to(base_url())->with('success', 'Data makro diperbarui.');
     }
 
     // ── Berita Balikpapan — IniBalikpapan + Tribun Kaltim, cache hingga tengah malam ──

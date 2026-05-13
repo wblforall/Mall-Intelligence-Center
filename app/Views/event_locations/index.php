@@ -1,7 +1,13 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<style>
+.card { overflow: hidden; }
+.list-group-item { transition: background .15s; }
+</style>
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-geo-alt me-2"></i>Master Lokasi Event</h4>
         <small class="text-muted">Lokasi yang tersedia saat membuat event</small>
@@ -13,8 +19,8 @@
 
 <div class="row g-3">
 
-<?php foreach (['ewalk' => 'eWalk', 'pentacity' => 'Pentacity'] as $mallKey => $mallLabel): ?>
-<div class="col-lg-6">
+<?php $mi = 0; foreach (['ewalk' => 'eWalk', 'pentacity' => 'Pentacity'] as $mallKey => $mallLabel): ?>
+<div class="col-lg-6 fade-up" style="animation-delay:<?= .15 + $mi++ * .1 ?>s">
 <div class="card">
 <div class="card-header d-flex justify-content-between align-items-center">
     <h6 class="mb-0 fw-semibold">
@@ -27,8 +33,9 @@
 <div class="text-center py-4 text-muted small">Belum ada lokasi untuk <?= $mallLabel ?>.</div>
 <?php else: ?>
 <div class="list-group list-group-flush">
-<?php foreach ($grouped[$mallKey] as $loc): ?>
-<div class="list-group-item d-flex justify-content-between align-items-center py-2">
+<?php foreach ($grouped[$mallKey] as $li => $loc): ?>
+<div class="list-group-item d-flex justify-content-between align-items-center py-2 fade-up"
+     style="animation-delay:<?= (.15 + $mi * .1) + $li * .05 ?>s">
     <div class="d-flex align-items-center gap-2">
         <i class="bi bi-geo-alt text-muted" style="font-size:.8rem"></i>
         <span class="fw-medium small"><?= esc($loc['nama']) ?></span>

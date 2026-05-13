@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 fade-up" style="animation-delay:.05s">
     <h4 class="fw-bold mb-0"><i class="bi bi-person-badge-fill me-2"></i>Master Jabatan</h4>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addJabModal">
         <i class="bi bi-plus-lg me-1"></i> Tambah Jabatan
@@ -16,7 +16,7 @@
 <?php endif; ?>
 
 <!-- Filter bar -->
-<div class="card mb-3">
+<div class="card mb-3 fade-up" style="animation-delay:.12s">
 <div class="card-body py-2">
 <form method="GET" class="row g-2 align-items-end">
     <div class="col-auto">
@@ -67,9 +67,9 @@ foreach ($jabatans as $j) {
 ksort($grouped);
 ?>
 
-<?php foreach ($grouped as $key => $rows): ?>
+<?php $gi = 0; foreach ($grouped as $key => $rows): ?>
 <?php [$divLabel, $deptLabel] = explode('||', $key, 2); ?>
-<div class="card mb-3">
+<div class="card mb-3 fade-up" style="animation-delay:<?= .2 + $gi++ * .07 ?>s">
     <div class="card-header py-2 d-flex align-items-center gap-2">
         <i class="bi bi-layers text-primary"></i>
         <span class="fw-semibold"><?= esc($divLabel) ?></span>

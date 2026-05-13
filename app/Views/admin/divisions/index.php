@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <h4 class="fw-bold mb-0"><i class="bi bi-layers-fill me-2"></i>Master Divisi</h4>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDivModal">
         <i class="bi bi-plus-lg me-1"></i> Tambah Divisi
@@ -26,8 +26,8 @@
 <?php else: ?>
 
 <div class="row g-3 mb-4">
-<?php foreach ($divisions as $div): ?>
-<div class="col-md-6">
+<?php foreach ($divisions as $i => $div): ?>
+<div class="col-md-6 fade-up" style="animation-delay:<?= .15 + $i * .07 ?>s">
 <div class="card h-100">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
@@ -82,7 +82,7 @@
 </div>
 
 <!-- Assign Department Section -->
-<div class="card">
+<div class="card fade-up" style="animation-delay:.35s">
     <div class="card-header fw-semibold py-2">Pindahkan Departemen ke Divisi</div>
     <div class="card-body">
         <form method="POST" action="<?= base_url('divisions/assign-dept') ?>" class="row g-2 align-items-end">

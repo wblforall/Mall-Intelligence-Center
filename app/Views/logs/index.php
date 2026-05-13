@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-journal-text me-2"></i>Activity Log</h4>
         <small class="text-muted">Riwayat seluruh aktivitas sistem</small>
@@ -10,7 +10,7 @@
 </div>
 
 <!-- Filter -->
-<div class="card mb-4">
+<div class="card mb-4 fade-up" style="animation-delay:.12s">
 <div class="card-body py-2">
 <form method="GET" class="row g-2 align-items-end">
     <div class="col-auto">
@@ -82,7 +82,7 @@ $moduleBadge = [
 ];
 ?>
 
-<div class="card">
+<div class="card fade-up" style="animation-delay:.2s">
 <div class="card-body p-0">
 <div class="table-responsive">
 <table class="table table-sm table-hover mb-0 align-middle">

@@ -59,6 +59,13 @@ body { min-height: 100vh; }
 [aria-expanded="true"] #vmChevron      { transform: rotate(-180deg); }
 [aria-expanded="true"] #sponsorChevron { transform: rotate(-180deg); }
 #eventsChevron, #loyaltyChevron, #creativeChevron, #vmChevron, #sponsorChevron { transition: transform .2s; }
+
+/* ── Global entrance animation ── */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { opacity: 0; animation: fadeUp .45s cubic-bezier(.22,.68,0,1.1) forwards; }
 </style>
 <?= $this->renderSection('styles') ?>
 </head>

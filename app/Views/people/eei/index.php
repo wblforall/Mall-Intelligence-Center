@@ -7,13 +7,16 @@
 .eei-gauge::before { content:''; position:absolute; width:100px; height:100px;
     border-radius:50%; background:var(--bs-body-bg); }
 .eei-gauge-inner { position:relative; z-index:1; text-align:center; }
-.dim-bar { height:10px; border-radius:5px; transition:width .6s ease; }
+.dim-bar { height:10px; border-radius:5px; width:0 !important; transition:width .7s cubic-bezier(.22,.68,0,1.1); }
+.dim-bar.animated { width:var(--bar-w) !important; }
 .score-chip { min-width:52px; }
+.card { overflow:hidden; }
+.table tr { transition: background .15s; }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-heart-pulse-fill me-2 text-danger"></i>Employee Engagement Index</h4>
         <small class="text-muted">Hasil survey — agregat anonim per departemen</small>
@@ -29,7 +32,7 @@
 
 <!-- Period selector -->
 <?php if (! empty($periods)): ?>
-<div class="card mb-4">
+<div class="card mb-4 fade-up" style="animation-delay:.12s">
 <div class="card-body py-2">
 <form method="GET" class="d-flex align-items-center gap-2">
     <i class="bi bi-calendar2-range text-muted"></i>
@@ -66,7 +69,7 @@ $color = $scoreColor($overall);
 
 <!-- Summary row -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-md-3 fade-up" style="animation-delay:.18s">
         <div class="card h-100">
         <div class="card-body d-flex flex-column align-items-center justify-content-center py-4">
             <div class="eei-gauge mb-3"
@@ -81,7 +84,7 @@ $color = $scoreColor($overall);
         </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-3 fade-up" style="animation-delay:.26s">
         <div class="card h-100">
         <div class="card-body text-center py-4">
             <div class="display-5 fw-bold text-primary"><?= $participation['completed'] ?></div>
@@ -94,7 +97,7 @@ $color = $scoreColor($overall);
         </div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-6 fade-up" style="animation-delay:.34s">
         <div class="card h-100">
         <div class="card-body">
             <div class="fw-semibold mb-3">Skor per Dimensi</div>
@@ -103,7 +106,7 @@ $color = $scoreColor($overall);
                 <span class="small text-nowrap" style="min-width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis"
                       title="<?= esc($dim['nama']) ?>"><?= esc($dim['nama']) ?></span>
                 <div class="flex-grow-1">
-                    <div class="dim-bar" style="width:<?= $dim['score'] ?>%;background:<?= $scoreColor($dim['score']) ?>"></div>
+                    <div class="dim-bar" style="--bar-w:<?= $dim['score'] ?>%;background:<?= $scoreColor($dim['score']) ?>"></div>
                 </div>
                 <span class="score-chip badge bg-secondary-subtle text-secondary border fw-semibold text-end"><?= $dim['score'] ?></span>
             </div>
@@ -115,7 +118,7 @@ $color = $scoreColor($overall);
 
 <!-- Dept breakdown -->
 <?php if (! empty($deptScores)): ?>
-<div class="card mb-4">
+<div class="card mb-4 fade-up" style="animation-delay:.42s">
 <div class="card-header fw-semibold py-2">Skor per Departemen</div>
 <div class="card-body p-0">
 <table class="table table-sm align-middle mb-0">
@@ -133,7 +136,7 @@ $color = $scoreColor($overall);
     <td class="text-center">
         <div class="d-flex align-items-center gap-2 justify-content-center">
             <div class="flex-grow-1" style="max-width:120px">
-                <div class="dim-bar" style="width:<?= $ds['score'] ?>%;background:<?= $scoreColor($ds['score']) ?>"></div>
+                <div class="dim-bar" style="--bar-w:<?= $ds['score'] ?>%;background:<?= $scoreColor($ds['score']) ?>"></div>
             </div>
             <span class="fw-bold" style="color:<?= $scoreColor($ds['score']) ?>;min-width:36px"><?= $ds['score'] ?></span>
         </div>
@@ -152,7 +155,7 @@ $color = $scoreColor($overall);
 
 <!-- Level jabatan breakdown -->
 <?php if (! empty($levelScores)): ?>
-<div class="card mb-4">
+<div class="card mb-4 fade-up" style="animation-delay:.5s">
 <div class="card-header fw-semibold py-2">Skor per Level Jabatan</div>
 <div class="card-body p-0">
 <table class="table table-sm align-middle mb-0">
@@ -170,7 +173,7 @@ $color = $scoreColor($overall);
     <td class="text-center">
         <div class="d-flex align-items-center gap-2 justify-content-center">
             <div class="flex-grow-1" style="max-width:120px">
-                <div class="dim-bar" style="width:<?= $ls['score'] ?>%;background:<?= $scoreColor($ls['score']) ?>"></div>
+                <div class="dim-bar" style="--bar-w:<?= $ls['score'] ?>%;background:<?= $scoreColor($ls['score']) ?>"></div>
             </div>
             <span class="fw-bold" style="color:<?= $scoreColor($ls['score']) ?>;min-width:36px"><?= $ls['score'] ?></span>
         </div>
@@ -205,7 +208,7 @@ foreach ($levels as $lv) {
     }
 }
 ?>
-<div class="card mb-4">
+<div class="card mb-4 fade-up" style="animation-delay:.58s">
 <div class="card-header fw-semibold py-2 d-flex align-items-center justify-content-between">
     <span>Matriks Skor: Departemen × Level Jabatan</span>
     <span class="text-muted small fw-normal">Sel kosong = tidak ada responden</span>
@@ -230,7 +233,7 @@ foreach ($levels as $lv) {
         <?= $s ?>
     </td>
     <?php else: ?>
-    <td class="text-center text-muted" style="background:#f8f9fa">—</td>
+    <td class="text-center text-muted" style="background:var(--bs-secondary-bg)">—</td>
     <?php endif; ?>
     <?php endforeach; ?>
 </tr>
@@ -242,7 +245,7 @@ foreach ($levels as $lv) {
 <?php endif; ?>
 
 <!-- Legend -->
-<div class="d-flex gap-3 text-muted small mb-4">
+<div class="d-flex gap-3 text-muted small mb-4 fade-up" style="animation-delay:.65s">
     <span><span class="badge bg-success me-1">Engaged</span>≥ 75</span>
     <span><span class="badge bg-warning me-1">Moderate</span>55–74</span>
     <span><span class="badge bg-danger me-1">Disengaged</span>&lt; 55</span>
@@ -252,4 +255,13 @@ foreach ($levels as $lv) {
 
 <?php endif; ?>
 
+<?= $this->endSection() ?>
+<?= $this->section('scripts') ?>
+<script>
+requestAnimationFrame(() => {
+    setTimeout(() => {
+        document.querySelectorAll('.dim-bar').forEach(el => el.classList.add('animated'));
+    }, 350);
+});
+</script>
 <?= $this->endSection() ?>

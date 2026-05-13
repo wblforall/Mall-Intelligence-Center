@@ -11,6 +11,10 @@
 }
 .anim-fade-up { opacity: 0; animation: fadeUp .45s cubic-bezier(.22,.68,0,1.15) forwards; }
 .anim-fade-in { opacity: 0; animation: fadeIn .35s ease forwards; }
+/* contextual table rows — pakai rgba agar work di dark mode */
+tr.table-warning { --bs-table-bg: rgba(234,179,8,.12) !important; }
+tr.table-info    { --bs-table-bg: rgba(14,165,233,.12) !important; }
+tr.table-danger  { --bs-table-bg: rgba(239,68,68,.12) !important; }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>

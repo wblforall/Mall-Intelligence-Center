@@ -15,9 +15,11 @@ $routes->post('eei/(:segment)/submit', 'PeopleEei::publicSubmit/$1');
 
 // Dashboard
 $routes->get('/', 'Dashboard::index', ['filter' => 'auth']);
-$routes->post('dashboard/update-bbm', 'Dashboard::updateBbm', ['filter' => 'auth']);
-$routes->get('dashboard/news-feed',  'Dashboard::newsFeed',    ['filter' => 'auth']);
-$routes->get('dashboard/economic',   'Dashboard::economicLive', ['filter' => 'auth']);
+$routes->post('dashboard/update-bbm',     'Dashboard::updateBbm',     ['filter' => 'auth']);
+$routes->post('dashboard/update-macro',   'Dashboard::updateMacro',   ['filter' => 'auth']);
+$routes->get ('dashboard/auto-fetch-bbm', 'Dashboard::autoFetchBbm',  ['filter' => 'auth']);
+$routes->get ('dashboard/news-feed',      'Dashboard::newsFeed',       ['filter' => 'auth']);
+$routes->get ('dashboard/economic',       'Dashboard::economicLive',   ['filter' => 'auth']);
 
 // Events
 $routes->get('events', 'Events::index', ['filter' => 'auth']);

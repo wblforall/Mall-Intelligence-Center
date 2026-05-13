@@ -1,7 +1,18 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<style>
+.card { overflow: hidden; }
+@keyframes countUp {
+    from { opacity: 0; transform: scale(.85); }
+    to   { opacity: 1; transform: scale(1); }
+}
+.traffic-num { display: inline-block; animation: countUp .35s ease forwards; }
+.list-group-item { transition: background .15s; }
+</style>
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-person-walking me-2"></i>Daily Traffic</h4>
         <small class="text-muted">Input traffic pengunjung harian per pintu masuk</small>
@@ -21,7 +32,7 @@
     </div>
 </div>
 
-<form method="GET" class="mb-3">
+<form method="GET" class="mb-3 fade-up" style="animation-delay:.1s">
     <div class="d-flex align-items-center gap-2">
         <label class="form-label mb-0 small fw-semibold text-muted">Bulan</label>
         <input type="month" name="bulan" class="form-control form-control-sm" style="width:160px"
@@ -32,7 +43,7 @@
 <div class="row g-3">
 
 <!-- eWalk -->
-<div class="col-lg-6">
+<div class="col-lg-6 fade-up" style="animation-delay:.18s">
 <div class="card">
 <div class="card-header d-flex justify-content-between align-items-center">
     <h6 class="mb-0 fw-semibold"><i class="bi bi-building me-2 text-primary"></i>eWalk</h6>
@@ -43,14 +54,15 @@
 <div class="text-center py-4 text-muted small">Belum ada data traffic eWalk.</div>
 <?php else: ?>
 <div class="list-group list-group-flush">
-<?php foreach ($ewalkDates as $row): ?>
-<div class="list-group-item d-flex justify-content-between align-items-center py-2">
+<?php foreach ($ewalkDates as $i => $row): ?>
+<div class="list-group-item d-flex justify-content-between align-items-center py-2 fade-up"
+     style="animation-delay:<?= .22 + $i * .05 ?>s">
     <div>
         <span class="fw-medium small"><?= date('d M Y', strtotime($row['tanggal'])) ?></span>
         <span class="text-muted small ms-2"><?= date('l', strtotime($row['tanggal'])) ?></span>
     </div>
     <div class="d-flex align-items-center gap-2">
-        <span class="fw-semibold small text-primary"><?= number_format((int)$row['total']) ?></span>
+        <span class="fw-semibold small text-primary traffic-num"><?= number_format((int)$row['total']) ?></span>
         <?php if ($canEdit): ?>
         <a href="<?= base_url('traffic/input/ewalk/'.$row['tanggal']) ?>" class="btn btn-xs btn-outline-primary" style="padding:.2rem .5rem;font-size:.75rem">
             <i class="bi bi-pencil"></i>
@@ -73,7 +85,7 @@
 </div>
 
 <!-- Pentacity -->
-<div class="col-lg-6">
+<div class="col-lg-6 fade-up" style="animation-delay:.28s">
 <div class="card">
 <div class="card-header d-flex justify-content-between align-items-center">
     <h6 class="mb-0 fw-semibold"><i class="bi bi-building me-2 text-success"></i>Pentacity</h6>
@@ -84,14 +96,15 @@
 <div class="text-center py-4 text-muted small">Belum ada data traffic Pentacity.</div>
 <?php else: ?>
 <div class="list-group list-group-flush">
-<?php foreach ($pentaDates as $row): ?>
-<div class="list-group-item d-flex justify-content-between align-items-center py-2">
+<?php foreach ($pentaDates as $i => $row): ?>
+<div class="list-group-item d-flex justify-content-between align-items-center py-2 fade-up"
+     style="animation-delay:<?= .32 + $i * .05 ?>s">
     <div>
         <span class="fw-medium small"><?= date('d M Y', strtotime($row['tanggal'])) ?></span>
         <span class="text-muted small ms-2"><?= date('l', strtotime($row['tanggal'])) ?></span>
     </div>
     <div class="d-flex align-items-center gap-2">
-        <span class="fw-semibold small text-success"><?= number_format((int)$row['total']) ?></span>
+        <span class="fw-semibold small text-success traffic-num"><?= number_format((int)$row['total']) ?></span>
         <?php if ($canEdit): ?>
         <a href="<?= base_url('traffic/input/pentacity/'.$row['tanggal']) ?>" class="btn btn-xs btn-outline-success" style="padding:.2rem .5rem;font-size:.75rem">
             <i class="bi bi-pencil"></i>

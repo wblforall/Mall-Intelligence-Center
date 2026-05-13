@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <h4 class="fw-bold mb-0"><i class="bi bi-diagram-3 me-2"></i>Manajemen Departemen</h4>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDeptModal">
         <i class="bi bi-plus-lg me-1"></i> Tambah Departemen
@@ -20,8 +20,8 @@
 </div>
 <?php else: ?>
 <div class="row g-3">
-<?php foreach ($depts as $d): ?>
-<div class="col-md-6 col-lg-4">
+<?php foreach ($depts as $i => $d): ?>
+<div class="col-md-6 col-lg-4 fade-up" style="animation-delay:<?= .15 + $i * .07 ?>s">
 <div class="card h-100">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-2">

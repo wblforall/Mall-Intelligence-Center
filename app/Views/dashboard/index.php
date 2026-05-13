@@ -247,8 +247,14 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
         <i class="bi bi-exclamation-circle me-1"></i>Gagal memuat kurs.
     </div>
 
-    <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
-        <i class="bi bi-bank me-1"></i>Indikator Makro
+    <div class="small fw-semibold text-muted text-uppercase mb-2 d-flex align-items-center justify-content-between" style="letter-spacing:.05em">
+        <span><i class="bi bi-bank me-1"></i>Indikator Makro</span>
+        <?php if ($user['role'] === 'admin'): ?>
+        <button class="btn btn-outline-secondary border-0 p-0 px-1" style="font-size:.7rem"
+                data-bs-toggle="modal" data-bs-target="#macroModal" title="Update GDP & PDRB">
+            <i class="bi bi-pencil-square"></i>
+        </button>
+        <?php endif; ?>
     </div>
     <div class="d-flex flex-column gap-2">
         <?php
@@ -261,30 +267,41 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
         foreach ($indicators as $ind):
             $d       = $eco[$ind['key']];
             $loading = ! empty($d['loading']);
+            $isLive  = ! empty($d['live']);
+            $isStatic = ! $isLive && ! $loading;
         ?>
-        <div class="d-flex align-items-center justify-content-between rounded border px-3 py-2"
+        <div class="rounded border px-3 py-2"
              id="macro-<?= $ind['key'] ?>"
              style="background:var(--bs-tertiary-bg)">
-            <div>
+            <div class="d-flex align-items-center justify-content-between mb-1">
                 <div style="font-size:.7rem" class="text-muted d-flex align-items-center gap-1">
                     <?= $ind['label'] ?>
-                    <?php if (! empty($d['live'])): ?>
-                    <span class="badge bg-success-subtle text-success border" style="font-size:.55rem">LIVE</span>
-                    <?php endif; ?>
                 </div>
-                <?php if ($loading): ?>
-                <div class="d-flex align-items-center gap-2 mt-1" id="macro-<?= $ind['key'] ?>-val">
-                    <span class="spinner-border spinner-border-sm text-secondary" style="width:.85rem;height:.85rem;border-width:2px"></span>
-                    <span class="text-muted" style="font-size:.8rem">Memuat...</span>
-                </div>
-                <?php else: ?>
-                <div class="fw-bold <?= $ind['color'] ?>" style="font-size:1.1rem" id="macro-<?= $ind['key'] ?>-val">
-                    <?= $d['pct'] ?>%
-                </div>
+                <?php if ($isLive): ?>
+                <span class="badge bg-success-subtle text-success border" style="font-size:.55rem">
+                    <i class="bi bi-circle-fill me-1" style="font-size:.4rem"></i>LIVE
+                </span>
+                <?php elseif ($isStatic): ?>
+                <span class="badge bg-secondary-subtle text-secondary border" style="font-size:.55rem">MANUAL</span>
                 <?php endif; ?>
             </div>
-            <div class="text-end text-muted" style="font-size:.68rem" id="macro-<?= $ind['key'] ?>-per">
-                <?= $loading ? '' : esc($d['per']) ?>
+            <?php if ($loading): ?>
+            <div class="d-flex align-items-center gap-2" id="macro-<?= $ind['key'] ?>-val">
+                <span class="spinner-border spinner-border-sm text-secondary" style="width:.85rem;height:.85rem;border-width:2px"></span>
+                <span class="text-muted" style="font-size:.8rem">Memuat...</span>
+            </div>
+            <?php else: ?>
+            <div class="fw-bold <?= $ind['color'] ?>" style="font-size:1.1rem" id="macro-<?= $ind['key'] ?>-val">
+                <?= $d['pct'] ?>%
+            </div>
+            <?php endif; ?>
+            <div class="text-muted mt-1" style="font-size:.63rem" id="macro-<?= $ind['key'] ?>-per">
+                <?php if (! $loading): ?>
+                <i class="bi bi-calendar3 me-1"></i><?= esc($d['per']) ?>
+                <?php if (! empty($d['fetched_at'])): ?>
+                <br><i class="bi bi-arrow-clockwise me-1"></i>Diambil <?= esc($d['fetched_at']) ?>
+                <?php endif; ?>
+                <?php endif; ?>
             </div>
         </div>
         <?php endforeach; ?>
@@ -304,7 +321,7 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
         <?php endif; ?>
     </div>
 
-    <div class="d-flex flex-column gap-1 mb-2">
+    <div class="d-flex flex-column gap-1 mb-2" id="bbmPriceList">
     <?php foreach ($eco['bbm'] as $b): ?>
     <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1" style="font-size:.8rem;background:var(--bs-tertiary-bg)">
         <div>
@@ -319,7 +336,7 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
     </div>
 
     <div class="d-flex align-items-center justify-content-between mb-3" style="font-size:.68rem">
-        <span class="text-muted"><i class="bi bi-info-circle me-1"></i>per <?= esc($eco['bbm_per']) ?> · harga per liter</span>
+        <span class="text-muted" id="bbmPerLabel"><i class="bi bi-info-circle me-1"></i>per <?= esc($eco['bbm_per']) ?> · harga per liter</span>
         <a href="https://pertaminapatraniaga.com/page/harga-terbaru-bbm" target="_blank" rel="noopener"
            class="text-primary text-decoration-none" title="Cek harga terbaru di Pertamina Patra Niaga">
             <i class="bi bi-box-arrow-up-right me-1"></i>Cek terbaru
@@ -438,10 +455,10 @@ foreach ($eco['bbm'] as $b) {
     $key = mb_strtolower(preg_replace('/\s+/', '_', $b['nama']));
     $bbmMap[$key] = $b['harga'];
 }
-$hrgDexlite   = $bbmMap['dexlite']          ?? 0;   // non-subsidi solar, patokan logistik
-$hrgDex       = $bbmMap['pertamina_dex']    ?? 0;
-$hrgPertalite = $bbmMap['pertalite_ron_90'] ?? 0;   // subsidi, patokan mobilitas rakyat
-$hrgPertamax  = $bbmMap['pertamax_ron_92']  ?? 0;
+$hrgDexlite   = $bbmMap['dexlite']           ?? 0;
+$hrgDex       = $bbmMap['pertamina_dex']     ?? 0;
+$hrgPertalite = $bbmMap['pertalite']         ?? $bbmMap['pertalite_ron_90'] ?? 0;
+$hrgPertamax  = $bbmMap['pertamax']          ?? $bbmMap['pertamax_ron_92']  ?? 0;
 
 // Sinyal gabungan
 $logistikBerat  = $hrgDexlite > 20000;  // solar non-subsidi sangat mahal → tekanan supply chain
@@ -608,7 +625,7 @@ $segments = [
     [
         'nama'   => 'Kelas Atas',
         'desc'   => 'Eksekutif, pengusaha, pekerja migas/IKN, investor',
-        'bbm'    => 'Pertamax Turbo Rp ' . number_format($hrgPertamax > 0 ? ($bbmMap['pertamax_turbo'] ?? 19900) : 19900, 0, ',', '.'),
+        'bbm'    => 'Pertamax Turbo Rp ' . number_format($bbmMap['pertamax_turbo'] ?? 19900, 0, ',', '.'),
         'status' => $segAtasStatus,
         'poin'   => [
             '⚠ Pertamax Turbo Rp ' . number_format($bbmMap['pertamax_turbo'] ?? 19900,0,',','.') . ' — naik, tapi proporsi ke pengeluaran kecil',
@@ -660,6 +677,159 @@ $segments = [
             </div>
             <div class="border-top pt-1 mt-1" style="font-size:.65rem">
                 <span class="text-muted"><i class="bi bi-bag me-1"></i><?= $seg['spend'] ?></span>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; ?>
+    </div>
+</div>
+
+<!-- ── Segmen Prospektif ─────────────────────────────────────────────────── -->
+<?php
+// Proxy kondisi keuangan orang tua untuk segmen dependen (Gen Z, Mahasiswa)
+// Orang tua Gen Z mall umumnya kelas menengah; Mahasiswa mix bawah-menengah
+$ortaMenengahOk = ($segMenengahStatus !== 'tertekan');
+$ortaCampurOk   = ($segBawahStatus !== 'tertekan') && ($segMenengahStatus !== 'tertekan');
+// Uang saku real: inflasi rendah + orang tua tidak tertekan + Pertalite tidak naik
+$uangSakuOk     = ($inflNum < 3) && $ortaMenengahOk && $mobilityOk;
+
+// Score helper: 0-3 poin per faktor, kemudian dipetakan ke label
+$prospects = [
+    [
+        'nama'  => 'Gen Z',
+        'range' => '17 – 26 thn',
+        'icon'  => 'bi-phone',
+        'desc'  => 'Pelajar SMA & fresh graduate — belum berpenghasilan, bergantung uang saku orang tua',
+        'score' => ($uangSakuOk ? 1 : 0) + ($ortaMenengahOk ? 1 : 0) + ($mobilityOk ? 1 : 0),
+        'why'   => array_filter([
+            $ortaMenengahOk ? 'Kelas menengah (orang tua) tidak tertekan → uang saku tidak dipotong'
+                            : 'Orang tua kelas menengah tertekan → uang saku berpotensi dikurangi',
+            $inflNum < 3    ? 'Inflasi rendah → nilai uang saku tidak tergerus; harga F&B & hiburan terjangkau'
+                            : 'Inflasi tinggi → Rp yang sama beli lebih sedikit, frekuensi ke mall turun',
+            $mobilityOk     ? 'Pertalite stabil → ongkos transportasi ke mall tidak naik'
+                            : 'Pertalite naik → orang tua potong jatah bensin anak',
+        ]),
+        'focus' => 'F&B kekinian, fashion streetwear, entertainment (bioskop, arcade), thrift & pop-up store',
+        'trigger' => 'Konten sosmed, kolaborasi influencer lokal, event komunitas, Wi-Fi zone',
+    ],
+    [
+        'nama'  => 'Mahasiswa',
+        'range' => '18 – 24 thn',
+        'icon'  => 'bi-mortarboard',
+        'desc'  => 'Mahasiswa aktif di kos/rusun — belum berpenghasilan, uang bulanan dari orang tua',
+        'score' => ($ortaCampurOk ? 1 : 0) + ($inflNum < 3 ? 1 : 0) + ($mobilityOk ? 1 : 0),
+        'why'   => array_filter([
+            $ortaCampurOk   ? 'Kondisi orang tua (bawah-menengah) stabil → kiriman bulanan tidak terpangkas'
+                            : 'Orang tua tertekan inflasi/BBM → kiriman bulanan berpotensi turun atau terlambat',
+            $inflNum < 3    ? 'Inflasi rendah → uang makan & kos tidak melonjak; sisa budget untuk mall'
+                            : 'Inflasi tinggi → biaya kos & makan naik, sisa uang untuk belanja menyusut tajam',
+            $mobilityOk     ? 'Pertalite stabil → motor tetap pilihan utama mobilitas mahasiswa'
+                            : 'Pertalite naik → mahasiswa lebih pilih ojek/angkot, kunjungan mall berkurang',
+        ]),
+        'focus' => 'Food court & warteg premium, bubble tea, fashion entry-level, alat tulis, gadget aksesoris',
+        'trigger' => 'Promo student card, happy hour, bundling hemat, co-working space di mall',
+    ],
+    [
+        'nama'  => 'Milenial Produktif',
+        'range' => '27 – 42 thn',
+        'icon'  => 'bi-briefcase',
+        'desc'  => 'Karyawan, profesional muda, sudah menikah, aktif cicilan & investasi',
+        'score' => ($cicilanMurah ? 1 : 0) + ($dayaBeliOk ? 1 : 0) + ($gdpNum > 5 ? 1 : 0),
+        'why'   => array_filter([
+            $cicilanMurah ? 'BI Rate ' . $bi['pct'] . '% → cicilan ringan, sisa income untuk belanja'  : 'BI Rate tinggi → disposable income terkikis cicilan',
+            $dayaBeliOk   ? 'Inflasi & BBM terkendali → belanja non-primer tetap berjalan'              : 'Tekanan inflasi kurangi belanja non-primer',
+            $gdpNum > 5   ? 'Ekonomi tumbuh ' . $gdp['pct'] . '% → potensi kenaikan income'           : '',
+        ]),
+        'focus' => 'Restoran mid-range, fashion branded, elektronik & gadget, kebutuhan rumah tangga, fitness',
+        'trigger' => 'Weekend family dining, loyalty program, cicilan 0%, cashback e-wallet',
+    ],
+    [
+        'nama'  => 'Keluarga Muda',
+        'range' => 'Pasangan + anak < 12 thn',
+        'icon'  => 'bi-house-heart',
+        'desc'  => 'Orang tua usia 28–40 thn dengan anak kecil, weekend outing ke mall',
+        'score' => ($mobilityOk ? 1 : 0) + ($inflNum < 3 ? 1 : 0) + ($cicilanMurah ? 1 : 0),
+        'why'   => array_filter([
+            $mobilityOk   ? 'BBM stabil → biaya outing keluarga tidak naik'                           : 'BBM naik → keluarga lebih selektif bepergian',
+            $inflNum < 3  ? 'Harga kebutuhan terkendali → ada sisa budget untuk rekreasi'              : 'Inflasi tinggi pangkas budget hiburan keluarga',
+            $cicilanMurah ? 'BI Rate rendah → daya beli lebih longgar'                                 : '',
+        ]),
+        'focus' => 'Playground & area anak, grocery supermarket, restoran keluarga, fashion anak, apotek & kesehatan',
+        'trigger' => 'Kids event, school holiday promo, family package F&B, area parkir luas & nyaman',
+    ],
+    [
+        'nama'  => 'Pekerja Migas & IKN',
+        'range' => 'Profesional 28 – 50 thn',
+        'icon'  => 'bi-building-gear',
+        'desc'  => 'Pekerja kontraktor migas, ASN & kontraktor IKN Nusantara, income tinggi',
+        'score' => ($gpbnNum > 6 ? 1 : 0) + ($gpbnNum > 7 ? 1 : 0) + ($gdpNum > 5 ? 1 : 0),
+        'why'   => array_filter([
+            $gpbnNum > 6 ? 'PDRB Balikpapan ' . $gpbn['pct'] . '% → aktivitas ekonomi lokal bergairah'  : '',
+            'IKN Nusantara menarik ribuan pekerja profesional ke kawasan Kaltim',
+            $gdpNum > 5  ? 'Ekonomi nasional tumbuh → proyek & kontrak terus bergulir'                   : '',
+        ]),
+        'focus' => 'Fine dining, premium lifestyle, elektronik mahal, fashion internasional, spa & wellness',
+        'trigger' => 'After-work dining, premium lounge, brand internasional, layanan personal shopper',
+    ],
+    [
+        'nama'  => 'Lansia & Pensiunan',
+        'range' => '55 thn ke atas',
+        'icon'  => 'bi-person-heart',
+        'desc'  => 'Pensiunan PNS/swasta, income tetap dari pensiun, pola belanja rutin',
+        'score' => ($inflNum < 3 ? 1 : 0) + ($mobilityOk ? 1 : 0) + ($hrgPertalite <= 10500 ? 1 : 0),
+        'why'   => array_filter([
+            $inflNum < 3  ? 'Inflasi rendah → nilai uang pensiun terjaga, belanja tidak tergerus'        : 'Inflasi tinggi gerus nilai tetap pensiun',
+            $mobilityOk   ? 'BBM stabil → ongkos transportasi ke mall tidak naik'                        : '',
+            'Penghasilan tetap membuat segmen ini stabil sepanjang siklus ekonomi',
+        ]),
+        'focus' => 'Apotek & toko kesehatan, kafe & restoran casual, toko buku & hobi, fashion formal, supermarket',
+        'trigger' => 'Jam operasional pagi, area duduk nyaman, lift & akses difabel, promo lansia/pensiunan',
+    ],
+];
+
+// Sort: score tertinggi dulu
+usort($prospects, fn($a, $b) => $b['score'] - $a['score']);
+
+$prospekLabel = [
+    3 => ['label' => 'Sangat Prospektif', 'color' => 'success'],
+    2 => ['label' => 'Prospektif',         'color' => 'primary'],
+    1 => ['label' => 'Moderat',            'color' => 'warning'],
+    0 => ['label' => 'Perlu Perhatian',    'color' => 'danger'],
+];
+?>
+<div class="border-top pt-3 mt-3">
+    <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
+        <i class="bi bi-stars me-1 text-warning"></i>Segmen Pengunjung Paling Prospektif Saat Ini
+        <span class="fw-normal text-muted ms-1" style="font-size:.65rem">— berdasarkan kondisi ekonomi sekarang</span>
+    </div>
+    <div class="row g-2">
+    <?php foreach ($prospects as $p):
+        $plabel = $prospekLabel[min(3, $p['score'])];
+    ?>
+    <div class="col-12 col-sm-6 col-xl-4">
+        <div class="rounded border h-100 px-3 py-2" style="font-size:.78rem">
+            <div class="d-flex align-items-start justify-content-between mb-1">
+                <div>
+                    <span class="fw-bold"><i class="bi <?= $p['icon'] ?> me-1"></i><?= $p['nama'] ?></span>
+                    <span class="text-muted ms-1" style="font-size:.68rem"><?= $p['range'] ?></span>
+                </div>
+                <span class="badge bg-<?= $plabel['color'] ?>-subtle text-<?= $plabel['color'] ?> border ms-2" style="font-size:.6rem;white-space:nowrap">
+                    <?= $plabel['label'] ?>
+                </span>
+            </div>
+            <div class="text-muted mb-2" style="font-size:.68rem"><?= $p['desc'] ?></div>
+
+            <div class="mb-2">
+            <?php foreach (array_values(array_filter($p['why'])) as $i => $w): ?>
+                <div class="text-muted" style="font-size:.7rem;line-height:1.35">
+                    <?= ($i === 0 ? '→ ' : '→ ') . $w ?>
+                </div>
+            <?php endforeach; ?>
+            </div>
+
+            <div class="border-top pt-1" style="font-size:.65rem">
+                <div class="text-muted mb-1"><i class="bi bi-bag me-1"></i><strong>Fokus tenant:</strong> <?= $p['focus'] ?></div>
+                <div class="text-muted"><i class="bi bi-lightning me-1"></i><strong>Trigger:</strong> <?= $p['trigger'] ?></div>
             </div>
         </div>
     </div>
@@ -814,11 +984,72 @@ foreach ($sections as $sec):
         <i class="bi bi-plus me-1"></i>Tambah Jenis BBM
     </button>
 </div>
+<div class="modal-footer justify-content-between">
+    <button type="button" class="btn btn-sm btn-outline-success" id="btnAutoFetchBbm">
+        <i class="bi bi-arrow-clockwise me-1"></i>Ambil dari Pertamina
+    </button>
+    <div>
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="submit" class="btn btn-sm btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Simpan
+        </button>
+    </div>
+</div>
+</form>
+</div>
+</div>
+</div>
+<?php endif; ?>
+
+<?php if ($user['role'] === 'admin'): ?>
+<!-- ══ Macro Update Modal ═══════════════════════════════════════════════════ -->
+<div class="modal fade" id="macroModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content">
+<form method="POST" action="<?= base_url('dashboard/update-macro') ?>">
+<?= csrf_field() ?>
+<div class="modal-header">
+    <h6 class="modal-title fw-semibold"><i class="bi bi-bar-chart-line me-2"></i>Update Indikator Makro Manual</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <p class="small text-muted mb-3">Data GDP & PDRB Balikpapan dipublikasikan BPS setiap kuartal — tidak ada API publik, harus diisi manual.</p>
+    <div class="row g-3">
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Pertumbuhan Ekonomi Nasional 🇮🇩</label>
+            <div class="row g-2">
+                <div class="col-4">
+                    <input type="text" name="gdp_pct" class="form-control form-control-sm"
+                           value="<?= esc($eco['gdp']['pct']) ?>" placeholder="5,61" required>
+                    <div class="form-text" style="font-size:.65rem">% (tanpa tanda %)</div>
+                </div>
+                <div class="col-8">
+                    <input type="text" name="gdp_per" class="form-control form-control-sm"
+                           value="<?= esc($eco['gdp']['per']) ?>" placeholder="Q1 2026 (YoY, BPS)" required>
+                    <div class="form-text" style="font-size:.65rem">Periode data</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <label class="form-label small fw-semibold">PDRB Balikpapan 🏙️</label>
+            <div class="row g-2">
+                <div class="col-4">
+                    <input type="text" name="gdp_bpn_pct" class="form-control form-control-sm"
+                           value="<?= esc($eco['gdp_bpn']['pct']) ?>" placeholder="7,97" required>
+                    <div class="form-text" style="font-size:.65rem">% (tanpa tanda %)</div>
+                </div>
+                <div class="col-8">
+                    <input type="text" name="gdp_bpn_per" class="form-control form-control-sm"
+                           value="<?= esc($eco['gdp_bpn']['per']) ?>" placeholder="Q1 2025 (YoY, BPS Balikpapan)" required>
+                    <div class="form-text" style="font-size:.65rem">Periode data</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="modal-footer">
     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
-    <button type="submit" class="btn btn-sm btn-primary">
-        <i class="bi bi-check-lg me-1"></i>Simpan
-    </button>
+    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg me-1"></i>Simpan</button>
 </div>
 </form>
 </div>
@@ -884,11 +1115,20 @@ foreach ($sections as $sec):
         };
 
         try {
+            const td = new Date().toISOString().slice(0, 10);
             const yd = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-            const [todayRes, yestRes] = await Promise.all([
-                fetch(API_BASE + 'latest/v1/currencies/usd.json').then(r => r.json()),
-                fetch(API_BASE + yd + '/v1/currencies/usd.json').then(r => r.json()).catch(() => null),
-            ]);
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 30000);
+
+            // Try dated URL first (bypasses CDN @latest cache), fallback to @latest
+            const fetchUsd = async (ver) => {
+                const r = await fetch(API_BASE + ver + '/v1/currencies/usd.json', { signal: ctrl.signal });
+                if (! r.ok) throw new Error(r.status);
+                return r.json();
+            };
+            const todayRes = await fetchUsd(td).catch(() => fetchUsd('latest'));
+            const yestRes  = await fetchUsd(yd).catch(() => null);
+            clearTimeout(timer);
 
             const t = todayRes.usd;
             const y = yestRes?.usd ?? null;
@@ -989,18 +1229,32 @@ foreach ($sections as $sec):
             ['bi_rate', 'inflation'].forEach(function (key) {
                 const d = data[key];
                 if (! d) return;
+                const card    = document.getElementById('macro-' + key);
                 const valEl   = document.getElementById('macro-' + key + '-val');
                 const perEl   = document.getElementById('macro-' + key + '-per');
-                const labelEl = valEl ? valEl.previousElementSibling : null;
                 if (valEl) {
-                    valEl.className   = 'fw-bold ' + (colorMap[key] || '');
+                    valEl.className      = 'fw-bold ' + (colorMap[key] || '');
                     valEl.style.fontSize = '1.1rem';
-                    valEl.textContent = d.pct + '%';
+                    valEl.textContent    = d.pct + '%';
                 }
-                if (perEl) perEl.textContent = d.per;
-                if (d.live && labelEl && ! labelEl.querySelector('.badge')) {
-                    labelEl.insertAdjacentHTML('beforeend',
-                        '<span class="badge bg-success-subtle text-success border" style="font-size:.55rem">LIVE</span>');
+                if (perEl) {
+                    perEl.innerHTML = '<i class="bi bi-calendar3 me-1"></i>' + (d.per || '')
+                        + (d.fetched_at ? '<br><i class="bi bi-arrow-clockwise me-1"></i>Diambil ' + d.fetched_at : '');
+                }
+                // Swap badge MANUAL → LIVE
+                if (card) {
+                    const oldBadge = card.querySelector('.badge');
+                    if (oldBadge) {
+                        if (d.live) {
+                            oldBadge.className   = 'badge bg-success-subtle text-success border';
+                            oldBadge.style.fontSize = '.55rem';
+                            oldBadge.innerHTML   = '<i class="bi bi-circle-fill me-1" style="font-size:.4rem"></i>LIVE';
+                        } else {
+                            oldBadge.className   = 'badge bg-warning-subtle text-warning border';
+                            oldBadge.style.fontSize = '.55rem';
+                            oldBadge.textContent = 'FALLBACK';
+                        }
+                    }
                 }
             });
         } catch (e) {
@@ -1026,6 +1280,95 @@ foreach ($sections as $sec):
     document.getElementById('bbmRows')?.addEventListener('click', function (e) {
         const btn = e.target.closest('.remove-row');
         if (btn && document.querySelectorAll('.bbm-row').length > 1) btn.closest('.bbm-row').remove();
+    });
+
+    /* ── Auto-refresh BBM if stale (> 1 day) ── */
+    (async function autoRefreshBbm() {
+        const label = document.getElementById('bbmPerLabel');
+        if (! label) return;
+
+        // Parse date from label text (format: "per 14 Mei 2026 · harga per liter")
+        const match = label.textContent.match(/per\s+(\d{1,2}\s+\w+\s+\d{4})/);
+        if (! match) return;
+
+        const months = {Januari:0,Februari:1,Maret:2,April:3,Mei:4,Juni:5,Juli:6,Agustus:7,September:8,Oktober:9,November:10,Desember:11};
+        const parts  = match[1].trim().split(/\s+/);
+        const month  = months[parts[1]];
+        if (month === undefined) return;
+
+        const stored = new Date(parseInt(parts[2]), month, parseInt(parts[0]));
+        const ageDay = (Date.now() - stored.getTime()) / 86400000;
+        if (ageDay < 1) return;  // fresh, skip
+
+        try {
+            const res  = await fetch('<?= base_url('dashboard/auto-fetch-bbm') ?>');
+            const data = await res.json();
+            if (! data.ok) return;
+
+            // Update price list DOM
+            const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+            const list = document.getElementById('bbmPriceList');
+            if (list) {
+                list.innerHTML = data.prices.map(p => `
+                <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1" style="font-size:.8rem;background:var(--bs-tertiary-bg)">
+                    <div>
+                        <span>${p.nama}</span>
+                        ${p.subsidi ? '<span class="badge bg-warning-subtle text-warning border ms-1" style="font-size:.6rem">PSO</span>' : ''}
+                    </div>
+                    <span class="fw-bold ms-2 text-nowrap">${fmt(p.harga)}</span>
+                </div>`).join('');
+            }
+            if (label) label.innerHTML = '<i class="bi bi-info-circle me-1"></i>per ' + data.per + ' · harga per liter';
+
+            // Toast notification
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:1rem;right:1rem;z-index:9999;background:#198754;color:#fff;padding:.5rem 1rem;border-radius:.5rem;font-size:.8rem;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+            toast.innerHTML = '<i class="bi bi-check-circle me-1"></i>Harga BBM diperbarui otomatis';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        } catch (_) { /* silent fail */ }
+    })();
+
+    /* ── Auto-fetch BBM from Pertamina ── */
+    document.getElementById('btnAutoFetchBbm')?.addEventListener('click', async function () {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Mengambil data...';
+        try {
+            const res  = await fetch('<?= base_url('dashboard/auto-fetch-bbm') ?>');
+            const data = await res.json();
+            if (! data.ok) {
+                alert(data.msg || 'Gagal mengambil data Pertamina.');
+            } else {
+                // Populate modal rows with fetched prices
+                const container = document.getElementById('bbmRows');
+                container.innerHTML = '';
+                data.prices.forEach((item, idx) => {
+                    const row = document.createElement('div');
+                    row.className = 'border rounded px-3 py-2 bbm-row';
+                    row.style.background = 'var(--bs-tertiary-bg)';
+                    row.innerHTML = `<div class="row g-2 align-items-center">
+                        <div class="col-5"><input type="text" name="nama[]" class="form-control form-control-sm" value="${item.nama}" required></div>
+                        <div class="col-4"><input type="number" name="harga[]" class="form-control form-control-sm" value="${item.harga}" min="100" step="50" required></div>
+                        <div class="col-2 text-center">
+                            <div class="form-check form-check-inline m-0" title="PSO / Subsidi">
+                                <input class="form-check-input" type="checkbox" name="subsidi[${idx}]" value="1" ${item.subsidi ? 'checked' : ''}>
+                                <label class="form-check-label small">PSO</label>
+                            </div>
+                        </div>
+                        <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger border-0 p-0 px-1 remove-row"><i class="bi bi-x"></i></button></div>
+                    </div>`;
+                    container.appendChild(row);
+                });
+                document.querySelector('input[name=bbm_per]').value = data.per;
+                btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Berhasil — klik Simpan';
+                btn.classList.replace('btn-outline-success', 'btn-success');
+            }
+        } catch (e) {
+            alert('Koneksi error: ' + e.message);
+        } finally {
+            if (btn.disabled) btn.disabled = false;
+        }
     });
 
     /* ── Event row stagger ── */

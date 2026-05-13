@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-door-open me-2"></i>Master Pintu Traffic</h4>
         <small class="text-muted">Drag untuk mengubah urutan tampil di form input traffic</small>
@@ -16,12 +16,14 @@
 .drag-handle:active { cursor: grabbing; }
 .sortable-ghost { opacity: .4; background: #f1f5f9; }
 .sortable-chosen { box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+.card { overflow: hidden; }
+.list-group-item { transition: background .15s; }
 </style>
 
 <div class="row g-3">
 
-<?php foreach (['ewalk' => 'eWalk', 'pentacity' => 'Pentacity'] as $mallKey => $mallLabel): ?>
-<div class="col-lg-6">
+<?php $mi = 0; foreach (['ewalk' => 'eWalk', 'pentacity' => 'Pentacity'] as $mallKey => $mallLabel): ?>
+<div class="col-lg-6 fade-up" style="animation-delay:<?= .15 + $mi++ * .1 ?>s">
 <div class="card">
 <div class="card-header d-flex justify-content-between align-items-center">
     <h6 class="mb-0 fw-semibold">
@@ -34,8 +36,9 @@
 <div class="text-center py-4 text-muted small">Belum ada pintu untuk <?= $mallLabel ?>.</div>
 <?php else: ?>
 <div class="list-group list-group-flush sortable-list" id="sortable-<?= $mallKey ?>" data-mall="<?= $mallKey ?>">
-<?php foreach ($grouped[$mallKey] as $door): ?>
-<div class="list-group-item d-flex justify-content-between align-items-center py-2" data-id="<?= $door['id'] ?>">
+<?php foreach ($grouped[$mallKey] as $di => $door): ?>
+<div class="list-group-item d-flex justify-content-between align-items-center py-2 fade-up"
+     style="animation-delay:<?= (.15 + $mi * .1) + $di * .05 ?>s" data-id="<?= $door['id'] ?>">
     <div class="d-flex align-items-center gap-1">
         <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
         <span class="fw-medium small"><?= esc($door['nama_pintu']) ?></span>

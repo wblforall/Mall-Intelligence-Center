@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-shield-check me-2"></i>Role Management</h4>
         <small class="text-muted">Kelola role dan permission akses sistem</small>
@@ -24,7 +24,7 @@ $globalPerms = [
 ];
 ?>
 
-<div class="card">
+<div class="card fade-up" style="animation-delay:.15s">
 <div class="card-body p-0">
 <div class="table-responsive">
 <table class="table table-hover mb-0 align-middle">
@@ -44,8 +44,8 @@ $globalPerms = [
 </tr>
 </thead>
 <tbody>
-<?php foreach ($roles as $r): ?>
-<tr>
+<?php foreach ($roles as $i => $r): ?>
+<tr class="fade-up" style="animation-delay:<?= .2 + $i * .05 ?>s">
     <td class="fw-semibold"><?= esc($r['name']) ?></td>
     <td><code class="small"><?= esc($r['slug']) ?></code></td>
     <td class="small text-muted"><?= esc($r['description']) ?></td>

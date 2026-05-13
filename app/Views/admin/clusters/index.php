@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-collection-fill me-2"></i>Cluster Kompetensi</h4>
         <small class="text-muted">Pengelompokan kompetensi lintas departemen</small>
@@ -27,7 +27,7 @@
 <?php else: ?>
 <div class="row g-3">
 <?php foreach ($clusters as $i => $cl): ?>
-<div class="col-md-6 col-xl-4">
+<div class="col-md-6 col-xl-4 fade-up" style="animation-delay:<?= .15 + $i * .07 ?>s">
     <div class="card h-100">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
