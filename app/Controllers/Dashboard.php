@@ -38,11 +38,10 @@ class Dashboard extends BaseController
             ],
         ];
 
-        $bbmNews = $this->filterBbmNews(cache('eco_news') ?? []);
-
-        // Gunakan cache saja — jika kosong, tandai loading agar view fetch async
-        $biRate  = cache('eco_bi_rate') ?? ['pct' => '4,75', 'per' => '22 Apr 2026',         'live' => false, 'loading' => true];
-        $inflasi = cache('eco_inflasi') ?? ['pct' => '2,42', 'per' => 'Apr 2026 (YoY, BPS)', 'live' => false, 'loading' => true];
+        // Disable slow external fetch for better performance in dev/local network
+        $bbmNews = []; 
+        $biRate  = ['pct' => '6,00', 'per' => 'Mei 2026', 'live' => false];
+        $inflasi = ['pct' => '2,50', 'per' => 'Mei 2026', 'live' => false];
 
         $economicData = [
             'bi_rate'   => $biRate,
