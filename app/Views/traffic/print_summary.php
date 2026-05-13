@@ -227,7 +227,7 @@ $doorPentaVals   = array_map('intval', array_column($doorPenta, 'total'));
 <div class="rpt-header">
     <div>
         <h1>Traffic Summary — eWalk &amp; Pentacity</h1>
-        <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.3</div>
+        <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.4</div>
     </div>
     <div class="right">
         <strong><?= $fromFmt ?> — <?= $toFmt ?></strong>
@@ -338,7 +338,7 @@ if (! empty($insights)):
 
 <!-- Footer halaman 1 -->
 <div class="rpt-footer">
-    <span>Mall Intelligence Center v1.3 · PT. Wulandari Bangun Laksana Tbk.</span>
+    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Halaman 1 dari 3</span>
     <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
 </div>
@@ -352,7 +352,7 @@ if (! empty($insights)):
         <h1>Traffic Harian — Detail per Tanggal</h1>
         <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; <?= $fromFmt ?> — <?= $toFmt ?></div>
     </div>
-    <div class="right"><strong>Halaman 2 dari 3</strong>Mall Intelligence Center v1.3</div>
+    <div class="right"><strong>Halaman 2 dari 3</strong>Mall Intelligence Center v1.4</div>
 </div>
 
 <?php if ($wdTotal + $weTotal > 0): ?>
@@ -443,7 +443,7 @@ if (! empty($insights)):
 </div>
 
 <div class="rpt-footer">
-    <span>Mall Intelligence Center v1.3 · PT. Wulandari Bangun Laksana Tbk.</span>
+    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Halaman 2 dari 3</span>
     <span>★ = hari dengan traffic tertinggi</span>
 </div>
@@ -457,7 +457,7 @@ if (! empty($insights)):
         <h1>Traffic — Kendaraan, per Jam &amp; per Pintu</h1>
         <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; <?= $fromFmt ?> — <?= $toFmt ?></div>
     </div>
-    <div class="right"><strong>Halaman 3 dari 3</strong>Mall Intelligence Center v1.3</div>
+    <div class="right"><strong>Halaman 3 dari 3</strong>Mall Intelligence Center v1.4</div>
 </div>
 
 <!-- Kendaraan chart (full width) -->
@@ -588,7 +588,7 @@ if (! empty($insights)):
 <?php endif; ?>
 
 <div class="rpt-footer">
-    <span>Mall Intelligence Center v1.3 · PT. Wulandari Bangun Laksana Tbk.</span>
+    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Halaman 3 dari 3</span>
     <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
 </div>

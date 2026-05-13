@@ -55,7 +55,8 @@
       "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Models/EventModel.php)",
       "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Models/RoleModel.php)",
       "Bash(/Applications/XAMPP/xamppfiles/bin/php -r ' *)",
-      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Controllers/EventSummary.php)"
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l app/Controllers/EventSummary.php)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

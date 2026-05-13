@@ -196,7 +196,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 <div class="rpt-header">
     <div>
         <h1>Perbandingan Traffic — eWalk &amp; Pentacity</h1>
-        <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.3</div>
+        <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.4</div>
     </div>
     <div class="right">
         <strong><?= $hasP3 ? 'Tiga Periode' : 'Dua Periode' ?></strong>
@@ -376,7 +376,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 </div>
 
 <div class="rpt-footer">
-    <span>Mall Intelligence Center v1.3 · PT. Wulandari Bangun Laksana Tbk.</span>
+    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Halaman 1 dari 2</span>
     <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
 </div>
@@ -390,7 +390,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
         <h1>Detail Per Pintu — Perbandingan Periode</h1>
         <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; <?= $p1Label ?> vs <?= $p2Label ?></div>
     </div>
-    <div class="right"><strong>Halaman 2 dari 2</strong>Mall Intelligence Center v1.3</div>
+    <div class="right"><strong>Halaman 2 dari 2</strong>Mall Intelligence Center v1.4</div>
 </div>
 
 <!-- Door tables -->
@@ -475,7 +475,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 </div>
 
 <div class="rpt-footer">
-    <span>Mall Intelligence Center v1.3 · PT. Wulandari Bangun Laksana Tbk.</span>
+    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Halaman 2 dari 2</span>
     <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
 </div>

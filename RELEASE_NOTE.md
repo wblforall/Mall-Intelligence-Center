@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v1.3** (Mei 2026)
+> Versi saat ini: **v1.4** (Mei 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,29 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 1.4
+
+**Tanggal Rilis:** 12 Mei 2026
+
+### Perubahan dari v1.3
+
+#### Fitur Baru
+
+- **Traffic Summary — Weekday vs Weekend Breakdown** — kartu breakdown tambahan di halaman Summary Traffic yang memisahkan total & rata-rata pengunjung harian antara Weekdays (Senin–Kamis) dan Weekend (Jumat–Minggu), lengkap dengan breakdown per mall (eWalk / Pentacity) dan jumlah hari aktif masing-masing segmen.
+- **Traffic Summary — Event dalam Periode** — badge pills di bagian bawah halaman Summary Traffic menampilkan semua event yang berlangsung pada periode yang dipilih, mencakup nama event dan rentang tanggalnya.
+- **Traffic Compare — KPI Kendaraan di Baris Terpisah** — KPI card kendaraan (Mobil, Motor, Total Kendaraan) dipindah ke baris kedua terpisah dari KPI pengunjung, memperjelas pemisahan kategori metrik.
+- **Traffic Compare — Weekday vs Weekend per Periode** — tabel perbandingan Weekday vs Weekend per periode yang di-compare, menampilkan total dan rata-rata harian untuk masing-masing segmen dan masing-masing periode.
+- **Traffic Compare — Event per Periode** — setiap periode yang di-compare menampilkan badge event yang berlangsung dalam rentang tanggal tersebut.
+- **Print Summary Traffic — Weekday/Weekend & Events** — halaman cetak standalone summary traffic kini menyertakan kotak Weekday vs Weekend (sebelum tabel harian) dan daftar event dalam periode (setelah tabel per pintu).
+- **Print Compare Traffic** — halaman cetak standalone baru (`/traffic/print-compare`) untuk modul Compare Traffic. Menampilkan: KPI pengunjung & kendaraan antar periode, tabel Weekday vs Weekend, event per periode, chart harian (bar) dan per jam (line), serta tabel per pintu eWalk dan Pentacity — semua dalam layout landscape A4, dengan auto-print saat halaman dimuat.
+
+#### Perbaikan Bug
+
+- **Fix: Function redeclaration fatal error** — fungsi PHP `pctDiff()`, `diffBadge()`, `kpiCard()` di `compare.php` dan `pctDiffPrint()`, `diffCell()` di `print_compare.php` kini dibungkus guard `if (! function_exists(...))` untuk mencegah error "Cannot redeclare" jika view di-render lebih dari sekali dalam satu request.
+- **Fix: `$hasVehicleData` used before definition** — definisi `$hasVehicleData` dipindah ke blok awal PHP di `compare.php` agar tersedia saat render baris KPI kendaraan.
 
 ---
 
