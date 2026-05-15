@@ -1,6 +1,11 @@
+<IfModule mime_module>
+  AddHandler application/x-httpd-alt-php83 .php .php8 .phtml
+</IfModule>
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(app|system|writable|tests)(/|$) - [F,L]
+    RewriteRule ^index\.php$ - [L]
+    RewriteRule ^public/ - [L]
+    RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -f
+    RewriteRule ^(.+)$ public/$1 [L,QSA]
+    RewriteRule ^ index.php [L]
 </IfModule>
-
-Options -Indexes

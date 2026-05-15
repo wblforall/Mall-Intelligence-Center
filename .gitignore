@@ -51,3 +51,15 @@ DEVELOPMENT_ROADMAP.html
 
 # Database dumps
 *.sql
+
+# Production files (Rumahweb deployment)
+composer.phar
+vendor.zip
+*.zip
+
+# Error logs (per-server, dinamis)
+error_log
+**/error_log
+
+# PHP per-server config
+.user.ini
