@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/$USER/public_html/mic
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/cp -R . $DEPLOYPATH
+    - /bin/rm -f $DEPLOYPATH/.env
+    - /usr/local/bin/php $DEPLOYPATH/composer.phar install --no-dev --no-interaction 2>/dev/null || true
+    - /bin/chmod -R 755 $DEPLOYPATH/writable
