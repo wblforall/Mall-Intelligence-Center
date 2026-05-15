@@ -63,3 +63,7 @@ error_log
 
 # PHP per-server config
 .user.ini
+
+# .htaccess — berbeda per environment (lokal vs production)
+.htaccess
+public/.htaccess
