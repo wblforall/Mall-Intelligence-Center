@@ -63,6 +63,7 @@ error_log
 
 # PHP per-server config
 .user.ini
+my.cnf.template
 
 # .htaccess — berbeda per environment (lokal vs production)
 .htaccess
