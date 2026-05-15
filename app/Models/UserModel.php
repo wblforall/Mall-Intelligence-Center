@@ -8,7 +8,7 @@ class UserModel extends Model
 {
     protected $table      = 'users';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['name', 'email', 'password', 'role', 'role_id', 'department_id', 'is_active', 'theme'];
+    protected $allowedFields = ['name', 'email', 'password', 'role', 'role_id', 'department_id', 'is_active', 'theme', 'last_login_at'];
     protected $useTimestamps = true;
 
     public function findByEmail(string $email): ?array

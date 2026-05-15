@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\EventModel;
 use App\Models\DailyTrafficModel;
+use App\Models\ThemePeriodModel;
 
 class Dashboard extends BaseController
 {
@@ -57,6 +58,8 @@ class Dashboard extends BaseController
             'bbm_per'   => $this->getBbmPer(),
         ];
 
+        $themePeriods = (new ThemePeriodModel())->getTodayPeriods();
+
         return view('dashboard/index', [
             'user'         => $user,
             'events'       => $events,
@@ -65,6 +68,7 @@ class Dashboard extends BaseController
             'today'        => $today,
             'economicData' => $economicData,
             'bbmNews'      => $bbmNews,
+            'themePeriods' => $themePeriods,
         ]);
     }
 

@@ -239,6 +239,14 @@ $routes->post('divisions/(:num)/update', 'Divisions::update/$1', ['filter' => 'a
 $routes->get('divisions/(:num)/delete', 'Divisions::delete/$1', ['filter' => 'auth:admin']);
 $routes->post('divisions/assign-dept', 'Divisions::assignDept', ['filter' => 'auth:admin']);
 
+// Theme Periods (admin CRUD + shared JSON endpoint)
+$routes->get ('theme-periods',              'ThemePeriods::index',   ['filter' => 'auth:admin']);
+$routes->post('theme-periods/add',          'ThemePeriods::add',     ['filter' => 'auth:admin']);
+$routes->post('theme-periods/(:num)/edit',  'ThemePeriods::edit/$1', ['filter' => 'auth:admin']);
+$routes->get ('theme-periods/(:num)/delete','ThemePeriods::delete/$1',['filter' => 'auth:admin']);
+$routes->get ('theme-periods/(:num)/toggle','ThemePeriods::toggle/$1',['filter' => 'auth:admin']);
+$routes->get ('theme-periods/today',        'ThemePeriods::today',   ['filter' => 'auth']);
+
 // Jabatans (admin only)
 $routes->get('jabatans', 'Jabatans::index', ['filter' => 'auth:admin']);
 $routes->post('jabatans/store', 'Jabatans::store', ['filter' => 'auth:admin']);

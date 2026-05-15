@@ -34,7 +34,7 @@ body { min-height: 100vh; }
 .sidebar .sidebar-footer .btn-logout { background: none; border: none; padding: 0; font-size: .8rem; transition: color .15s; }
 
 /* ── Main ── */
-.main-content { margin-left: var(--sidebar-width); min-height: 100vh; }
+.main-content { margin-left: var(--sidebar-width); min-height: 100vh; position: relative; }
 .topbar { padding: .6rem 1.5rem; position: sticky; top: 0; z-index: 999; }
 .page-content { padding: 1.5rem; }
 
@@ -359,6 +359,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('event-locations') ?>" class="nav-link <?= str_starts_with(uri_string(), 'event-locations') ? 'active' : '' ?>">
             <i class="bi bi-geo-alt-fill"></i> Master Lokasi Event
         </a>
+        <a href="<?= base_url('theme-periods') ?>" class="nav-link <?= str_starts_with(uri_string(), 'theme-periods') ? 'active' : '' ?>">
+            <i class="bi bi-stars"></i> Tema Periode
+        </a>
         <?php endif; ?>
 
     </div>
@@ -384,6 +387,7 @@ body { min-height: 100vh; }
 </div>
 
 <div class="main-content">
+    <canvas id="themeCanvas" style="position:absolute;top:0;left:0;width:100%;height:220px;pointer-events:none;z-index:9;opacity:0;transition:opacity .6s"></canvas>
     <nav class="topbar d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
             <button class="btn btn-sm btn-light d-md-none" onclick="document.getElementById('sidebar').classList.toggle('show')">
@@ -423,6 +427,12 @@ body { min-height: 100vh; }
             </div>
         </div>
     </nav>
+
+    <!-- Theme Period Alert Banner (populated by JS) -->
+    <div id="themeBanner" style="display:none;padding:.5rem 1.25rem;font-size:.82rem;font-weight:500;border-bottom:1px solid rgba(255,255,255,.08);position:relative;z-index:8">
+        <span id="themeBannerText"></span>
+        <button onclick="this.parentElement.style.display='none'" style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);background:none;border:none;opacity:.5;cursor:pointer;font-size:1rem;line-height:1;padding:0;color:inherit">&times;</button>
+    </div>
 
     <div class="page-content">
         <?php if (session()->getFlashdata('success')): ?>
@@ -476,5 +486,212 @@ if (typeof Chart !== 'undefined') {
 }
 </script>
 <?= $this->renderSection('scripts') ?>
+
+<style>
+#themeBanner { animation: none; }
+#themeBanner.show { display:block !important; animation: fadeUp .35s ease forwards; }
+</style>
+<!-- Theme Period Canvas JS below -->
+<script>
+(function () {
+    const canvas = document.getElementById('themeCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let particles = [], fwBursts = [], fwTimer = 0, currentAnim = null, raf = null;
+
+    function resize() {
+        canvas.width  = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+    }
+
+    window.addEventListener('scroll', function () {}, { passive: true });
+
+    fetch('<?= base_url('theme-periods/today') ?>')
+        .then(r => r.json())
+        .then(periods => {
+            if (!periods || !periods.length) return;
+            const p = periods[0];
+            showBanner(p);
+            if (p.animation && p.animation !== 'none') {
+                resize();
+                window.addEventListener('resize', resize);
+                canvas.style.opacity = '1';
+                startAnimation(p.animation);
+            }
+        })
+        .catch(() => {});
+
+    function showBanner(p) {
+        if (!p.pesan) return;
+        const banner  = document.getElementById('themeBanner');
+        const bannerT = document.getElementById('themeBannerText');
+        const colorMap = { confetti:'#8b5cf6', balloons:'#ec4899', snow:'#38bdf8', fireworks:'#f97316', stars:'#fbbf24', none:'#64748b' };
+        const c = colorMap[p.animation] || '#8b5cf6';
+        banner.style.background = `linear-gradient(90deg,${c}22,${c}0a)`;
+        banner.style.borderBottomColor = c + '44';
+        bannerT.innerHTML = `<span style="margin-right:.5rem;font-size:1rem">${p.emoji || '🎉'}</span>${p.pesan}<small class="ms-2" style="opacity:.45">${p.nama}</small>`;
+        banner.classList.add('show');
+    }
+
+    function startAnimation(type) {
+        particles = []; fwBursts = []; fwTimer = 0;
+        currentAnim = type;
+        if (type === 'confetti')  initConfetti();
+        if (type === 'balloons')  initBalloons();
+        if (type === 'snow')      initSnow();
+        if (type === 'fireworks') initFireworks();
+        if (type === 'stars')     initStars();
+        if (raf) cancelAnimationFrame(raf);
+        animate();
+    }
+
+    /* ── CONFETTI ─────────────────────────────── */
+    function initConfetti() {
+        const cols = ['#f43f5e','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899'];
+        for (let i = 0; i < 65; i++) particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height - canvas.height,
+            w: Math.random() * 8 + 4, h: Math.random() * 4 + 3,
+            color: cols[i % cols.length],
+            speed: Math.random() * 2 + 1.5,
+            drift: Math.random() * 1.6 - 0.8,
+            rot: Math.random() * Math.PI * 2,
+            rotS: (Math.random() - 0.5) * 0.1,
+        });
+    }
+    function drawConfetti() {
+        particles.forEach(p => {
+            p.y += p.speed; p.x += p.drift; p.rot += p.rotS;
+            if (p.y > canvas.height) { p.y = -p.h; p.x = Math.random() * canvas.width; }
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+            ctx.fillStyle = p.color; ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+            ctx.restore();
+        });
+    }
+
+    /* ── BALLOONS ─────────────────────────────── */
+    function initBalloons() {
+        const cols = ['#f43f5e','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899'];
+        for (let i = 0; i < 10; i++) particles.push({
+            x: Math.random() * canvas.width,
+            y: canvas.height + Math.random() * canvas.height,
+            r: Math.random() * 14 + 18,
+            color: cols[i % cols.length],
+            speed: Math.random() * 0.7 + 0.4,
+            phase: Math.random() * Math.PI * 2,
+        });
+    }
+    function drawBalloons() {
+        particles.forEach(p => {
+            p.y -= p.speed; p.phase += 0.018; p.x += Math.sin(p.phase) * 0.55;
+            if (p.y < -p.r * 3) { p.y = canvas.height + p.r; p.x = Math.random() * canvas.width; }
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, p.r, p.r * 1.2, 0, 0, Math.PI * 2);
+            ctx.fillStyle = p.color + 'bb'; ctx.fill();
+            ctx.strokeStyle = p.color; ctx.lineWidth = 1; ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(p.x - p.r*.3, p.y - p.r*.38, p.r*.22, p.r*.15, -0.5, 0, Math.PI*2);
+            ctx.fillStyle = 'rgba(255,255,255,.38)'; ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y + p.r * 1.2);
+            ctx.bezierCurveTo(p.x+4, p.y+p.r*1.8, p.x-4, p.y+p.r*2.4, p.x, p.y+p.r*3);
+            ctx.strokeStyle = p.color + '80'; ctx.lineWidth = 1; ctx.stroke();
+            ctx.restore();
+        });
+    }
+
+    /* ── SNOW ─────────────────────────────────── */
+    function initSnow() {
+        for (let i = 0; i < 70; i++) particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 3.5 + 1.5,
+            speed: Math.random() * 1 + 0.4,
+            drift: Math.random() * 0.7 - 0.35,
+            op: Math.random() * 0.45 + 0.35,
+        });
+    }
+    function drawSnow() {
+        particles.forEach(p => {
+            p.y += p.speed; p.x += p.drift;
+            if (p.y > canvas.height) { p.y = -p.r; p.x = Math.random() * canvas.width; }
+            if (p.x > canvas.width)  p.x = 0;
+            if (p.x < 0)             p.x = canvas.width;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(255,255,255,${p.op})`; ctx.fill();
+        });
+    }
+
+    /* ── FIREWORKS ────────────────────────────── */
+    function initFireworks() { fwBursts = []; fwTimer = 0; addBurst(); addBurst(); }
+    function addBurst() {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height * 0.75 + 15;
+        const cols = ['#f43f5e','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#fff'];
+        const color = cols[Math.floor(Math.random() * cols.length)];
+        for (let i = 0; i < 30; i++) {
+            const a = (i / 30) * Math.PI * 2;
+            const s = Math.random() * 3 + 1.5;
+            fwBursts.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, color, life: 1, decay: Math.random()*.014+.011 });
+        }
+    }
+    function drawFireworks() {
+        fwTimer++;
+        if (fwTimer % 95 === 0) addBurst();
+        fwBursts = fwBursts.filter(p => p.life > 0);
+        fwBursts.forEach(p => {
+            p.x += p.vx; p.y += p.vy; p.vy += 0.04; p.vx *= 0.98; p.life -= p.decay;
+            const alpha = Math.floor(p.life * 255).toString(16).padStart(2,'0');
+            ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2);
+            ctx.fillStyle = p.color + alpha; ctx.fill();
+        });
+    }
+
+    /* ── STARS ────────────────────────────────── */
+    function initStars() {
+        const cols = ['#fbbf24','#f9a8d4','#a5f3fc','#d9f99d','#ffffff'];
+        for (let i = 0; i < 55; i++) particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 3 + 1.5,
+            phase: Math.random() * Math.PI * 2,
+            speed: Math.random() * 0.025 + 0.01,
+            color: cols[i % cols.length],
+        });
+    }
+    function drawStar(x, y, r, op, color) {
+        const pts = 5, outer = r, inner = r * 0.4;
+        ctx.beginPath();
+        for (let i = 0; i < pts * 2; i++) {
+            const a = (i * Math.PI / pts) - Math.PI / 2;
+            const d = i % 2 === 0 ? outer : inner;
+            i === 0 ? ctx.moveTo(x + d*Math.cos(a), y + d*Math.sin(a))
+                    : ctx.lineTo(x + d*Math.cos(a), y + d*Math.sin(a));
+        }
+        ctx.closePath();
+        ctx.fillStyle = color + Math.floor(op*255).toString(16).padStart(2,'0');
+        ctx.fill();
+    }
+    function drawStars() {
+        particles.forEach(p => {
+            p.phase += p.speed;
+            const op = (Math.sin(p.phase) + 1) * 0.45 + 0.1;
+            drawStar(p.x, p.y, p.r * 3, op, p.color);
+        });
+    }
+
+    /* ── LOOP ─────────────────────────────────── */
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (currentAnim === 'confetti')  drawConfetti();
+        if (currentAnim === 'balloons')  drawBalloons();
+        if (currentAnim === 'snow')      drawSnow();
+        if (currentAnim === 'fireworks') drawFireworks();
+        if (currentAnim === 'stars')     drawStars();
+        raf = requestAnimationFrame(animate);
+    }
+})();
+</script>
 </body>
 </html>

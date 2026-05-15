@@ -74,11 +74,12 @@ function daysLabel(int $d): string {
     <div>
         <h4 class="fw-bold mb-0">Dashboard</h4>
         <small class="text-muted">Selamat datang, <?= esc($user['name']) ?></small>
-        <div class="mt-1 d-flex align-items-center gap-2">
-            <span id="localDate" class="small fw-semibold text-body"></span>
-            <span class="text-muted small">·</span>
-            <span id="localTime" class="small text-muted font-monospace"></span>
-            <span id="localTz" class="badge bg-secondary-subtle text-secondary" style="font-size:.65rem"></span>
+    </div>
+    <div class="text-end">
+        <div class="fw-semibold small" id="localDate"></div>
+        <div class="font-monospace small text-muted" id="localTime"></div>
+        <div id="weatherWidget" class="small text-muted mt-1">
+            <span class="spinner-border spinner-border-sm" style="width:.7rem;height:.7rem;border-width:2px"></span>
         </div>
     </div>
 </div>
@@ -144,6 +145,44 @@ function daysLabel(int $d): string {
 </div>
 
 </div>
+
+<?php if (!empty($themePeriods)): ?>
+<?php
+$animColor = ['confetti'=>'#8b5cf6','balloons'=>'#ec4899','snow'=>'#38bdf8','fireworks'=>'#f97316','stars'=>'#fbbf24','none'=>'#64748b'];
+?>
+<div class="mb-4 fade-up" style="animation-delay:.35s">
+<div class="card" style="border-left:3px solid var(--period-accent,#8b5cf6)">
+<div class="card-body py-2 px-3">
+    <div class="d-flex align-items-start gap-3 flex-wrap">
+        <div class="small fw-semibold text-muted text-uppercase mt-1" style="letter-spacing:.05em;white-space:nowrap">
+            <i class="bi bi-calendar-heart me-1"></i>Periode Aktif
+        </div>
+        <div class="d-flex flex-wrap gap-2 flex-grow-1">
+            <?php foreach ($themePeriods as $tp):
+                $c = $animColor[$tp['animation']] ?? '#8b5cf6';
+                $isToday = $tp['start_date'] <= $today && $tp['end_date'] >= $today;
+                $daysLeft = (int) round((strtotime($tp['end_date']) - strtotime($today)) / 86400);
+            ?>
+            <div class="d-flex align-items-center gap-2 px-3 py-1 rounded-3" style="background:<?= $c ?>18;border:1px solid <?= $c ?>33">
+                <span style="font-size:1.1rem;line-height:1"><?= esc($tp['emoji'] ?: '🎉') ?></span>
+                <div>
+                    <div class="fw-semibold small"><?= esc($tp['nama']) ?></div>
+                    <div class="d-flex align-items-center gap-2" style="font-size:.72rem;opacity:.7">
+                        <span><?= date('d M', strtotime($tp['start_date'])) ?> – <?= date('d M Y', strtotime($tp['end_date'])) ?></span>
+                        <?php if ($isToday && $daysLeft >= 0): ?>
+                        <span class="vr"></span>
+                        <span style="color:<?= $c ?>"><?= $daysLeft === 0 ? 'Hari terakhir' : 'Selesai ' . $daysLeft . ' hari lagi' ?></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+<?php endif; ?>
 
 <!-- Traffic Snapshot -->
 <div class="row g-3 mb-4">
@@ -1057,6 +1096,23 @@ foreach ($sections as $sec):
 </div>
 <?php endif; ?>
 
+<!-- Greeting Modal -->
+<div class="modal fade" id="greetingModal" tabindex="-1" data-bs-backdrop="true" data-bs-keyboard="true">
+<div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+<div class="modal-content border-0 shadow-lg text-center" style="border-radius:1.5rem;overflow:hidden">
+    <div id="greetingBg" style="padding:3.5rem 2.5rem 2rem;position:relative">
+        <div style="font-size:4.5rem;line-height:1;margin-bottom:1rem" id="greetingEmoji"></div>
+        <div class="fw-light text-white" style="font-size:1.15rem;opacity:.85" id="greetingTime"></div>
+        <div class="fw-bold text-white" style="font-size:2rem;margin-top:.35rem" id="greetingName"></div>
+        <div class="text-white mt-3" style="font-size:.9rem;opacity:.75;font-style:italic" id="greetingMsg"></div>
+    </div>
+    <div class="px-3 py-3 text-center" style="background:var(--bs-body-bg)">
+        <small class="text-muted" id="greetingDate"></small>
+    </div>
+</div>
+</div>
+</div>
+
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
@@ -1064,13 +1120,34 @@ foreach ($sections as $sec):
     /* ── Clock ── */
     const elDate = document.getElementById('localDate');
     const elTime = document.getElementById('localTime');
-    const elTz   = document.getElementById('localTz');
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    elTz.textContent = tz;
     const fmtDate = new Intl.DateTimeFormat('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:tz });
     const fmtTime = new Intl.DateTimeFormat('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:tz });
     function tick() { const n = new Date(); elDate.textContent = fmtDate.format(n); elTime.textContent = fmtTime.format(n); }
     tick(); setInterval(tick, 1000);
+
+    /* ── Weather Balikpapan (Open-Meteo) ── */
+    (function () {
+        const wmo = {
+            0:'Cerah ☀️', 1:'Cerah Sebagian 🌤️', 2:'Berawan ⛅', 3:'Mendung ☁️',
+            45:'Berkabut 🌫️', 48:'Berkabut 🌫️',
+            51:'Gerimis 🌦️', 53:'Gerimis 🌦️', 55:'Gerimis Lebat 🌧️',
+            61:'Hujan 🌧️', 63:'Hujan Sedang 🌧️', 65:'Hujan Lebat 🌧️',
+            80:'Hujan Lokal 🌦️', 81:'Hujan 🌧️', 82:'Hujan Lebat 🌧️',
+            95:'Badai ⛈️', 96:'Badai ⛈️', 99:'Badai ⛈️',
+        };
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=-1.2654&longitude=116.8312&current=weathercode,temperature_2m,relative_humidity_2m&timezone=Asia%2FMakassar')
+            .then(r => r.json())
+            .then(d => {
+                const code  = d?.current?.weathercode;
+                const temp  = Math.round(d?.current?.temperature_2m);
+                const humid = d?.current?.relative_humidity_2m;
+                const label = wmo[code] ?? 'Balikpapan 🌤️';
+                document.getElementById('weatherWidget').innerHTML =
+                    `<span title="Kelembaban ${humid}%">${label} · <strong>${temp}°C</strong></span>`;
+            })
+            .catch(() => { document.getElementById('weatherWidget').textContent = ''; });
+    })();
 
     /* ── Count-up ── */
     function countUp(el, target, delay) {
@@ -1382,5 +1459,88 @@ foreach ($sections as $sec):
         });
     });
 })();
+
+/* ── Greeting popup — tampil setiap login, auto-dismiss 3 detik ── */
+<?php if (session()->getFlashdata('show_greeting')): ?>
+(function () {
+    const h = new Date().getHours();
+    const greetings = [
+        { text: 'Selamat Malam',  emoji: '🌙', bg: 'linear-gradient(135deg,#1e1b4b,#312e81)' },
+        { text: 'Selamat Pagi',   emoji: '🌅', bg: 'linear-gradient(135deg,#ea580c,#f59e0b)' },
+        { text: 'Selamat Siang',  emoji: '☀️',  bg: 'linear-gradient(135deg,#0369a1,#0ea5e9)' },
+        { text: 'Selamat Sore',   emoji: '🌇', bg: 'linear-gradient(135deg,#7c3aed,#db2777)' },
+    ];
+    const g = h < 5 ? greetings[0] : h < 12 ? greetings[1] : h < 15 ? greetings[2] : h < 19 ? greetings[3] : greetings[0];
+
+    const isPagi = h >= 5 && h < 12;
+
+    function weatherMsg(code, temp) {
+        const t = Math.round(temp);
+        if (isPagi) {
+            if (code === 0)  return `Pagi cerah ${t}°C! Awali hari dengan penuh semangat 🌅💪`;
+            if (code <= 3)   return `Pagi berawan ${t}°C, tapi energimu harus lebih cerah! Ayo gas 🔥`;
+            if (code <= 48)  return `Berkabut ${t}°C pagi ini, tetap semangat berangkat! 🌫️💪`;
+            if (code <= 55)  return `Gerimis pagi ${t}°C, ngopi dulu biar makin semangat! ☕🌧️`;
+            if (code <= 65)  return `Hujan ${t}°C, tapi jangan sampai moodmu ikut mendung ya! 💪`;
+            if (code <= 82)  return `Hujan deras ${t}°C pagi ini, aman di dalam — ayo semangat kerja! 🌧️🔥`;
+            if (code >= 95)  return `Petir-petiran ${t}°C di luar, di dalam kantor justru makin fokus! ⛈️💪`;
+            return `Pagi ${t}°C di Balikpapan, mulai hari dengan yang terbaik! 🌟`;
+        }
+        if (code === 0)  return `Cerah ${t}°C di Balikpapan, semangat produktif! ☀️`;
+        if (code <= 3)   return `Berawan ${t}°C, tapi semangat tetap cerah ya 💪`;
+        if (code <= 48)  return `Berkabut ${t}°C di luar, tetap waspada di jalan 🌫️`;
+        if (code <= 55)  return `Gerimis ${t}°C, pas banget kerja sambil ngopi ☕`;
+        if (code <= 65)  return `Hujan ${t}°C di Balikpapan, jangan lupa bawa payung 🌧️`;
+        if (code <= 82)  return `Hujan deras ${t}°C, aman kerja di dalam ya 🌧️`;
+        if (code >= 95)  return `Ada petir di luar ${t}°C, stay safe! ⛈️`;
+        return `Cuaca ${t}°C hari ini, tetap semangat! 🌤️`;
+    }
+
+    const fallbackMsgs = isPagi ? [
+        'Pagi yang baru, semangat yang baru! Ayo mulai 🔥',
+        'Awali harimu dengan niat terbaik, pasti luar biasa 💪',
+        'Ngopi dulu, lalu taklukkan harimu! ☕🚀',
+        'Pagi-pagi udah di sini, kamu emang luar biasa! 🌟',
+        'Semangatmu pagi ini menentukan hasil harimu 💯',
+    ] : [
+        'Jangan lupa ngopi dulu ya ☕',
+        'Semangat! Hari ini pasti produktif 💪',
+        'Kerja cerdas, bukan cuma kerja keras 🧠',
+        'Setiap data yang kamu input itu penting 🎯',
+        'Ingat minum air putih ya 💧',
+    ];
+
+    const userName = <?= json_encode(explode(' ', trim($user['name']))[0] . (str_word_count($user['name']) > 1 ? ' ' . explode(' ', trim($user['name']))[1] : '')) ?>;
+
+    function showGreeting(msg) {
+        document.getElementById('greetingBg').style.background = g.bg;
+        document.getElementById('greetingEmoji').textContent   = g.emoji;
+        document.getElementById('greetingTime').textContent    = g.text + ',';
+        document.getElementById('greetingName').textContent    = userName;
+        document.getElementById('greetingMsg').textContent     = msg;
+        document.getElementById('greetingDate').textContent    = new Date().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+        const modal = new bootstrap.Modal(document.getElementById('greetingModal'));
+        modal.show();
+        setTimeout(() => modal.hide(), 5000);
+    }
+
+    // Fetch cuaca Balikpapan dari Open-Meteo, timeout 2 detik
+    const weatherFetch = fetch('https://api.open-meteo.com/v1/forecast?latitude=-1.2654&longitude=116.8312&current=weathercode,temperature_2m&timezone=Asia%2FMakassar')
+        .then(r => r.json()).catch(() => null);
+    const timeout = new Promise(r => setTimeout(() => r(null), 2000));
+
+    setTimeout(() => {
+        Promise.race([weatherFetch, timeout]).then(data => {
+            const code = data?.current?.weathercode;
+            const temp = data?.current?.temperature_2m;
+            const msg  = (code !== undefined && temp !== undefined)
+                ? weatherMsg(code, temp)
+                : fallbackMsgs[Math.floor(Math.random() * fallbackMsgs.length)];
+            showGreeting(msg);
+        });
+    }, 400);
+})();
+<?php endif; ?>
 </script>
 <?= $this->endSection() ?>

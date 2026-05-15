@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use App\Models\DepartmentMenuModel;
 use App\Models\RoleModel;
+use App\Models\LoginLogModel;
 use App\Libraries\ActivityLog;
 use CodeIgniter\Controller;
 
@@ -66,8 +67,9 @@ class Auth extends Controller
             'user_theme'     => $user['theme'] ?? 'dark',
         ]);
 
+        (new LoginLogModel())->record((int)$user['id']);
         ActivityLog::write('login', 'auth', (string)$user['id'], $user['name']);
-        return redirect()->to('/');
+        return redirect()->to('/')->with('show_greeting', true);
     }
 
     public function logout()

@@ -14,7 +14,7 @@ class DepartmentModel extends Model
     public function getAllWithMenuCount(): array
     {
         return $this->db->table('departments d')
-            ->select('d.*, COUNT(ma.id) AS menu_count, COUNT(u.id) AS user_count')
+            ->select('d.*, COUNT(DISTINCT ma.id) AS menu_count, COUNT(DISTINCT u.id) AS user_count')
             ->join('department_menu_access ma', 'ma.department_id = d.id', 'left')
             ->join('users u', 'u.department_id = d.id', 'left')
             ->groupBy('d.id')

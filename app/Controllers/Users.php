@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use App\Models\DepartmentModel;
 use App\Models\RoleModel;
+use App\Models\LoginLogModel;
 use App\Libraries\ActivityLog;
 
 class Users extends BaseController
@@ -14,11 +15,21 @@ class Users extends BaseController
         $users = (new UserModel())->orderBy('name')->findAll();
         $depts = (new DepartmentModel())->orderBy('name')->findAll();
         $roles = (new RoleModel())->orderBy('id')->findAll();
+
+        // Build login logs map: user_id → last 5 logins
+        $logModel  = new LoginLogModel();
+        $allUserIds = array_column($users, 'id');
+        $loginLogs  = [];
+        foreach ($allUserIds as $uid) {
+            $loginLogs[$uid] = $logModel->getByUser($uid, 5);
+        }
+
         return view('users/index', [
-            'user'  => $this->currentUser(),
-            'users' => $users,
-            'depts' => $depts,
-            'roles' => $roles,
+            'user'       => $this->currentUser(),
+            'users'      => $users,
+            'depts'      => $depts,
+            'roles'      => $roles,
+            'loginLogs'  => $loginLogs,
         ]);
     }
 

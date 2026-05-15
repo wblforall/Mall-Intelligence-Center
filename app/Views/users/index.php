@@ -19,7 +19,7 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
     <div class="card-body p-0">
     <div class="table-responsive">
     <table class="table table-hover mb-0">
-        <thead><tr><th>#</th><th>Nama</th><th>Email</th><th>Role</th><th>Departemen</th><th>Status</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>#</th><th>Nama</th><th>Email</th><th>Role</th><th>Departemen</th><th>Status</th><th>Last Login</th><th>Aksi</th></tr></thead>
         <tbody>
         <?php foreach ($users as $i => $u): ?>
         <?php
@@ -45,6 +45,27 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
                     : '<span class="badge bg-danger-subtle text-danger">Nonaktif</span>' ?>
             </td>
             <td>
+                <?php
+                $lastLog = $loginLogs[$u['id']][0] ?? null;
+                if ($lastLog): ?>
+                <div class="small lh-sm">
+                    <span class="text-muted"><?= date('d M Y H:i', strtotime($lastLog['login_at'])) ?></span><br>
+                    <span class="text-muted opacity-75">
+                        <i class="bi bi-<?= $lastLog['device_type'] === 'mobile' ? 'phone' : ($lastLog['device_type'] === 'tablet' ? 'tablet' : 'laptop') ?>"></i>
+                        <?= esc($lastLog['browser'] ?? '—') ?>
+                    </span>
+                </div>
+                <?php else: ?>
+                <span class="text-muted small">—</span>
+                <?php endif; ?>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-info login-hist-btn me-1"
+                    title="Riwayat Login"
+                    data-uid="<?= $u['id'] ?>"
+                    data-uname="<?= esc($u['name']) ?>">
+                    <i class="bi bi-clock-history"></i>
+                </button>
                 <button class="btn btn-sm btn-outline-secondary edit-user-btn me-1"
                     data-id="<?= $u['id'] ?>"
                     data-name="<?= esc($u['name']) ?>"
@@ -70,6 +91,35 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
     </div>
     </div>
 </div>
+
+<!-- Login History Modal -->
+<div class="modal fade" id="loginHistModal" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+<div class="modal-header">
+    <h5 class="modal-title fw-semibold"><i class="bi bi-clock-history me-2"></i>Riwayat Login — <span id="loginHistName"></span></h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body p-0">
+<div class="table-responsive">
+<table class="table table-sm mb-0">
+    <thead><tr><th>Waktu</th><th>IP</th><th>Host</th><th>Browser</th><th>OS</th><th>Device</th></tr></thead>
+    <tbody id="loginHistBody"></tbody>
+</table>
+</div>
+</div>
+</div></div></div>
+
+<?php
+// Encode login logs for JS
+$loginLogsJson = [];
+foreach ($loginLogs as $uid => $logs) {
+    $loginLogsJson[$uid] = $logs;
+}
+?>
+<script>
+const loginLogsData = <?= json_encode($loginLogsJson) ?>;
+</script>
 
 <!-- Add Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
@@ -140,6 +190,34 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
+document.querySelectorAll('.login-hist-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const uid   = this.dataset.uid;
+        const uname = this.dataset.uname;
+        document.getElementById('loginHistName').textContent = uname;
+        const logs  = loginLogsData[uid] || [];
+        const tbody = document.getElementById('loginHistBody');
+        if (!logs.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Belum ada riwayat login.</td></tr>';
+        } else {
+            tbody.innerHTML = logs.map(l => {
+                const dt = l.login_at ? l.login_at.replace('T', ' ').substring(0, 16) : '—';
+                const devIcon = l.device_type === 'mobile' ? 'phone' : (l.device_type === 'tablet' ? 'tablet' : 'laptop');
+                const devLabel = l.device_name ? `${l.device_type} (${l.device_name})` : l.device_type;
+                return `<tr>
+                    <td class="small">${dt}</td>
+                    <td class="small font-monospace">${l.ip || '—'}</td>
+                    <td class="small">${l.hostname || '<span class="text-muted">—</span>'}</td>
+                    <td class="small">${l.browser || '—'} ${l.browser_ver || ''}</td>
+                    <td class="small">${l.platform || '—'}</td>
+                    <td class="small"><i class="bi bi-${devIcon} me-1"></i>${devLabel}</td>
+                </tr>`;
+            }).join('');
+        }
+        new bootstrap.Modal(document.getElementById('loginHistModal')).show();
+    });
+});
+
 document.querySelectorAll('.edit-user-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         document.getElementById('editUserForm').action = '<?= base_url('users/') ?>' + this.dataset.id + '/edit';
