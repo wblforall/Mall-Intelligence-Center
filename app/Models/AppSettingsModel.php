@@ -17,7 +17,7 @@ class AppSettingsModel extends Model
         return $row ? $row['value'] : $default;
     }
 
-    public function set(string $key, mixed $value): void
+    public function setSetting(string $key, mixed $value): void
     {
         $exists = $this->where('key', $key)->first();
         if ($exists) {
