@@ -336,8 +336,10 @@ class CreativeCtrl extends BaseController
             return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'File tidak valid.');
         }
 
-        $ext  = $file->getClientExtension();
-        $name = 'creative_s_' . $id . '_' . time() . '.' . $ext;
+        if ($err = $this->validateUpload($file, array_merge(self::MIME_IMAGE, self::MIME_DOC), 20)) {
+            return redirect()->to('/creative#item-' . $id . '-s')->with('error', $err);
+        }
+        $name = 'creative_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
         $dir  = $this->fileDir($id);
         $file->move($dir, $name);
 
@@ -406,8 +408,10 @@ class CreativeCtrl extends BaseController
         $fileName = null; $origName = null;
         $file = $this->request->getFile('bukti');
         if ($file && $file->isValid() && !$file->hasMoved()) {
-            $ext      = $file->getClientExtension();
-            $fileName = 'real_s_' . $id . '_' . time() . '_' . random_int(100, 999) . '.' . $ext;
+            if ($err = $this->validateUpload($file, self::MIME_DOC, 15)) {
+                return redirect()->back()->with('error', $err);
+            }
+            $fileName = 'real_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
             $origName = $file->getClientName();
             $file->move($dir, $fileName);
         }
@@ -415,8 +419,10 @@ class CreativeCtrl extends BaseController
         $stFileName = null; $stOrigName = null;
         $stFile = $this->request->getFile('serah_terima');
         if ($stFile && $stFile->isValid() && !$stFile->hasMoved()) {
-            $ext        = $stFile->getClientExtension();
-            $stFileName = 'st_s_' . $id . '_' . time() . '_' . random_int(100, 999) . '.' . $ext;
+            if ($err = $this->validateUpload($stFile, self::MIME_DOC, 15)) {
+                return redirect()->back()->with('error', $err);
+            }
+            $stFileName = 'st_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($stFile);
             $stOrigName = $stFile->getClientName();
             $stFile->move($dir, $stFileName);
         }
@@ -424,8 +430,10 @@ class CreativeCtrl extends BaseController
         $btFileName = null; $btOrigName = null;
         $btFile = $this->request->getFile('bukti_terpasang');
         if ($btFile && $btFile->isValid() && !$btFile->hasMoved()) {
-            $ext        = $btFile->getClientExtension();
-            $btFileName = 'bt_s_' . $id . '_' . time() . '_' . random_int(100, 999) . '.' . $ext;
+            if ($err = $this->validateUpload($btFile, self::MIME_DOC, 15)) {
+                return redirect()->back()->with('error', $err);
+            }
+            $btFileName = 'bt_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($btFile);
             $btOrigName = $btFile->getClientName();
             $btFile->move($dir, $btFileName);
         }
@@ -490,8 +498,10 @@ class CreativeCtrl extends BaseController
 
         $file = $this->request->getFile('screenshot');
         if ($file && $file->isValid() && !$file->hasMoved()) {
-            $ext      = $file->getClientExtension();
-            $fileName = 'insight_s_' . $id . '_' . time() . '_' . random_int(100, 999) . '.' . $ext;
+            if ($err = $this->validateUpload($file, self::MIME_IMAGE, 10)) {
+                return redirect()->back()->with('error', $err);
+            }
+            $fileName = 'insight_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
             $origName = $file->getClientName();
             $file->move($dir, $fileName);
         }

@@ -95,6 +95,7 @@ class Auth extends Controller
             $deptMenus = (new DepartmentMenuModel())->getMenuMap((int)$user['department_id']);
         }
 
+        session()->regenerate(true);
         session()->set([
             'logged_in'      => true,
             'user_id'        => $user['id'],
@@ -164,6 +165,14 @@ class Auth extends Controller
 
     public function sendResetLink()
     {
+        $lastRequest = session()->get('reset_last_request');
+        if ($lastRequest && (time() - $lastRequest) < 300) {
+            $sisaDetik = 300 - (time() - $lastRequest);
+            return redirect()->to('/forgot-password')
+                ->with('success', 'Permintaan sudah dikirim. Tunggu ' . ceil($sisaDetik / 60) . ' menit sebelum mencoba lagi.');
+        }
+        session()->set('reset_last_request', time());
+
         $email = trim($this->request->getPost('email'));
         $user  = (new UserModel())->findByEmail($email);
 

@@ -316,7 +316,10 @@ class SponsorshipCtrl extends BaseController
         $fileBukti = null;
         $file = $this->request->getFile('file_bukti');
         if ($file && $file->isValid() && ! $file->hasMoved()) {
-            $name = 'bukti_' . $sponsorId . '_' . time() . '.' . $file->getClientExtension();
+            if ($err = $this->validateUpload($file, self::MIME_DOC, 10)) {
+                return redirect()->back()->with('error', $err);
+            }
+            $name = 'bukti_' . $sponsorId . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
             $file->move($uploadDir, $name);
             $fileBukti = $name;
         }

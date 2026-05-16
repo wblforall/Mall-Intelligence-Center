@@ -18,6 +18,7 @@ writable/debugbar/*
 
 # User uploads (data, bukan kode)
 public/uploads/
+!public/uploads/.htaccess
 
 # OS
 .DS_Store

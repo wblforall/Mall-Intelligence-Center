@@ -107,9 +107,12 @@ class EventVM extends BaseController
         $fotoOrig  = null;
         $file      = $this->request->getFile('foto');
         if ($file && $file->isValid() && ! $file->hasMoved()) {
+            if ($err = $this->validateUpload($file, self::MIME_IMAGE, 10)) {
+                return redirect()->back()->with('error', $err);
+            }
             $uploadPath = FCPATH . 'uploads/vm/' . $eventId . '/';
             if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
-            $fotoName = 'real_' . time() . '_' . $file->getRandomName();
+            $fotoName = 'real_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $fotoOrig = $file->getClientName();
             $file->move($uploadPath, $fotoName);
         }

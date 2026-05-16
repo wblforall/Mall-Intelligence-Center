@@ -105,8 +105,8 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
 </td></tr>
 <?php else: ?>
 <?php foreach ($employees as $e): ?>
-<tr data-nama="<?= strtolower($e['nama']) ?>" data-nik="<?= strtolower($e['nik'] ?? '') ?>"
-    data-dept="<?= esc($e['dept_name'] ?? '') ?>" data-status="<?= $e['status'] ?>">
+<tr data-nama="<?= esc(strtolower($e['nama'])) ?>" data-nik="<?= esc(strtolower($e['nik'] ?? '')) ?>"
+    data-dept="<?= esc($e['dept_name'] ?? '') ?>" data-status="<?= esc($e['status']) ?>">
     <td class="ps-3">
         <?php if ($e['foto']): ?>
         <img src="<?= base_url('uploads/people/photos/'.$e['foto']) ?>" class="emp-avatar">

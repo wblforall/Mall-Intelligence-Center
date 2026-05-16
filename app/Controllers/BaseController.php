@@ -129,4 +129,45 @@ abstract class BaseController extends Controller
     {
         return number_format($value * 100, 1) . '%';
     }
+
+    const MIME_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const MIME_DOC   = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    const MIME_CSV   = ['text/csv', 'text/plain', 'application/csv', 'text/comma-separated-values'];
+
+    protected function validateUpload(\CodeIgniter\HTTP\Files\UploadedFile $file, array $allowedMimes, int $maxMB = 10): ?string
+    {
+        if (! $file->isValid() || $file->hasMoved()) {
+            return 'File tidak valid.';
+        }
+        if ($file->getSizeByUnit('mb') > $maxMB) {
+            return "Ukuran file maksimal {$maxMB}MB.";
+        }
+        if (! in_array($file->getMimeType(), $allowedMimes)) {
+            return 'Tipe file tidak diizinkan: ' . $file->getMimeType() . '.';
+        }
+        return null;
+    }
+
+    protected function safeExt(\CodeIgniter\HTTP\Files\UploadedFile $file): string
+    {
+        $mimeMap = [
+            'image/jpeg'       => 'jpg',
+            'image/png'        => 'png',
+            'image/webp'       => 'webp',
+            'image/gif'        => 'gif',
+            'application/pdf'  => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'text/csv'         => 'csv',
+            'video/mp4'        => 'mp4',
+            'video/quicktime'  => 'mov',
+        ];
+        return $mimeMap[$file->getMimeType()] ?? 'bin';
+    }
 }

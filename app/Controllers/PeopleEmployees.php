@@ -87,9 +87,12 @@ class PeopleEmployees extends BaseController
         $fotoName = null;
         $file = $this->request->getFile('foto');
         if ($file && $file->isValid() && ! $file->hasMoved()) {
+            if ($err = $this->validateUpload($file, self::MIME_IMAGE, 5)) {
+                return redirect()->back()->with('error', $err);
+            }
             $uploadPath = FCPATH . 'uploads/people/photos/';
             if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
-            $fotoName = 'emp_' . time() . '_' . $file->getRandomName();
+            $fotoName = 'emp_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $file->move($uploadPath, $fotoName);
         }
 
@@ -143,10 +146,13 @@ class PeopleEmployees extends BaseController
         $fotoName = $employee['foto'];
         $file = $this->request->getFile('foto');
         if ($file && $file->isValid() && ! $file->hasMoved()) {
+            if ($err = $this->validateUpload($file, self::MIME_IMAGE, 5)) {
+                return redirect()->back()->with('error', $err);
+            }
             $uploadPath = FCPATH . 'uploads/people/photos/';
             if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
             if ($fotoName && file_exists($uploadPath . $fotoName)) unlink($uploadPath . $fotoName);
-            $fotoName = 'emp_' . time() . '_' . $file->getRandomName();
+            $fotoName = 'emp_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $file->move($uploadPath, $fotoName);
         }
 
@@ -256,9 +262,12 @@ class PeopleEmployees extends BaseController
         $fileOrig = null;
         $file = $this->request->getFile('file_sertifikat');
         if ($file && $file->isValid() && ! $file->hasMoved()) {
+            if ($err = $this->validateUpload($file, self::MIME_DOC, 10)) {
+                return redirect()->back()->with('error', $err);
+            }
             $uploadPath = FCPATH . 'uploads/people/certificates/';
             if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
-            $fileName = 'cert_' . time() . '_' . $file->getRandomName();
+            $fileName = 'cert_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $fileOrig = $file->getClientName();
             $file->move($uploadPath, $fileName);
         }

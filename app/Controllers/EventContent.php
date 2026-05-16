@@ -219,14 +219,20 @@ class EventContent extends BaseController
 
         $foto = $this->request->getFile('file_foto');
         if ($foto && $foto->isValid() && ! $foto->hasMoved()) {
-            $name = 'foto_' . $itemId . '_' . time() . '.' . $foto->getClientExtension();
+            if ($err = $this->validateUpload($foto, self::MIME_DOC, 10)) {
+                return redirect()->back()->with('error', $err);
+            }
+            $name = 'foto_' . $itemId . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($foto);
             $foto->move($uploadDir, $name);
             $fileFoto = $name;
         }
 
         $terima = $this->request->getFile('file_terima');
         if ($terima && $terima->isValid() && ! $terima->hasMoved()) {
-            $name = 'terima_' . $itemId . '_' . time() . '.' . $terima->getClientExtension();
+            if ($err = $this->validateUpload($terima, self::MIME_DOC, 10)) {
+                return redirect()->back()->with('error', $err);
+            }
+            $name = 'terima_' . $itemId . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($terima);
             $terima->move($uploadDir, $name);
             $fileTerima = $name;
         }

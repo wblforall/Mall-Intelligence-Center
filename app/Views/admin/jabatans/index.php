@@ -103,7 +103,7 @@ ksort($grouped);
                 data-bs-toggle="modal" data-bs-target="#editJabModal"
                 data-id="<?= $j['id'] ?>"
                 data-nama="<?= esc($j['nama']) ?>"
-                data-grade="<?= $j['grade'] ?>"
+                data-grade="<?= esc($j['grade']) ?>"
                 data-dept_id="<?= $j['dept_id'] ?? '' ?>"
                 data-division_id="<?= $j['division_id'] ?? '' ?>"
                 data-parent_jabatan_id="<?= $j['parent_jabatan_id'] ?? '' ?>">
