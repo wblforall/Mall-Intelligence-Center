@@ -239,6 +239,10 @@ $routes->get('admin/clusters',                  'AdminClusters::index',       ['
 $routes->post('admin/clusters/store',           'AdminClusters::store',       ['filter' => 'auth:admin']);
 $routes->post('admin/clusters/(:num)/update',   'AdminClusters::update/$1',   ['filter' => 'auth:admin']);
 $routes->get('admin/clusters/(:num)/delete',    'AdminClusters::delete/$1',   ['filter' => 'auth:admin']);
+
+$routes->get('admin/settings',                  'AdminSettings::index',       ['filter' => 'auth:admin']);
+$routes->post('admin/settings/save',            'AdminSettings::save',        ['filter' => 'auth:admin']);
+$routes->get('admin/settings/test-email',       'AdminSettings::testEmail',   ['filter' => 'auth:admin']);
 $routes->get('divisions', 'Divisions::index', ['filter' => 'auth:admin']);
 $routes->post('divisions/store', 'Divisions::store', ['filter' => 'auth:admin']);
 $routes->post('divisions/(:num)/update', 'Divisions::update/$1', ['filter' => 'auth:admin']);
@@ -298,6 +302,8 @@ $routes->get('people/tna/assess/(:num)',                                  'Peopl
 $routes->post('people/tna/assess/(:num)/submit',                         'PeopleTna::submitAssessment/$1',   ['filter' => 'auth']);
 $routes->get('people/tna/period/(:num)/result/(:num)',                   'PeopleTna::result/$1/$2',                ['filter' => 'auth']);
 $routes->get('people/tna/assessments/(:num)/regenerate-token',           'PeopleTna::regenerateToken/$1',          ['filter' => 'auth']);
+$routes->get('people/tna/period/(:num)/employees/(:num)/send-email',     'PeopleTna::sendEmail/$1/$2',             ['filter' => 'auth']);
+$routes->get('people/tna/period/(:num)/send-email-all',                  'PeopleTna::sendEmailAll/$1',             ['filter' => 'auth']);
 
 // TNA Fill — public token-based (no auth required)
 $routes->get('tna/fill/(:segment)',        'TnaFill::show/$1');

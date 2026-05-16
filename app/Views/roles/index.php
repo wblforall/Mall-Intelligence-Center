@@ -21,6 +21,7 @@ $globalPerms = [
     'can_import_traffic' => ['label' => 'Import Excel',   'icon' => 'file-earmark-arrow-up',    'color' => 'success'],
     'can_view_logs'      => ['label' => 'Lihat Log',      'icon' => 'journal-text',             'color' => 'info'],
     'can_approve_events' => ['label' => 'Approve Event',  'icon' => 'patch-check',              'color' => 'success'],
+    'can_approve_pip'    => ['label' => 'Approve PIP',    'icon' => 'person-check-fill',         'color' => 'primary'],
 ];
 ?>
 
@@ -74,7 +75,8 @@ $globalPerms = [
             data-can_delete_traffic="<?= $r['can_delete_traffic'] ?>"
             data-can_import_traffic="<?= $r['can_import_traffic'] ?>"
             data-can_view_logs="<?= $r['can_view_logs'] ?>"
-            data-can_approve_events="<?= $r['can_approve_events'] ?? 0 ?>">
+            data-can_approve_events="<?= $r['can_approve_events'] ?? 0 ?>"
+            data-can_approve_pip="<?= $r['can_approve_pip'] ?? 0 ?>">
             <i class="bi bi-pencil"></i>
         </button>
         <?php if ($r['user_count'] == 0): ?>
@@ -195,7 +197,7 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
 
         // Global perms
         ['is_admin','can_create_event','can_delete_event','can_manage_users',
-         'can_delete_traffic','can_import_traffic','can_view_logs','can_approve_events'].forEach(key => {
+         'can_delete_traffic','can_import_traffic','can_view_logs','can_approve_events','can_approve_pip'].forEach(key => {
             const cb = document.getElementById('edit_' + key);
             if (cb) cb.checked = this.dataset[key] === '1';
         });

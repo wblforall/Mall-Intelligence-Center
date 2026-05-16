@@ -33,7 +33,7 @@ $frekLabel = ['mingguan'=>'Mingguan','2mingguan'=>'2 Mingguan','bulanan'=>'Bulan
         <a href="<?= base_url('people/pip/' . $plan['id'] . '/print') ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-printer me-1"></i>Print
         </a>
-        <?php if ($canEdit && $plan['status'] === 'menunggu_persetujuan'): ?>
+        <?php if ($canApprovePip && $plan['status'] === 'menunggu_persetujuan'): ?>
         <a href="<?= base_url('people/pip/' . $plan['id'] . '/approve') ?>" class="btn btn-sm btn-success"
            onclick="return confirm('Setujui PIP ini? Status akan berubah menjadi Aktif.')">
             <i class="bi bi-check-circle me-1"></i>Setujui
@@ -65,7 +65,7 @@ $frekLabel = ['mingguan'=>'Mingguan','2mingguan'=>'2 Mingguan','bulanan'=>'Bulan
         <div class="fw-semibold">Menunggu Persetujuan Head People Development</div>
         <div class="small">PIP ini belum aktif. Head PD perlu menyetujuinya terlebih dahulu sebelum bisa berjalan.</div>
     </div>
-    <?php if ($canEdit): ?>
+    <?php if ($canApprovePip): ?>
     <a href="<?= base_url('people/pip/' . $plan['id'] . '/approve') ?>" class="btn btn-success btn-sm ms-auto text-nowrap"
        onclick="return confirm('Setujui PIP ini? Status akan berubah menjadi Aktif.')">
         <i class="bi bi-check-circle me-1"></i>Setujui Sekarang

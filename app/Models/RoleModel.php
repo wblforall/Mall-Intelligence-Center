@@ -8,7 +8,7 @@ class RoleModel extends Model
 {
     protected $table         = 'roles';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name', 'slug', 'description', 'is_admin', 'can_create_event', 'can_delete_event', 'can_manage_users', 'can_delete_traffic', 'can_import_traffic', 'can_view_logs', 'can_approve_events'];
+    protected $allowedFields = ['name', 'slug', 'description', 'is_admin', 'can_create_event', 'can_delete_event', 'can_manage_users', 'can_delete_traffic', 'can_import_traffic', 'can_view_logs', 'can_approve_events', 'can_approve_pip'];
     protected $useTimestamps = true;
 
     public function getBySlug(string $slug): ?array
@@ -36,6 +36,7 @@ class RoleModel extends Model
             'can_import_traffic'  => $isAdmin || (bool)($role['can_import_traffic']  ?? false),
             'can_view_logs'       => $isAdmin || (bool)($role['can_view_logs']       ?? false),
             'can_approve_events'  => $isAdmin || (bool)($role['can_approve_events']  ?? false),
+            'can_approve_pip'     => $isAdmin || (bool)($role['can_approve_pip']     ?? false),
         ];
     }
 }

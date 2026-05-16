@@ -368,6 +368,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('theme-periods') ?>" class="nav-link <?= str_starts_with(uri_string(), 'theme-periods') ? 'active' : '' ?>">
             <i class="bi bi-stars"></i> Tema Periode
         </a>
+        <a href="<?= base_url('admin/settings') ?>" class="nav-link <?= str_starts_with(uri_string(), 'admin/settings') ? 'active' : '' ?>">
+            <i class="bi bi-gear-fill"></i> Pengaturan
+        </a>
         <?php endif; ?>
 
     </div>

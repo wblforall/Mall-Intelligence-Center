@@ -191,7 +191,7 @@ body {
                         <i class="bi bi-box-arrow-in-right me-1"></i> Masuk
                     </button>
                     <div class="text-center mt-3">
-                        <a href="<?= base_url('forgot-password') ?>" class="text-muted small">Lupa password?</a>
+                        <a href="<?= base_url('forgot-password') ?>" class="small" style="color:rgba(255,255,255,.5);text-decoration:none;" onmouseover="this.style.color='rgba(255,255,255,.8)'" onmouseout="this.style.color='rgba(255,255,255,.5)'">Lupa password?</a>
                     </div>
                 </form>
             </div>

@@ -32,6 +32,13 @@ $typeLabels = ['self' => 'Self', 'atasan' => 'Atasan', 'rekan' => 'Rekan'];
             <i class="bi bi-person-plus me-1"></i>Tambah Karyawan
         </button>
         <?php endif; ?>
+        <?php if (! empty($employees)): ?>
+        <a href="<?= base_url('people/tna/period/' . $period['id'] . '/send-email-all') ?>"
+           class="btn btn-sm btn-outline-info"
+           onclick="return confirm('Kirim email formulir TNA ke semua karyawan yang belum submit?')">
+            <i class="bi bi-envelope-arrow-up me-1"></i>Kirim Semua
+        </a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -103,6 +110,14 @@ $typeLabels = ['self' => 'Self', 'atasan' => 'Atasan', 'rekan' => 'Rekan'];
                         data-atasan-id="<?= $emp['atasan_id'] ?? '' ?>">
                     <i class="bi bi-person-plus me-1"></i>Tambah Assessor
                 </button>
+                <?php endif; ?>
+                <a href="<?= base_url('people/tna/period/' . $period['id'] . '/employees/' . $emp['employee_id'] . '/send-email') ?>"
+                   class="btn btn-xs btn-sm btn-outline-info py-0 px-2" style="font-size:.75rem"
+                   title="Kirim email formulir TNA ke karyawan ini"
+                   onclick="return confirm('Kirim link TNA ke email <?= esc($emp['emp_nama']) ?>?')">
+                    <i class="bi bi-envelope"></i>
+                </a>
+                <?php if (! $isClosed): ?>
                 <a href="<?= base_url('people/tna/period/' . $period['id'] . '/employees/' . $emp['employee_id'] . '/remove') ?>"
                    class="btn btn-xs btn-sm btn-outline-danger py-0 px-2" style="font-size:.75rem"
                    onclick="return confirm('Hapus <?= esc($emp['emp_nama']) ?> beserta semua data assessment-nya?')">

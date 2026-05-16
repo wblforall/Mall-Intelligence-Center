@@ -9,6 +9,7 @@ use App\Models\PipAspekMasterModel;
 use App\Models\EmployeeModel;
 use App\Models\DepartmentModel;
 use App\Libraries\ActivityLog;
+use App\Libraries\EmailNotifier;
 
 class PeoplePip extends BaseController
 {
@@ -54,6 +55,9 @@ class PeoplePip extends BaseController
         if (! $this->guard(true)) return redirect()->to('/events')->with('error', 'Akses ditolak.');
 
         $post   = $this->request->getPost();
+        $tokenAtasan   = bin2hex(random_bytes(32));
+        $tokenKaryawan = bin2hex(random_bytes(32));
+
         $planId = (new PipPlanModel())->insert([
             'employee_id'          => (int)$post['employee_id'],
             'created_by_user_id'   => session()->get('user_id'),
@@ -64,6 +68,8 @@ class PeoplePip extends BaseController
             'konsekuensi'          => trim($post['konsekuensi'] ?? '') ?: null,
             'persetujuan_atasan'   => 'pending',
             'persetujuan_karyawan' => 'pending',
+            'token_atasan'         => $tokenAtasan,
+            'token_karyawan'       => $tokenKaryawan,
             'tanggal_mulai'        => $post['tanggal_mulai'],
             'tanggal_selesai'      => $post['tanggal_selesai'],
             'frekuensi_review'     => $post['frekuensi_review'] ?? 'mingguan',
@@ -72,6 +78,12 @@ class PeoplePip extends BaseController
 
         $this->saveItems((int)$planId, $post);
         ActivityLog::write('create', 'pip_plan', (string)$planId, trim($post['judul']));
+
+        $plan = (new PipPlanModel())->getWithEmployee((int)$planId);
+        if ($plan) {
+            $this->sendPipApprovalEmails($plan, $tokenAtasan, $tokenKaryawan);
+        }
+
         return redirect()->to('/people/pip/' . $planId)->with('success', 'PIP berhasil dibuat.');
     }
 
@@ -87,12 +99,13 @@ class PeoplePip extends BaseController
         $plan['last_review_date'] = $lastReviewDate;
 
         return view('people/pip/detail', [
-            'user'        => $this->currentUser(),
-            'plan'        => $plan,
-            'items'       => (new PipItemModel())->getByPip($id),
-            'reviews'     => $reviews,
-            'aspekMaster' => (new PipAspekMasterModel())->getAktif(),
-            'canEdit'     => $this->canEditMenu('people_dev'),
+            'user'           => $this->currentUser(),
+            'plan'           => $plan,
+            'items'          => (new PipItemModel())->getByPip($id),
+            'reviews'        => $reviews,
+            'aspekMaster'    => (new PipAspekMasterModel())->getAktif(),
+            'canEdit'        => $this->canEditMenu('people_dev'),
+            'canApprovePip'  => (bool)(session()->get('role_perms')['can_approve_pip'] ?? false),
         ]);
     }
 
@@ -128,7 +141,9 @@ class PeoplePip extends BaseController
 
     public function approve(int $id)
     {
-        if (! $this->guard(true)) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        if (! session()->get('role_perms')['can_approve_pip'] ?? false) {
+            return redirect()->to('/people/pip/' . $id)->with('error', 'Anda tidak memiliki izin untuk menyetujui PIP.');
+        }
 
         $plan = (new PipPlanModel())->find($id);
         if (! $plan || $plan['status'] !== 'menunggu_persetujuan') {
@@ -212,6 +227,24 @@ class PeoplePip extends BaseController
 
         ActivityLog::write('update', 'pip_plan', (string)$id, 'generate token ' . $pihak);
         return redirect()->to('/people/pip/' . $id)->with('success', 'Link ' . $pihak . ' berhasil dibuat.');
+    }
+
+    private function sendPipApprovalEmails(array $plan, string $tokenAtasan, string $tokenKaryawan): void
+    {
+        $atasanEmail   = $plan['atasan_email']   ?? null;
+        $karyawanEmail = $plan['employee_email'] ?? null;
+
+        if ($atasanEmail) {
+            $url  = base_url('pip/approval/atasan/' . $tokenAtasan);
+            $body = EmailNotifier::pipApprovalAtasan($plan, $url);
+            EmailNotifier::send($atasanEmail, 'Persetujuan PIP — ' . $plan['judul'], $body);
+        }
+
+        if ($karyawanEmail) {
+            $url  = base_url('pip/approval/karyawan/' . $tokenKaryawan);
+            $body = EmailNotifier::pipApprovalKaryawan($plan, $url);
+            EmailNotifier::send($karyawanEmail, 'PIP Menunggu Persetujuan Anda — ' . $plan['judul'], $body);
+        }
     }
 
     private function saveItems(int $pipId, array $post): void

@@ -11,6 +11,7 @@ use App\Models\CompetencyTargetModel;
 use App\Models\CompetencyQuestionModel;
 use App\Models\TrainingCompetencyModel;
 use App\Libraries\ActivityLog;
+use App\Libraries\EmailNotifier;
 
 class PeopleTna extends BaseController
 {
@@ -330,6 +331,77 @@ class PeopleTna extends BaseController
             }
         }
         return $m->getAllGrouped();
+    }
+
+    public function sendEmail(int $periodId, int $empId)
+    {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+
+        $period = (new TnaPeriodModel())->find($periodId);
+        $emp    = (new EmployeeModel())->find($empId);
+
+        if (! $period || ! $emp || empty($emp['email'])) {
+            return redirect()->to('/people/tna/period/' . $periodId)
+                ->with('error', 'Email karyawan tidak ditemukan.');
+        }
+
+        $assessment = (new TnaAssessmentModel())
+            ->where('period_id', $periodId)
+            ->where('employee_id', $empId)
+            ->where('assessor_type', 'self')
+            ->first();
+
+        if (! $assessment || empty($assessment['fill_token'])) {
+            return redirect()->to('/people/tna/period/' . $periodId)
+                ->with('error', 'Token formulir belum tersedia untuk karyawan ini.');
+        }
+
+        $url  = base_url('tna/fill/' . $assessment['fill_token']);
+        $body = EmailNotifier::tnaFillLink($emp['nama'], $period['nama'], $url);
+        EmailNotifier::send($emp['email'], 'Formulir TNA — ' . $period['nama'], $body);
+
+        ActivityLog::write('send_email', 'tna_assessment', (string)$assessment['id'], $emp['nama']);
+        return redirect()->to('/people/tna/period/' . $periodId)
+            ->with('success', 'Email TNA berhasil dikirim ke ' . $emp['nama'] . '.');
+    }
+
+    public function sendEmailAll(int $periodId)
+    {
+        if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+
+        $period      = (new TnaPeriodModel())->find($periodId);
+        $assModel    = new TnaAssessmentModel();
+        $empModel    = new EmployeeModel();
+        $employees   = $assModel->getEmployeesByPeriod($periodId);
+        $sent = 0; $skipped = 0;
+
+        foreach ($employees as $empRow) {
+            $emp = $empModel->find((int)$empRow['employee_id']);
+            if (! $emp || empty($emp['email'])) { $skipped++; continue; }
+
+            $assessment = $assModel
+                ->where('period_id', $periodId)
+                ->where('employee_id', (int)$empRow['employee_id'])
+                ->where('assessor_type', 'self')
+                ->first();
+
+            if (! $assessment || empty($assessment['fill_token']) || $assessment['status'] === 'submitted') {
+                $skipped++;
+                continue;
+            }
+
+            $url  = base_url('tna/fill/' . $assessment['fill_token']);
+            $body = EmailNotifier::tnaFillLink($emp['nama'], $period['nama'], $url);
+            if (EmailNotifier::send($emp['email'], 'Formulir TNA — ' . $period['nama'], $body)) {
+                $sent++;
+            } else {
+                $skipped++;
+            }
+        }
+
+        ActivityLog::write('send_email', 'tna_period', (string)$periodId, "bulk: {$sent} sent, {$skipped} skipped");
+        return redirect()->to('/people/tna/period/' . $periodId)
+            ->with('success', "Email TNA berhasil dikirim ke {$sent} karyawan." . ($skipped ? " ({$skipped} dilewati)" : ''));
     }
 
     private static function generateFillToken(): string

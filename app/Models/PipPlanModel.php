@@ -50,8 +50,10 @@ class PipPlanModel extends Model
         $db = db_connect();
         return $db->table('pip_plans p')
             ->select('p.*, e.nama as employee_nama, e.jabatan, e.dept_id, e.no_hp as employee_no_hp,
+                      e.email as employee_email,
                       d.name as dept_name, u.name as created_by_name, ap.name as approved_by_name,
-                      a.nama as atasan_nama, a.jabatan as atasan_jabatan, a.no_hp as atasan_no_hp')
+                      a.nama as atasan_nama, a.jabatan as atasan_jabatan, a.no_hp as atasan_no_hp,
+                      a.email as atasan_email')
             ->join('employees e', 'e.id = p.employee_id', 'left')
             ->join('employees a', 'a.id = e.atasan_id', 'left')
             ->join('departments d', 'd.id = e.dept_id', 'left')
