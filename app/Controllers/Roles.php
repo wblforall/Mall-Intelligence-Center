@@ -45,6 +45,8 @@ class Roles extends BaseController
             'can_import_traffic'  => isset($post['can_import_traffic'])  ? 1 : 0,
             'can_view_logs'       => isset($post['can_view_logs'])       ? 1 : 0,
             'can_approve_events'  => isset($post['can_approve_events'])  ? 1 : 0,
+            'can_approve_pip'     => isset($post['can_approve_pip'])     ? 1 : 0,
+            'can_view_gantt'      => isset($post['can_view_gantt'])      ? 1 : 0,
         ]);
 
         ActivityLog::write('create', 'role', null, trim($post['name']));
@@ -79,6 +81,8 @@ class Roles extends BaseController
             'can_import_traffic'  => isset($post['can_import_traffic'])  ? 1 : 0,
             'can_view_logs'       => isset($post['can_view_logs'])       ? 1 : 0,
             'can_approve_events'  => isset($post['can_approve_events'])  ? 1 : 0,
+            'can_approve_pip'     => isset($post['can_approve_pip'])     ? 1 : 0,
+            'can_view_gantt'      => isset($post['can_view_gantt'])      ? 1 : 0,
         ]);
 
         db_connect()->query('UPDATE users SET `role` = ? WHERE role_id = ?', [$slug, $id]);

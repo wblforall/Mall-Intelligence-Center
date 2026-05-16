@@ -257,6 +257,16 @@ $routes->get ('theme-periods/(:num)/delete','ThemePeriods::delete/$1',['filter' 
 $routes->get ('theme-periods/(:num)/toggle','ThemePeriods::toggle/$1',['filter' => 'auth:admin']);
 $routes->get ('theme-periods/today',        'ThemePeriods::today',   ['filter' => 'auth']);
 
+// Gantt Chart
+$routes->get('gantt',      'GanttController::index', ['filter' => 'auth']);
+$routes->get('gantt/data', 'GanttController::data',  ['filter' => 'auth']);
+
+// Admin: Public Holidays
+$routes->get ('admin/holidays',            'AdminHolidays::index',     ['filter' => 'auth:admin']);
+$routes->post('admin/holidays/store',      'AdminHolidays::store',     ['filter' => 'auth:admin']);
+$routes->post('admin/holidays/delete/(:num)', 'AdminHolidays::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('admin/holidays/bulk',       'AdminHolidays::bulkStore', ['filter' => 'auth:admin']);
+
 // Jabatans (admin only)
 $routes->get('jabatans', 'Jabatans::index', ['filter' => 'auth:admin']);
 $routes->post('jabatans/store', 'Jabatans::store', ['filter' => 'auth:admin']);

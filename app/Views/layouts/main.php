@@ -93,6 +93,14 @@ body { min-height: 100vh; }
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
         <?php
+        $_rp = session()->get('role_perms') ?? [];
+        if (($_rp['is_admin'] ?? false) || ($_rp['can_view_gantt'] ?? false)):
+        ?>
+        <a href="<?= base_url('gantt') ?>" class="nav-link <?= str_starts_with(uri_string(), 'gantt') ? 'active' : '' ?>">
+            <i class="bi bi-bar-chart-steps"></i> Gantt Timeline
+        </a>
+        <?php endif; ?>
+        <?php
         $_deptMenusE = session()->get('dept_menus');
         $_canSeeEvents = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
             || $_deptMenusE === null || ($_deptMenusE['events']['can_view'] ?? false);
@@ -368,6 +376,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('theme-periods') ?>" class="nav-link <?= str_starts_with(uri_string(), 'theme-periods') ? 'active' : '' ?>">
             <i class="bi bi-stars"></i> Tema Periode
         </a>
+        <a href="<?= base_url('admin/holidays') ?>" class="nav-link <?= str_starts_with(uri_string(), 'admin/holidays') ? 'active' : '' ?>">
+            <i class="bi bi-calendar-heart-fill"></i> Hari Libur
+        </a>
         <a href="<?= base_url('admin/settings') ?>" class="nav-link <?= str_starts_with(uri_string(), 'admin/settings') ? 'active' : '' ?>">
             <i class="bi bi-gear-fill"></i> Pengaturan
         </a>
@@ -390,7 +401,7 @@ body { min-height: 100vh; }
         </a>
     </div>
     <div style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5">
-        v1.4 &nbsp;·&nbsp; © 2026 IT Dept WBL
+        v1.7 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
 </div>

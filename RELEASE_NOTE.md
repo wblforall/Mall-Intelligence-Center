@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v1.6** (Mei 2026)
+> Versi saat ini: **v1.8** (Mei 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,54 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 1.8
+
+**Tanggal Rilis:** 16 Mei 2026
+
+### Perubahan dari v1.7
+
+#### Gantt Chart — Visual & Akses
+
+- **Weekend Highlight** — kolom Sabtu & Minggu ditampilkan dengan overlay abu-abu semi-transparan untuk membedakan hari kerja dari akhir pekan.
+- **Hari Libur Nasional** — kolom hari libur ditampilkan dengan overlay merah, teks nama hari libur diputar vertikal di atas kolom (Day view).
+- **Today Highlight** — kolom hari ini diberi warna hijau semi-transparan agar mudah ditemukan.
+- **Pemisah Antar Bulan** — garis vertikal tegas ditampilkan di antara akhir dan awal bulan untuk memperjelas batas periode.
+- **Label Bulan di Atas** — label nama bulan dipindah ke baris paling atas header (tidak lagi sejajar dengan label hari).
+- **Akses Berbasis Role** — halaman Gantt sekarang dibatasi oleh permission `can_view_gantt`. User tanpa permission diarahkan ke `/events`.
+- **Menu Gantt Tersembunyi** — link Gantt Timeline di sidebar hanya muncul bagi user dengan `is_admin` atau `can_view_gantt`.
+
+#### Role Management
+
+- **Permission `can_view_gantt`** — permission baru untuk mengontrol akses halaman Gantt. Tampil di tabel Role Management dan tersedia di modal tambah/edit role.
+- **Fix: `can_approve_pip` tidak tersimpan** — checkbox Approve PIP di modal role tidak pernah menyimpan nilainya ke database karena kolom tidak ada di array `store()` dan `update()`. Sudah diperbaiki.
+
+---
+
+## Versi 1.7
+
+**Tanggal Rilis:** 16 Mei 2026
+
+### Perubahan dari v1.6
+
+#### Fitur Baru
+
+- **Gantt Chart Module** — halaman `/gantt` menampilkan semua program dan event dengan rentang tanggal dalam satu timeline interaktif. Data diambil dari: Events, TNA Periods, PIP Plans, Training Programs, EEI Periods, Sponsorship Programs, Loyalty Programs, dan VM Deadline per item.
+- **Akses Berbasis Departemen** — tiap user hanya melihat data dari modul yang departemennya memiliki akses. Admin melihat semua.
+- **Theme Period Overlay** — periode tema ditampilkan sebagai blok background kuning semi-transparan di Gantt. Notice period (sebelum mulai) ditampilkan dengan warna lebih muda. Label nama tema muncul di dalam blok.
+- **Hari Libur di Gantt** — hari libur nasional ditampilkan sebagai garis vertikal merah di atas timeline chart.
+- **View Mode** — chart bisa diganti antara mode Bulanan / Mingguan / Harian via dropdown.
+- **Popup Detail** — klik bar untuk lihat nama, rentang tanggal, dan modul asal.
+- **Admin: Manajemen Hari Libur** — halaman `/admin/holidays` untuk tambah/hapus hari libur per tanggal. Support import massal via teks (satu baris = satu hari libur dengan format `YYYY-MM-DD Nama|jenis`).
+- **Migrasi 016** — tabel `public_holidays` (`tanggal`, `nama`, `jenis`: nasional/bersama/lokal).
+
+#### Perubahan Sidebar
+
+- Tambah link **Gantt Timeline** di section Main (terlihat oleh semua user login).
+- Tambah link **Hari Libur** di section Admin.
+- Update versi di footer sidebar dari v1.6 → v1.7.
 
 ---
 
