@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v1.5** (Mei 2026)
+> Versi saat ini: **v1.6** (Mei 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,47 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 1.6
+
+**Tanggal Rilis:** 16 Mei 2026
+
+### Perubahan dari v1.5
+
+#### Fitur Baru
+
+- **PIP — Approval Head People Development** — status baru `menunggu_persetujuan`: PIP yang dibuat masuk status ini terlebih dahulu. User dengan permission `can_approve_pip` (dikonfigurasi per role) dapat menyetujui PIP, mengubah statusnya ke `aktif` dan mencatat approver di `approved_by_user_id`.
+- **PIP — Frekuensi Review** — field `frekuensi_review` (mingguan / 2 mingguan / bulanan) menentukan jadwal review berikutnya. Tanggal review berikutnya tampil di index dan detail PIP dengan badge status (due / overdue).
+- **PIP — Atasan Langsung Otomatis** — nama, jabatan, dan no HP atasan langsung ditarik dari kolom `atasan_id` di tabel employees. Tampil di info card detail PIP dan di blok tanda tangan print-out.
+- **PIP — Print Out** — tanda tangan print-out menampilkan nama atasan langsung dan nama Head People Development (approver), bukan creator.
+- **PIP — Email Approval Otomatis** — saat PIP dibuat, sistem otomatis men-generate token dan mengirim email approval ke atasan langsung dan karyawan (jika email tersedia di master karyawan), tanpa perlu generate link manual.
+- **Sistem Email Notifikasi** — library `EmailNotifier` dengan template HTML branded MIC untuk: approval PIP atasan, approval PIP karyawan, reminder review PIP, link formulir TNA, dan traffic summary harian.
+- **Spark Command: `mic:pip-review-reminder`** — cron command harian yang menemukan PIP aktif/diperpanjang dengan review jatuh tempo besok dan mengirim email pengingat ke atasan langsung.
+- **Spark Command: `mic:traffic-summary-email`** — cron command yang mengirim rekap traffic pengunjung harian (total per mall) ke daftar penerima yang dikonfigurasi admin.
+- **TNA — Kirim Email Formulir** — tombol envelope per karyawan dan tombol "Kirim Semua" di halaman periode TNA untuk mengirim link formulir penilaian langsung ke email karyawan.
+- **Admin → Pengaturan** — halaman baru `/admin/settings` untuk mengelola daftar email penerima Traffic Summary, tombol kirim tes email, dan panduan cron job (jadwal & perintah).
+
+#### Auth & Manajemen User
+
+- **Force Change Password** — user baru otomatis mendapat password `123456` tanpa input dari form. Saat login pertama, diwajibkan mengganti password dengan validasi kekuatan (min 8 karakter, kombinasi huruf besar/kecil, angka, dan simbol) disertai real-time strength indicator.
+- **Reset Password via Email** — fitur lupa password: kirim link reset ke email terdaftar, token berlaku 1 jam. Halaman reset menggunakan validasi kekuatan password yang sama.
+- **Login Lockout** — akun dikunci otomatis selama 15 menit setelah 5 kali percobaan login gagal. Admin dapat membuka kunci manual dari halaman Users.
+- **Role: `can_approve_pip`** — permission baru di sistem role untuk kontrol siapa yang dapat menyetujui PIP, tampil di UI Role Management.
+
+#### Keamanan
+
+- **XSS** — `esc()` ditambahkan pada `data-nama`, `data-nik` (employees) dan `data-grade` (jabatans) yang sebelumnya output tanpa escaping.
+- **Session Fixation** — `session()->regenerate(true)` dipanggil setelah login berhasil untuk mencegah session fixation attack.
+- **File Upload Validation** — `validateUpload()` dan `safeExt()` helper di BaseController diterapkan ke seluruh 8 controller upload. Validasi MIME type dari konten file (bukan client-provided extension), nama file di-random menggunakan `bin2hex(random_bytes())`, batas ukuran per tipe file.
+- **Block PHP Execution di Uploads** — `public/uploads/.htaccess` ditambahkan untuk mencegah eksekusi script PHP yang terupload.
+- **Brute Force Reset Password** — throttle 5 menit per session untuk endpoint `/forgot-password`.
+
+#### Dev & Ops
+
+- **SMTP Email** — konfigurasi email via `.env` menggunakan server `mail.wbl-bsb.com` dengan akun `no-reply@mic.wbl-bsb.com`.
+- **`app_settings` table** — tabel key-value baru untuk konfigurasi dinamis aplikasi (saat ini digunakan untuk daftar email penerima traffic summary).
 
 ---
 
