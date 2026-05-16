@@ -8,6 +8,12 @@ use CodeIgniter\Router\RouteCollection;
 $routes->get('login', 'Auth::index');
 $routes->post('login', 'Auth::login');
 $routes->get('logout', 'Auth::logout');
+$routes->get('change-password', 'Auth::changePassword');
+$routes->post('change-password', 'Auth::savePassword');
+$routes->get('forgot-password', 'Auth::forgotPassword');
+$routes->post('forgot-password', 'Auth::sendResetLink');
+$routes->get('reset-password/(:segment)', 'Auth::resetPassword/$1');
+$routes->post('reset-password/(:segment)', 'Auth::processReset/$1');
 
 // Public EEI Survey (no login required)
 $routes->get('eei/(:segment)', 'PeopleEei::publicSurvey/$1');
@@ -258,6 +264,7 @@ $routes->get('users', 'Users::index', ['filter' => 'auth:admin']);
 $routes->post('users/add', 'Users::store', ['filter' => 'auth:admin']);
 $routes->post('users/(:num)/edit', 'Users::update/$1', ['filter' => 'auth:admin']);
 $routes->get('users/(:num)/toggle', 'Users::toggle/$1', ['filter' => 'auth:admin']);
+$routes->get('users/(:num)/unlock', 'Users::unlock/$1', ['filter' => 'auth:admin']);
 $routes->get('users/(:num)/delete', 'Users::delete/$1', ['filter' => 'auth:admin']);
 
 // People Development — Dashboard
@@ -313,6 +320,27 @@ $routes->get('people/eei/period/(:num)/activate',                   'PeopleEei::
 
 // People Development — Org Chart
 $routes->get('people/orgchart', 'PeopleOrgChart::index', ['filter' => 'auth']);
+
+// People Development — Performance Improvement Plan
+$routes->get('people/pip',                                    'PeoplePip::index',           ['filter' => 'auth']);
+$routes->post('people/pip/store',                             'PeoplePip::store',            ['filter' => 'auth']);
+$routes->get('people/pip/(:num)',                             'PeoplePip::show/$1',          ['filter' => 'auth']);
+$routes->post('people/pip/(:num)/update',                     'PeoplePip::update/$1',        ['filter' => 'auth']);
+$routes->get('people/pip/(:num)/delete',                      'PeoplePip::delete/$1',        ['filter' => 'auth']);
+$routes->post('people/pip/(:num)/reviews/add',                'PeoplePip::storeReview/$1',   ['filter' => 'auth']);
+$routes->get('people/pip/(:num)/reviews/(:num)/delete',       'PeoplePip::deleteReview/$1/$2', ['filter' => 'auth']);
+$routes->get('people/pip/(:num)/print',                       'PeoplePip::printPip/$1',      ['filter' => 'auth']);
+$routes->get('people/pip/(:num)/token/(:alpha)',               'PeoplePip::generateToken/$1/$2', ['filter' => 'auth']);
+$routes->get('people/pip/(:num)/approve',                      'PeoplePip::approve/$1',          ['filter' => 'auth']);
+$routes->get('people/pip/aspek',                              'PipAspekMasterCtrl::index',       ['filter' => 'auth']);
+$routes->post('people/pip/aspek/store',                       'PipAspekMasterCtrl::store',       ['filter' => 'auth']);
+$routes->post('people/pip/aspek/(:num)/update',               'PipAspekMasterCtrl::update/$1',   ['filter' => 'auth']);
+$routes->get('people/pip/aspek/(:num)/delete',                'PipAspekMasterCtrl::delete/$1',   ['filter' => 'auth']);
+$routes->get('people/pip/aspek/(:num)/toggle',                'PipAspekMasterCtrl::toggle/$1',   ['filter' => 'auth']);
+
+// PIP Approval — public token-based (no auth)
+$routes->get('pip/approval/(:alpha)/(:segment)',               'PipApproval::show/$1/$2');
+$routes->post('pip/approval/(:alpha)/(:segment)/submit',       'PipApproval::submit/$1/$2');
 
 // People Development — Competencies
 $routes->get('people/competencies',                               'PeopleCompetencies::index',           ['filter' => 'auth']);

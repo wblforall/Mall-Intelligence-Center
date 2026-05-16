@@ -190,6 +190,9 @@ body {
                     <button type="submit" class="btn btn-login btn-primary w-100 fw-semibold py-2">
                         <i class="bi bi-box-arrow-in-right me-1"></i> Masuk
                     </button>
+                    <div class="text-center mt-3">
+                        <a href="<?= base_url('forgot-password') ?>" class="text-muted small">Lupa password?</a>
+                    </div>
                 </form>
             </div>
             <div class="login-footer">Mall Intelligence Center &mdash; eWalk &amp; Pentacity</div>

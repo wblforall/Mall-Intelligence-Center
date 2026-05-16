@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v1.4** (Mei 2026)
+> Versi saat ini: **v1.5** (Mei 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,47 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 1.5
+
+**Tanggal Rilis:** 16 Mei 2026
+
+### Perubahan dari v1.4
+
+#### Fitur Baru
+
+- **Theme Periods** — sistem tema visual berbasis periode kalender (CRUD admin). Mendukung 5 tipe animasi layar: confetti, balon, salju, kembang api, dan bintang. Animasi muncul otomatis saat tanggal hari ini berada dalam periode aktif.
+- **Greeting Post-Login & Weather Widget** — popup sapaan muncul setelah login dengan data cuaca real-time dari Open-Meteo (suhu, kondisi, angin). Widget cuaca juga ditampilkan permanen di header dashboard. Reminder period aktif ditampilkan di widget terpisah.
+- **Dashboard — Indikator Ekonomi** — blok indikator makro baru di dashboard:
+  - BBM (Pertalite, Pertamax, Pertamax Turbo) — auto-fetch harian dari MyPertamina API dengan cache lock
+  - GDP Nasional & PDRB Balikpapan — input manual via admin modal, tersimpan ke DB
+  - BI Rate & Inflasi — async fetch dari BI.go.id dengan fallback graceful
+  - Kurs USD — date-based fetch via jsDelivr, fallback ke @latest
+  - Segmen Pengunjung Prospektif — 6 segmen dinamis berdasarkan kombinasi indikator makro
+  - Badge LIVE/MANUAL dan tanggal update per indikator
+- **Traffic — Merge Pintu Bernomor (Funstation & XXI)** — pintu bernomor (mis. Funstation 1–3, XXI 1–2) digabung menjadi satu baris di halaman Summary Traffic dan Compare Traffic, memperjelas pembacaan data per lokasi pintu.
+
+#### Perbaikan Bug
+
+- **Fix: Total deal sponsor barang** — perhitungan total deal untuk sponsor jenis Barang kini mengalikan `qty × nilai` per item (sebelumnya hanya menjumlahkan nilai tanpa qty). Cash dan Barang juga dipisahkan dalam kalkulasi total di kedua modul (event & standalone).
+- **Fix: Sel kosong EEI matrix di dark mode** — background `#f8f9fa` diganti `var(--bs-secondary-bg)` agar konsisten di semua tema.
+- **Fix: Table row warna di dark mode** — `table-warning`, `table-info`, `table-danger` pada halaman Events diubah ke `rgba` agar tidak memblokir teks di dark mode.
+- **Fix: Traffic card overflow di dark mode** — tambah `overflow:hidden` pada card traffic untuk memperbaiki sudut kotak yang patah.
+- **Fix: DB charset utf8 → utf8mb4** — charset database diperbarui untuk mendukung emoji dan karakter Unicode 4-byte.
+
+#### Animasi & UX
+
+- **Global fadeUp animation** — animasi entrance `fadeUp` ditambahkan ke `layouts/main.php` sehingga berlaku di seluruh halaman aplikasi.
+- **Stagger entrance** — animasi stagger tambahan pada halaman: Traffic, Traffic Doors, Event Locations, Users, Departments, Roles, Logs, Admin (Clusters, Divisions, Jabatans), dan EEI.
+- **EEI dim-bar** — bar indikator EEI kini animate dari 0 ke nilai aktual saat halaman pertama kali render.
+
+#### Dev & Ops
+
+- **Production deployment ke Rumahweb** — aplikasi kini dapat diakses publik di `mic.wbl-bsb.com` (LiteSpeed shared hosting).
+- **Autobackup via Cron Job** — backup otomatis database dan uploads 2× sehari (08.00 & 18.00 WITA), disimpan ke `/home/wblc8418/backups/`, auto-clean setelah 30 hari.
+- **`.htaccess` per-environment** — file `.htaccess` (root & public) dikeluarkan dari git tracking; konfigurasi lokal (Apache/XAMPP) dan production (LiteSpeed) dikelola terpisah.
 
 ---
 

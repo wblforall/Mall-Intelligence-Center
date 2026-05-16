@@ -318,6 +318,12 @@ body { min-height: 100vh; }
         <a href="<?= base_url('people/tna') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/tna') ? 'active' : '' ?>">
             <i class="bi bi-clipboard2-pulse-fill"></i> TNA Assessment
         </a>
+        <a href="<?= base_url('people/pip') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/pip') && ! str_starts_with(uri_string(), 'people/pip/aspek') ? 'active' : '' ?>">
+            <i class="bi bi-arrow-up-circle-fill"></i> PIP
+        </a>
+        <a href="<?= base_url('people/pip/aspek') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/pip/aspek') ? 'active' : '' ?>">
+            <i class="bi bi-list-columns-reverse"></i> Master Aspek PIP
+        </a>
         <a href="<?= base_url('people/eei') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/eei') ? 'active' : '' ?>">
             <i class="bi bi-heart-pulse-fill"></i> EEI Survey
         </a>

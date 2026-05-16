@@ -36,10 +36,9 @@ class Users extends BaseController
     public function store()
     {
         $rules = [
-            'name'     => 'required|min_length[2]',
-            'email'    => 'required|valid_email|is_unique[users.email]',
-            'password' => 'required|min_length[6]',
-            'role_id'  => 'required|is_natural_no_zero',
+            'name'    => 'required|min_length[2]',
+            'email'   => 'required|valid_email|is_unique[users.email]',
+            'role_id' => 'required|is_natural_no_zero',
         ];
         if (! $this->validate($rules)) {
             return redirect()->to('/users')->with('errors', $this->validator->getErrors());
@@ -51,13 +50,14 @@ class Users extends BaseController
 
         $model = new UserModel();
         $newId = $model->insert([
-            'name'          => $this->request->getPost('name'),
-            'email'         => $this->request->getPost('email'),
-            'password'      => password_hash($this->request->getPost('password'), PASSWORD_BCRYPT),
-            'role'          => $role ? $role['slug'] : 'operator',
-            'role_id'       => $roleId,
-            'department_id' => $deptId ?: null,
-            'is_active'     => 1,
+            'name'                 => $this->request->getPost('name'),
+            'email'                => $this->request->getPost('email'),
+            'password'             => password_hash('123456', PASSWORD_BCRYPT),
+            'role'                 => $role ? $role['slug'] : 'operator',
+            'role_id'              => $roleId,
+            'department_id'        => $deptId ?: null,
+            'is_active'            => 1,
+            'must_change_password' => 1,
         ]);
         ActivityLog::write('create', 'user', (string)$newId, $this->request->getPost('name'), [
             'email' => $this->request->getPost('email'),
@@ -106,6 +106,16 @@ class Users extends BaseController
             ]);
         }
         return redirect()->to('/users')->with('success', 'Status user diperbarui.');
+    }
+
+    public function unlock(int $id)
+    {
+        $user = (new UserModel())->find($id);
+        if ($user) {
+            (new UserModel())->update($id, ['failed_login_attempts' => 0, 'locked_until' => null]);
+            ActivityLog::write('update', 'user', (string)$id, $user['name'], ['action' => 'manual_unlock']);
+        }
+        return redirect()->to('/users')->with('success', 'Akun berhasil dibuka.');
     }
 
     public function delete(int $id)

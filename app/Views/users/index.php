@@ -43,6 +43,13 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
                 <?= $u['is_active']
                     ? '<span class="badge bg-success-subtle text-success">Aktif</span>'
                     : '<span class="badge bg-danger-subtle text-danger">Nonaktif</span>' ?>
+                <?php
+                $isLocked = ! empty($u['locked_until']) && strtotime($u['locked_until']) > time();
+                if ($isLocked): ?>
+                <span class="badge bg-warning text-dark ms-1" title="Terkunci hingga <?= date('H:i', strtotime($u['locked_until'])) ?>">
+                    <i class="bi bi-lock-fill me-1"></i>Terkunci
+                </span>
+                <?php endif; ?>
             </td>
             <td>
                 <?php
@@ -73,6 +80,12 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
                     data-dept="<?= $u['department_id'] ?? '' ?>">
                     <i class="bi bi-pencil"></i>
                 </button>
+                <?php if ($isLocked): ?>
+                <a href="<?= base_url('users/'.$u['id'].'/unlock') ?>" class="btn btn-sm btn-warning me-1"
+                   title="Buka kunci akun" onclick="return confirm('Buka kunci akun ini?')">
+                    <i class="bi bi-unlock-fill"></i>
+                </a>
+                <?php endif; ?>
                 <a href="<?= base_url('users/'.$u['id'].'/toggle') ?>" class="btn btn-sm btn-outline-warning me-1"
                    title="<?= $u['is_active'] ? 'Nonaktifkan' : 'Aktifkan' ?>">
                     <i class="bi bi-<?= $u['is_active'] ? 'pause' : 'play' ?>-fill"></i>
@@ -131,7 +144,7 @@ const loginLogsData = <?= json_encode($loginLogsJson) ?>;
 <div class="modal-body">
     <div class="mb-3"><label class="form-label small fw-semibold">Nama</label><input type="text" name="name" class="form-control" required></div>
     <div class="mb-3"><label class="form-label small fw-semibold">Email</label><input type="email" name="email" class="form-control" required></div>
-    <div class="mb-3"><label class="form-label small fw-semibold">Password</label><input type="password" name="password" class="form-control" required minlength="6"></div>
+    <div class="mb-3 p-2 rounded bg-light border small text-muted"><i class="bi bi-info-circle me-1"></i>Password awal otomatis <strong>123456</strong>. User akan diminta membuat password baru saat login pertama.</div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Role <span class="text-danger">*</span></label>
         <select name="role_id" class="form-select">
