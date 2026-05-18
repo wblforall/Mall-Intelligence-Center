@@ -17,8 +17,8 @@ class LoginLogModel extends Model
         $agent   = $request->getUserAgent();
 
         $ip       = $request->getIPAddress();
-        $hostname = @gethostbyaddr($ip);
-        if ($hostname === $ip) $hostname = null; // resolve gagal → simpan null
+        $loopback = ['127.0.0.1', '::1', '0:0:0:0:0:0:0:1'];
+        $hostname = in_array($ip, $loopback) ? 'localhost' : null;
 
         $deviceType = 'desktop';
         $deviceName = null;
