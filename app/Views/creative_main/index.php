@@ -176,8 +176,7 @@ foreach ($byTipe as $tipeItems) {
     <span class="badge bg-warning text-dark"><?= $eCount ?> event</span>
     <?php endif; ?>
     <?php if ($canEdit): ?>
-    <button class="btn ms-auto toggle-add-item"
-            style="padding:.2rem .6rem;font-size:.75rem;border:1px solid var(--bs-<?= $cfg['color'] ?>);color:var(--bs-<?= $cfg['color'] ?>)"
+    <button class="btn btn-sm btn-outline-<?= $cfg['color'] ?> ms-auto toggle-add-item"
             data-tipe="<?= $tipe ?>">
         <i class="bi bi-plus-lg me-1"></i>Tambah Item
     </button>
