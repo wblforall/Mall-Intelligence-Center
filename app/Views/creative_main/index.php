@@ -1170,8 +1170,9 @@ document.querySelectorAll('.toggle-insight').forEach(btn => {
             card.classList.toggle('d-none', card.dataset.tab !== activeTab);
         });
         document.querySelectorAll('.tipe-section').forEach(section => {
-            const visible = section.querySelectorAll('.creative-item-card:not(.d-none)').length;
-            section.classList.toggle('d-none', visible === 0);
+            const visible    = section.querySelectorAll('.creative-item-card:not(.d-none)').length;
+            const canAddHere = section.querySelector('.toggle-add-item') !== null;
+            section.classList.toggle('d-none', visible === 0 && !canAddHere);
             const divider = section.querySelector('.dari-event-divider');
             if (divider) {
                 const visibleEvent = section.querySelectorAll('.creative-item-card[data-tab="' + activeTab + '"].border-warning').length;
