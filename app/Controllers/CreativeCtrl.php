@@ -40,6 +40,20 @@ class CreativeCtrl extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
+        // DEBUG — hapus setelah diagnosis
+        if ($this->request->getGet('debug_perms') === '1') {
+            $menus = session()->get('dept_menus');
+            header('Content-Type: application/json');
+            die(json_encode([
+                'is_admin'       => $this->isAdmin(),
+                'role_is_admin'  => session()->get('role_is_admin'),
+                'user_role'      => session()->get('user_role'),
+                'dept_id'        => session()->get('dept_id'),
+                'can_edit_result'=> $this->canEditMenu('creative_main'),
+                'dept_menus_creative_main' => $menus['creative_main'] ?? 'NOT SET',
+            ]));
+        }
+
         $user = $this->currentUser();
 
         $standaloneItems = (new CreativeItemModel())->getAll();
