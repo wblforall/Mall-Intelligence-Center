@@ -879,9 +879,7 @@ class Traffic extends BaseController
         $tanggal = $tanggal ?: date('Y-m-d');
 
         $trafficModel  = new DailyTrafficModel();
-        $vehicleModel  = new DailyVehicleModel();
         $trafficRows   = $trafficModel->getByDateMall($tanggal, $mall);
-        $vehicleRow    = $vehicleModel->getByDateMall($tanggal, $mall);
         $doors         = (new TrafficDoorModel())->getByMall($mall);
 
         return view('traffic/form', [
@@ -889,7 +887,6 @@ class Traffic extends BaseController
             'mall'        => $mall,
             'tanggal'     => $tanggal,
             'trafficRows' => $trafficRows,
-            'vehicleRow'  => $vehicleRow,
             'doors'       => $doors,
         ]);
     }
@@ -910,7 +907,6 @@ class Traffic extends BaseController
         }
 
         $trafficModel = new DailyTrafficModel();
-        $vehicleModel = new DailyVehicleModel();
 
         // Replace traffic rows for this date+mall
         $trafficModel->deleteByDateMall($tanggal, $mall);
@@ -936,11 +932,48 @@ class Traffic extends BaseController
             }
         }
 
-        // Save vehicles (upsert)
-        $existing = $vehicleModel->getByDateMall($tanggal, $mall);
-        $vehicleData = [
+        $totalSaved = array_sum(array_column(
+            $trafficModel->where('tanggal', $tanggal)->where('mall', $mall)->findAll(),
+            'jumlah_pengunjung'
+        ));
+        ActivityLog::write('update', 'traffic', "{$mall}/{$tanggal}", "Traffic {$mall} — {$tanggal}", [
+            'mall'             => $mall,
+            'tanggal'          => $tanggal,
+            'total_pengunjung' => $totalSaved,
+        ]);
+        return redirect()->to('/traffic')->with('success', "Data traffic {$mall} tanggal {$tanggal} berhasil disimpan.");
+    }
+
+    public function vehicles(string $tanggal = '')
+    {
+        if (! $this->canEditMenu('traffic')) {
+            return redirect()->to('/traffic')->with('error', 'Akses ditolak.');
+        }
+
+        $tanggal    = $tanggal ?: date('Y-m-d');
+        $vehicleRow = (new DailyVehicleModel())->getByDate($tanggal);
+
+        return view('traffic/vehicles', [
+            'user'       => $this->currentUser(),
+            'tanggal'    => $tanggal,
+            'vehicleRow' => $vehicleRow,
+        ]);
+    }
+
+    public function saveVehicles()
+    {
+        if (! $this->canEditMenu('traffic')) {
+            return redirect()->to('/traffic/vehicles')->with('error', 'Akses ditolak.');
+        }
+
+        $post    = $this->request->getPost();
+        $tanggal = $post['tanggal'];
+        $userId  = $this->currentUser()['id'];
+
+        $vehicleModel = new DailyVehicleModel();
+        $existing     = $vehicleModel->getByDate($tanggal);
+        $vehicleData  = [
             'tanggal'         => $tanggal,
-            'mall'            => $mall,
             'total_mobil'     => (int)($post['total_mobil']     ?? 0),
             'total_motor'     => (int)($post['total_motor']     ?? 0),
             'total_mobil_box' => (int)($post['total_mobil_box'] ?? 0),
@@ -956,22 +989,8 @@ class Traffic extends BaseController
             $vehicleModel->insert($vehicleData);
         }
 
-        $totalSaved = array_sum(array_column(
-            $trafficModel->where('tanggal', $tanggal)->where('mall', $mall)->findAll(),
-            'jumlah_pengunjung'
-        ));
-        ActivityLog::write('update', 'traffic', "{$mall}/{$tanggal}", "Traffic {$mall} — {$tanggal}", [
-            'mall'             => $mall,
-            'tanggal'          => $tanggal,
-            'total_pengunjung' => $totalSaved,
-            'total_mobil'      => (int)($post['total_mobil']     ?? 0),
-            'total_motor'      => (int)($post['total_motor']     ?? 0),
-            'total_mobil_box'  => (int)($post['total_mobil_box'] ?? 0),
-            'total_bus'        => (int)($post['total_bus']       ?? 0),
-            'total_truck'      => (int)($post['total_truck']     ?? 0),
-            'total_taxi'       => (int)($post['total_taxi']      ?? 0),
-        ]);
-        return redirect()->to('/traffic')->with('success', "Data traffic {$mall} tanggal {$tanggal} berhasil disimpan.");
+        ActivityLog::write('update', 'vehicles', $tanggal, "Kendaraan — {$tanggal}", $vehicleData);
+        return redirect()->to('/traffic/vehicles/' . $tanggal)->with('success', "Data kendaraan tanggal {$tanggal} berhasil disimpan.");
     }
 
     public function importForm()
@@ -1317,8 +1336,6 @@ class Traffic extends BaseController
         }
 
         (new DailyTrafficModel())->deleteByDateMall($tanggal, $mall);
-        $existing = (new DailyVehicleModel())->getByDateMall($tanggal, $mall);
-        if ($existing) (new DailyVehicleModel())->delete($existing['id']);
 
         ActivityLog::write('delete', 'traffic', "{$mall}/{$tanggal}", "Traffic {$mall} — {$tanggal}", [
             'mall' => $mall, 'tanggal' => $tanggal,

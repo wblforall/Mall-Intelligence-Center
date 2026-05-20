@@ -8,26 +8,22 @@ class DailyVehicleModel extends Model
 {
     protected $table         = 'daily_vehicles';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['tanggal', 'mall', 'total_mobil', 'total_motor', 'total_mobil_box', 'total_bus', 'total_truck', 'total_taxi', 'created_by'];
+    protected $allowedFields = ['tanggal', 'total_mobil', 'total_motor', 'total_mobil_box', 'total_bus', 'total_truck', 'total_taxi', 'created_by'];
     protected $useTimestamps = true;
 
-    public function getByDateMall(string $tanggal, string $mall): ?array
+    public function getByDate(string $tanggal): ?array
     {
-        return $this->where('tanggal', $tanggal)->where('mall', $mall)->first();
+        return $this->where('tanggal', $tanggal)->first();
     }
 
-    public function getDailyTotals(string $startDate, string $endDate, string $mall = null): array
+    public function getDailyTotals(string $startDate, string $endDate): array
     {
-        $builder = $this->db->table('daily_vehicles')
-            ->select('tanggal, SUM(total_mobil) AS total_mobil, SUM(total_motor) AS total_motor, SUM(total_mobil_box) AS total_mobil_box, SUM(total_bus) AS total_bus, SUM(total_truck) AS total_truck, SUM(total_taxi) AS total_taxi')
+        return $this->db->table('daily_vehicles')
+            ->select('tanggal, total_mobil, total_motor, total_mobil_box, total_bus, total_truck, total_taxi')
             ->where('tanggal >=', $startDate)
             ->where('tanggal <=', $endDate)
-            ->groupBy('tanggal')
-            ->orderBy('tanggal');
-
-        if ($mall) $builder->where('mall', $mall);
-
-        return $builder->get()->getResultArray();
+            ->orderBy('tanggal')
+            ->get()->getResultArray();
     }
 
     public function getPeriodTotals(string $startDate, string $endDate): array

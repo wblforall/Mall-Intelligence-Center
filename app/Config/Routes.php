@@ -204,6 +204,9 @@ $routes->get('traffic/input/(:alpha)/(:any)', 'Traffic::form/$1/$2', ['filter' =
 $routes->get('traffic/input/(:alpha)', 'Traffic::form/$1', ['filter' => 'auth']);
 $routes->post('traffic/save', 'Traffic::save', ['filter' => 'auth']);
 $routes->get('traffic/delete/(:alpha)/(:any)', 'Traffic::delete/$1/$2', ['filter' => 'auth']);
+$routes->get('traffic/vehicles/(:any)',       'Traffic::vehicles/$1',    ['filter' => 'auth']);
+$routes->get('traffic/vehicles',              'Traffic::vehicles',        ['filter' => 'auth']);
+$routes->post('traffic/vehicles/save',        'Traffic::saveVehicles',    ['filter' => 'auth']);
 
 // Event Locations master (admin only)
 $routes->get('event-locations', 'EventLocations::index', ['filter' => 'auth:admin']);

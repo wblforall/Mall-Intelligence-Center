@@ -228,6 +228,14 @@ body { min-height: 100vh; }
             <i class="bi bi-arrow-left-right"></i> Compare
         </a>
         <?php
+        $canEditTraffic = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
+            || $deptMenusNav === null || ($deptMenusNav['traffic']['can_edit'] ?? false);
+        if ($canEditTraffic): ?>
+        <a href="<?= base_url('traffic/vehicles') ?>" class="nav-link <?= str_starts_with(uri_string(), 'traffic/vehicles') ? 'active' : '' ?>">
+            <i class="bi bi-car-front"></i> Input Kendaraan
+        </a>
+        <?php endif; ?>
+        <?php
         $canImportTraffic = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
             || (session()->get('role_perms')['can_import_traffic'] ?? false);
         if ($canImportTraffic): ?>
