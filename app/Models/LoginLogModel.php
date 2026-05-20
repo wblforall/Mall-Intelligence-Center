@@ -24,10 +24,10 @@ class LoginLogModel extends Model
         $deviceName = null;
         if ($agent->isMobile()) {
             $deviceType = 'mobile';
-            $deviceName = $agent->mobile() ?: null;
-        } elseif (method_exists($agent, 'isTablet') && $agent->isTablet()) {
+            $deviceName = $agent->getMobileDevice() ?: null;
+        } elseif ($agent->isTablet()) {
             $deviceType = 'tablet';
-            $deviceName = $agent->mobile() ?: null;
+            $deviceName = $agent->getMobileDevice() ?: null;
         }
 
         $this->insert([
