@@ -10,7 +10,7 @@ class EventLoyaltyVoucherRealisasiModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'program_id', 'item_id', 'tanggal', 'tersebar', 'terpakai', 'catatan', 'created_by',
+        'program_id', 'item_id', 'kode_id', 'nama_penerima', 'tanggal', 'tersebar', 'terpakai', 'catatan', 'created_by',
     ];
 
     public function getGroupedByItems(array $itemIds): array

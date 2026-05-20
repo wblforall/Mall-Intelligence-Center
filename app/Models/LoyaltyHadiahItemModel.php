@@ -10,7 +10,7 @@ class LoyaltyHadiahItemModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'program_id', 'nama_hadiah', 'stok', 'nilai_satuan', 'catatan', 'created_by',
+        'program_id', 'barang_id', 'batch_id', 'nama_hadiah', 'stok', 'nilai_satuan', 'catatan', 'created_by',
     ];
 
     public function getByProgram(int $programId): array

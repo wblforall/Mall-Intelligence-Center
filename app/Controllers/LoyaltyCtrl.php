@@ -15,6 +15,10 @@ use App\Models\EventLoyaltyVoucherRealisasiModel;
 use App\Models\EventLoyaltyHadiahItemModel;
 use App\Models\EventLoyaltyHadiahRealisasiModel;
 use App\Libraries\ActivityLog;
+use App\Models\StockBarangModel;
+use App\Models\StockBarangLogModel;
+use App\Models\StockVoucherBatchModel;
+use App\Models\StockVoucherKodeModel;
 
 class LoyaltyCtrl extends BaseController
 {
@@ -118,6 +122,8 @@ class LoyaltyCtrl extends BaseController
             'targetMemberKpi'  => $targetMemberKpi,
             'totalTerpakaiKpi' => $totalTerpakaiKpi,
             'canEdit'          => $this->canEditMenu('loyalty_main'),
+            'stockBarang'      => (new StockBarangModel())->getAll(),
+            'stockVoucherBatch'=> (new StockVoucherBatchModel())->getAvailable(),
         ]);
     }
 
@@ -135,17 +141,70 @@ class LoyaltyCtrl extends BaseController
         $post  = $this->request->getPost();
         $clean = fn($v) => (int)str_replace([',', '.', ' '], '', $v ?? 0);
         $hadiahModel = new LoyaltyHadiahItemModel();
+        $barangId   = ($post['barang_id'] ?? '') !== '' ? (int)$post['barang_id'] : null;
+        $batchId    = ($post['batch_id']  ?? '') !== '' ? (int)$post['batch_id']  : null;
+        $namaHadiah = $post['nama_hadiah'] ?? null;
+        $nilaiSatuan = $clean($post['nilai_satuan']);
+        $stok        = (int)($post['stok'] ?? 0);
+        if ($barangId) {
+            $barang      = (new StockBarangModel())->find($barangId);
+            $namaHadiah  = $barang['nama_barang'] ?? $namaHadiah;
+            $nilaiSatuan = (int)($barang['nilai_satuan'] ?? $nilaiSatuan);
+            if ($stok <= 0) $stok = max(0, (int)$barang['stok_tersedia'] - (int)$barang['stok_reserved']);
+        } elseif ($batchId) {
+            $batch       = (new StockVoucherBatchModel())->find($batchId);
+            $namaHadiah  = $batch['nama_voucher'] ?? $namaHadiah;
+            $nilaiSatuan = (int)($batch['nilai_voucher'] ?? $nilaiSatuan);
+            if ($stok <= 0) $stok = (int)($batch['sisa_kode'] ?? 0);
+        }
         $hadiahModel->insert([
             'program_id'   => $programId,
-            'nama_hadiah'  => $post['nama_hadiah'],
-            'stok'         => (int)($post['stok'] ?? 0),
-            'nilai_satuan' => $clean($post['nilai_satuan']),
+            'barang_id'    => $barangId,
+            'batch_id'     => $batchId,
+            'nama_hadiah'  => $namaHadiah,
+            'stok'         => $stok,
+            'nilai_satuan' => $nilaiSatuan,
             'catatan'      => $post['catatan'] ?? null,
             'created_by'   => $this->currentUser()['id'],
         ]);
+        if ($barangId && $stok > 0) (new StockBarangModel())->reserveStock($barangId, $stok);
+        if ($batchId  && $stok > 0) (new StockVoucherBatchModel())->reserveSisa($batchId, $stok);
         $this->syncBudget($programId);
-        ActivityLog::write('create', 'loyalty_hadiah_item', (string)$hadiahModel->getInsertID(), $post['nama_hadiah'], ['program_id' => $programId]);
+        ActivityLog::write('create', 'loyalty_hadiah_item', (string)$hadiahModel->getInsertID(), $namaHadiah, ['program_id' => $programId]);
         return redirect()->to('/loyalty#program-s-' . $programId)->with('success', 'Item hadiah berhasil ditambahkan.');
+    }
+
+    public function updateHadiahItem(int $programId, int $itemId)
+    {
+        if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
+        if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
+        $hadiahModel = new LoyaltyHadiahItemModel();
+        $old = $hadiahModel->find($itemId);
+        if (! $old) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Item tidak ditemukan.');
+        $post        = $this->request->getPost();
+        $clean       = fn($v) => (int)str_replace([',', '.', ' '], '', $v ?? 0);
+        $newStok     = (int)($post['stok'] ?? (int)$old['stok']);
+        $namaHadiah  = $post['nama_hadiah'] ?? $old['nama_hadiah'];
+        $nilaiSatuan = ($post['nilai_satuan'] ?? '') !== '' ? $clean($post['nilai_satuan']) : (int)$old['nilai_satuan'];
+        $hadiahModel->update($itemId, [
+            'nama_hadiah'  => $namaHadiah,
+            'stok'         => $newStok,
+            'nilai_satuan' => $nilaiSatuan,
+            'catatan'      => $post['catatan'] ?? null,
+        ]);
+        if (! empty($old['barang_id'])) {
+            $delta = $newStok - (int)$old['stok'];
+            if ($delta > 0) (new StockBarangModel())->reserveStock((int)$old['barang_id'], $delta);
+            elseif ($delta < 0) (new StockBarangModel())->releaseStock((int)$old['barang_id'], abs($delta));
+        }
+        if (! empty($old['batch_id'])) {
+            $delta = $newStok - (int)$old['stok'];
+            if ($delta > 0) (new StockVoucherBatchModel())->reserveSisa((int)$old['batch_id'], $delta);
+            elseif ($delta < 0) (new StockVoucherBatchModel())->releaseSisa((int)$old['batch_id'], abs($delta));
+        }
+        $this->syncBudget($programId);
+        ActivityLog::write('update', 'loyalty_hadiah_item', (string)$itemId, $namaHadiah, ['program_id' => $programId]);
+        return redirect()->to('/loyalty#program-s-' . $programId)->with('success', 'Item hadiah berhasil diperbarui.');
     }
 
     public function deleteHadiahItem(int $programId, int $itemId)
@@ -154,6 +213,14 @@ class LoyaltyCtrl extends BaseController
         if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
         $hadiahModel = new LoyaltyHadiahItemModel();
         $item = $hadiahModel->find($itemId);
+        if ($item) {
+            $realized = (int)(db_connect()->table('loyalty_hadiah_realisasi')
+                ->selectSum('jumlah_dibagikan')->where('item_id', $itemId)
+                ->get()->getRowArray()['jumlah_dibagikan'] ?? 0);
+            $unrealized = max(0, (int)$item['stok'] - $realized);
+            if ($unrealized > 0 && ! empty($item['barang_id'])) (new StockBarangModel())->releaseStock((int)$item['barang_id'], $unrealized);
+            if ($unrealized > 0 && ! empty($item['batch_id']))  (new StockVoucherBatchModel())->releaseSisa((int)$item['batch_id'], $unrealized);
+        }
         (new LoyaltyHadiahRealisasiModel())->where('item_id', $itemId)->delete();
         $hadiahModel->delete($itemId);
         $this->syncBudget($programId);
@@ -167,24 +234,71 @@ class LoyaltyCtrl extends BaseController
         if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to('/loyalty')->with('error', 'Tanggal wajib diisi.');
+        $userId  = $this->currentUser()['id'];
+        $jumlah  = (int)($post['jumlah_dibagikan'] ?? 0);
+        $kodeId  = ($post['kode_id'] ?? '') !== '' ? (int)$post['kode_id'] : null;
         $hrModel = new LoyaltyHadiahRealisasiModel();
         $hrModel->insert([
             'program_id'       => $programId,
             'item_id'          => $itemId,
+            'nama_penerima'    => ($post['nama_penerima'] ?? '') ?: null,
+            'kode_id'          => $kodeId,
             'tanggal'          => $post['tanggal'],
-            'jumlah_dibagikan' => (int)($post['jumlah_dibagikan'] ?? 0),
+            'jumlah_dibagikan' => $kodeId ? 1 : $jumlah,
             'catatan'          => $post['catatan'] ?? null,
-            'created_by'       => $this->currentUser()['id'],
+            'created_by'       => $userId,
         ]);
-        ActivityLog::write('create', 'loyalty_hadiah_realisasi', (string)$hrModel->getInsertID(), $post['tanggal'], ['program_id' => $programId, 'item_id' => $itemId]);
-        return redirect()->to('/loyalty#program-s-' . $programId)->with('success', 'Realisasi hadiah disimpan.');
+        $rid = $hrModel->getInsertID();
+
+        $item = (new LoyaltyHadiahItemModel())->find($itemId);
+        if ($kodeId) {
+            // Assign kode voucher fisik
+            (new StockVoucherKodeModel())->assign($kodeId, $post['nama_penerima'] ?? '', 'standalone', $programId, $itemId, (int)$rid);
+            if (! empty($item['batch_id'])) {
+                (new StockVoucherBatchModel())->deductSisa((int)$item['batch_id']);
+                (new StockVoucherBatchModel())->releaseSisa((int)$item['batch_id']); // reservation terpenuhi
+            }
+        } elseif (! empty($item['barang_id']) && $jumlah > 0) {
+            // Kurangi stok barang fisik + release reservation (terealisasi)
+            $barangModel = new StockBarangModel();
+            $barang      = $barangModel->find((int)$item['barang_id']);
+            $barangModel->deductStock((int)$item['barang_id'], $jumlah);
+            $barangModel->releaseStock((int)$item['barang_id'], $jumlah);
+            (new StockBarangLogModel())->writeKeluar((int)$item['barang_id'], $jumlah, (int)$barang['stok_tersedia'], 'loyalty_program', $programId, $post['tanggal'], $userId, $post['catatan'] ?? null);
+        }
+
+        ActivityLog::write('create', 'loyalty_hadiah_realisasi', (string)$rid, $post['tanggal'], ['program_id' => $programId, 'item_id' => $itemId]);
+        return redirect()->to('/loyalty#program-s-' . $programId)->with('success', 'Realisasi disimpan.');
     }
 
     public function deleteHadiahRealisasi(int $programId, int $itemId, int $rid)
     {
         if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
         if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
-        (new LoyaltyHadiahRealisasiModel())->delete($rid);
+        $hrModel = new LoyaltyHadiahRealisasiModel();
+        $entry   = $hrModel->find($rid);
+        $hrModel->delete($rid);
+
+        if ($entry) {
+            $item = (new LoyaltyHadiahItemModel())->find($itemId);
+            if (! empty($entry['kode_id'])) {
+                // Kembalikan kode voucher fisik
+                (new StockVoucherKodeModel())->unassign((int)$entry['kode_id']);
+                if (! empty($item['batch_id'])) {
+                    (new StockVoucherBatchModel())->restoreSisa((int)$item['batch_id']);
+                    (new StockVoucherBatchModel())->reserveSisa((int)$item['batch_id']); // restore reservation
+                }
+            } elseif (! empty($item['barang_id']) && (int)($entry['jumlah_dibagikan'] ?? 0) > 0) {
+                // Kembalikan stok barang fisik + restore reservation
+                $jumlah      = (int)$entry['jumlah_dibagikan'];
+                $barangModel = new StockBarangModel();
+                $barang      = $barangModel->find((int)$item['barang_id']);
+                $barangModel->restoreStock((int)$item['barang_id'], $jumlah);
+                $barangModel->reserveStock((int)$item['barang_id'], $jumlah);
+                (new StockBarangLogModel())->writeMasuk((int)$item['barang_id'], $jumlah, (int)$barang['stok_tersedia'], $entry['tanggal'], $this->currentUser()['id'], 'Rollback realisasi #'.$rid);
+            }
+        }
+
         ActivityLog::write('delete', 'loyalty_hadiah_realisasi', (string)$rid, '', ['program_id' => $programId]);
         return redirect()->to('/loyalty#program-s-' . $programId)->with('success', 'Entri realisasi dihapus.');
     }
@@ -199,11 +313,20 @@ class LoyaltyCtrl extends BaseController
         $clean      = fn($v) => (int)str_replace([',', '.', ' '], '', $v ?? 0);
         $penyerapan = ($post['target_penyerapan'] ?? '') !== '' ? (float)$post['target_penyerapan'] : null;
         $voucherModel = new LoyaltyVoucherItemModel();
+        $batchId    = ($post['batch_id'] ?? '') !== '' ? (int)$post['batch_id'] : null;
+        $namaVoucher = $post['nama_voucher'] ?? null;
+        $nilaiVoucher = $clean($post['nilai_voucher']);
+        if ($batchId) {
+            $batch       = (new StockVoucherBatchModel())->find($batchId);
+            $namaVoucher  = $batch['nama_voucher'] ?? $namaVoucher;
+            $nilaiVoucher = $batch['nilai_voucher'] ?? $nilaiVoucher;
+        }
         $voucherModel->insert([
             'program_id'        => $programId,
-            'nama_voucher'      => $post['nama_voucher'],
-            'nilai_voucher'     => $clean($post['nilai_voucher']),
-            'total_diterbitkan' => (int)($post['total_diterbitkan'] ?? 0),
+            'batch_id'          => $batchId,
+            'nama_voucher'      => $namaVoucher,
+            'nilai_voucher'     => $nilaiVoucher,
+            'total_diterbitkan' => $batchId ? ($batch['sisa_kode'] ?? 0) : (int)($post['total_diterbitkan'] ?? 0),
             'target_penyerapan' => $penyerapan,
             'catatan'           => $post['catatan'] ?? null,
             'created_by'        => $this->currentUser()['id'],
@@ -232,17 +355,32 @@ class LoyaltyCtrl extends BaseController
         if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to('/loyalty')->with('error', 'Tanggal wajib diisi.');
+        $userId  = $this->currentUser()['id'];
+        $kodeId  = ($post['kode_id'] ?? '') !== '' ? (int)$post['kode_id'] : null;
         $vrModel = new LoyaltyVoucherRealisasiModel();
         $vrModel->insert([
-            'program_id' => $programId,
-            'item_id'    => $itemId,
-            'tanggal'    => $post['tanggal'],
-            'tersebar'   => (int)($post['tersebar'] ?? 0),
-            'terpakai'   => (int)($post['terpakai'] ?? 0),
-            'catatan'    => $post['catatan'] ?? null,
-            'created_by' => $this->currentUser()['id'],
+            'program_id'    => $programId,
+            'item_id'       => $itemId,
+            'kode_id'       => $kodeId,
+            'nama_penerima' => ($post['nama_penerima'] ?? '') ?: null,
+            'tanggal'       => $post['tanggal'],
+            'tersebar'      => $kodeId ? 1 : (int)($post['tersebar'] ?? 0),
+            'terpakai'      => (int)($post['terpakai'] ?? 0),
+            'catatan'       => $post['catatan'] ?? null,
+            'created_by'    => $userId,
         ]);
-        ActivityLog::write('create', 'loyalty_voucher_realisasi', (string)$vrModel->getInsertID(), $post['tanggal'], ['program_id' => $programId, 'item_id' => $itemId]);
+        $rid = $vrModel->getInsertID();
+
+        // Assign kode dan kurangi sisa batch
+        if ($kodeId) {
+            $item = (new LoyaltyVoucherItemModel())->find($itemId);
+            (new StockVoucherKodeModel())->assign($kodeId, $post['nama_penerima'] ?? '', 'standalone', $programId, $itemId, (int)$rid);
+            if (! empty($item['batch_id'])) {
+                (new StockVoucherBatchModel())->deductSisa((int)$item['batch_id']);
+            }
+        }
+
+        ActivityLog::write('create', 'loyalty_voucher_realisasi', (string)$rid, $post['tanggal'], ['program_id' => $programId, 'item_id' => $itemId]);
         return redirect()->to('/loyalty#program-s-' . $programId)->with('success', 'Realisasi voucher disimpan.');
     }
 
@@ -250,7 +388,19 @@ class LoyaltyCtrl extends BaseController
     {
         if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
         if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
-        (new LoyaltyVoucherRealisasiModel())->delete($rid);
+        $vrModel = new LoyaltyVoucherRealisasiModel();
+        $entry   = $vrModel->find($rid);
+        $vrModel->delete($rid);
+
+        // Kembalikan kode ke available
+        if ($entry && ! empty($entry['kode_id'])) {
+            (new StockVoucherKodeModel())->unassign((int)$entry['kode_id']);
+            $item = (new LoyaltyVoucherItemModel())->find($itemId);
+            if (! empty($item['batch_id'])) {
+                (new StockVoucherBatchModel())->restoreSisa((int)$item['batch_id']);
+            }
+        }
+
         ActivityLog::write('delete', 'loyalty_voucher_realisasi', (string)$rid, '', ['program_id' => $programId]);
         return redirect()->to('/loyalty#program-s-' . $programId)->with('success', 'Entri realisasi dihapus.');
     }

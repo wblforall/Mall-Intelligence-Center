@@ -83,6 +83,7 @@ $routes->get('events/(:num)/loyalty/(:num)/delete', 'EventLoyaltyCtrl::deletePro
 $routes->post('events/(:num)/loyalty/(:num)/realisasi/add', 'EventLoyaltyCtrl::storeRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->get('events/(:num)/loyalty/(:num)/realisasi/(:num)/delete', 'EventLoyaltyCtrl::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/hadiah/add', 'EventLoyaltyCtrl::storeHadiahItem/$1/$2', ['filter' => 'auth']);
+$routes->post('events/(:num)/loyalty/(:num)/hadiah/(:num)/update', 'EventLoyaltyCtrl::updateHadiahItem/$1/$2/$3', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/hadiah/(:num)/delete', 'EventLoyaltyCtrl::deleteHadiahItem/$1/$2/$3', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/hadiah/(:num)/realisasi/add', 'EventLoyaltyCtrl::storeHadiahRealisasi/$1/$2/$3', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/hadiah/(:num)/realisasi/(:num)/delete', 'EventLoyaltyCtrl::deleteHadiahRealisasi/$1/$2/$3/$4', ['filter' => 'auth']);
@@ -156,6 +157,7 @@ $routes->post('loyalty/(:num)/unlock', 'LoyaltyCtrl::unlock/$1', ['filter' => 'a
 $routes->post('loyalty/(:num)/realisasi/add', 'LoyaltyCtrl::storeRealisasi/$1', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/realisasi/(:num)/delete', 'LoyaltyCtrl::deleteRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/hadiah/add', 'LoyaltyCtrl::storeHadiahItem/$1', ['filter' => 'auth']);
+$routes->post('loyalty/(:num)/hadiah/(:num)/update', 'LoyaltyCtrl::updateHadiahItem/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/hadiah/(:num)/delete', 'LoyaltyCtrl::deleteHadiahItem/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/hadiah/(:num)/realisasi/add', 'LoyaltyCtrl::storeHadiahRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/hadiah/(:num)/realisasi/(:num)/delete', 'LoyaltyCtrl::deleteHadiahRealisasi/$1/$2/$3', ['filter' => 'auth']);
@@ -163,6 +165,24 @@ $routes->post('loyalty/(:num)/voucher/add', 'LoyaltyCtrl::storeVoucherItem/$1', 
 $routes->post('loyalty/(:num)/voucher/(:num)/delete', 'LoyaltyCtrl::deleteVoucherItem/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/voucher/(:num)/realisasi/add', 'LoyaltyCtrl::storeVoucherRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/voucher/(:num)/realisasi/(:num)/delete', 'LoyaltyCtrl::deleteVoucherRealisasi/$1/$2/$3', ['filter' => 'auth']);
+
+// Stock Barang (Master Stock Hadiah Fisik)
+$routes->get('stock/barang', 'StockBarangCtrl::index', ['filter' => 'auth']);
+$routes->post('stock/barang/store', 'StockBarangCtrl::store', ['filter' => 'auth']);
+$routes->post('stock/barang/(:num)/update', 'StockBarangCtrl::update/$1', ['filter' => 'auth']);
+$routes->post('stock/barang/(:num)/tambah-stok', 'StockBarangCtrl::tambahStok/$1', ['filter' => 'auth']);
+$routes->post('stock/barang/(:num)/realisasi', 'StockBarangCtrl::storeRealisasi/$1', ['filter' => 'auth']);
+$routes->get('stock/barang/(:num)/delete', 'StockBarangCtrl::delete/$1', ['filter' => 'auth']);
+
+// Stock Voucher Fisik
+$routes->get('stock/voucher', 'StockVoucherCtrl::index', ['filter' => 'auth']);
+$routes->post('stock/voucher/store', 'StockVoucherCtrl::store', ['filter' => 'auth']);
+$routes->post('stock/voucher/(:num)/update', 'StockVoucherCtrl::update/$1', ['filter' => 'auth']);
+$routes->post('stock/voucher/(:num)/import-kode', 'StockVoucherCtrl::importKode/$1', ['filter' => 'auth']);
+$routes->get('stock/voucher/(:num)/kode/(:num)/delete', 'StockVoucherCtrl::deleteKode/$1/$2', ['filter' => 'auth']);
+$routes->post('stock/voucher/(:num)/kode/(:num)/distribute', 'StockVoucherCtrl::distributeKode/$1/$2', ['filter' => 'auth']);
+$routes->get('stock/voucher/(:num)/delete', 'StockVoucherCtrl::deleteBatch/$1', ['filter' => 'auth']);
+$routes->get('stock/voucher/(:num)/available-kodes', 'StockVoucherCtrl::getAvailableKodes/$1', ['filter' => 'auth']);
 
 // Sponsorship Standalone
 $routes->get('sponsorship', 'SponsorshipCtrl::index', ['filter' => 'auth']);

@@ -372,7 +372,8 @@
                 <?php if ($canEdit): ?>
                 <div class="d-flex gap-1 ms-3 flex-shrink-0">
                     <button class="btn btn-xs btn-outline-secondary toggle-add-voucher-real" style="padding:.2rem .6rem;font-size:.75rem"
-                        data-pid="<?= $pid ?>" data-vid="<?= $vid ?>">
+                        data-pid="<?= $pid ?>" data-vid="<?= $vid ?>"
+                        data-batch-id="<?= (int)($vi['batch_id'] ?? 0) ?>">
                         <i class="bi bi-plus-lg me-1"></i>Realisasi
                     </button>
                     <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/voucher/'.$vid.'/delete') ?>" style="display:inline" onsubmit="return confirm('Hapus voucher ini beserta semua realisasinya?')">
@@ -388,10 +389,19 @@
                 <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/voucher/'.$vid.'/realisasi/add') ?>">
                     <?= csrf_field() ?>
                     <div class="row g-2 align-items-end">
-                        <div class="col-sm-3">
+                        <div class="col-sm-2">
                             <label class="form-label small fw-semibold mb-1">Tanggal</label>
                             <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
                         </div>
+                        <?php if (!empty($vi['batch_id'])): ?>
+                        <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Kode Voucher</label>
+                            <select name="kode_id" class="form-select form-select-sm voucher-kode-select"
+                                    data-batch-id="<?= $vi['batch_id'] ?>">
+                                <option value="">— loading… —</option>
+                            </select>
+                        </div>
+                        <?php else: ?>
                         <div class="col-sm-2">
                             <label class="form-label small fw-semibold mb-1">Tersebar</label>
                             <input type="number" name="tersebar" class="form-control form-control-sm" placeholder="0" min="0">
@@ -400,12 +410,17 @@
                             <label class="form-label small fw-semibold mb-1">Terpakai</label>
                             <input type="number" name="terpakai" class="form-control form-control-sm" placeholder="0" min="0">
                         </div>
+                        <?php endif; ?>
+                        <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Nama Penerima</label>
+                            <input type="text" name="nama_penerima" class="form-control form-control-sm" placeholder="Opsional">
+                        </div>
                         <div class="col">
                             <label class="form-label small fw-semibold mb-1">Catatan</label>
                             <input type="text" name="catatan" class="form-control form-control-sm" placeholder="Opsional">
                         </div>
-                        <div class="col-sm-2">
-                            <button type="submit" class="btn btn-warning btn-sm w-100 text-dark">Simpan</button>
+                        <div class="col-sm-auto">
+                            <button type="submit" class="btn btn-warning btn-sm text-dark">Simpan</button>
                         </div>
                     </div>
                 </form>
@@ -456,13 +471,13 @@
     </div>
     <?php endif; // section voucher ?>
 
-    <!-- ── Section: Hadiah Barang ─────────────────────────────────────────── -->
+    <!-- ── Section: Barang / Voucher Fisik ─────────────────────────────────────────── -->
     <?php if ($canEdit || $hasHadiahData): ?>
     <div class="border-top">
         <!-- Section header — green tint -->
         <div class="px-3 py-2 bg-success-subtle d-flex justify-content-between align-items-center">
             <span class="small fw-semibold text-success-emphasis">
-                <i class="bi bi-gift me-1"></i>Hadiah Barang
+                <i class="bi bi-gift me-1"></i>Barang / Voucher Fisik
                 <?php if (!empty($myHadiah)): ?>
                 <span class="badge bg-success text-white ms-1" style="font-size:.65rem"><?= count($myHadiah) ?> item</span>
                 <?php endif; ?>
@@ -484,17 +499,41 @@
             <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/hadiah/add') ?>">
                 <?= csrf_field() ?>
                 <div class="row g-2 align-items-end">
-                    <div class="col-sm-4">
-                        <label class="form-label small fw-semibold mb-1">Nama Hadiah <span class="text-danger">*</span></label>
-                        <input type="text" name="nama_hadiah" class="form-control form-control-sm" required>
-                    </div>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Stok</label>
-                        <input type="number" name="stok" class="form-control form-control-sm" placeholder="0" min="0">
+                    <div class="col-sm-3">
+                        <label class="form-label small fw-semibold mb-1">Dari Stock Barang</label>
+                        <select name="barang_id" class="form-select form-select-sm event-barang-select">
+                            <option value="">— Manual —</option>
+                            <?php foreach ($stockBarang as $b):
+                                $avail = max(0, (int)$b['stok_tersedia'] - (int)($b['stok_reserved'] ?? 0)); ?>
+                            <option value="<?= $b['id'] ?>" data-nama="<?= esc($b['nama_barang']) ?>" data-nilai="<?= $b['nilai_satuan'] ?>" data-stok="<?= $avail ?>">
+                                <?= esc($b['nama_barang']) ?> (bebas: <?= $avail ?>)
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="col-sm-3">
+                        <label class="form-label small fw-semibold mb-1">Dari Stock Voucher Fisik</label>
+                        <select name="batch_id" class="form-select form-select-sm event-batch-select">
+                            <option value="">— Manual —</option>
+                            <?php foreach ($stockVoucherBatch as $b):
+                                $bavail = max(0, (int)$b['sisa_kode'] - (int)($b['stok_reserved'] ?? 0)); ?>
+                            <option value="<?= $b['id'] ?>" data-nama="<?= esc($b['nama_voucher']) ?>" data-nilai="<?= $b['nilai_voucher'] ?>" data-stok="<?= $bavail ?>">
+                                <?= esc($b['nama_voucher']) ?> (bebas: <?= $bavail ?>)
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-sm-2">
+                        <label class="form-label small fw-semibold mb-1">Nama Item <span class="text-danger">*</span></label>
+                        <input type="text" name="nama_hadiah" class="form-control form-control-sm event-hadiah-nama" required>
+                    </div>
+                    <div class="col-sm-1">
+                        <label class="form-label small fw-semibold mb-1">Qty</label>
+                        <input type="number" name="stok" class="form-control form-control-sm event-hadiah-stok" placeholder="0" min="1">
+                    </div>
+                    <div class="col-sm-2">
                         <label class="form-label small fw-semibold mb-1">Nilai / pcs (Rp)</label>
-                        <input type="text" name="nilai_satuan" class="form-control form-control-sm currency-input" placeholder="0">
+                        <input type="text" name="nilai_satuan" class="form-control form-control-sm currency-input event-hadiah-nilai" placeholder="0">
                     </div>
                     <div class="col">
                         <label class="form-label small fw-semibold mb-1">Catatan</label>
@@ -552,8 +591,13 @@
                 <?php if ($canEdit): ?>
                 <div class="d-flex gap-1 ms-3 flex-shrink-0">
                     <button class="btn btn-xs btn-outline-secondary toggle-add-hadiah-real" style="padding:.2rem .6rem;font-size:.75rem"
-                        data-pid="<?= $pid ?>" data-hid="<?= $hid ?>">
+                        data-pid="<?= $pid ?>" data-hid="<?= $hid ?>"
+                        data-batch-id="<?= (int)($hi['batch_id'] ?? 0) ?>">
                         <i class="bi bi-plus-lg me-1"></i>Realisasi
+                    </button>
+                    <button class="btn btn-xs btn-outline-warning toggle-edit-hadiah-item" style="padding:.2rem .4rem;font-size:.75rem"
+                        data-pid="<?= $pid ?>" data-hid="<?= $hid ?>">
+                        <i class="bi bi-pencil"></i>
                     </button>
                     <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/hadiah/'.$hid.'/delete') ?>" style="display:inline" onsubmit="return confirm('Hapus item ini beserta semua realisasinya?')">
                         <?= csrf_field() ?>
@@ -564,24 +608,69 @@
             </div>
 
             <?php if ($canEdit): ?>
+            <div id="edit-hadiah-item-<?= $pid ?>-<?= $hid ?>" class="d-none px-3 py-2 border-top bg-warning-subtle bg-opacity-25">
+                <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/hadiah/'.$hid.'/update') ?>">
+                    <?= csrf_field() ?>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Nama Item <span class="text-danger">*</span></label>
+                            <input type="text" name="nama_hadiah" class="form-control form-control-sm" value="<?= esc($hi['nama_hadiah']) ?>"
+                                <?= (!empty($hi['barang_id']) || !empty($hi['batch_id'])) ? 'readonly' : 'required' ?>>
+                        </div>
+                        <div class="col-sm-1">
+                            <label class="form-label small fw-semibold mb-1">Qty</label>
+                            <input type="number" name="stok" class="form-control form-control-sm" value="<?= (int)$hi['stok'] ?>" min="0" required>
+                        </div>
+                        <div class="col-sm-2">
+                            <label class="form-label small fw-semibold mb-1">Nilai / pcs (Rp)</label>
+                            <input type="text" name="nilai_satuan" class="form-control form-control-sm currency-input"
+                                value="<?= number_format((int)$hi['nilai_satuan'],0,',','.') ?>"
+                                <?= !empty($hi['barang_id']) ? 'readonly' : '' ?>>
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-semibold mb-1">Catatan</label>
+                            <input type="text" name="catatan" class="form-control form-control-sm" value="<?= esc($hi['catatan'] ?? '') ?>">
+                        </div>
+                        <div class="col-sm-auto d-flex gap-1">
+                            <button type="submit" class="btn btn-warning btn-sm">Simpan</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm toggle-edit-hadiah-item"
+                                data-pid="<?= $pid ?>" data-hid="<?= $hid ?>">Batal</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
             <div id="add-hadiah-real-<?= $pid ?>-<?= $hid ?>" class="d-none px-3 py-2 border-top bg-success-subtle bg-opacity-25">
                 <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/hadiah/'.$hid.'/realisasi/add') ?>">
                     <?= csrf_field() ?>
                     <div class="row g-2 align-items-end">
-                        <div class="col-sm-3">
+                        <div class="col-sm-2">
                             <label class="form-label small fw-semibold mb-1">Tanggal</label>
                             <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
                         </div>
+                        <?php if (!empty($hi['batch_id'])): ?>
                         <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Kode Voucher</label>
+                            <select name="kode_id" class="form-select form-select-sm hadiah-kode-select"
+                                    data-batch-id="<?= $hi['batch_id'] ?>">
+                                <option value="">— loading… —</option>
+                            </select>
+                        </div>
+                        <?php else: ?>
+                        <div class="col-sm-2">
                             <label class="form-label small fw-semibold mb-1">Jumlah Dibagikan</label>
                             <input type="number" name="jumlah_dibagikan" class="form-control form-control-sm" placeholder="0" min="0" required>
+                        </div>
+                        <?php endif; ?>
+                        <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Nama Penerima</label>
+                            <input type="text" name="nama_penerima" class="form-control form-control-sm" placeholder="Opsional">
                         </div>
                         <div class="col">
                             <label class="form-label small fw-semibold mb-1">Catatan</label>
                             <input type="text" name="catatan" class="form-control form-control-sm" placeholder="Opsional">
                         </div>
-                        <div class="col-sm-2">
-                            <button type="submit" class="btn btn-success btn-sm w-100">Simpan</button>
+                        <div class="col-sm-auto">
+                            <button type="submit" class="btn btn-success btn-sm">Simpan</button>
                         </div>
                     </div>
                 </form>
@@ -739,6 +828,24 @@ document.querySelectorAll('.toggle-add-voucher-real').forEach(btn => {
         this.innerHTML = el.classList.contains('d-none')
             ? '<i class="bi bi-plus-lg me-1"></i>Realisasi'
             : '<i class="bi bi-x me-1"></i>Tutup';
+        if (!el.classList.contains('d-none')) {
+            const sel = el.querySelector('.voucher-kode-select');
+            if (sel && sel.options.length <= 1) {
+                const batchId = sel.dataset.batchId;
+                fetch('<?= base_url('stock/voucher/') ?>' + batchId + '/available-kodes')
+                    .then(r => r.json())
+                    .then(kodes => {
+                        sel.innerHTML = '<option value="">— Pilih Kode —</option>';
+                        kodes.forEach(k => {
+                            const opt = document.createElement('option');
+                            opt.value = k.id;
+                            opt.textContent = k.kode;
+                            sel.appendChild(opt);
+                        });
+                        if (!kodes.length) sel.innerHTML = '<option value="">Tidak ada kode tersedia</option>';
+                    });
+            }
+        }
     });
 });
 document.querySelectorAll('.toggle-add-hadiah-item').forEach(btn => {
@@ -757,6 +864,22 @@ document.querySelectorAll('.toggle-add-hadiah-real').forEach(btn => {
         this.innerHTML = el.classList.contains('d-none')
             ? '<i class="bi bi-plus-lg me-1"></i>Realisasi'
             : '<i class="bi bi-x me-1"></i>Tutup';
+        if (!el.classList.contains('d-none')) {
+            const sel = el.querySelector('.hadiah-kode-select');
+            if (sel && sel.options.length <= 1) {
+                fetch('<?= base_url('stock/voucher/') ?>' + sel.dataset.batchId + '/available-kodes')
+                    .then(r => r.json())
+                    .then(kodes => {
+                        sel.innerHTML = '<option value="">— Pilih Kode —</option>';
+                        kodes.forEach(k => {
+                            const opt = document.createElement('option');
+                            opt.value = k.id; opt.textContent = k.kode;
+                            sel.appendChild(opt);
+                        });
+                        if (!kodes.length) sel.innerHTML = '<option value="">Tidak ada kode tersedia</option>';
+                    });
+            }
+        }
     });
 });
 document.querySelectorAll('.edit-btn').forEach(btn => {
@@ -771,6 +894,57 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
     });
 });
 <?php endif; ?>
+document.querySelectorAll('.toggle-edit-hadiah-item').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const el = document.getElementById('edit-hadiah-item-' + this.dataset.pid + '-' + this.dataset.hid);
+        if (el) el.classList.toggle('d-none');
+    });
+});
+
+// Autofill event hadiah item from barang stock
+document.querySelectorAll('.event-barang-select').forEach(sel => {
+    sel.addEventListener('change', function() {
+        const opt  = this.options[this.selectedIndex];
+        const form = this.closest('form');
+        const nama  = form.querySelector('.event-hadiah-nama');
+        const nilai = form.querySelector('.event-hadiah-nilai');
+        const stok  = form.querySelector('.event-hadiah-stok');
+        if (opt.value) {
+            if (nama)  nama.value  = opt.dataset.nama  || '';
+            if (nilai) nilai.value = opt.dataset.nilai ? Number(opt.dataset.nilai).toLocaleString('id-ID') : '';
+            if (stok)  stok.value  = opt.dataset.stok  || '';
+            const batchSel = form.querySelector('.event-batch-select');
+            if (batchSel) batchSel.value = '';
+        } else {
+            if (nama)  nama.value  = '';
+            if (nilai) nilai.value = '';
+            if (stok)  stok.value  = '';
+        }
+    });
+});
+
+// Autofill event hadiah item from voucher fisik batch
+document.querySelectorAll('.event-batch-select').forEach(sel => {
+    sel.addEventListener('change', function() {
+        const opt  = this.options[this.selectedIndex];
+        const form = this.closest('form');
+        const nama  = form.querySelector('.event-hadiah-nama');
+        const nilai = form.querySelector('.event-hadiah-nilai');
+        const stok  = form.querySelector('.event-hadiah-stok');
+        if (opt.value) {
+            if (nama)  nama.value  = opt.dataset.nama  || '';
+            if (nilai) nilai.value = opt.dataset.nilai ? Number(opt.dataset.nilai).toLocaleString('id-ID') : '';
+            if (stok)  stok.value  = opt.dataset.stok  || '';
+            const barangSel = form.querySelector('.event-barang-select');
+            if (barangSel) barangSel.value = '';
+        } else {
+            if (nama)  nama.value  = '';
+            if (nilai) nilai.value = '';
+            if (stok)  stok.value  = '';
+        }
+    });
+});
+
 document.querySelectorAll('.currency-input').forEach(inp => {
     inp.addEventListener('input', function() {
         let n = parseInt(this.value.replace(/[^0-9]/g, '')) || 0;

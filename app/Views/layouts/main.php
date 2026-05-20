@@ -129,7 +129,7 @@ body { min-height: 100vh; }
         $_canSeeLoyalty = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
             || $_deptMenusL === null || ($_deptMenusL['loyalty_main']['can_view'] ?? false);
         if ($_canSeeLoyalty):
-            $_loyaltyOpen = str_starts_with(uri_string(), 'loyalty');
+            $_loyaltyOpen = str_starts_with(uri_string(), 'loyalty') || str_starts_with(uri_string(), 'stock/');
         ?>
         <a href="<?= base_url('loyalty') ?>" class="nav-link"
            data-bs-toggle="collapse" data-bs-target="#loyaltySubmenu" aria-expanded="<?= $_loyaltyOpen ? 'true' : 'false' ?>">
@@ -142,6 +142,12 @@ body { min-height: 100vh; }
             </a>
             <a href="<?= base_url('loyalty/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'loyalty/summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
                 <i class="bi bi-bar-chart-line"></i> Summary Bulanan
+            </a>
+            <a href="<?= base_url('stock/barang') ?>" class="nav-link <?= str_starts_with(uri_string(), 'stock/barang') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+                <i class="bi bi-box-seam"></i> Stock Hadiah Fisik
+            </a>
+            <a href="<?= base_url('stock/voucher') ?>" class="nav-link <?= str_starts_with(uri_string(), 'stock/voucher') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+                <i class="bi bi-ticket-perforated"></i> Stock Voucher Fisik
             </a>
         </div>
         <?php endif; ?>

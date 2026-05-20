@@ -10,7 +10,7 @@ class LoyaltyHadiahRealisasiModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'program_id', 'item_id', 'tanggal', 'jumlah_dibagikan', 'catatan', 'created_by',
+        'program_id', 'item_id', 'nama_penerima', 'kode_id', 'tanggal', 'jumlah_dibagikan', 'catatan', 'created_by',
     ];
 
     // Keyed by item_id → { total, entries[] }

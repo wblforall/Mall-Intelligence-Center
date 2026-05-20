@@ -10,7 +10,7 @@ class LoyaltyVoucherItemModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'program_id', 'nama_voucher', 'nilai_voucher', 'total_diterbitkan', 'target_penyerapan', 'catatan', 'created_by',
+        'program_id', 'batch_id', 'nama_voucher', 'nilai_voucher', 'total_diterbitkan', 'target_penyerapan', 'catatan', 'created_by',
     ];
 
     // Keyed by program_id → list of items

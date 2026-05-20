@@ -10,7 +10,7 @@ class LoyaltyVoucherRealisasiModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'program_id', 'item_id', 'tanggal', 'tersebar', 'terpakai', 'catatan', 'created_by',
+        'program_id', 'item_id', 'kode_id', 'nama_penerima', 'tanggal', 'tersebar', 'terpakai', 'catatan', 'created_by',
     ];
 
     // Keyed by item_id → { total_tersebar, total_terpakai, entries[] }
