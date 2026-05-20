@@ -20,14 +20,15 @@ class LoginLogModel extends Model
         $loopback = ['127.0.0.1', '::1', '0:0:0:0:0:0:0:1'];
         $hostname = in_array($ip, $loopback) ? 'localhost' : null;
 
+        $getDevice  = method_exists($agent, 'getMobileDevice') ? fn() => $agent->getMobileDevice() ?: null : fn() => null;
         $deviceType = 'desktop';
         $deviceName = null;
         if ($agent->isMobile()) {
             $deviceType = 'mobile';
-            $deviceName = $agent->getMobileDevice() ?: null;
-        } elseif ($agent->isTablet()) {
+            $deviceName = $getDevice();
+        } elseif (method_exists($agent, 'isTablet') && $agent->isTablet()) {
             $deviceType = 'tablet';
-            $deviceName = $agent->getMobileDevice() ?: null;
+            $deviceName = $getDevice();
         }
 
         $this->insert([
