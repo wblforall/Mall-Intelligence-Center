@@ -39,7 +39,10 @@ $chartColors = array_map(function($o) {
             <input type="month" name="bulan" value="<?= $bulan ?>" class="form-control form-control-sm" style="width:150px" onchange="this.form.submit()">
         </form>
         <a href="?bulan=<?= $nextBulan ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>
-        <a href="<?= base_url('creative/media-promo') ?>" class="btn btn-sm btn-outline-secondary ms-2">
+        <a href="<?= base_url('creative/media-promo/print?bulan='.$bulan) ?>" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">
+            <i class="bi bi-printer me-1"></i>Print
+        </a>
+        <a href="<?= base_url('creative/media-promo') ?>" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Kembali
         </a>
     </div>

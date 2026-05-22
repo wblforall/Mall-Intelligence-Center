@@ -453,4 +453,34 @@ class PromoMediaCtrl extends BaseController
         $available = (new PromoMediaSpotModel())->getAvailableSlots($spotId, $tglMulai, $tglSelesai, $excludeId);
         return $this->response->setJSON(['total' => $total, 'available' => $available]);
     }
+
+    public function printBooking()
+    {
+        if ($r = $this->checkView()) return $r;
+
+        $bulan = $this->request->getGet('bulan') ?: date('Y-m');
+        if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+
+        $bulanMulai   = $bulan . '-01';
+        $bulanSelesai = date('Y-m-t', strtotime($bulanMulai));
+
+        $db     = db_connect();
+        $usages = $db->table('promo_media_usage u')
+            ->select('u.*, s.kode spot_kode, s.nama spot_nama, s.tipe spot_tipe, s.area spot_area')
+            ->join('promo_media_spots s', 's.id = u.spot_id')
+            ->where('u.tanggal_mulai <=', $bulanSelesai)
+            ->where('u.tanggal_selesai >=', $bulanMulai)
+            ->whereIn('u.status', ['pending', 'approved', 'done'])
+            ->orderBy('s.tipe')->orderBy('s.kode')->orderBy('u.tanggal_mulai')
+            ->get()->getResultArray();
+
+        return view('creative/media_promo/print', [
+            'bulan'       => $bulan,
+            'bulanMulai'  => $bulanMulai,
+            'bulanSelesai'=> $bulanSelesai,
+            'usages'      => $usages,
+            'printedBy'   => $this->currentUser()['name'] ?? '',
+            'printedAt'   => date('d M Y H:i'),
+        ]);
+    }
 }

@@ -7,6 +7,9 @@
         <a href="<?= base_url('creative/media-promo/gantt') ?>" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-bar-chart-gantt me-1"></i>Gantt
         </a>
+        <a href="<?= base_url('creative/media-promo/print?bulan='.date('Y-m')) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-printer me-1"></i>Print
+        </a>
         <a href="<?= base_url('creative/media-promo/my') ?>" class="btn btn-sm btn-outline-primary">
             <i class="bi bi-list-check me-1"></i>Request Saya
         </a>

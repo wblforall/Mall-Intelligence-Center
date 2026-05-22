@@ -133,6 +133,7 @@ $routes->get('creative/media-promo/master',                       'PromoMediaCtr
 $routes->get('creative/media-promo/pending',                      'PromoMediaCtrl::pending',            ['filter' => 'auth']);
 $routes->get('creative/media-promo/gantt',                        'PromoMediaCtrl::gantt',              ['filter' => 'auth']);
 $routes->get('creative/media-promo/summary',                      'PromoMediaCtrl::summary',            ['filter' => 'auth']);
+$routes->get('creative/media-promo/print',                        'PromoMediaCtrl::printBooking',       ['filter' => 'auth']);
 $routes->post('creative/media-promo/spots/store',                 'PromoMediaCtrl::storeSpot',          ['filter' => 'auth']);
 $routes->post('creative/media-promo/spots/(:num)/update',         'PromoMediaCtrl::updateSpot/$1',      ['filter' => 'auth']);
 $routes->get('creative/media-promo/spots/(:num)/delete',          'PromoMediaCtrl::deleteSpot/$1',      ['filter' => 'auth']);
