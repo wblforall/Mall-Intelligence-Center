@@ -517,8 +517,6 @@ class PromoMediaCtrl extends BaseController
                 $occupiedDays = count($occupiedDates);
             }
 
-            if ($occupiedDays === 0) continue;
-
             $spotOccupancy[] = [
                 'spot'     => $s,
                 'occupied' => $occupiedDays,
