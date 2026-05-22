@@ -214,7 +214,7 @@ function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 function fmtVal(v) {
-    if (v === null || v === undefined || v === '') return '<span class="text-muted fst-italic">kosong</span>';
+    if (v === null || v === undefined || v === '') return '<em style="color:#6b7280;font-style:italic">kosong</em>';
     if (typeof v === 'object') return `<pre class="mb-0" style="font-size:.75rem;white-space:pre-wrap">${esc(JSON.stringify(v,null,2))}</pre>`;
     return esc(String(v));
 }
@@ -237,8 +237,12 @@ function renderDetail(raw) {
             let changed = [], unchanged = [];
             allKeys.forEach(k => {
                 const bv = before ? String(before[k] ?? '') : '';
-                const av = after  ? String(after[k]  ?? '') : '';
-                if (bv !== av) changed.push(k); else unchanged.push(k);
+                // Jika key tidak ada sama sekali di _after (partial update), jangan tampilkan sebagai perubahan
+                const afterHasKey = after && (k in after);
+                const av = afterHasKey ? String(after[k] ?? '') : null;
+                if (av === null) unchanged.push(k);
+                else if (bv !== av) changed.push(k);
+                else unchanged.push(k);
             });
 
             let html = '';

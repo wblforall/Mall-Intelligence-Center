@@ -152,7 +152,7 @@ class SponsorshipCtrl extends BaseController
             'catatan'         => trim($post['catatan'] ?? '') ?: null,
         ];
         $progModel->update($id, $progData);
-        ActivityLog::captureAfter($progData);
+        ActivityLog::captureAfter($progModel->find($id));
         ActivityLog::write('update', 'sponsorship_program', (string)$id, trim($post['nama_program']));
         return redirect()->to('/sponsorship')->with('success', 'Program berhasil diperbarui.');
     }
@@ -267,13 +267,12 @@ class SponsorshipCtrl extends BaseController
             'catatan'     => trim($post['catatan'] ?? '') ?: null,
         ];
         $model->update($sponsorId, $sponsorData);
-        ActivityLog::captureAfter($sponsorData);
-
         if ($isBarang) {
             (new SponsorshipSponsorItemModel())->deleteBySponsor($sponsorId);
             $total = $this->saveItems($sponsorId, $programId, $post);
             $model->update($sponsorId, ['nilai' => $total]);
         }
+        ActivityLog::captureAfter($model->find($sponsorId));
 
         $this->syncBudget($programId);
         ActivityLog::write('update', 'sponsorship_sponsor', (string)$sponsorId, trim($post['nama_sponsor']), ['program_id' => $programId]);
