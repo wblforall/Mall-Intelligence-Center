@@ -1052,8 +1052,23 @@ foreach ($sections as $sec):
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 </div>
 <div class="modal-body">
-    <p class="small text-muted mb-3">Data GDP & PDRB Balikpapan dipublikasikan BPS setiap kuartal — tidak ada API publik, harus diisi manual.</p>
+    <p class="small text-muted mb-3">Update data indikator makro secara manual.</p>
     <div class="row g-3">
+        <div class="col-12">
+            <label class="form-label small fw-semibold">BI Rate (7-Day RRR)</label>
+            <div class="row g-2">
+                <div class="col-4">
+                    <input type="text" name="bi_rate_pct" class="form-control form-control-sm"
+                           value="<?= esc($eco['bi_rate']['pct'] ?? '') ?>" placeholder="4,75">
+                    <div class="form-text" style="font-size:.65rem">% (tanpa tanda %)</div>
+                </div>
+                <div class="col-8">
+                    <input type="text" name="bi_rate_per" class="form-control form-control-sm"
+                           value="<?= esc($eco['bi_rate']['per'] ?? '') ?>" placeholder="20 Mei 2026">
+                    <div class="form-text" style="font-size:.65rem">Tanggal keputusan RDG</div>
+                </div>
+            </div>
+        </div>
         <div class="col-12">
             <label class="form-label small fw-semibold">Pertumbuhan Ekonomi Nasional 🇮🇩</label>
             <div class="row g-2">

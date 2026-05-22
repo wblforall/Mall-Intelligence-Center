@@ -433,6 +433,12 @@ class Dashboard extends BaseController
             ]);
             cache()->delete('eco_' . $key);
         }
+        // BI Rate — simpan langsung ke cache (tidak ada API, harus manual jika server diblokir bi.go.id)
+        $biPct = trim($post['bi_rate_pct'] ?? '');
+        $biPer = trim($post['bi_rate_per'] ?? '');
+        if ($biPct && $biPer) {
+            cache()->save('eco_bi_rate', ['pct' => $biPct, 'per' => $biPer, 'live' => false], 30 * 24 * 3600);
+        }
         return redirect()->to(base_url())->with('success', 'Data makro diperbarui.');
     }
 
