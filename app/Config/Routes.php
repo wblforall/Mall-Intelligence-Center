@@ -127,6 +127,28 @@ $routes->post('creative/(:num)/realisasi/(:num)/delete', 'CreativeCtrl::deleteRe
 $routes->post('creative/(:num)/insight/add', 'CreativeCtrl::storeInsight/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/insight/(:num)/delete', 'CreativeCtrl::deleteInsight/$1/$2', ['filter' => 'auth']);
 
+// Media Promo
+$routes->get('creative/media-promo',                              'PromoMediaCtrl::index',             ['filter' => 'auth']);
+$routes->get('creative/media-promo/master',                       'PromoMediaCtrl::master',             ['filter' => 'auth']);
+$routes->get('creative/media-promo/pending',                      'PromoMediaCtrl::pending',            ['filter' => 'auth']);
+$routes->get('creative/media-promo/gantt',                        'PromoMediaCtrl::gantt',              ['filter' => 'auth']);
+$routes->get('creative/media-promo/summary',                      'PromoMediaCtrl::summary',            ['filter' => 'auth']);
+$routes->post('creative/media-promo/spots/store',                 'PromoMediaCtrl::storeSpot',          ['filter' => 'auth']);
+$routes->post('creative/media-promo/spots/(:num)/update',         'PromoMediaCtrl::updateSpot/$1',      ['filter' => 'auth']);
+$routes->get('creative/media-promo/spots/(:num)/delete',          'PromoMediaCtrl::deleteSpot/$1',      ['filter' => 'auth']);
+$routes->get('creative/media-promo/spots/check-cetak',            'PromoMediaCtrl::checkCetakAvailability', ['filter' => 'auth']);
+$routes->get('creative/media-promo/spots/(:num)/slots',           'PromoMediaCtrl::getAvailableSlots/$1', ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/batch-approve',         'PromoMediaCtrl::batchApprove',       ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/reject-batch',          'PromoMediaCtrl::rejectBatch',        ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/(:num)/approve',        'PromoMediaCtrl::approve/$1',         ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/(:num)/reject',         'PromoMediaCtrl::reject/$1',          ['filter' => 'auth']);
+$routes->get('creative/media-promo/my',                           'PromoMediaUsageCtrl::myUsage',       ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/store',                 'PromoMediaUsageCtrl::store',         ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/(:num)/update',         'PromoMediaUsageCtrl::update/$1',     ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/(:num)/submit',         'PromoMediaUsageCtrl::submit/$1',     ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/submit-selected',       'PromoMediaUsageCtrl::submitSelected', ['filter' => 'auth']);
+$routes->post('creative/media-promo/usage/(:num)/cancel',         'PromoMediaUsageCtrl::cancel/$1',     ['filter' => 'auth']);
+
 // Exhibitors (Casual Leasing)
 $routes->get('events/(:num)/exhibitors', 'EventExhibitors::index/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/exhibitors/add', 'EventExhibitors::store/$1', ['filter' => 'auth']);

@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v1.8** (Mei 2026)
+> Versi saat ini: **v1.9** (Mei 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,43 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 1.9
+
+**Tanggal Rilis:** 22 Mei 2026
+
+### Perubahan dari v1.8
+
+#### Media Promo — Summary Page
+
+- **Halaman Summary Bulanan** (`/creative/media-promo/summary`) — halaman analitik khusus Media Promo terpisah dari Creative monthly summary, dapat diakses via link "Summary" di sidebar.
+- **4 KPI Card** — Total Request, Approved/Done, Pending Approval, dan Ditolak untuk bulan yang dipilih.
+- **Breakdown Sumber Materi** — distribusi request berdasarkan Internal Manajemen, Tenant Mall, dan External Client.
+- **Status Biaya** — jumlah request berbayar vs gratis.
+- **Breakdown per Tipe Media** — T-Banner, Hanging, Sticker Lift, Totem Stainless, Digital.
+- **Breakdown per Departemen** — jumlah request per dept pemohon.
+- **Occupancy Chart** — bar chart horizontal (Chart.js) menampilkan persentase occupancy top-20 titik media.
+- **Tabel Occupancy Detail** — semua titik aktif dengan progress bar color-coded: hijau (<50%), kuning (50–79%), merah (≥80%).
+- **Navigasi bulan** — tombol prev/next dan month-picker, mendukung perbandingan antar bulan.
+
+#### Media Promo — Sumber & Berbayar
+
+- **Field `sumber`** — ENUM `internal` / `tenant` / `external` baru pada tabel `promo_media_usage` (Migration `2026-05-22-000002`). Wajib diisi saat buat/edit request, defaultnya Internal.
+- **Field `is_berbayar`** — toggle switch di form request. Default gratis.
+- **Tampil di semua view** — badge sumber dan status biaya muncul di tabel My Request, halaman pending approval, dan form edit.
+
+#### Media Promo — Cetak Availability Check
+
+- **Dynamic disable checkbox** — saat user memilih tanggal mulai & selesai di form request media cetak, sistem otomatis memeriksa ketersediaan setiap titik via endpoint `GET /creative/media-promo/spots/check-cetak`.
+- **Badge status real-time** — titik yang sudah terpakai (ada booking pending/approved di rentang tanggal tersebut) ditandai badge merah "Terpakai" dan checkbox-nya dinonaktifkan; titik tersedia ditandai badge hijau "Tersedia".
+
+#### Perbaikan Bug
+
+- **Fix: Dropdown arrow tidak terlihat** — `background:` (shorthand CSS) pada `.form-control, .form-select` di `theme.css` diganti menjadi `background-color:` di 4 rule (dark + light, normal + focus). Shorthand menimpa `background-image` milik Bootstrap yang berisi SVG panah dropdown, sehingga panah tidak tampil. Perbaikan ini berlaku global untuk semua `form-select` di seluruh aplikasi.
+- **Fix: `bg-outline` bukan class Bootstrap valid** — dihapus dari badge di `my_usage.php`, diganti `badge border text-muted`.
+- **Fix: `$sumberLabel`/`$sumberBadge` dideklarasi ulang di dalam loop** — dipindah ke luar `foreach` untuk menghindari redeclaration per iterasi.
 
 ---
 

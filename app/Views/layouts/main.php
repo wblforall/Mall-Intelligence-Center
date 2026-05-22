@@ -33,6 +33,7 @@ body { min-height: 100vh; }
 .sidebar .sidebar-footer .user-role { font-size: .7rem; }
 .sidebar .sidebar-footer .btn-logout { background: none; border: none; padding: 0; font-size: .8rem; transition: color .15s; }
 
+
 /* ── Main ── */
 .main-content { margin-left: var(--sidebar-width); min-height: 100vh; position: relative; }
 .topbar { padding: .6rem 1.5rem; position: sticky; top: 0; z-index: 999; }
@@ -175,7 +176,7 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $_creativeMainOpen = str_starts_with(uri_string(), 'creative') && !isset($event);
+        $_creativeMainOpen = (str_starts_with(uri_string(), 'creative') || str_starts_with(uri_string(), 'creative/media-promo')) && !isset($event);
         $_deptMenusC = session()->get('dept_menus');
         $_canSeeCreativeMain = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
             || $_deptMenusC === null || ($_deptMenusC['creative_main']['can_view'] ?? false);
@@ -192,6 +193,15 @@ body { min-height: 100vh; }
             </a>
             <a href="<?= base_url('creative/monthly-summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/monthly-summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
                 <i class="bi bi-bar-chart-line"></i> Summary Bulanan
+            </a>
+            <a href="<?= base_url('creative/media-promo') ?>" class="nav-link <?= uri_string() === 'creative/media-promo' || (str_starts_with(uri_string(), 'creative/media-promo/') && !str_starts_with(uri_string(), 'creative/media-promo/master') && !str_starts_with(uri_string(), 'creative/media-promo/summary')) ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+                <i class="bi bi-megaphone"></i> Media Promo
+            </a>
+            <a href="<?= base_url('creative/media-promo/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/summary') ? 'active' : '' ?>" style="padding-left:2.8rem;font-size:.75rem">
+                <i class="bi bi-graph-up-arrow"></i> Summary
+            </a>
+            <a href="<?= base_url('creative/media-promo/master') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/master') ? 'active' : '' ?>" style="padding-left:2.8rem;font-size:.75rem">
+                <i class="bi bi-pin-map"></i> Master Titik
             </a>
         </div>
         <?php endif; ?>
@@ -415,7 +425,7 @@ body { min-height: 100vh; }
         </a>
     </div>
     <div style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5">
-        v1.7 &nbsp;·&nbsp; © 2026 IT Dept WBL
+        v1.9 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
 </div>

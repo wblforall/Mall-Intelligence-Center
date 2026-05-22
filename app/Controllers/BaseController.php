@@ -81,6 +81,13 @@ abstract class BaseController extends Controller
         return (bool)($perms['can_approve_events'] ?? false);
     }
 
+    protected function canApprovePromoMedia(): bool
+    {
+        if ($this->isAdmin()) return true;
+        $perms = session()->get('role_perms') ?? [];
+        return (bool)($perms['can_approve_promo_media'] ?? false);
+    }
+
     protected function isAdmin(): bool
     {
         return session()->get('role_is_admin') || session()->get('user_role') === 'admin';

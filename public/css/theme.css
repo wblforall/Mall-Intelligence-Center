@@ -197,14 +197,14 @@ tr.table-light > th {
 /* ── Forms ────────────────────────────────────── */
 .form-control,
 .form-select {
-    background: rgba(255,255,255,.05) !important;
+    background-color: rgba(255,255,255,.05) !important;
     border-color: rgba(255,255,255,.12) !important;
     color: var(--txt) !important;
     border-radius: .6rem !important;
 }
 .form-control:focus,
 .form-select:focus {
-    background: rgba(232,65,90,.07) !important;
+    background-color: rgba(232,65,90,.07) !important;
     border-color: rgba(232,65,90,.5) !important;
     box-shadow: 0 0 0 .2rem rgba(232,65,90,.18) !important;
     color: var(--txt) !important;
@@ -725,13 +725,13 @@ code        { color: #f8829a; background: rgba(232,65,90,.15); padding: .1rem .3
 /* Forms */
 [data-theme="light"] .form-control,
 [data-theme="light"] .form-select {
-    background: #ffffff !important;
+    background-color: #ffffff !important;
     border-color: rgba(249,115,22,.22) !important;
     color: #1e293b !important;
 }
 [data-theme="light"] .form-control:focus,
 [data-theme="light"] .form-select:focus {
-    background: #ffffff !important;
+    background-color: #ffffff !important;
     border-color: rgba(249,115,22,.5) !important;
     box-shadow: 0 0 0 .2rem rgba(249,115,22,.12) !important;
     color: #1e293b !important;
