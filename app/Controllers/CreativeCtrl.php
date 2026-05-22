@@ -224,6 +224,73 @@ $user = $this->currentUser();
         ]);
     }
 
+    public function printMonthly()
+    {
+        if (!$this->canViewMenu('creative_main')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $bulan = $this->request->getGet('bulan') ?? date('Y-m');
+        if (!preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+        [$year, $month] = explode('-', $bulan);
+
+        $standaloneItems = (new CreativeItemModel())->getAll();
+        foreach ($standaloneItems as &$si) { $si['_source'] = 's'; } unset($si);
+        $eventItems = (new EventCreativeItemModel())->getAllWithEvents();
+        foreach ($eventItems as &$ei) { $ei['_source'] = 'e'; } unset($ei);
+
+        $standaloneIds = array_column($standaloneItems, 'id');
+        $eventItemIds  = array_column($eventItems, 'id');
+
+        $sReal = empty($standaloneIds) ? [] : (new CreativeRealisasiModel())->getMonthlyGrouped($bulan, $standaloneIds);
+        $eReal = empty($eventItemIds)  ? [] : (new EventCreativeRealisasiModel())->getMonthlyGrouped($bulan, $eventItemIds);
+        $sIns  = empty($standaloneIds) ? [] : (new CreativeInsightModel())->getMonthlyGrouped($bulan, $standaloneIds);
+        $eIns  = empty($eventItemIds)  ? [] : (new EventCreativeInsightModel())->getMonthlyGrouped($bulan, $eventItemIds);
+
+        $allItems = array_merge($standaloneItems, $eventItems);
+
+        $totalBudget    = array_sum(array_column($allItems, 'budget'));
+        $totalRealisasi = array_sum(array_map(fn($g) => $g['total'] ?? 0, array_merge($sReal, $eReal)));
+        $totalReach     = array_sum(array_map(fn($g) => $g['max_reach'] ?? 0, array_merge($sIns, $eIns)));
+        $totalImpr      = array_sum(array_map(fn($g) => $g['max_impressions'] ?? 0, array_merge($sIns, $eIns)));
+        $totalFollowers = array_sum(array_map(fn($g) => $g['total_followers_gained'] ?? 0, array_merge($sIns, $eIns)));
+
+        $statusCounts = [];
+        foreach ($allItems as $item) {
+            $s = $item['status'] ?? 'draft';
+            $statusCounts[$s] = ($statusCounts[$s] ?? 0) + 1;
+        }
+
+        $rows = [];
+        foreach ($allItems as $item) {
+            $iid  = (int)$item['id'];
+            $isSt = $item['_source'] === 's';
+            $realMonth  = $isSt ? ($sReal[$iid] ?? null) : ($eReal[$iid] ?? null);
+            $insMonth   = $isSt ? ($sIns[$iid]  ?? null) : ($eIns[$iid]  ?? null);
+            $hasActivity = $realMonth !== null || $insMonth !== null;
+            $rows[] = compact('item', 'realMonth', 'insMonth', 'hasActivity');
+        }
+        usort($rows, fn($a, $b) =>
+            $b['hasActivity'] <=> $a['hasActivity'] ?: strcmp($a['item']['tipe'], $b['item']['tipe'])
+        );
+
+        return view('creative_main/print_monthly', [
+            'bulan'           => $bulan,
+            'year'            => (int)$year,
+            'month'           => (int)$month,
+            'rows'            => $rows,
+            'totalBudget'     => $totalBudget,
+            'totalRealisasi'  => $totalRealisasi,
+            'totalReach'      => $totalReach,
+            'totalImpressions'=> $totalImpr,
+            'totalFollowers'  => $totalFollowers,
+            'statusCounts'    => $statusCounts,
+            'activeCount'     => count(array_filter($rows, fn($r) => $r['hasActivity'])),
+            'printedBy'       => $this->currentUser()['name'] ?? '',
+            'printedAt'       => date('d M Y H:i'),
+        ]);
+    }
+
     public function store()
     {
         if (!$this->canEditMenu('creative_main')) {

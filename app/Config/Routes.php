@@ -114,7 +114,8 @@ $routes->post('events/(:num)/creative/(:num)/insight/add', 'EventCreativeCtrl::s
 $routes->post('events/(:num)/creative/(:num)/insight/(:num)/delete', 'EventCreativeCtrl::deleteInsight/$1/$2/$3', ['filter' => 'auth']);
 
 // Standalone Creative & Design
-$routes->get('creative/monthly-summary', 'CreativeCtrl::monthly', ['filter' => 'auth']);
+$routes->get('creative/monthly-summary',       'CreativeCtrl::monthly',       ['filter' => 'auth']);
+$routes->get('creative/monthly-summary/print', 'CreativeCtrl::printMonthly',  ['filter' => 'auth']);
 $routes->get('creative', 'CreativeCtrl::index', ['filter' => 'auth']);
 $routes->post('creative/add', 'CreativeCtrl::store', ['filter' => 'auth']);
 $routes->post('creative/(:num)/edit', 'CreativeCtrl::update/$1', ['filter' => 'auth']);

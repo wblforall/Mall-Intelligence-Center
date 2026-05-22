@@ -40,6 +40,9 @@ $hasInsight = !empty($insightLabels);
             <input type="month" name="bulan" value="<?= $bulan ?>" class="form-control form-control-sm" style="width:150px" onchange="this.form.submit()">
         </form>
         <a href="?bulan=<?= $nextBulan ?>" class="btn btn-sm btn-outline-secondary <?= $nextBulan > date('Y-m') ? 'disabled' : '' ?>"><i class="bi bi-chevron-right"></i></a>
+        <a href="<?= base_url('creative/monthly-summary/print?bulan='.$bulan) ?>" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">
+            <i class="bi bi-printer me-1"></i>Cetak Laporan
+        </a>
     </div>
 </div>
 
