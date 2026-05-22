@@ -106,8 +106,10 @@ class PeopleCompetencies extends BaseController
     public function update(int $id)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
-        (new CompetencyModel())->update($id, [
+        $post      = $this->request->getPost();
+        $compModel = new CompetencyModel();
+        ActivityLog::captureBefore($compModel->find($id));
+        $compData = [
             'nama'       => trim($post['nama']),
             'kategori'   => $post['kategori'],
             'cluster_id' => $post['cluster_id'] !== '' ? (int)$post['cluster_id'] : null,
@@ -117,7 +119,9 @@ class PeopleCompetencies extends BaseController
             'level_3'    => trim($post['level_3'] ?? '') ?: null,
             'level_4'    => trim($post['level_4'] ?? '') ?: null,
             'level_5'    => trim($post['level_5'] ?? '') ?: null,
-        ]);
+        ];
+        $compModel->update($id, $compData);
+        ActivityLog::captureAfter($compData);
 
         ActivityLog::write('update', 'competency', (string)$id, trim($post['nama']));
         return redirect()->to('/people/competencies')->with('success', 'Kompetensi diperbarui.');
@@ -168,14 +172,18 @@ class PeopleCompetencies extends BaseController
     public function updateQuestionLevels(int $id)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
-        (new CompetencyQuestionModel())->update($id, [
+        $post     = $this->request->getPost();
+        $qModel   = new CompetencyQuestionModel();
+        ActivityLog::captureBefore($qModel->find($id));
+        $qData = [
             'level_1' => trim($post['level_1'] ?? '') ?: null,
             'level_2' => trim($post['level_2'] ?? '') ?: null,
             'level_3' => trim($post['level_3'] ?? '') ?: null,
             'level_4' => trim($post['level_4'] ?? '') ?: null,
             'level_5' => trim($post['level_5'] ?? '') ?: null,
-        ]);
+        ];
+        $qModel->update($id, $qData);
+        ActivityLog::captureAfter($qData);
         ActivityLog::write('update', 'competency_question_levels', (string)$id, 'Level descriptions updated');
         return redirect()->back()->with('success', 'Deskripsi level disimpan.');
     }

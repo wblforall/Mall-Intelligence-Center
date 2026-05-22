@@ -210,22 +210,90 @@ $moduleBadge = [
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
+function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtVal(v) {
+    if (v === null || v === undefined || v === '') return '<span class="text-muted fst-italic">kosong</span>';
+    if (typeof v === 'object') return `<pre class="mb-0" style="font-size:.75rem;white-space:pre-wrap">${esc(JSON.stringify(v,null,2))}</pre>`;
+    return esc(String(v));
+}
 function renderDetail(raw) {
     try {
         const parsed = JSON.parse(raw);
-        if (typeof parsed !== 'object' || parsed === null) return `<p class="mb-0">${parsed}</p>`;
+        if (typeof parsed !== 'object' || parsed === null) return `<p class="mb-0">${esc(parsed)}</p>`;
+
+        const before = parsed['_before'];
+        const after  = parsed['_after'];
+
+        // Render diff if before or after present
+        if (before || after) {
+            const skip = ['id','created_at','updated_at','deleted_at'];
+            const allKeys = new Set([
+                ...(before ? Object.keys(before) : []),
+                ...(after  ? Object.keys(after)  : []),
+            ].filter(k => !skip.includes(k)));
+
+            let changed = [], unchanged = [];
+            allKeys.forEach(k => {
+                const bv = before ? String(before[k] ?? '') : '';
+                const av = after  ? String(after[k]  ?? '') : '';
+                if (bv !== av) changed.push(k); else unchanged.push(k);
+            });
+
+            let html = '';
+
+            // Other detail keys (not _before/_after)
+            const extraKeys = Object.keys(parsed).filter(k => k !== '_before' && k !== '_after');
+            if (extraKeys.length) {
+                html += '<table class="table table-sm table-bordered mb-2" style="font-size:.8rem">';
+                extraKeys.forEach(k => {
+                    const label = k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+                    html += `<tr><th style="width:30%;background:var(--c-modal-th-bg)">${esc(label)}</th><td>${fmtVal(parsed[k])}</td></tr>`;
+                });
+                html += '</table>';
+            }
+
+            if (changed.length) {
+                html += `<div class="fw-semibold small mb-1 text-danger"><i class="bi bi-arrow-left-right me-1"></i>Perubahan (${changed.length} field)</div>`;
+                html += '<table class="table table-sm table-bordered mb-2" style="font-size:.8rem">';
+                html += '<thead><tr><th style="width:25%;background:#fef2f2">Field</th><th style="background:#fef2f2">Sebelum</th><th style="background:#f0fdf4">Sesudah</th></tr></thead><tbody>';
+                changed.forEach(k => {
+                    const bv = before ? fmtVal(before[k]) : '<span class="text-muted">—</span>';
+                    const av = after  ? fmtVal(after[k])  : '<span class="text-muted">—</span>';
+                    const label = k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+                    html += `<tr>
+                        <th style="background:var(--c-modal-th-bg);white-space:nowrap">${esc(label)}</th>
+                        <td style="background:#fef2f2;color:#b91c1c">${bv}</td>
+                        <td style="background:#f0fdf4;color:#15803d">${av}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+            }
+
+            if (unchanged.length) {
+                html += `<details><summary class="small text-muted mb-1" style="cursor:pointer">${unchanged.length} field tidak berubah</summary>`;
+                html += '<table class="table table-sm table-bordered mt-1 mb-0" style="font-size:.78rem">';
+                unchanged.forEach(k => {
+                    const label = k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+                    html += `<tr><th style="width:30%;background:var(--c-modal-th-bg)">${esc(label)}</th><td>${fmtVal(before ? before[k] : after?.[k])}</td></tr>`;
+                });
+                html += '</table></details>';
+            }
+
+            return html || '<p class="text-muted small mb-0">Tidak ada perubahan tercatat.</p>';
+        }
+
+        // Regular detail table
         let html = '<table class="table table-sm table-bordered mb-0" style="font-size:.82rem">';
         for (const [k, v] of Object.entries(parsed)) {
             const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            const val   = (v === null || v === '') ? '<span class="text-muted">—</span>'
-                        : typeof v === 'object' ? `<pre class="mb-0" style="font-size:.78rem">${JSON.stringify(v, null, 2)}</pre>`
-                        : String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            html += `<tr><th style="width:35%;white-space:nowrap;background:var(--c-modal-th-bg)">${label}</th><td>${val}</td></tr>`;
+            html += `<tr><th style="width:35%;white-space:nowrap;background:var(--c-modal-th-bg)">${esc(label)}</th><td>${fmtVal(v)}</td></tr>`;
         }
         html += '</table>';
         return html;
     } catch(e) {
-        return `<pre style="white-space:pre-wrap;word-break:break-word;margin:0">${raw}</pre>`;
+        return `<pre style="white-space:pre-wrap;word-break:break-word;margin:0">${esc(raw)}</pre>`;
     }
 }
 

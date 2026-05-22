@@ -46,14 +46,18 @@ class PipAspekMasterCtrl extends BaseController
     {
         if (! $this->guard(true)) return redirect()->to('/events')->with('error', 'Akses ditolak.');
 
-        $post = $this->request->getPost();
-        (new PipAspekMasterModel())->update($id, [
+        $post  = $this->request->getPost();
+        $model = new PipAspekMasterModel();
+        ActivityLog::captureBefore($model->find($id));
+        $data = [
             'aspek'          => trim($post['aspek']),
             'kategori'       => trim($post['kategori'] ?? '') ?: null,
             'target_default' => trim($post['target_default'] ?? '') ?: null,
             'metrik_default' => trim($post['metrik_default'] ?? '') ?: null,
             'aktif'          => isset($post['aktif']) ? 1 : 0,
-        ]);
+        ];
+        $model->update($id, $data);
+        ActivityLog::captureAfter($data);
 
         ActivityLog::write('update', 'pip_aspek_master', (string)$id, trim($post['aspek']));
         return redirect()->to('/people/pip/aspek')->with('success', 'Aspek diperbarui.');

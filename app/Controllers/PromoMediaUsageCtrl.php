@@ -162,7 +162,8 @@ class PromoMediaUsageCtrl extends BaseController
             }
         }
 
-        $usageModel->update($id, [
+        ActivityLog::captureBefore($usage);
+        $usageUpdateData = [
             'spot_id'          => $spotId,
             'slot_number'      => $slotNumber,
             'dept'             => trim($post['dept']),
@@ -176,7 +177,9 @@ class PromoMediaUsageCtrl extends BaseController
             'sumber'           => in_array($post['sumber'] ?? '', ['internal','tenant','external']) ? $post['sumber'] : 'internal',
             'is_berbayar'      => isset($post['is_berbayar']) ? 1 : 0,
             'rejection_reason' => null,
-        ]);
+        ];
+        $usageModel->update($id, $usageUpdateData);
+        ActivityLog::captureAfter($usageUpdateData);
 
         ActivityLog::write('update', 'promo_media_usage', (string)$id, $post['nama_materi']);
         return redirect()->to('/creative/media-promo/my')->with('success', 'Request diupdate.');

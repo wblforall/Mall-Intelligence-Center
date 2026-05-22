@@ -90,9 +90,11 @@ class EventCreativeCtrl extends BaseController
     {
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
-        $post      = $this->request->getPost();
-        $isDigital = ($post['tipe'] === 'digital');
-        (new EventCreativeItemModel())->update($id, [
+        $post              = $this->request->getPost();
+        $isDigital         = ($post['tipe'] === 'digital');
+        $eventCreativeModel = new EventCreativeItemModel();
+        ActivityLog::captureBefore($eventCreativeModel->find($id));
+        $eventCreativeData = [
             'nama'         => $post['nama'],
             'platform'     => $isDigital ? ($post['platform'] ?? null) : null,
             'tanggal_take' => $isDigital ? ($post['tanggal_take'] ?: null) : null,
@@ -102,7 +104,9 @@ class EventCreativeCtrl extends BaseController
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
-        ]);
+        ];
+        $eventCreativeModel->update($id, $eventCreativeData);
+        ActivityLog::captureAfter($eventCreativeData);
         ActivityLog::write('update', 'creative', (string)$id, $post['nama'], ['event_id' => $eventId, 'budget' => $post['budget'] ?? 0]);
 
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Item berhasil diperbarui.');

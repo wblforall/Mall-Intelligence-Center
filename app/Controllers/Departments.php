@@ -59,10 +59,13 @@ class Departments extends BaseController
         }
 
         $name = trim($this->request->getPost('name'));
-        $deptModel->update($id, [
+        ActivityLog::captureBefore($deptModel->find($id));
+        $deptData = [
             'name'        => $name,
             'description' => $this->request->getPost('description'),
-        ]);
+        ];
+        $deptModel->update($id, $deptData);
+        ActivityLog::captureAfter($deptData);
 
         // Save menu access
         $menuModel  = new DepartmentMenuModel();

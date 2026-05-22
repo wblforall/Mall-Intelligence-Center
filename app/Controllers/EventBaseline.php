@@ -68,7 +68,9 @@ class EventBaseline extends BaseController
 
             $existing = $model->getByDayLabel($eventId, $label);
             if ($existing) {
+                ActivityLog::captureBefore($existing);
                 $model->update($existing['id'], $rowData);
+                ActivityLog::captureAfter($rowData);
             } else {
                 $model->insert($rowData);
             }

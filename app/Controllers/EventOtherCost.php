@@ -67,15 +67,18 @@ class EventOtherCost extends BaseController
             return redirect()->to("/events/{$eventId}/other-cost")->with('error', 'Akses ditolak.');
         }
 
-        $post   = $this->request->getPost();
-        $jumlah = (int)str_replace([',', '.', ' '], '', $post['jumlah'] ?? 0);
-
-        (new EventBudgetModel())->update($id, [
+        $post        = $this->request->getPost();
+        $jumlah      = (int)str_replace([',', '.', ' '], '', $post['jumlah'] ?? 0);
+        $budgetModel = new EventBudgetModel();
+        ActivityLog::captureBefore($budgetModel->find($id));
+        $budgetData = [
             'department_id' => (int)$post['department_id'],
             'kategori'      => trim($post['kategori']),
             'keterangan'    => trim($post['keterangan'] ?? ''),
             'jumlah'        => $jumlah,
-        ]);
+        ];
+        $budgetModel->update($id, $budgetData);
+        ActivityLog::captureAfter($budgetData);
 
         ActivityLog::write('update', 'other_cost', (string)$id, $post['kategori'], [
             'event_id' => $eventId,

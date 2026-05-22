@@ -30,12 +30,16 @@ class AdminClusters extends BaseController
 
     public function update(int $id)
     {
-        $post = $this->request->getPost();
-        (new CompetencyClusterModel())->update($id, [
+        $post         = $this->request->getPost();
+        $clusterModel = new CompetencyClusterModel();
+        ActivityLog::captureBefore($clusterModel->find($id));
+        $clusterData = [
             'nama'      => trim($post['nama']),
             'deskripsi' => trim($post['deskripsi'] ?? '') ?: null,
             'urutan'    => (int)($post['urutan'] ?? 0),
-        ]);
+        ];
+        $clusterModel->update($id, $clusterData);
+        ActivityLog::captureAfter($clusterData);
         ActivityLog::write('update', 'competency_cluster', (string)$id, trim($post['nama']));
         return redirect()->to('/admin/clusters')->with('success', 'Cluster diperbarui.');
     }

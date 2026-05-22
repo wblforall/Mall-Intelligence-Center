@@ -127,7 +127,9 @@ class PromoMediaCtrl extends BaseController
             $data['total_slots'] = max(1, (int)($post['total_slots'] ?? $spot['total_slots']));
         }
 
+        ActivityLog::captureBefore($spot);
         $spotModel->update($id, $data);
+        ActivityLog::captureAfter($data);
         ActivityLog::write('update', 'promo_media_spots', (string)$id, $post['nama']);
         return redirect()->to('/creative/media-promo/master')->with('success', 'Titik media diupdate.');
     }

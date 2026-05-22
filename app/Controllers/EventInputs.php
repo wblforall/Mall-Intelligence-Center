@@ -68,7 +68,9 @@ class EventInputs extends BaseController
         $existing    = $configModel->getByEvent($eventId);
 
         if ($existing) {
+            ActivityLog::captureBefore($existing);
             $configModel->update($existing['id'], $data);
+            ActivityLog::captureAfter($data);
             ActivityLog::write('update', 'event_config', (string)$eventId, $event['name']);
         } else {
             $data['event_id'] = $eventId;

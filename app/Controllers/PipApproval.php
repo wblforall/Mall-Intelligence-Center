@@ -63,7 +63,9 @@ class PipApproval extends BaseController
             $updateData['catatan_penolakan'] = trim($post['catatan'] ?? '') ?: null;
         }
 
+        ActivityLog::captureBefore($plan);
         (new PipPlanModel())->update((int)$plan['id'], $updateData);
+        ActivityLog::captureAfter($updateData);
         ActivityLog::write('update', 'pip_plan', (string)$plan['id'], 'approval ' . $pihak . ': ' . $keputusan);
 
         return view('people/pip/approval_done', [

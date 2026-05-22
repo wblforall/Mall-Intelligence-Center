@@ -47,6 +47,30 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 - **Fix: Dropdown arrow tidak terlihat** — `background:` (shorthand CSS) pada `.form-control, .form-select` di `theme.css` diganti menjadi `background-color:` di 4 rule (dark + light, normal + focus). Shorthand menimpa `background-image` milik Bootstrap yang berisi SVG panah dropdown, sehingga panah tidak tampil. Perbaikan ini berlaku global untuk semua `form-select` di seluruh aplikasi.
 - **Fix: `bg-outline` bukan class Bootstrap valid** — dihapus dari badge di `my_usage.php`, diganti `badge border text-muted`.
 - **Fix: `$sumberLabel`/`$sumberBadge` dideklarasi ulang di dalam loop** — dipindah ke luar `foreach` untuk menghindari redeclaration per iterasi.
+- **Fix: Timezone `date()` menampilkan jam UTC** — `date_default_timezone_set('Asia/Makassar')` ditambahkan di `public/index.php`; `$appTimezone` di `App.php` juga diubah ke `Asia/Makassar`. CI4's `appTimezone` tidak mempengaruhi fungsi native PHP `date()`.
+- **Fix: Tombol Edit di My Request tidak berfungsi** — tombol berada di dalam `<form>` tanpa atribut `type`, sehingga browser memperlakukannya sebagai `type="submit"`. Ditambahkan `type="button"` eksplisit.
+- **Fix: Icon sidebar Gantt Media Promo tidak tampil** — `bi-bar-chart-gantt` tidak tersedia di versi Bootstrap Icons yang digunakan. Diganti dengan `bi-calendar3-range`.
+
+#### Media Promo — Cetak Laporan
+
+- **Booking Sheet** (`/creative/media-promo/print?bulan=`) — print A4 landscape semua booking bulan yang dipilih, dikelompokkan per tipe media. Kolom: kode, nama titik, slot (digital), area, dept pemohon, materi, periode, sumber, biaya, status, catatan.
+- **Laporan Bulanan** (`/creative/media-promo/print-summary?bulan=`) — print A4 landscape dengan 4 KPI card, distribusi sumber/biaya/tipe/dept, tabel occupancy semua titik aktif (termasuk yang kosong), dan blok tanda tangan.
+- **Sidebar Media Promo** — sub-link Gantt ditambahkan di sidebar dengan icon `bi-calendar3-range`.
+- **Hapus tombol Gantt & Tambah Titik** dari header halaman index Media Promo.
+
+#### Creative Monthly — Cetak Laporan
+
+- **Laporan Bulanan Creative** (`/creative/monthly-summary/print?bulan=`) — print A4 landscape dengan 5 KPI card (total item, budget, realisasi, reach, impressions/followers), status strip (Draft/Review/Approved/Revision), tabel per tipe (Print & Digital) terpisah, highlight row aktif, dan blok tanda tangan.
+
+#### Loyalty — Cetak Laporan
+
+- **Laporan Bulanan Loyalty** (`/loyalty/summary/print?bulan=`) — print A4 landscape dengan 5 KPI card (Member Baru, Member Aktif, Voucher Tersebar, Terpakai, Hadiah), dua seksi program (Standalone & Support Event), tabel per program, % penyerapan voucher, dan blok tanda tangan.
+
+#### Activity Log — Audit Trail Before/After
+
+- **`ActivityLog::captureBefore()`** dan **`ActivityLog::captureAfter()`** — dua static method baru di `ActivityLog` untuk menyimpan snapshot data sebelum dan sesudah operasi update. Data disimpan sebagai key `_before` dan `_after` di kolom `detail` (JSON) yang sudah ada, tanpa mengubah signature `write()`.
+- **Diff view di halaman Log** — fungsi `renderDetail()` di `logs/index.php` diperbarui: jika `_before`/`_after` terdeteksi, ditampilkan tabel side-by-side (merah = sebelum, hijau = sesudah). Field yang berubah ditampilkan prominent; field tidak berubah disembunyikan dalam `<details>` collapsed.
+- **Semua controller data-edit** sudah ditambahkan `captureBefore`/`captureAfter` — mencakup seluruh controller yang melakukan operasi update pada data pengguna, kecuali: Auth (password/token), TnaFill (submit formulir anonim via token), dan EventCompletion (flag mark/unmark).
 
 ---
 

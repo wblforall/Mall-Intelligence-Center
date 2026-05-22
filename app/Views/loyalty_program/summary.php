@@ -70,6 +70,9 @@ foreach ($allMonthlyTotals as $row) {
             <a href="?bulan=<?= $nextBulan ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>
             <span class="ms-2 fw-semibold"><?= $bulanLabel ?></span>
             <a href="?bulan=<?= date('Y-m') ?>" class="btn btn-sm btn-outline-primary ms-auto">Bulan Ini</a>
+            <a href="<?= base_url('loyalty/summary/print?bulan='.$bulan) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-printer me-1"></i>Cetak Laporan
+            </a>
         </div>
     </div>
 </div>

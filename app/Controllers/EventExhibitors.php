@@ -70,13 +70,17 @@ class EventExhibitors extends BaseController
         $kategori = $post['kategori'] === 'Lainnya'
             ? trim($post['kategori_custom'] ?? '')
             : $post['kategori'];
-        (new EventExhibitorModel())->update($id, [
+        $exModel = new EventExhibitorModel();
+        ActivityLog::captureBefore($exModel->find($id));
+        $exData = [
             'nama_exhibitor' => $post['nama_exhibitor'],
             'kategori'       => $kategori,
             'nilai_dealing'  => (int)str_replace([',', '.', ' '], '', $post['nilai_dealing'] ?? 0),
             'lokasi_booth'   => $post['lokasi_booth'] ?? null,
             'catatan'        => $post['catatan'] ?? null,
-        ]);
+        ];
+        $exModel->update($id, $exData);
+        ActivityLog::captureAfter($exData);
         ActivityLog::write('update', 'exhibitor', (string)$id, $post['nama_exhibitor'], ['event_id' => $eventId, 'nilai_dealing' => $post['nilai_dealing'] ?? 0]);
 
         return redirect()->to("/events/{$eventId}/exhibitors")->with('success', 'Exhibitor berhasil diperbarui.');

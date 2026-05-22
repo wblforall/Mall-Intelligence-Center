@@ -115,12 +115,15 @@ class EventSponsors extends BaseController
         $isBarang = $post['jenis'] === 'barang';
 
         $sponsorModel = new EventSponsorModel();
-        $sponsorModel->update($id, [
+        ActivityLog::captureBefore($sponsorModel->find($id));
+        $eventSponsorData = [
             'nama_sponsor' => $post['nama_sponsor'],
             'jenis'        => $post['jenis'],
             'nilai'        => $isBarang ? 0 : (int) str_replace([',', '.', ' '], '', $post['nilai'] ?? 0),
             'detail'       => $post['detail'] ?? null,
-        ]);
+        ];
+        $sponsorModel->update($id, $eventSponsorData);
+        ActivityLog::captureAfter($eventSponsorData);
 
         if ($isBarang) {
             (new EventSponsorItemModel())->deleteBySponsor($id);

@@ -65,14 +65,18 @@ class EventVM extends BaseController
     {
         if (! $this->canEditMenu('vm')) return redirect()->to("/events/{$eventId}/vm")->with('error', 'Akses ditolak.');
 
-        $post = $this->request->getPost();
-        (new EventVMModel())->update($id, [
+        $post    = $this->request->getPost();
+        $vmModel = new EventVMModel();
+        ActivityLog::captureBefore($vmModel->find($id));
+        $vmData = [
             'nama_item'           => $post['nama_item'],
             'deskripsi_referensi' => $post['deskripsi_referensi'] ?? null,
             'budget'              => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'             => $post['catatan'] ?? null,
             'tanggal_deadline'    => $post['tanggal_deadline'] ?: null,
-        ]);
+        ];
+        $vmModel->update($id, $vmData);
+        ActivityLog::captureAfter($vmData);
         ActivityLog::write('update', 'vm', (string)$id, $post['nama_item'], ['event_id' => $eventId, 'budget' => $post['budget'] ?? 0]);
 
         return redirect()->to("/events/{$eventId}/vm")->with('success', 'Item berhasil diperbarui.');

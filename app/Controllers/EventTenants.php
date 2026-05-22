@@ -67,14 +67,18 @@ class EventTenants extends BaseController
         $event = $this->getEventOrFail($eventId);
         if (! $event) return redirect()->to('/events')->with('error', 'Akses ditolak.');
 
-        $post = $this->request->getPost();
-        (new EventTenantModel())->update($tenantId, [
+        $post         = $this->request->getPost();
+        $tenantModel2 = new EventTenantModel();
+        ActivityLog::captureBefore($tenantModel2->find($tenantId));
+        $tenantData = [
             'name'                => $post['name'],
             'category'            => $post['category'],
             'participating_promo' => isset($post['participating_promo']) ? 1 : 0,
             'baseline_sales'      => (int)str_replace([',', '.'], '', $post['baseline_sales'] ?? 0),
             'event_relevance'     => $post['event_relevance'] ?? 'Medium',
-        ]);
+        ];
+        $tenantModel2->update($tenantId, $tenantData);
+        ActivityLog::captureAfter($tenantData);
         ActivityLog::write('update', 'event_tenant', (string)$tenantId, $post['name'], ['event_id' => $eventId]);
 
         return redirect()->to("/events/{$eventId}/tenants")->with('success', 'Tenant berhasil diperbarui.');
@@ -159,7 +163,9 @@ class EventTenants extends BaseController
             ];
 
             if ($existing) {
+                ActivityLog::captureBefore($existing);
                 $impactModel->update($existing['id'], $rowData);
+                ActivityLog::captureAfter($rowData);
             } else {
                 $impactModel->insert($rowData);
             }

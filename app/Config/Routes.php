@@ -26,6 +26,7 @@ $routes->post('dashboard/update-macro',   'Dashboard::updateMacro',   ['filter' 
 $routes->get ('dashboard/auto-fetch-bbm', 'Dashboard::autoFetchBbm',  ['filter' => 'auth']);
 $routes->get ('dashboard/news-feed',      'Dashboard::newsFeed',       ['filter' => 'auth']);
 $routes->get ('dashboard/economic',       'Dashboard::economicLive',   ['filter' => 'auth']);
+$routes->get ('dashboard/economic-debug', 'Dashboard::economicDebug',  ['filter' => 'auth:admin']);
 
 // Events
 $routes->get('events', 'Events::index', ['filter' => 'auth']);
@@ -171,7 +172,8 @@ $routes->get('events/(:num)/sponsors/(:num)/realisasi/(:num)/delete', 'EventSpon
 
 // Standalone Loyalty Programs
 $routes->get('loyalty', 'LoyaltyCtrl::index', ['filter' => 'auth']);
-$routes->get('loyalty/summary', 'LoyaltyCtrl::summary', ['filter' => 'auth']);
+$routes->get('loyalty/summary',       'LoyaltyCtrl::summary',       ['filter' => 'auth']);
+$routes->get('loyalty/summary/print', 'LoyaltyCtrl::printSummary',  ['filter' => 'auth']);
 $routes->get('loyalty/detail/(:alpha)/(:num)', 'LoyaltyCtrl::detail/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/add', 'LoyaltyCtrl::storeProgram', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/edit', 'LoyaltyCtrl::updateProgram/$1', ['filter' => 'auth']);
@@ -193,6 +195,7 @@ $routes->post('loyalty/(:num)/voucher/(:num)/realisasi/(:num)/delete', 'LoyaltyC
 
 // Stock Barang (Master Stock Hadiah Fisik)
 $routes->get('stock/barang', 'StockBarangCtrl::index', ['filter' => 'auth']);
+$routes->get('stock/barang/mutasi', 'StockBarangCtrl::mutasi', ['filter' => 'auth']);
 $routes->post('stock/barang/store', 'StockBarangCtrl::store', ['filter' => 'auth']);
 $routes->post('stock/barang/(:num)/update', 'StockBarangCtrl::update/$1', ['filter' => 'auth']);
 $routes->post('stock/barang/(:num)/tambah-stok', 'StockBarangCtrl::tambahStok/$1', ['filter' => 'auth']);

@@ -160,7 +160,8 @@ class EventContent extends BaseController
         $existing = $itemModel->find($id);
         $tipe     = $existing['tipe'] ?? 'program';
 
-        $itemModel->update($id, [
+        ActivityLog::captureBefore($existing);
+        $contentData = [
             'nama'          => $post['nama'],
             'tanggal'       => $tipe === 'program' ? ($post['tanggal'] ?: null) : null,
             'waktu_mulai'   => $tipe === 'program' ? ($post['waktu_mulai'] ?: null) : null,
@@ -170,7 +171,9 @@ class EventContent extends BaseController
             'lokasi'        => $tipe === 'program' ? ($post['lokasi'] ?? null) : null,
             'budget'        => (int) str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'keterangan'    => $post['keterangan'] ?? null,
-        ]);
+        ];
+        $itemModel->update($id, $contentData);
+        ActivityLog::captureAfter($contentData);
         ActivityLog::write('update', 'content', (string)$id, $post['nama'], ['event_id' => $eventId]);
 
         // Re-sync to rundown only for program type

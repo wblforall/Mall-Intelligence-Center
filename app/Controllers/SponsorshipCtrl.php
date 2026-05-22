@@ -139,8 +139,10 @@ class SponsorshipCtrl extends BaseController
     {
         if (! $this->canEditMenu('sponsorship_main')) return redirect()->to('/sponsorship')->with('error', 'Akses ditolak.');
         if (! $this->assertNotLocked($id)) return redirect()->to('/sponsorship#program-' . $id)->with('error', 'Program terkunci.');
-        $post = $this->request->getPost();
-        (new SponsorshipProgramModel())->update($id, [
+        $post       = $this->request->getPost();
+        $progModel  = new SponsorshipProgramModel();
+        ActivityLog::captureBefore($progModel->find($id));
+        $progData = [
             'nama_program'    => trim($post['nama_program']),
             'tanggal_mulai'   => $post['tanggal_mulai']   ?: null,
             'tanggal_selesai' => $post['tanggal_selesai'] ?: null,
@@ -148,7 +150,9 @@ class SponsorshipCtrl extends BaseController
             'target_sponsor'  => ($post['target_sponsor'] ?? '') !== '' ? (int)$post['target_sponsor'] : null,
             'target_nilai'    => ($post['target_nilai']   ?? '') !== '' ? (int)str_replace([',', '.', ' '], '', $post['target_nilai']) : null,
             'catatan'         => trim($post['catatan'] ?? '') ?: null,
-        ]);
+        ];
+        $progModel->update($id, $progData);
+        ActivityLog::captureAfter($progData);
         ActivityLog::write('update', 'sponsorship_program', (string)$id, trim($post['nama_program']));
         return redirect()->to('/sponsorship')->with('success', 'Program berhasil diperbarui.');
     }
@@ -252,7 +256,8 @@ class SponsorshipCtrl extends BaseController
         $clean    = fn($v) => (int)str_replace([',', '.', ' '], '', $v ?? 0);
 
         $model = new SponsorshipSponsorModel();
-        $model->update($sponsorId, [
+        ActivityLog::captureBefore($model->find($sponsorId));
+        $sponsorData = [
             'nama_sponsor'=> trim($post['nama_sponsor']),
             'kategori'    => trim($post['kategori'] ?? '') ?: null,
             'jenis'       => $post['jenis'] ?? 'cash',
@@ -260,7 +265,9 @@ class SponsorshipCtrl extends BaseController
             'status_deal' => $post['status_deal'] ?? 'prospek',
             'detail'      => trim($post['detail'] ?? '') ?: null,
             'catatan'     => trim($post['catatan'] ?? '') ?: null,
-        ]);
+        ];
+        $model->update($sponsorId, $sponsorData);
+        ActivityLog::captureAfter($sponsorData);
 
         if ($isBarang) {
             (new SponsorshipSponsorItemModel())->deleteBySponsor($sponsorId);

@@ -68,12 +68,15 @@ class StockBarangCtrl extends BaseController
         $clean = fn($v) => (int)str_replace([',', '.', ' '], '', $v ?? 0);
         $model = new StockBarangModel();
 
-        $model->update($id, [
+        ActivityLog::captureBefore($model->find($id));
+        $barangData = [
             'nama_barang'  => $post['nama_barang'],
             'satuan'       => $post['satuan'] ?? 'pcs',
             'nilai_satuan' => $clean($post['nilai_satuan']),
             'catatan'      => $post['catatan'] ?? null,
-        ]);
+        ];
+        $model->update($id, $barangData);
+        ActivityLog::captureAfter($barangData);
 
         ActivityLog::write('update', 'stock_barang', (string)$id, $post['nama_barang']);
         return redirect()->to('/stock/barang')->with('success', 'Barang berhasil diupdate.');
@@ -132,6 +135,46 @@ class StockBarangCtrl extends BaseController
 
         ActivityLog::write('update', 'stock_barang', (string)$id, "Distribusi manual {$barang['nama_barang']} -{$jumlah}");
         return redirect()->to('/stock/barang')->with('success', "{$jumlah} {$barang['satuan']} {$barang['nama_barang']} berhasil dikeluarkan.");
+    }
+
+    public function mutasi()
+    {
+        if (! $this->canViewMenu('loyalty_main')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $bulan = $this->request->getGet('bulan') ?: date('Y-m');
+        $barangId = (int)($this->request->getGet('barang_id') ?? 0) ?: null;
+
+        [$tahun, $bln] = explode('-', $bulan);
+        $dari   = "$tahun-$bln-01";
+        $sampai = date('Y-m-t', strtotime($dari));
+
+        $logModel = new StockBarangLogModel();
+        $logs     = $logModel->getMutasi($dari, $sampai, $barangId);
+        $barangs  = (new StockBarangModel())->orderBy('nama_barang')->findAll();
+
+        // Rekap per barang
+        $rekap = [];
+        foreach ($logs as $log) {
+            $bid = $log['barang_id'];
+            if (!isset($rekap[$bid])) {
+                $rekap[$bid] = ['nama' => $log['nama_barang'], 'satuan' => $log['satuan'], 'masuk' => 0, 'keluar' => 0];
+            }
+            if ($log['tipe'] === 'masuk') $rekap[$bid]['masuk'] += (int)$log['jumlah'];
+            else                          $rekap[$bid]['keluar'] += (int)$log['jumlah'];
+        }
+
+        return view('stock/barang/mutasi', [
+            'user'     => $this->currentUser(),
+            'logs'     => $logs,
+            'rekap'    => $rekap,
+            'barangs'  => $barangs,
+            'bulan'    => $bulan,
+            'barangId' => $barangId,
+            'dari'     => $dari,
+            'sampai'   => $sampai,
+        ]);
     }
 
     public function delete(int $id)

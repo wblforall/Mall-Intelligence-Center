@@ -164,7 +164,8 @@ class PeopleEmployees extends BaseController
             if ($jab) $jabatanNama = $jab['nama'];
         }
 
-        $model->update($id, [
+        ActivityLog::captureBefore($employee);
+        $employeeData = [
             'nik'           => trim($post['nik'] ?? '') ?: null,
             'nama'          => trim($post['nama']),
             'jenis_kelamin' => $post['jenis_kelamin'] ?: null,
@@ -179,7 +180,9 @@ class PeopleEmployees extends BaseController
             'status'        => $post['status'] ?? 'aktif',
             'foto'          => $fotoName,
             'catatan'       => trim($post['catatan'] ?? '') ?: null,
-        ]);
+        ];
+        $model->update($id, $employeeData);
+        ActivityLog::captureAfter($employeeData);
 
         ActivityLog::write('update', 'employee', (string)$id, trim($post['nama']));
         return redirect()->to('/people/employees/' . $id)->with('success', 'Data karyawan diperbarui.');

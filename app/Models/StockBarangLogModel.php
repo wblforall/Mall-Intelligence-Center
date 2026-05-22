@@ -55,4 +55,17 @@ class StockBarangLogModel extends Model
     {
         $this->where('referensi_tipe', $refTipe)->where('referensi_id', $refId)->delete();
     }
+
+    public function getMutasi(string $dari, string $sampai, ?int $barangId = null): array
+    {
+        $q = $this->db->table('stock_barang_log l')
+            ->select('l.*, b.nama_barang, b.satuan')
+            ->join('stock_barang b', 'b.id = l.barang_id')
+            ->where('l.tanggal >=', $dari)
+            ->where('l.tanggal <=', $sampai)
+            ->orderBy('l.tanggal', 'DESC')
+            ->orderBy('l.created_at', 'DESC');
+        if ($barangId) $q->where('l.barang_id', $barangId);
+        return $q->get()->getResultArray();
+    }
 }

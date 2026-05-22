@@ -84,7 +84,9 @@ class Users extends BaseController
             $data['password'] = password_hash($post['password'], PASSWORD_BCRYPT);
         }
 
+        ActivityLog::captureBefore($before);
         $userModel->update($id, $data);
+        ActivityLog::captureAfter($data);
         ActivityLog::write('update', 'user', (string)$id, $before['name'] ?? '', [
             'before' => ['name' => $before['name'], 'role' => $before['role'], 'department_id' => $before['department_id']],
             'after'  => ['name' => $data['name'],   'role' => $data['role'],   'department_id' => $data['department_id']],

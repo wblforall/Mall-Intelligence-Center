@@ -26,7 +26,10 @@ class AdminSettings extends BaseController
             fn($e) => filter_var($e, FILTER_VALIDATE_EMAIL)
         ));
 
-        (new AppSettingsModel())->setSetting('traffic_summary_emails', json_encode($emails));
+        $settingsModel = new AppSettingsModel();
+        ActivityLog::captureBefore(['emails' => $settingsModel->getEmails('traffic_summary_emails')]);
+        $settingsModel->setSetting('traffic_summary_emails', json_encode($emails));
+        ActivityLog::captureAfter(['emails' => $emails]);
         ActivityLog::write('update', 'app_settings', 'traffic_summary_emails', count($emails) . ' emails');
         return redirect()->to('/admin/settings')->with('success', count($emails) . ' alamat email disimpan.');
     }

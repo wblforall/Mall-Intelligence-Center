@@ -141,14 +141,18 @@ class VMStandalone extends BaseController
     {
         if (! $this->canEditMenu('vm_main')) return redirect()->to('/vm')->with('error', 'Akses ditolak.');
 
-        $post = $this->request->getPost();
-        (new EventVMModel())->update($id, [
+        $post    = $this->request->getPost();
+        $vmModel = new EventVMModel();
+        ActivityLog::captureBefore($vmModel->find($id));
+        $vmStandaloneData = [
             'nama_item'           => $post['nama_item'],
             'deskripsi_referensi' => $post['deskripsi_referensi'] ?? null,
             'budget'              => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'             => $post['catatan'] ?? null,
             'tanggal_deadline'    => $post['tanggal_deadline'] ?: null,
-        ]);
+        ];
+        $vmModel->update($id, $vmStandaloneData);
+        ActivityLog::captureAfter($vmStandaloneData);
         ActivityLog::write('update', 'vm_standalone', (string)$id, $post['nama_item'], ['budget' => $post['budget'] ?? 0]);
 
         return redirect()->to('/vm')->with('success', 'Item berhasil diperbarui.');

@@ -218,12 +218,16 @@ class PeopleEei extends BaseController
     public function updatePeriod(int $id)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
-        (new EeiPeriodModel())->update($id, [
+        $post      = $this->request->getPost();
+        $eeiModel  = new EeiPeriodModel();
+        ActivityLog::captureBefore($eeiModel->find($id));
+        $eeiData = [
             'nama'       => trim($post['nama']),
             'start_date' => $post['start_date'],
             'end_date'   => $post['end_date'],
-        ]);
+        ];
+        $eeiModel->update($id, $eeiData);
+        ActivityLog::captureAfter($eeiData);
         ActivityLog::write('update', 'eei_period', (string)$id, trim($post['nama']));
         return redirect()->to('/people/eei/manage')->with('success', 'Periode diperbarui.');
     }
@@ -264,11 +268,15 @@ class PeopleEei extends BaseController
     public function updateDimension(int $id)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
-        (new EeiDimensionModel())->update($id, [
+        $post     = $this->request->getPost();
+        $dimModel = new EeiDimensionModel();
+        ActivityLog::captureBefore($dimModel->find($id));
+        $dimData = [
             'nama'      => trim($post['nama']),
             'deskripsi' => trim($post['deskripsi'] ?? '') ?: null,
-        ]);
+        ];
+        $dimModel->update($id, $dimData);
+        ActivityLog::captureAfter($dimData);
         ActivityLog::write('update', 'eei_dimension', (string)$id, trim($post['nama']));
         return redirect()->to('/people/eei/manage')->with('success', 'Dimensi diperbarui.');
     }

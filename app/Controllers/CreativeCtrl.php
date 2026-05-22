@@ -325,10 +325,11 @@ $user = $this->currentUser();
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
 
-        $post      = $this->request->getPost();
-        $isDigital = ($post['tipe'] === 'digital');
-
-        (new CreativeItemModel())->update($id, [
+        $post           = $this->request->getPost();
+        $isDigital      = ($post['tipe'] === 'digital');
+        $creativeModel  = new CreativeItemModel();
+        ActivityLog::captureBefore($creativeModel->find($id));
+        $creativeData = [
             'tipe'         => $post['tipe'],
             'nama'         => $post['nama'],
             'platform'     => $isDigital ? ($post['platform'] ?? null) : null,
@@ -339,7 +340,9 @@ $user = $this->currentUser();
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
-        ]);
+        ];
+        $creativeModel->update($id, $creativeData);
+        ActivityLog::captureAfter($creativeData);
 
         ActivityLog::write('update', 'creative_standalone', (string)$id, $post['nama'], []);
 

@@ -45,8 +45,10 @@ class PeopleTna extends BaseController
     public function updatePeriod(int $id)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
-        (new TnaPeriodModel())->update($id, [
+        $post       = $this->request->getPost();
+        $tnaModel   = new TnaPeriodModel();
+        ActivityLog::captureBefore($tnaModel->find($id));
+        $tnaData = [
             'nama'            => trim($post['nama']),
             'tahun'           => (int)$post['tahun'],
             'tanggal_mulai'   => $post['tanggal_mulai'] ?: null,
@@ -55,7 +57,9 @@ class PeopleTna extends BaseController
             'weight_self'     => max(0, (int)($post['weight_self']   ?? 20)),
             'weight_atasan'   => max(0, (int)($post['weight_atasan'] ?? 50)),
             'weight_rekan'    => max(0, (int)($post['weight_rekan']  ?? 30)),
-        ]);
+        ];
+        $tnaModel->update($id, $tnaData);
+        ActivityLog::captureAfter($tnaData);
         ActivityLog::write('update', 'tna_period', (string)$id, trim($post['nama']));
         return redirect()->to('/people/tna')->with('success', 'Periode TNA diperbarui.');
     }

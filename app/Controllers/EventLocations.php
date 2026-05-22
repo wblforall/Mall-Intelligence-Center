@@ -45,7 +45,10 @@ class EventLocations extends BaseController
         $mall  = $this->request->getPost('mall');
         $aktif = $this->request->getPost('aktif') ? 1 : 0;
 
-        $this->model->update($id, ['nama' => $nama, 'mall' => $mall, 'aktif' => $aktif]);
+        ActivityLog::captureBefore($row);
+        $locationData = ['nama' => $nama, 'mall' => $mall, 'aktif' => $aktif];
+        $this->model->update($id, $locationData);
+        ActivityLog::captureAfter($locationData);
         ActivityLog::write('update', 'event_location', (string)$id, $nama, [
             'before' => ['nama' => $row['nama'], 'aktif' => (bool)$row['aktif']],
             'after'  => ['nama' => $nama, 'aktif' => (bool)$aktif],

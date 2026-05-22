@@ -181,7 +181,8 @@ class EventTracking extends BaseController
         $model = new EventDailyTrackingModel();
 
         $row = $model->find($rowId);
-        $model->update($rowId, [
+        ActivityLog::captureBefore($row);
+        $trackingData = [
             'day_type'              => $post['day_type'],
             'actual_traffic'        => $post['actual_traffic'] !== '' ? (int)$post['actual_traffic'] : null,
             'event_area_visitors'   => $post['event_area_visitors'] !== '' ? (int)$post['event_area_visitors'] : null,
@@ -198,7 +199,9 @@ class EventTracking extends BaseController
             'media_revenue'         => (int)str_replace([',', '.'], '', $post['media_revenue'] ?? 0),
             'parking_actual'        => $post['parking_actual'] !== '' ? (int)str_replace([',', '.'], '', $post['parking_actual']) : null,
             'notes'                 => $post['notes'] ?? null,
-        ]);
+        ];
+        $model->update($rowId, $trackingData);
+        ActivityLog::captureAfter($trackingData);
         ActivityLog::write('update', 'event_tracking', (string)$rowId, 'Day ' . ($row['day_number'] ?? ''), ['event_id' => $eventId]);
 
         return redirect()->to("/events/{$eventId}/tracking")->with('success', 'Data berhasil diperbarui.');

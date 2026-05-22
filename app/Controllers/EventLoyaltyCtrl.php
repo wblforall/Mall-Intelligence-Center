@@ -84,14 +84,18 @@ class EventLoyaltyCtrl extends BaseController
     public function updateProgram(int $eventId, int $id)
     {
         if (! $this->canEditMenu('loyalty')) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
-        (new EventLoyaltyModel())->update($id, [
+        $post          = $this->request->getPost();
+        $loyaltyModel  = new EventLoyaltyModel();
+        ActivityLog::captureBefore($loyaltyModel->find($id));
+        $loyaltyData = [
             'nama_program'   => $post['nama_program'],
             'mekanisme'      => $post['mekanisme'] ?? null,
             'target_peserta'      => ($post['target_peserta'] ?? null) ?: null,
             'target_member_aktif' => ($post['target_member_aktif'] ?? null) ?: null,
             'catatan'        => $post['catatan'] ?? null,
-        ]);
+        ];
+        $loyaltyModel->update($id, $loyaltyData);
+        ActivityLog::captureAfter($loyaltyData);
         ActivityLog::write('update', 'loyalty', (string)$id, $post['nama_program'], ['event_id' => $eventId]);
         return redirect()->to("/events/{$eventId}/loyalty#program-{$id}")->with('success', 'Program berhasil diperbarui.');
     }
@@ -294,12 +298,15 @@ class EventLoyaltyCtrl extends BaseController
         $newStok     = (int)($post['stok'] ?? (int)$old['stok']);
         $namaHadiah  = $post['nama_hadiah'] ?? $old['nama_hadiah'];
         $nilaiSatuan = ($post['nilai_satuan'] ?? '') !== '' ? $clean($post['nilai_satuan']) : (int)$old['nilai_satuan'];
-        $hiModel->update($itemId, [
+        ActivityLog::captureBefore($old);
+        $hiData = [
             'nama_hadiah'  => $namaHadiah,
             'stok'         => $newStok,
             'nilai_satuan' => $nilaiSatuan,
             'catatan'      => $post['catatan'] ?? null,
-        ]);
+        ];
+        $hiModel->update($itemId, $hiData);
+        ActivityLog::captureAfter($hiData);
         if (! empty($old['barang_id'])) {
             $delta = $newStok - (int)$old['stok'];
             if ($delta > 0) (new StockBarangModel())->reserveStock((int)$old['barang_id'], $delta);

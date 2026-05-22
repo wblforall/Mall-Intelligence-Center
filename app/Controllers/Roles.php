@@ -70,7 +70,8 @@ class Roles extends BaseController
             return redirect()->to('/roles')->with('error', 'Slug sudah digunakan role lain.');
         }
 
-        $model->update($id, [
+        ActivityLog::captureBefore($role);
+        $roleData = [
             'name'               => trim($post['name']),
             'slug'               => $slug,
             'description'        => trim($post['description'] ?? ''),
@@ -85,7 +86,9 @@ class Roles extends BaseController
             'can_approve_pip'         => isset($post['can_approve_pip'])         ? 1 : 0,
             'can_approve_promo_media' => isset($post['can_approve_promo_media']) ? 1 : 0,
             'can_view_gantt'          => isset($post['can_view_gantt'])          ? 1 : 0,
-        ]);
+        ];
+        $model->update($id, $roleData);
+        ActivityLog::captureAfter($roleData);
 
         db_connect()->query('UPDATE users SET `role` = ? WHERE role_id = ?', [$slug, $id]);
 

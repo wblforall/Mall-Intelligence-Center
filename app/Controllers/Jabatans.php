@@ -74,13 +74,17 @@ class Jabatans extends BaseController
         $parentId = isset($post['parent_jabatan_id']) && $post['parent_jabatan_id'] !== ''
             ? (int)$post['parent_jabatan_id'] : null;
 
-        (new JabatanModel())->update($id, [
+        $jabModel = new JabatanModel();
+        ActivityLog::captureBefore($jabModel->find($id));
+        $jabData = [
             'nama'              => trim($post['nama']),
             'grade'             => (int)$post['grade'],
             'dept_id'           => $deptId,
             'division_id'       => $deptId ? null : $divId,
             'parent_jabatan_id' => $parentId,
-        ]);
+        ];
+        $jabModel->update($id, $jabData);
+        ActivityLog::captureAfter($jabData);
         ActivityLog::write('update', 'jabatan', (string)$id, trim($post['nama']));
         return redirect()->back()->with('success', 'Jabatan diperbarui.');
     }

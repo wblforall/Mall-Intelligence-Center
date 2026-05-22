@@ -110,8 +110,10 @@ class PeopleTraining extends BaseController
     public function update(int $id)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
-        (new TrainingProgramModel())->update($id, [
+        $post          = $this->request->getPost();
+        $trainingModel = new TrainingProgramModel();
+        ActivityLog::captureBefore($trainingModel->find($id));
+        $trainingData = [
             'nama'              => trim($post['nama']),
             'tipe'              => $post['tipe'],
             'vendor'            => trim($post['vendor'] ?? '') ?: null,
@@ -123,7 +125,9 @@ class PeopleTraining extends BaseController
             'status'            => $post['status'],
             'deskripsi'         => trim($post['deskripsi'] ?? '') ?: null,
             'catatan'           => trim($post['catatan'] ?? '') ?: null,
-        ]);
+        ];
+        $trainingModel->update($id, $trainingData);
+        ActivityLog::captureAfter($trainingData);
 
         (new TrainingCompetencyModel())->saveForProgram($id, $post['competency_ids'] ?? []);
 
@@ -180,13 +184,17 @@ class PeopleTraining extends BaseController
     public function updateParticipant(int $id, int $participantId)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
-        (new TrainingParticipantModel())->update($participantId, [
+        $post              = $this->request->getPost();
+        $participantModel  = new TrainingParticipantModel();
+        ActivityLog::captureBefore($participantModel->find($participantId));
+        $participantData = [
             'status_kehadiran' => $post['status_kehadiran'],
             'pre_test'         => $post['pre_test']  !== '' ? (float)$post['pre_test']  : null,
             'post_test'        => $post['post_test'] !== '' ? (float)$post['post_test'] : null,
             'catatan'          => trim($post['catatan'] ?? '') ?: null,
-        ]);
+        ];
+        $participantModel->update($participantId, $participantData);
+        ActivityLog::captureAfter($participantData);
         ActivityLog::write('update', 'training_participant', (string)$participantId, 'update kehadiran/nilai');
         return redirect()->to('/people/training/' . $id)->with('success', 'Data peserta diperbarui.');
     }

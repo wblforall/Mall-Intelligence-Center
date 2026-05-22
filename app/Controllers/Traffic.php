@@ -984,7 +984,9 @@ class Traffic extends BaseController
         ];
 
         if ($existing) {
+            ActivityLog::captureBefore($existing);
             $vehicleModel->update($existing['id'], $vehicleData);
+            ActivityLog::captureAfter($vehicleData);
         } else {
             $vehicleModel->insert($vehicleData);
         }

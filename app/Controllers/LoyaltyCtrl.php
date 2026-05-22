@@ -186,12 +186,15 @@ class LoyaltyCtrl extends BaseController
         $newStok     = (int)($post['stok'] ?? (int)$old['stok']);
         $namaHadiah  = $post['nama_hadiah'] ?? $old['nama_hadiah'];
         $nilaiSatuan = ($post['nilai_satuan'] ?? '') !== '' ? $clean($post['nilai_satuan']) : (int)$old['nilai_satuan'];
-        $hadiahModel->update($itemId, [
+        ActivityLog::captureBefore($old);
+        $hiData = [
             'nama_hadiah'  => $namaHadiah,
             'stok'         => $newStok,
             'nilai_satuan' => $nilaiSatuan,
             'catatan'      => $post['catatan'] ?? null,
-        ]);
+        ];
+        $hadiahModel->update($itemId, $hiData);
+        ActivityLog::captureAfter($hiData);
         if (! empty($old['barang_id'])) {
             $delta = $newStok - (int)$old['stok'];
             if ($delta > 0) (new StockBarangModel())->reserveStock((int)$old['barang_id'], $delta);
@@ -433,8 +436,10 @@ class LoyaltyCtrl extends BaseController
     {
         if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
         if (! $this->assertNotLocked($id)) return redirect()->to('/loyalty#program-s-'.$id)->with('error', 'Program terkunci.');
-        $post = $this->request->getPost();
-        (new LoyaltyProgramModel())->update($id, [
+        $post        = $this->request->getPost();
+        $loyaltyModel = new LoyaltyProgramModel();
+        ActivityLog::captureBefore($loyaltyModel->find($id));
+        $loyaltyData = [
             'nama_program'    => $post['nama_program'],
             'tanggal_mulai'   => $post['tanggal_mulai']  ?? null ?: null,
             'tanggal_selesai' => $post['tanggal_selesai'] ?? null ?: null,
@@ -444,7 +449,9 @@ class LoyaltyCtrl extends BaseController
             'target_peserta'      => ($post['target_peserta'] ?? '') !== '' ? (int)$post['target_peserta'] : null,
             'target_member_aktif' => ($post['target_member_aktif'] ?? '') !== '' ? (int)$post['target_member_aktif'] : null,
             'catatan'             => $post['catatan'] ?? null,
-        ]);
+        ];
+        $loyaltyModel->update($id, $loyaltyData);
+        ActivityLog::captureAfter($loyaltyData);
         ActivityLog::write('update', 'loyalty_program', (string)$id, $post['nama_program']);
         return redirect()->to('/loyalty')->with('success', 'Program berhasil diperbarui.');
     }
@@ -784,6 +791,109 @@ class LoyaltyCtrl extends BaseController
             'dailyMember'          => $dailyMember,
             'dailyTersebar'        => $dailyTersebar,
             'dailyTerpakai'        => $dailyTerpakai,
+        ]);
+    }
+
+    public function printSummary()
+    {
+        if (! $this->canViewMenu('loyalty_main')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $bulan = $this->request->getGet('bulan') ?: date('Y-m');
+        if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+
+        $programs      = $this->mergePrograms();
+        $standaloneIds = array_column(array_filter($programs, fn($p) => $p['source'] === 'standalone'), 'id');
+        $eventIds      = array_column(array_filter($programs, fn($p) => $p['source'] === 'event'), 'id');
+
+        $sModel   = new LoyaltyRealisasiModel();
+        $eModel   = new EventLoyaltyRealisasiModel();
+        $vrModel  = new LoyaltyVoucherRealisasiModel();
+        $evrModel = new EventLoyaltyVoucherRealisasiModel();
+        $hrModel  = new LoyaltyHadiahRealisasiModel();
+        $ehrModel = new EventLoyaltyHadiahRealisasiModel();
+
+        $voucherItemsGrouped  = (new LoyaltyVoucherItemModel())->getByPrograms($standaloneIds);
+        $evoucherItemsGrouped = (new EventLoyaltyVoucherItemModel())->getByPrograms($eventIds);
+        $hadiahItemsGrouped   = (new LoyaltyHadiahItemModel())->getByPrograms($standaloneIds);
+        $ehadiahItemsGrouped  = (new EventLoyaltyHadiahItemModel())->getByPrograms($eventIds);
+
+        $allVoucherIds  = array_merge(...array_map(fn($g) => array_column($g, 'id'), $voucherItemsGrouped ?: [[]]));
+        $allEvoucherIds = array_merge(...array_map(fn($g) => array_column($g, 'id'), $evoucherItemsGrouped ?: [[]]));
+        $allHadiahIds   = array_merge(...array_map(fn($g) => array_column($g, 'id'), $hadiahItemsGrouped  ?: [[]]));
+        $allEhadiahIds  = array_merge(...array_map(fn($g) => array_column($g, 'id'), $ehadiahItemsGrouped ?: [[]]));
+
+        $sMonthly  = $sModel->getMonthlyByPrograms($bulan, $standaloneIds);
+        $eMonthly  = $eModel->getMonthlyByPrograms($bulan, $eventIds);
+        $vMonthly  = $vrModel->getMonthlyByItems($bulan, $allVoucherIds);
+        $evMonthly = $evrModel->getMonthlyByItems($bulan, $allEvoucherIds);
+        $hMonthly  = $hrModel->getMonthlyByItems($bulan, $allHadiahIds);
+        $ehMonthly = $ehrModel->getMonthlyByItems($bulan, $allEhadiahIds);
+
+        $monthlyData = [];
+        foreach ($sMonthly as $id => $data) { $monthlyData['s_' . $id] = $data; }
+        foreach ($eMonthly as $id => $data) { $monthlyData['e_' . $id] = $data; }
+
+        $voucherByProgram = [];
+        foreach ($voucherItemsGrouped as $progId => $items) {
+            $voucherByProgram[$progId] = ['total_tersebar' => 0, 'total_terpakai' => 0];
+            foreach ($items as $vi) {
+                $vd = $vMonthly[$vi['id']] ?? null;
+                if ($vd) {
+                    $voucherByProgram[$progId]['total_tersebar'] += (int)$vd['total_tersebar'];
+                    $voucherByProgram[$progId]['total_terpakai'] += (int)$vd['total_terpakai'];
+                }
+            }
+        }
+        $evoucherByProgram = [];
+        foreach ($evoucherItemsGrouped as $progId => $items) {
+            $evoucherByProgram[$progId] = ['total_tersebar' => 0, 'total_terpakai' => 0];
+            foreach ($items as $vi) {
+                $vd = $evMonthly[$vi['id']] ?? null;
+                if ($vd) {
+                    $evoucherByProgram[$progId]['total_tersebar'] += (int)$vd['total_tersebar'];
+                    $evoucherByProgram[$progId]['total_terpakai'] += (int)$vd['total_terpakai'];
+                }
+            }
+        }
+        $hadiahByProgram = [];
+        foreach ($hadiahItemsGrouped as $progId => $items) {
+            $hadiahByProgram[$progId] = 0;
+            foreach ($items as $hi) { $hadiahByProgram[$progId] += (int)($hMonthly[$hi['id']] ?? 0); }
+        }
+        $ehadiahByProgram = [];
+        foreach ($ehadiahItemsGrouped as $progId => $items) {
+            $ehadiahByProgram[$progId] = 0;
+            foreach ($items as $hi) { $ehadiahByProgram[$progId] += (int)($ehMonthly[$hi['id']] ?? 0); }
+        }
+
+        $kpiMember = $kpiMemberAktif = $kpiTersebar = $kpiTerpakai = $kpiHadiah = 0;
+        foreach ($monthlyData as $data) {
+            $kpiMember      += (int)($data['total_jumlah']       ?? 0);
+            $kpiMemberAktif += (int)($data['total_member_aktif'] ?? 0);
+        }
+        foreach (array_merge($vMonthly, $evMonthly) as $vd) {
+            $kpiTersebar += (int)$vd['total_tersebar'];
+            $kpiTerpakai += (int)$vd['total_terpakai'];
+        }
+        foreach (array_merge($hMonthly, $ehMonthly) as $n) { $kpiHadiah += (int)$n; }
+
+        return view('loyalty_program/print_summary', [
+            'bulan'             => $bulan,
+            'programs'          => $programs,
+            'monthlyData'       => $monthlyData,
+            'voucherByProgram'  => $voucherByProgram,
+            'evoucherByProgram' => $evoucherByProgram,
+            'hadiahByProgram'   => $hadiahByProgram,
+            'ehadiahByProgram'  => $ehadiahByProgram,
+            'kpiMember'         => $kpiMember,
+            'kpiMemberAktif'    => $kpiMemberAktif,
+            'kpiTersebar'       => $kpiTersebar,
+            'kpiTerpakai'       => $kpiTerpakai,
+            'kpiHadiah'         => $kpiHadiah,
+            'printedBy'         => $this->currentUser()['name'] ?? '',
+            'printedAt'         => date('d M Y H:i'),
         ]);
     }
 

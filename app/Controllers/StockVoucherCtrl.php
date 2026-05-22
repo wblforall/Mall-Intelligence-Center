@@ -58,15 +58,18 @@ class StockVoucherCtrl extends BaseController
             return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak.');
         }
 
-        $post  = $this->request->getPost();
-        $clean = fn($v) => (int)str_replace([',', '.', ' '], '', $v ?? 0);
-
-        (new StockVoucherBatchModel())->update($id, [
+        $post       = $this->request->getPost();
+        $clean      = fn($v) => (int)str_replace([',', '.', ' '], '', $v ?? 0);
+        $batchModel2 = new StockVoucherBatchModel();
+        ActivityLog::captureBefore($batchModel2->find($id));
+        $batchData = [
             'nama_voucher'  => $post['nama_voucher'],
             'nilai_voucher' => $clean($post['nilai_voucher']),
             'expired_date'  => ($post['expired_date'] ?? '') ?: null,
             'catatan'       => $post['catatan'] ?? null,
-        ]);
+        ];
+        $batchModel2->update($id, $batchData);
+        ActivityLog::captureAfter($batchData);
 
         ActivityLog::write('update', 'stock_voucher_batch', (string)$id, $post['nama_voucher']);
         return redirect()->to('/stock/voucher')->with('success', 'Batch voucher diupdate.');
@@ -90,9 +93,12 @@ class StockVoucherCtrl extends BaseController
         $inserted = $kodeModel->importKodes($batchId, $kodes);
 
         // Update total_kode and sisa_kode
-        $total = db_connect()->table('stock_voucher_kode')->where('batch_id', $batchId)->countAllResults();
-        $sisa  = db_connect()->table('stock_voucher_kode')->where('batch_id', $batchId)->where('status', 'available')->countAllResults();
-        $batchModel->update($batchId, ['total_kode' => $total, 'sisa_kode' => $sisa]);
+        $total     = db_connect()->table('stock_voucher_kode')->where('batch_id', $batchId)->countAllResults();
+        $sisa      = db_connect()->table('stock_voucher_kode')->where('batch_id', $batchId)->where('status', 'available')->countAllResults();
+        ActivityLog::captureBefore($batchModel->find($batchId));
+        $importData = ['total_kode' => $total, 'sisa_kode' => $sisa];
+        $batchModel->update($batchId, $importData);
+        ActivityLog::captureAfter($importData);
 
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Import {$inserted} kode ke batch {$batch['nama_voucher']}");
         return redirect()->to('/stock/voucher')->with('success', "{$inserted} kode berhasil diimport.");

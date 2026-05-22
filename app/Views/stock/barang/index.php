@@ -3,9 +3,14 @@
 
 <div class="d-flex align-items-center justify-content-between mb-3">
     <h4 class="fw-bold mb-0"><i class="bi bi-box-seam me-2"></i>Stock Barang / Hadiah Fisik</h4>
-    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahBarang">
-        <i class="bi bi-plus-lg me-1"></i>Tambah Barang
-    </button>
+    <div class="d-flex gap-2">
+        <a href="<?= base_url('stock/barang/mutasi') ?>" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-right me-1"></i>Laporan Mutasi
+        </a>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahBarang">
+            <i class="bi bi-plus-lg me-1"></i>Tambah Barang
+        </button>
+    </div>
 </div>
 
 

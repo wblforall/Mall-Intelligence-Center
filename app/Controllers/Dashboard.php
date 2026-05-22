@@ -226,6 +226,59 @@ class Dashboard extends BaseController
         ]);
     }
 
+    public function economicDebug()
+    {
+        if (session()->get('user_role') !== 'admin') {
+            return $this->response->setJSON(['error' => 'admin only'])->setStatusCode(403);
+        }
+
+        $result = [
+            'curl_available'       => function_exists('curl_init'),
+            'curl_multi_available' => function_exists('curl_multi_init'),
+            'php_version'          => PHP_VERSION,
+            'server_ip'            => $_SERVER['SERVER_ADDR'] ?? 'unknown',
+        ];
+
+        // Test outbound connection to bi.go.id
+        if (function_exists('curl_init')) {
+            $ch = curl_init('https://www.bi.go.id/id/statistik/indikator/BI-Rate.aspx');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_USERAGENT      => 'Mozilla/5.0',
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_SSL_VERIFYPEER => false,
+            ]);
+            $html = curl_exec($ch);
+            $result['bi_curl_http_code'] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $result['bi_curl_error']     = curl_error($ch) ?: null;
+            $result['bi_curl_errno']     = curl_errno($ch);
+            $result['bi_response_len']   = $html ? strlen($html) : 0;
+            curl_close($ch);
+
+            // Try to parse rate from response
+            if ($html) {
+                $months = 'Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember';
+                if (preg_match('/(\d{1,2}\s+(?:' . $months . ')\s+\d{4})[^%]{0,200}?(\d+[,\.]\d+)\s*%/s', $html, $m)) {
+                    $result['parsed_date'] = $m[1];
+                    $result['parsed_rate'] = $m[2] . '%';
+                } else {
+                    $result['parsed_date'] = null;
+                    $result['parsed_rate'] = 'regex no match';
+                    // Snippet for debugging
+                    $result['html_snippet'] = substr(strip_tags($html), 0, 500);
+                }
+            }
+        }
+
+        // Cache status
+        $cached = cache('eco_bi_rate');
+        $result['cache_bi_rate'] = $cached;
+
+        return $this->response->setJSON($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+
     // ── Macro indicators — BI Rate & Inflasi di-fetch paralel ────────────────
     private function getEconomicData(): array
     {
@@ -292,7 +345,7 @@ class Dashboard extends BaseController
 
     private function parseBiRate(string $html): array
     {
-        $fallback = ['pct' => '4,75', 'per' => '22 Apr 2026', 'live' => false];
+        $fallback = ['pct' => '4,75', 'per' => '20 Mei 2026', 'live' => false];
         if (! $html) {
             cache()->save('eco_bi_rate', $fallback, 3600);
             return $fallback;

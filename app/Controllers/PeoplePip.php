@@ -113,8 +113,10 @@ class PeoplePip extends BaseController
     {
         if (! $this->guard(true)) return redirect()->to('/events')->with('error', 'Akses ditolak.');
 
-        $post = $this->request->getPost();
-        (new PipPlanModel())->update($id, [
+        $post     = $this->request->getPost();
+        $pipModel = new PipPlanModel();
+        ActivityLog::captureBefore($pipModel->find($id));
+        $pipData = [
             'judul'                => trim($post['judul']),
             'alasan'               => trim($post['alasan'] ?? '') ?: null,
             'level_sp'             => $post['level_sp'] ?? 'none',
@@ -129,7 +131,9 @@ class PeoplePip extends BaseController
             'frekuensi_review'     => $post['frekuensi_review'] ?? 'mingguan',
             'status'               => $post['status'],
             'catatan_penutup'      => trim($post['catatan_penutup'] ?? '') ?: null,
-        ]);
+        ];
+        $pipModel->update($id, $pipData);
+        ActivityLog::captureAfter($pipData);
 
         $db = db_connect();
         $db->table('pip_items')->where('pip_id', $id)->delete();

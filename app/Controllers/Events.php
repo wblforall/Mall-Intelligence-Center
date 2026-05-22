@@ -129,13 +129,16 @@ class Events extends BaseController
         $endDate   = $this->request->getPost('end_date');
         $eventDays = max(1, (int)round((strtotime($endDate) - strtotime($startDate)) / 86400) + 1);
 
-        $this->eventModel->update($id, [
+        ActivityLog::captureBefore($event);
+        $eventData = [
             'name'       => $this->request->getPost('name'),
             'tema'       => $this->request->getPost('tema'),
             'mall'       => $this->request->getPost('mall'),
             'start_date' => $startDate,
             'event_days' => $eventDays,
-        ]);
+        ];
+        $this->eventModel->update($id, $eventData);
+        ActivityLog::captureAfter($eventData);
         $locationIds = array_filter(array_map('intval', (array)($this->request->getPost('location_ids') ?? [])));
         (new EventLocationModel())->syncEventLocations($id, $locationIds);
 

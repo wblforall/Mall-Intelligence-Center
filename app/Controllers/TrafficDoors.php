@@ -48,12 +48,15 @@ class TrafficDoors extends BaseController
             return redirect()->to('/traffic-doors')->with('error', 'Data tidak ditemukan.');
         }
 
-        $model->update($id, [
+        ActivityLog::captureBefore($before);
+        $doorData = [
             'mall'       => $post['mall'],
             'nama_pintu' => trim($post['nama_pintu']),
             'urutan'     => (int)($post['urutan'] ?? 0),
             'aktif'      => isset($post['aktif']) ? 1 : 0,
-        ]);
+        ];
+        $model->update($id, $doorData);
+        ActivityLog::captureAfter($doorData);
         ActivityLog::write('update', 'door', (string)$id, trim($post['nama_pintu']), [
             'before' => ['nama_pintu' => $before['nama_pintu'], 'aktif' => (bool)$before['aktif']],
             'after'  => ['nama_pintu' => trim($post['nama_pintu']), 'aktif' => isset($post['aktif'])],
