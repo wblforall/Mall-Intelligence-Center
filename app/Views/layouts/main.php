@@ -201,7 +201,7 @@ body { min-height: 100vh; }
                 <i class="bi bi-graph-up-arrow"></i> Summary
             </a>
             <a href="<?= base_url('creative/media-promo/gantt') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/gantt') ? 'active' : '' ?>" style="padding-left:2.8rem;font-size:.75rem">
-                <i class="bi bi-bar-chart-gantt"></i> Gantt
+                <i class="bi bi-calendar3-range"></i> Gantt
             </a>
             <a href="<?= base_url('creative/media-promo/master') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/master') ? 'active' : '' ?>" style="padding-left:2.8rem;font-size:.75rem">
                 <i class="bi bi-pin-map"></i> Master Titik
