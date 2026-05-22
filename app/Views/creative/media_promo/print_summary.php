@@ -7,7 +7,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: Arial, sans-serif; font-size: 11px; color: #111; background: #fff; }
 
-@page { size: A4 portrait; margin: 14mm 16mm 12mm; }
+@page { size: A4 landscape; margin: 12mm 14mm 10mm; }
 @media print {
     .no-print { display: none !important; }
     body { font-size: 10.5px; }
