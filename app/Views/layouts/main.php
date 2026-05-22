@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= $pageTitle ?? 'Mall Intelligence Center' ?></title>
-<link rel="icon" type="image/png" href="<?= base_url('img/mic-logo.png') ?>">
+<link rel="icon" type="image/png" href="<?= base_url('img/mic-logo-sm.png') ?>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="<?= base_url('css/theme.css') ?>" rel="stylesheet">
@@ -78,8 +78,9 @@ body { min-height: 100vh; }
 
     <!-- Brand -->
     <div class="brand d-flex align-items-center gap-2">
-        <img src="<?= base_url('img/mic-logo.png') ?>" alt="MIC Logo"
-             style="width:36px;height:36px;object-fit:contain;flex-shrink:0;border-radius:4px;background:var(--c-logo-bg);padding:2px">
+        <img src="<?= base_url('img/mic-logo-sm.png') ?>" alt="MIC Logo"
+             width="36" height="36"
+             style="object-fit:contain;flex-shrink:0;border-radius:4px;background:var(--c-logo-bg);padding:2px">
         <div>
             <div class="brand-name">Mall Intelligence Center</div>
             <div class="brand-sub">eWalk & Pentacity</div>
