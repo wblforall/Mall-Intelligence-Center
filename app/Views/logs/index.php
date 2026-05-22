@@ -261,15 +261,17 @@ function renderDetail(raw) {
             if (changed.length) {
                 html += `<div class="fw-semibold small mb-1 text-danger"><i class="bi bi-arrow-left-right me-1"></i>Perubahan (${changed.length} field)</div>`;
                 html += '<table class="table table-sm table-bordered mb-2" style="font-size:.8rem">';
-                html += '<thead><tr><th style="width:25%;background:var(--c-modal-th-bg)">Field</th><th style="background:#fca5a5;color:#450a0a">Sebelum</th><th style="background:#86efac;color:#052e16">Sesudah</th></tr></thead><tbody>';
+                html += '<thead><tr><th style="width:25%;background:var(--c-modal-th-bg)">Field</th><th style="background:#991b1b;color:#fef2f2">Sebelum</th><th style="background:#166534;color:#f0fdf4">Sesudah</th></tr></thead><tbody>';
                 changed.forEach(k => {
                     const label = k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-                    const bVal  = before ? fmtVal(before[k]) : '—';
-                    const aVal  = (after && (k in after)) ? fmtVal(after[k]) : '—';
+                    const bRaw  = before ? before[k] : null;
+                    const aRaw  = (after && (k in after)) ? after[k] : null;
+                    const bTxt  = (bRaw === null || bRaw === undefined || bRaw === '') ? '<em style="opacity:.6;font-style:italic">kosong</em>' : esc(String(bRaw));
+                    const aTxt  = (aRaw === null || aRaw === undefined || aRaw === '') ? '<em style="opacity:.6;font-style:italic">kosong</em>' : esc(String(aRaw));
                     html += `<tr>
                         <th style="background:var(--c-modal-th-bg);white-space:nowrap">${esc(label)}</th>
-                        <td style="background:#fca5a5;color:#450a0a;font-weight:500">${bVal}</td>
-                        <td style="background:#86efac;color:#052e16;font-weight:500">${aVal}</td>
+                        <td style="background:#991b1b;color:#fef2f2;font-weight:500">${bTxt}</td>
+                        <td style="background:#166534;color:#f0fdf4;font-weight:500">${aTxt}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
