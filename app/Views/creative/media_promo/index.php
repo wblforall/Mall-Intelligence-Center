@@ -4,9 +4,6 @@
 <div class="d-flex align-items-center justify-content-between mb-3">
     <h4 class="fw-bold mb-0"><i class="bi bi-megaphone me-2"></i>Media Promo</h4>
     <div class="d-flex gap-2">
-        <a href="<?= base_url('creative/media-promo/gantt') ?>" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-bar-chart-gantt me-1"></i>Gantt
-        </a>
         <a href="<?= base_url('creative/media-promo/print?bulan='.date('Y-m')) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-printer me-1"></i>Print
         </a>
@@ -21,11 +18,6 @@
         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalBuatRequest">
             <i class="bi bi-plus-lg me-1"></i>Buat Request
         </button>
-        <?php if ($canEdit): ?>
-        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalTambahTitik">
-            <i class="bi bi-pin-map me-1"></i>Tambah Titik
-        </button>
-        <?php endif; ?>
     </div>
 </div>
 
