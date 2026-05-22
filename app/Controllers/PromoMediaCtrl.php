@@ -454,6 +454,97 @@ class PromoMediaCtrl extends BaseController
         return $this->response->setJSON(['total' => $total, 'available' => $available]);
     }
 
+    public function printSummary()
+    {
+        if ($r = $this->checkView()) return $r;
+
+        $bulan = $this->request->getGet('bulan') ?: date('Y-m');
+        if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+
+        $bulanMulai   = $bulan . '-01';
+        $bulanSelesai = date('Y-m-t', strtotime($bulanMulai));
+        $totalDays    = (int) date('t', strtotime($bulanMulai));
+
+        $db     = db_connect();
+        $usages = $db->table('promo_media_usage u')
+            ->select('u.*, s.kode spot_kode, s.nama spot_nama, s.tipe spot_tipe, s.area spot_area, s.total_slots spot_total_slots')
+            ->join('promo_media_spots s', 's.id = u.spot_id')
+            ->where('u.tanggal_mulai <=', $bulanSelesai)
+            ->where('u.tanggal_selesai >=', $bulanMulai)
+            ->orderBy('s.tipe')->orderBy('s.kode')
+            ->get()->getResultArray();
+
+        $statusCounts  = ['pending' => 0, 'approved' => 0, 'rejected' => 0, 'done' => 0, 'draft' => 0];
+        $deptCounts    = [];
+        $tipeCounts    = [];
+        $sumberCounts  = ['internal' => 0, 'tenant' => 0, 'external' => 0];
+        $berbayarCount = 0;
+
+        foreach ($usages as $u) {
+            $s = $u['status'];
+            $statusCounts[$s] = ($statusCounts[$s] ?? 0) + 1;
+            $deptCounts[$u['dept']]      = ($deptCounts[$u['dept']] ?? 0) + 1;
+            $tipeCounts[$u['spot_tipe']] = ($tipeCounts[$u['spot_tipe']] ?? 0) + 1;
+            $sumberCounts[$u['sumber'] ?? 'internal'] = ($sumberCounts[$u['sumber'] ?? 'internal'] ?? 0) + 1;
+            if ($u['is_berbayar']) $berbayarCount++;
+        }
+        arsort($deptCounts);
+
+        $spots          = (new PromoMediaSpotModel())->where('is_active', 1)->orderBy('tipe')->orderBy('kode')->findAll();
+        $approvedUsages = array_filter($usages, fn($u) => in_array($u['status'], ['approved', 'done']));
+        $spotOccupancy  = [];
+
+        foreach ($spots as $s) {
+            $spotId    = (int) $s['id'];
+            $isDigital = $s['tipe'] === 'digital';
+            $capacity  = $totalDays * ($isDigital ? (int) $s['total_slots'] : 1);
+            $spotU     = array_filter($approvedUsages, fn($u) => (int) $u['spot_id'] === $spotId);
+
+            if ($isDigital) {
+                $occupiedDays = 0;
+                foreach ($spotU as $u) {
+                    $start = max($bulanMulai, $u['tanggal_mulai']);
+                    $end   = min($bulanSelesai, $u['tanggal_selesai']);
+                    $occupiedDays += max(0, (int) round((strtotime($end) - strtotime($start)) / 86400) + 1);
+                }
+            } else {
+                $occupiedDates = [];
+                foreach ($spotU as $u) {
+                    $d = strtotime(max($bulanMulai, $u['tanggal_mulai']));
+                    $e = strtotime(min($bulanSelesai, $u['tanggal_selesai']));
+                    while ($d <= $e) { $occupiedDates[date('Y-m-d', $d)] = true; $d += 86400; }
+                }
+                $occupiedDays = count($occupiedDates);
+            }
+
+            if ($occupiedDays === 0) continue;
+
+            $spotOccupancy[] = [
+                'spot'     => $s,
+                'occupied' => $occupiedDays,
+                'capacity' => $capacity,
+                'pct'      => $capacity > 0 ? round($occupiedDays / $capacity * 100) : 0,
+            ];
+        }
+        usort($spotOccupancy, fn($a, $b) => $b['pct'] <=> $a['pct']);
+
+        return view('creative/media_promo/print_summary', [
+            'bulan'         => $bulan,
+            'bulanMulai'    => $bulanMulai,
+            'bulanSelesai'  => $bulanSelesai,
+            'totalDays'     => $totalDays,
+            'statusCounts'  => $statusCounts,
+            'deptCounts'    => $deptCounts,
+            'tipeCounts'    => $tipeCounts,
+            'sumberCounts'  => $sumberCounts,
+            'berbayarCount' => $berbayarCount,
+            'spotOccupancy' => $spotOccupancy,
+            'totalRequest'  => array_sum($statusCounts),
+            'printedBy'     => $this->currentUser()['name'] ?? '',
+            'printedAt'     => date('d M Y H:i'),
+        ]);
+    }
+
     public function printBooking()
     {
         if ($r = $this->checkView()) return $r;
