@@ -261,15 +261,15 @@ function renderDetail(raw) {
             if (changed.length) {
                 html += `<div class="fw-semibold small mb-1 text-danger"><i class="bi bi-arrow-left-right me-1"></i>Perubahan (${changed.length} field)</div>`;
                 html += '<table class="table table-sm table-bordered mb-2" style="font-size:.8rem">';
-                html += '<thead><tr><th style="width:25%;background:#fef2f2">Field</th><th style="background:#fef2f2">Sebelum</th><th style="background:#f0fdf4">Sesudah</th></tr></thead><tbody>';
+                html += '<thead><tr><th style="width:25%;background:var(--c-modal-th-bg)">Field</th><th style="background:#fca5a5;color:#450a0a">Sebelum</th><th style="background:#86efac;color:#052e16">Sesudah</th></tr></thead><tbody>';
                 changed.forEach(k => {
-                    const bv = before ? fmtVal(before[k]) : '<span class="text-muted">—</span>';
-                    const av = after  ? fmtVal(after[k])  : '<span class="text-muted">—</span>';
                     const label = k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+                    const bVal  = before ? fmtVal(before[k]) : '—';
+                    const aVal  = (after && (k in after)) ? fmtVal(after[k]) : '—';
                     html += `<tr>
                         <th style="background:var(--c-modal-th-bg);white-space:nowrap">${esc(label)}</th>
-                        <td style="background:#fef2f2;color:#b91c1c">${bv}</td>
-                        <td style="background:#f0fdf4;color:#15803d">${av}</td>
+                        <td style="background:#fca5a5;color:#450a0a;font-weight:500">${bVal}</td>
+                        <td style="background:#86efac;color:#052e16;font-weight:500">${aVal}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
