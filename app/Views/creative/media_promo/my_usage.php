@@ -98,7 +98,7 @@ foreach ($usages as $u):
     <td>
         <div class="d-flex gap-1">
         <?php if (in_array($u['status'], ['draft', 'rejected'])): ?>
-            <button class="btn btn-xs btn-outline-primary py-0 px-1"
+            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
                 onclick="openEdit(<?= htmlspecialchars(json_encode($u)) ?>)" title="Edit">
                 <i class="bi bi-pencil"></i>
             </button>
