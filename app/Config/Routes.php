@@ -27,6 +27,7 @@ $routes->get ('dashboard/auto-fetch-bbm', 'Dashboard::autoFetchBbm',  ['filter' 
 $routes->get ('dashboard/news-feed',      'Dashboard::newsFeed',       ['filter' => 'auth']);
 $routes->get ('dashboard/economic',       'Dashboard::economicLive',   ['filter' => 'auth']);
 $routes->get ('dashboard/economic-debug', 'Dashboard::economicDebug',  ['filter' => 'auth:admin']);
+$routes->get ('dashboard/ihsg',           'Dashboard::ihsgLive',        ['filter' => 'auth']);
 
 // Events
 $routes->get('events', 'Events::index', ['filter' => 'auth']);

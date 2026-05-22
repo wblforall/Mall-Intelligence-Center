@@ -41,9 +41,10 @@ class Dashboard extends BaseController
 
         $bbmNews = [];
 
-        // BI Rate & Inflasi: pakai cache jika ada, fallback ke loading state (async JS fetch)
+        // BI Rate, Inflasi, IHSG: pakai cache jika ada, fallback ke loading state (async JS fetch)
         $biRate  = cache('eco_bi_rate')  ?? ['pct' => '—', 'per' => '', 'live' => false, 'loading' => true];
         $inflasi = cache('eco_inflasi')  ?? ['pct' => '—', 'per' => '', 'live' => false, 'loading' => true];
+        $ihsg    = cache('eco_ihsg')     ?? ['pct' => '—', 'per' => '', 'live' => false, 'loading' => true, 'chg' => null, 'chg_dir' => 'flat'];
 
         // GDP & PDRB: baca dari DB (bisa di-edit admin), fallback ke nilai default
         $gdp    = $this->getMacroIndicator('gdp',     '5,61', 'Q1 2026 (YoY, BPS)');
@@ -54,6 +55,7 @@ class Dashboard extends BaseController
             'inflation' => $inflasi,
             'gdp'       => $gdp,
             'gdp_bpn'   => $gdpBpn,
+            'ihsg'      => $ihsg,
             'bbm'       => $this->getBbmPrices(),
             'bbm_per'   => $this->getBbmPer(),
         ];
@@ -224,6 +226,77 @@ class Dashboard extends BaseController
             'bi_rate'   => $data['bi_rate'],
             'inflation' => $data['inflation'],
         ]);
+    }
+
+    // JSON endpoint — fetch IHSG (^JKSE) dari Yahoo Finance secara async
+    public function ihsgLive()
+    {
+        $cached = cache('eco_ihsg');
+        if ($cached !== null && empty($cached['loading'])) {
+            return $this->response->setJSON(['ihsg' => $cached]);
+        }
+        return $this->response->setJSON(['ihsg' => $this->fetchIhsg()]);
+    }
+
+    private function fetchIhsg(): array
+    {
+        $fallback = ['pct' => '—', 'per' => 'IDX', 'live' => false, 'chg' => null, 'chg_dir' => 'flat'];
+        if (! function_exists('curl_init')) {
+            cache()->save('eco_ihsg', $fallback, 1800);
+            return $fallback;
+        }
+
+        $url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5EJKSE?interval=1d&range=2d&includePrePost=false';
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; MallIC/1.9)',
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_ENCODING       => 'gzip, deflate',
+            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        ]);
+        $raw  = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (! $raw || $code < 200 || $code >= 300) {
+            cache()->save('eco_ihsg', $fallback, 1800);
+            return $fallback;
+        }
+
+        $json = json_decode($raw, true);
+        $meta = $json['chart']['result'][0]['meta'] ?? null;
+        if (! $meta || empty($meta['regularMarketPrice'])) {
+            cache()->save('eco_ihsg', $fallback, 1800);
+            return $fallback;
+        }
+
+        $price = (float)$meta['regularMarketPrice'];
+        $prev  = (float)($meta['previousClose'] ?? 0);
+
+        $chgPct = $prev > 0 ? (($price - $prev) / $prev) * 100 : null;
+        $chgDir = $chgPct === null ? 'flat' : ($chgPct > 0.05 ? 'up' : ($chgPct < -0.05 ? 'down' : 'flat'));
+        $chgStr = $chgPct !== null
+            ? ($chgPct >= 0 ? '+' : '') . number_format($chgPct, 2, ',', '.') . '%'
+            : null;
+
+        $ts  = isset($meta['regularMarketTime']) ? (int)$meta['regularMarketTime'] : time();
+        $per = 'IDX • ' . date('d M Y H:i', $ts) . ' WIB';
+
+        $result = [
+            'pct'        => number_format($price, 2, ',', '.'),
+            'per'        => $per,
+            'live'       => true,
+            'chg'        => $chgStr,
+            'chg_dir'    => $chgDir,
+            'fetched_at' => date('d M Y H:i'),
+        ];
+
+        cache()->save('eco_ihsg', $result, 1800);
+        return $result;
     }
 
     public function economicDebug()

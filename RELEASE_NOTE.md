@@ -42,6 +42,10 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 - **Dynamic disable checkbox** — saat user memilih tanggal mulai & selesai di form request media cetak, sistem otomatis memeriksa ketersediaan setiap titik via endpoint `GET /creative/media-promo/spots/check-cetak`.
 - **Badge status real-time** — titik yang sudah terpakai (ada booking pending/approved di rentang tanggal tersebut) ditandai badge merah "Terpakai" dan checkbox-nya dinonaktifkan; titik tersedia ditandai badge hijau "Tersedia".
 
+#### Performa
+
+- **Kompresi logo** — file logo utama dikompres dari 1.1MB → 7KB (sidebar) dan dari ~1.1MB → 130KB (login & print), mengurangi waktu muat halaman secara signifikan.
+
 #### Perbaikan Bug
 
 - **Fix: Dropdown arrow tidak terlihat** — `background:` (shorthand CSS) pada `.form-control, .form-select` di `theme.css` diganti menjadi `background-color:` di 4 rule (dark + light, normal + focus). Shorthand menimpa `background-image` milik Bootstrap yang berisi SVG panah dropdown, sehingga panah tidak tampil. Perbaikan ini berlaku global untuk semua `form-select` di seluruh aplikasi.

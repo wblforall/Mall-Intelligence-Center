@@ -115,4 +115,4 @@ Lihat diagram lengkap di [ARCHITECTURE.md](ARCHITECTURE.md#3-modul--tabel-databa
 | Purchasing | REST API | Modul VM & Creative |
 | PAM Plus (membership) | REST API | Modul Loyalty |
 
-Belum ada integrasi aktif di v1.1.
+Belum ada integrasi aktif di v1.9.

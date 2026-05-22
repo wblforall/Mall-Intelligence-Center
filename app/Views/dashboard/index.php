@@ -344,6 +344,52 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
             </div>
         </div>
         <?php endforeach; ?>
+
+        <?php
+        // IHSG card — tampil nilai indeks, bukan persentase
+        $_ih      = $eco['ihsg'];
+        $_ihLoad  = ! empty($_ih['loading']);
+        $_ihLive  = ! empty($_ih['live']);
+        $_ihDir   = $_ih['chg_dir'] ?? 'flat';
+        $_ihCls   = $_ihDir === 'up' ? 'text-success' : ($_ihDir === 'down' ? 'text-danger' : 'text-muted');
+        $_ihArrow = $_ihDir === 'up' ? '▲' : ($_ihDir === 'down' ? '▼' : '─');
+        ?>
+        <div class="rounded border px-3 py-2" id="macro-ihsg" style="background:var(--bs-tertiary-bg)">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <div style="font-size:.7rem" class="text-muted">IHSG 📈</div>
+                <?php if ($_ihLoad): ?>
+                <span class="badge bg-secondary-subtle text-secondary border" style="font-size:.55rem" id="ihsg-badge">
+                    <span class="spinner-border" style="width:.5rem;height:.5rem;border-width:1px"></span>
+                </span>
+                <?php elseif ($_ihLive): ?>
+                <span class="badge bg-success-subtle text-success border" style="font-size:.55rem" id="ihsg-badge">
+                    <i class="bi bi-circle-fill me-1" style="font-size:.4rem"></i>LIVE
+                </span>
+                <?php else: ?>
+                <span class="badge bg-secondary-subtle text-secondary border" style="font-size:.55rem" id="ihsg-badge">MANUAL</span>
+                <?php endif; ?>
+            </div>
+            <?php if ($_ihLoad): ?>
+            <div class="d-flex align-items-center gap-2" id="ihsg-val">
+                <span class="spinner-border spinner-border-sm text-secondary" style="width:.85rem;height:.85rem;border-width:2px"></span>
+                <span class="text-muted" style="font-size:.8rem">Memuat...</span>
+            </div>
+            <?php else: ?>
+            <div class="d-flex align-items-end gap-2">
+                <div class="fw-bold text-warning" style="font-size:1.1rem" id="ihsg-val"><?= esc($_ih['pct']) ?></div>
+                <?php if (! empty($_ih['chg'])): ?>
+                <div class="<?= $_ihCls ?>" style="font-size:.72rem;margin-bottom:.22rem" id="ihsg-chg">
+                    <?= $_ihArrow . ' ' . esc($_ih['chg']) ?>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+            <div class="text-muted mt-1" style="font-size:.63rem" id="ihsg-per">
+                <?php if (! $_ihLoad): ?>
+                <i class="bi bi-calendar3 me-1"></i><?= esc($_ih['per']) ?>
+                <?php endif; ?>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -482,11 +528,17 @@ $bi   = $eco['bi_rate'];
 $infl = $eco['inflation'];
 $gdp  = $eco['gdp'];
 $gpbn = $eco['gdp_bpn'];
+$ihsg = $eco['ihsg'];
 
 $biNum   = (float)str_replace(',', '.', $bi['pct']);
 $inflNum = (float)str_replace(',', '.', $infl['pct']);
 $gdpNum  = (float)str_replace(',', '.', $gdp['pct']);
 $gpbnNum = (float)str_replace(',', '.', $gpbn['pct']);
+// IHSG: "7.241,89" → hilangkan titik ribuan → ganti koma desimal → float
+$ihsgNum     = (float)str_replace(',', '.', str_replace('.', '', $ihsg['pct']));
+$ihsgLoaded  = $ihsgNum > 100;
+$ihsgBullish = $ihsgNum > 7500;
+$ihsgBearish = $ihsgLoaded && $ihsgNum < 6500;
 
 // Ekstrak harga BBM dari database
 $bbmMap = [];
@@ -623,7 +675,10 @@ $segMenengahStatus = ($cicilanMurah && $inflNum < 3 && $hrgPertamax < 14000) ? '
     : ($logistikBerat && $inflNum > 3 ? 'tertekan' : 'terjaga');
 
 // Segmen Atas: pakai Pertamax Turbo, investasi properti, less price-sensitive
-$segAtasStatus = $cicilanMurah ? 'membaik' : 'terjaga';
+// IHSG bullish + BI Rate murah = kondisi investasi ideal → membaik
+// IHSG bearish = sentimen investor tertekan → waspada
+$segAtasStatus = $ihsgBearish ? 'waspada'
+    : ($cicilanMurah && (! $ihsgLoaded || $ihsgBullish) ? 'membaik' : 'terjaga');
 
 // UMKM & Logistik: pakai Dexlite/Solar, sangat terdampak kenaikan BBM non-subsidi
 $segUmkmStatus = $logistikBerat ? 'tertekan' : 'terjaga';
@@ -669,6 +724,13 @@ $segments = [
         'poin'   => [
             '⚠ Pertamax Turbo Rp ' . number_format($bbmMap['pertamax_turbo'] ?? 19900,0,',','.') . ' — naik, tapi proporsi ke pengeluaran kecil',
             $cicilanMurah ? '✔ BI Rate rendah — investasi properti & bisnis makin menarik' : '⚠ Suku bunga tinggi rem investasi',
+            $ihsgLoaded
+                ? ($ihsgBullish
+                    ? '✔ IHSG ' . number_format($ihsgNum, 0, ',', '.') . ' — pasar saham bullish, efek kekayaan positif'
+                    : ($ihsgBearish
+                        ? '✘ IHSG ' . number_format($ihsgNum, 0, ',', '.') . ' — pasar bearish, sentimen investasi tertekan'
+                        : '─ IHSG ' . number_format($ihsgNum, 0, ',', '.') . ' — pasar dalam kisaran netral'))
+                : '',
             $gpbnNum > 6 ? '✔ PDRB Balikpapan ' . $gpbn['pct'] . '% — aktivitas bisnis lokal bergairah' : '',
             '✔ Efek IKN Nusantara perkuat aktivitas ekonomi di Balikpapan',
         ],
@@ -1354,6 +1416,50 @@ foreach ($sections as $sec):
                 const valEl = document.getElementById('macro-' + key + '-val');
                 if (valEl) valEl.innerHTML = '<span class="text-muted" style="font-size:.82rem">—</span>';
             });
+        }
+    })();
+    <?php endif; ?>
+
+    /* ── IHSG: fetch async jika belum di-cache ── */
+    <?php if (! empty($ihsg['loading'])): ?>
+    (async function loadIhsg() {
+        try {
+            const res  = await fetch('<?= base_url('dashboard/ihsg') ?>');
+            const data = await res.json();
+            const d    = data.ihsg;
+            if (! d || d.pct === '—') return;
+
+            const valEl   = document.getElementById('ihsg-val');
+            const perEl   = document.getElementById('ihsg-per');
+            const badgeEl = document.getElementById('ihsg-badge');
+
+            if (valEl) {
+                const chgCls   = d.chg_dir === 'up' ? 'text-success' : d.chg_dir === 'down' ? 'text-danger' : 'text-muted';
+                const arrow    = d.chg_dir === 'up' ? '▲' : d.chg_dir === 'down' ? '▼' : '─';
+                const chgHtml  = d.chg
+                    ? `<div class="${chgCls}" style="font-size:.72rem;margin-bottom:.22rem" id="ihsg-chg">${arrow} ${d.chg}</div>`
+                    : '';
+                valEl.outerHTML = `<div class="d-flex align-items-end gap-2">
+                    <div class="fw-bold text-warning" style="font-size:1.1rem" id="ihsg-val">${d.pct}</div>
+                    ${chgHtml}</div>`;
+            }
+            if (perEl) {
+                perEl.innerHTML = '<i class="bi bi-calendar3 me-1"></i>' + d.per;
+            }
+            if (badgeEl) {
+                if (d.live) {
+                    badgeEl.className   = 'badge bg-success-subtle text-success border';
+                    badgeEl.style.fontSize = '.55rem';
+                    badgeEl.innerHTML   = '<i class="bi bi-circle-fill me-1" style="font-size:.4rem"></i>LIVE';
+                } else {
+                    badgeEl.className   = 'badge bg-warning-subtle text-warning border';
+                    badgeEl.style.fontSize = '.55rem';
+                    badgeEl.textContent = 'FALLBACK';
+                }
+            }
+        } catch (e) {
+            const valEl = document.getElementById('ihsg-val');
+            if (valEl) valEl.innerHTML = '<span class="text-muted" style="font-size:.82rem">—</span>';
         }
     })();
     <?php endif; ?>
