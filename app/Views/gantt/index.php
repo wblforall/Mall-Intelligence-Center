@@ -155,7 +155,29 @@
             },
         });
 
-        setTimeout(() => injectOverlays(data), 200);
+        setTimeout(() => {
+            injectOverlays(data);
+            scrollToToday();
+        }, 200);
+    }
+
+    /* ── Scroll view ke hari ini ────────────────────────────────── */
+    function scrollToToday() {
+        if (!gantt || !gantt.gantt_start || !gantt.options) return;
+        const container = document.querySelector('.gantt-container');
+        if (!container) return;
+
+        const colW  = gantt.options.column_width;
+        const step  = gantt.options.step;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const todayX = (today - gantt.gantt_start) / 3600000 / step * colW;
+        if (todayX <= 0) return; // hari ini sebelum range chart — biarkan di awal
+
+        // Posisikan hari ini di 30% dari kiri layar agar ada konteks sebelumnya
+        const offset = Math.max(0, todayX - container.clientWidth * 0.3);
+        container.scrollLeft = offset;
     }
 
     /* ── SVG overlay injection ───────────────────────────────────── */
