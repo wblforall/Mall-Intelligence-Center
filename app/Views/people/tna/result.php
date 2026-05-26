@@ -50,9 +50,15 @@ $submittedCount = count(array_filter($assessments, fn($a) => $a['status'] === 's
         <h5 class="fw-bold mb-0">Gap Analysis — <?= esc($employee['nama']) ?></h5>
         <div class="text-muted small"><?= esc($employee['jabatan']) ?> · <?= esc($employee['dept_name']) ?></div>
     </div>
-    <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="window.print()">
-        <i class="bi bi-printer me-1"></i>Print
-    </button>
+    <div class="ms-auto d-flex gap-2">
+        <a href="<?= base_url('people/idp/import-tna/' . $period['id'] . '/' . $employee['id']) ?>"
+           class="btn btn-sm btn-outline-success">
+            <i class="bi bi-journal-plus me-1"></i>Buat IDP dari Hasil Ini
+        </a>
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i>Print
+        </button>
+    </div>
 </div>
 
 <!-- KPI Summary -->

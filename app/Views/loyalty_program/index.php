@@ -18,11 +18,16 @@ function slPct(int $actual, int $target): float {
     return $target > 0 ? min(100, round($actual / $target * 100, 1)) : 0;
 }
 
-$standaloneActive   = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'active');
-$standaloneInactive = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'inactive');
-$eventOpen          = array_filter($programs, fn($p) => $p['source'] === 'event' && $p['status'] === 'active');
-$eventClosed        = array_filter($programs, fn($p) => $p['source'] === 'event' && $p['status'] === 'inactive');
-$eventPrograms      = $eventOpen;
+$internalActive   = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'active'   && ($p['jenis'] ?? 'internal') === 'internal');
+$internalInactive = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'inactive' && ($p['jenis'] ?? 'internal') === 'internal');
+$tenantActive     = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'active'   && ($p['jenis'] ?? 'internal') === 'tenant');
+$tenantInactive   = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'inactive' && ($p['jenis'] ?? 'internal') === 'tenant');
+$eventOpen        = array_filter($programs, fn($p) => $p['source'] === 'event' && $p['status'] === 'active');
+$eventClosed      = array_filter($programs, fn($p) => $p['source'] === 'event' && $p['status'] === 'inactive');
+$allInternal      = array_merge($internalActive, $internalInactive);
+$allTenant        = array_merge($tenantActive, $tenantInactive);
+$allEvent         = array_merge($eventOpen, $eventClosed);
+$allClosed        = array_filter($programs, fn($p) => $p['status'] === 'inactive');
 ?>
 
 <!-- Header -->
@@ -57,7 +62,7 @@ $eventPrograms      = $eventOpen;
                     <span class="small text-muted">Program Aktif</span>
                 </div>
                 <div class="fw-bold fs-4 text-primary" data-count="<?= $activeCount ?>"><?= $activeCount ?></div>
-                <div class="small text-muted">dari <?= count($programs) ?> total</div>
+                <div class="small text-muted">dari <?= count($programs) ?> total &middot; <?= count($allTenant) ?> kerjasama tenant</div>
             </div>
         </div>
     </div>
@@ -129,10 +134,17 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
     $anchorId = 'program-' . ($isStandalone ? 's' : 'e') . '-' . $pid;
 ?>
 <div class="card mb-4 <?= $isInactive ? 'opacity-75' : '' ?> border-start border-4 <?= $isStandalone ? 'border-primary' : 'border-warning' ?>" id="<?= $anchorId ?>">
-    <?php if ($isStandalone): ?>
-    <div class="card-header py-1 px-3 bg-primary-subtle d-flex align-items-center gap-2" style="font-size:.75rem">
-        <i class="bi bi-star-fill text-primary"></i>
-        <span class="fw-semibold text-primary">Program Loyalty</span>
+    <?php if ($isStandalone):
+        $isTenant = ($p['jenis'] ?? 'internal') === 'tenant';
+    ?>
+    <div class="card-header py-1 px-3 <?= $isTenant ? 'bg-success-subtle' : 'bg-primary-subtle' ?> d-flex align-items-center gap-2" style="font-size:.75rem">
+        <i class="bi bi-<?= $isTenant ? 'shop text-success' : 'star-fill text-primary' ?>"></i>
+        <span class="fw-semibold <?= $isTenant ? 'text-success' : 'text-primary' ?>">
+            <?= $isTenant ? 'Kerjasama Tenant' : 'Program Internal' ?>
+        </span>
+        <?php if ($isTenant && ($p['nama_tenant'] ?? '')): ?>
+        <span class="badge bg-success text-white"><?= esc($p['nama_tenant']) ?></span>
+        <?php endif; ?>
         <?php if ($isLocked): ?><span class="badge bg-danger ms-1"><i class="bi bi-lock-fill me-1"></i>Terkunci</span><?php endif; ?>
         <?php if ($isInactive): ?><span class="badge bg-secondary ms-auto">Non-aktif</span><?php endif; ?>
     </div>
@@ -236,6 +248,8 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 </form>
                 <button class="btn btn-sm btn-outline-secondary edit-btn"
                     data-id="<?= $pid ?>"
+                    data-jenis="<?= esc($p['jenis'] ?? 'internal', 'attr') ?>"
+                    data-tenant-id="<?= (int)($p['tenant_id'] ?? 0) ?>"
                     data-nama="<?= esc($p['nama_program'], 'attr') ?>"
                     data-tanggal-mulai="<?= $p['tanggal_mulai'] ?? '' ?>"
                     data-tanggal-selesai="<?= $p['tanggal_selesai'] ?? '' ?>"
@@ -907,61 +921,145 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
 </div>
 <?php } // end renderLoyaltyCard ?>
 
-<?php $isAdmin = ($user['role'] ?? '') === 'admin'; ?>
-<?php $openCount   = count($standaloneActive) + count($eventOpen); ?>
-<?php $closedCount = count($standaloneInactive) + count($eventClosed); ?>
+<?php
+$isAdmin       = ($user['role'] ?? '') === 'admin';
+$cntInternal   = count($allInternal);
+$cntTenant     = count($allTenant);
+$cntEvent      = count($allEvent);
+$cntTenantAktif= count($tenantActive);
+$cntInternalAktif = count($internalActive);
+$cntClosed     = count($allClosed);
+?>
 
 <!-- Tabs -->
 <ul class="nav nav-tabs mb-3" id="loyaltyTabs">
     <li class="nav-item">
-        <button class="nav-link active fw-semibold" data-tab="open">
-            <i class="bi bi-unlock me-1"></i>Open
-            <span class="badge bg-primary ms-1"><?= $openCount ?></span>
+        <button class="nav-link active fw-semibold" data-tab="internal">
+            <i class="bi bi-star-fill text-primary me-1"></i>Program Internal
+            <?php if ($cntInternal > 0): ?>
+            <span class="badge bg-primary ms-1"><?= $cntInternal ?></span>
+            <?php endif; ?>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link fw-semibold" data-tab="tenant">
+            <i class="bi bi-shop text-success me-1"></i>Kerjasama Tenant
+            <?php if ($cntTenant > 0): ?>
+            <span class="badge bg-success ms-1"><?= $cntTenant ?></span>
+            <?php endif; ?>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link fw-semibold" data-tab="event">
+            <i class="bi bi-calendar-event text-warning-emphasis me-1"></i>Dari Event
+            <?php if ($cntEvent > 0): ?>
+            <span class="badge bg-warning text-dark ms-1"><?= $cntEvent ?></span>
+            <?php endif; ?>
         </button>
     </li>
     <li class="nav-item">
         <button class="nav-link fw-semibold" data-tab="closed">
-            <i class="bi bi-lock me-1"></i>Closed
-            <?php if ($closedCount > 0): ?>
-            <span class="badge bg-secondary ms-1"><?= $closedCount ?></span>
+            <i class="bi bi-archive text-secondary me-1"></i>Closed
+            <?php if ($cntClosed > 0): ?>
+            <span class="badge bg-secondary ms-1"><?= $cntClosed ?></span>
             <?php endif; ?>
         </button>
     </li>
 </ul>
 
-<!-- Tab: Open -->
-<div id="tab-open">
-    <?php foreach ($standaloneActive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
-    <?php if (!empty($eventPrograms)): ?>
+<!-- Tab: Internal -->
+<div id="tab-internal">
+    <?php if (!empty($internalActive)): ?>
+    <?php foreach ($internalActive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
+    <?php endif; ?>
+    <?php if (!empty($internalInactive)): ?>
+    <?php if (!empty($internalActive)): ?>
     <div class="d-flex align-items-center gap-2 my-3">
-        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Dari Event</span>
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-pause-circle me-1"></i>Non-aktif</span>
         <div class="flex-grow-1 border-top"></div>
     </div>
-    <?php foreach ($eventPrograms as $p): renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []); endforeach; ?>
     <?php endif; ?>
-    <?php if ($openCount === 0): ?>
+    <?php foreach ($internalInactive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
+    <?php endif; ?>
+    <?php if ($cntInternal === 0): ?>
     <div class="card"><div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-unlock display-4 d-block mb-2 opacity-25"></i>
-        <p class="mb-0">Tidak ada program yang sedang berjalan.</p>
+        <i class="bi bi-star display-4 d-block mb-2 opacity-25"></i>
+        <p class="mb-0">Belum ada program internal.</p>
+    </div></div>
+    <?php endif; ?>
+</div>
+
+<!-- Tab: Kerjasama Tenant -->
+<div id="tab-tenant" class="d-none">
+    <?php if (!empty($tenantActive)): ?>
+    <?php foreach ($tenantActive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
+    <?php endif; ?>
+    <?php if (!empty($tenantInactive)): ?>
+    <?php if (!empty($tenantActive)): ?>
+    <div class="d-flex align-items-center gap-2 my-3">
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-pause-circle me-1"></i>Non-aktif</span>
+        <div class="flex-grow-1 border-top"></div>
+    </div>
+    <?php endif; ?>
+    <?php foreach ($tenantInactive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
+    <?php endif; ?>
+    <?php if ($cntTenant === 0): ?>
+    <div class="card"><div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-shop display-4 d-block mb-2 opacity-25"></i>
+        <p class="mb-0">Belum ada program kerjasama tenant.</p>
+    </div></div>
+    <?php endif; ?>
+</div>
+
+<!-- Tab: Dari Event -->
+<div id="tab-event" class="d-none">
+    <?php foreach ($eventOpen as $p): renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []); endforeach; ?>
+    <?php if (!empty($eventClosed)): ?>
+    <?php if (!empty($eventOpen)): ?>
+    <div class="d-flex align-items-center gap-2 my-3">
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-pause-circle me-1"></i>Event Selesai</span>
+        <div class="flex-grow-1 border-top"></div>
+    </div>
+    <?php endif; ?>
+    <?php foreach ($eventClosed as $p): renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []); endforeach; ?>
+    <?php endif; ?>
+    <?php if ($cntEvent === 0): ?>
+    <div class="card"><div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-calendar-event display-4 d-block mb-2 opacity-25"></i>
+        <p class="mb-0">Belum ada program dari event.</p>
     </div></div>
     <?php endif; ?>
 </div>
 
 <!-- Tab: Closed -->
 <div id="tab-closed" class="d-none">
-    <?php foreach ($standaloneInactive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
+    <?php if ($cntClosed === 0): ?>
+    <div class="card"><div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-archive display-4 d-block mb-2 opacity-25"></i>
+        <p class="mb-0">Tidak ada program yang closed.</p>
+    </div></div>
+    <?php else: ?>
+    <?php if (!empty($internalInactive)): ?>
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-star-fill me-1 text-primary"></i>Program Internal</span>
+        <div class="flex-grow-1 border-top"></div>
+    </div>
+    <?php foreach ($internalInactive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
+    <?php endif; ?>
+    <?php if (!empty($tenantInactive)): ?>
+    <div class="d-flex align-items-center gap-2 my-3">
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-shop me-1 text-success"></i>Kerjasama Tenant</span>
+        <div class="flex-grow-1 border-top"></div>
+    </div>
+    <?php foreach ($tenantInactive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
+    <?php endif; ?>
     <?php if (!empty($eventClosed)): ?>
     <div class="d-flex align-items-center gap-2 my-3">
-        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Dari Event</span>
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-calendar-event me-1 text-warning-emphasis"></i>Dari Event</span>
         <div class="flex-grow-1 border-top"></div>
     </div>
     <?php foreach ($eventClosed as $p): renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []); endforeach; ?>
     <?php endif; ?>
-    <?php if ($closedCount === 0): ?>
-    <div class="card"><div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-lock display-4 d-block mb-2 opacity-25"></i>
-        <p class="mb-0">Belum ada program yang ditutup.</p>
-    </div></div>
     <?php endif; ?>
 </div>
 
@@ -978,6 +1076,29 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 </div>
 <div class="modal-body">
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Jenis Program <span class="text-danger">*</span></label>
+        <div class="d-flex gap-3">
+            <div class="form-check">
+                <input class="form-check-input add-jenis-radio" type="radio" name="jenis" id="addJenisInternal" value="internal" checked>
+                <label class="form-check-label" for="addJenisInternal"><i class="bi bi-star-fill text-primary me-1"></i>Program Internal</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input add-jenis-radio" type="radio" name="jenis" id="addJenisTenant" value="tenant">
+                <label class="form-check-label" for="addJenisTenant"><i class="bi bi-shop text-success me-1"></i>Kerjasama Tenant</label>
+            </div>
+        </div>
+    </div>
+    <div class="mb-3 d-none" id="addNamaTenantWrap">
+        <label class="form-label small fw-semibold">Tenant Mitra <span class="text-danger">*</span></label>
+        <select name="tenant_id" id="addTenantId" class="form-select">
+            <option value="">— Pilih Tenant —</option>
+            <?php foreach ($tenants as $t): ?>
+            <option value="<?= $t['id'] ?>"><?= esc($t['nama']) ?><?= $t['kategori'] ? ' (' . esc($t['kategori']) . ')' : '' ?></option>
+            <?php endforeach; ?>
+        </select>
+        <div class="form-text">Pilih tenant mitra. <a href="<?= base_url('loyalty/tenants') ?>" target="_blank">Kelola master tenant</a></div>
+    </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Nama Program <span class="text-danger">*</span></label>
         <input type="text" name="nama_program" class="form-control" required>
@@ -1040,6 +1161,28 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 </div>
 <div class="modal-body">
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Jenis Program</label>
+        <div class="d-flex gap-3">
+            <div class="form-check">
+                <input class="form-check-input edit-jenis-radio" type="radio" name="jenis" id="editJenisInternal" value="internal">
+                <label class="form-check-label" for="editJenisInternal"><i class="bi bi-star-fill text-primary me-1"></i>Program Internal</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input edit-jenis-radio" type="radio" name="jenis" id="editJenisTenant" value="tenant">
+                <label class="form-check-label" for="editJenisTenant"><i class="bi bi-shop text-success me-1"></i>Kerjasama Tenant</label>
+            </div>
+        </div>
+    </div>
+    <div class="mb-3 d-none" id="editNamaTenantWrap">
+        <label class="form-label small fw-semibold">Tenant Mitra</label>
+        <select name="tenant_id" id="editTenantId" class="form-select">
+            <option value="">— Pilih Tenant —</option>
+            <?php foreach ($tenants as $t): ?>
+            <option value="<?= $t['id'] ?>"><?= esc($t['nama']) ?><?= $t['kategori'] ? ' (' . esc($t['kategori']) . ')' : '' ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Nama Program</label>
         <input type="text" name="nama_program" id="editNama" class="form-control" required>
@@ -1108,17 +1251,27 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
 // Tabs
 (function() {
     const tabs = document.querySelectorAll('[data-tab]');
+    const validTabs = ['internal', 'tenant', 'event', 'closed'];
     function activate(name) {
+        if (!validTabs.includes(name)) name = 'internal';
         tabs.forEach(btn => {
             const isActive = btn.dataset.tab === name;
             btn.classList.toggle('active', isActive);
             document.getElementById('tab-' + btn.dataset.tab).classList.toggle('d-none', !isActive);
         });
         history.replaceState(null, '', '#' + name);
+        // Pre-select jenis di Add modal sesuai tab aktif
+        if (name === 'tenant') {
+            const r = document.getElementById('addJenisTenant');
+            if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
+        } else {
+            const r = document.getElementById('addJenisInternal');
+            if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
+        }
     }
     tabs.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.tab)));
     const hash = location.hash.replace('#', '');
-    if (hash === 'closed') activate('closed');
+    if (validTabs.includes(hash)) activate(hash);
 })();
 
 // KPI count-up
@@ -1245,6 +1398,12 @@ document.querySelectorAll('.toggle-add-hadiah-real').forEach(btn => {
 document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         document.getElementById('editProgramForm').action   = '<?= base_url('loyalty/') ?>' + this.dataset.id + '/edit';
+        const jenis = this.dataset.jenis || 'internal';
+        document.getElementById('editJenisInternal').checked = jenis === 'internal';
+        document.getElementById('editJenisTenant').checked   = jenis === 'tenant';
+        const editTenantSel = document.getElementById('editTenantId');
+        if (editTenantSel) editTenantSel.value = this.dataset.tenantId || '';
+        document.getElementById('editNamaTenantWrap').classList.toggle('d-none', jenis !== 'tenant');
         document.getElementById('editNama').value           = this.dataset.nama;
         document.getElementById('editTanggalMulai').value   = this.dataset.tanggalMulai;
         document.getElementById('editTanggalSelesai').value = this.dataset.tanggalSelesai;
@@ -1255,6 +1414,24 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
         document.getElementById('editTargetAktif').value    = this.dataset.targetAktif;
         document.getElementById('editCatatan').value        = this.dataset.catatan;
         new bootstrap.Modal(document.getElementById('editProgramModal')).show();
+    });
+});
+
+// Toggle tenant field — Add modal
+document.querySelectorAll('.add-jenis-radio').forEach(r => {
+    r.addEventListener('change', function() {
+        const wrap = document.getElementById('addNamaTenantWrap');
+        const sel  = document.getElementById('addTenantId');
+        const show = this.value === 'tenant';
+        wrap.classList.toggle('d-none', !show);
+        if (sel) sel.required = show;
+    });
+});
+
+// Toggle nama tenant field — Edit modal
+document.querySelectorAll('.edit-jenis-radio').forEach(r => {
+    r.addEventListener('change', function() {
+        document.getElementById('editNamaTenantWrap').classList.toggle('d-none', this.value !== 'tenant');
     });
 });
 <?php endif; ?>

@@ -36,9 +36,13 @@
 <tr>
     <td class="fw-semibold font-monospace"><?= esc($s['kode']) ?></td>
     <td><?= esc($s['nama']) ?></td>
+    <?php
+    $tipeLabel = ['t_banner'=>'T-Banner','hanging'=>'Hanging Banner','sticker_lift'=>'Sticker Lift','totem_stainless'=>'Totem Stainless','digital'=>'Digital'];
+    $tipeBadge = ['t_banner'=>'primary','hanging'=>'info text-dark','sticker_lift'=>'warning text-dark','totem_stainless'=>'secondary','digital'=>'dark'];
+    ?>
     <td>
-        <span class="badge bg-<?= $s['tipe'] === 't_banner' ? 'primary' : 'info text-dark' ?>">
-            <?= $s['tipe'] === 't_banner' ? 'T-Banner' : 'Hanging Banner' ?>
+        <span class="badge bg-<?= $tipeBadge[$s['tipe']] ?? 'secondary' ?>">
+            <?= $tipeLabel[$s['tipe']] ?? esc($s['tipe']) ?>
         </span>
     </td>
     <td><?= esc($s['area'] ?? '—') ?></td>

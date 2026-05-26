@@ -110,32 +110,37 @@ $renderDays = function(array $rowUsages, int $rowH)
 
 <style>
 /* ── wrapper ── */
-.gantt-wrap { overflow-x:auto; border-radius:10px; border:1px solid #cbd5e1; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+.gantt-wrap { overflow:auto; max-height:calc(100vh - 260px); border-radius:10px 10px 0 0; border:1px solid #cbd5e1; border-bottom:none; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+.gantt-wrap::-webkit-scrollbar { width:8px; height:0; }
+.gantt-wrap::-webkit-scrollbar-track { background:#e2e8f0; }
+.gantt-wrap::-webkit-scrollbar-thumb { background:#94a3b8; border-radius:4px; }
+.gantt-wrap::-webkit-scrollbar-thumb:hover { background:#64748b; }
+.gantt-wrap { scrollbar-width:thin; scrollbar-color:#94a3b8 #e2e8f0; }
 
 /* ── table: explicit width ensures columns never compress ── */
 .gantt-table { border-collapse:collapse; font-size:.72rem; table-layout:fixed; }
 .gantt-table th, .gantt-table td { border:1px solid #e2e8f0; }
 
 /* ── thead ── */
-.gantt-table thead th             { background:#1e293b !important; color:#f1f5f9 !important; padding:3px 0; }
+.gantt-table thead th             { background:#1e293b !important; color:#f1f5f9 !important; padding:3px 0; position:sticky; top:0; z-index:3; }
 .gantt-table thead th.th-label    { background:#0f172a !important; font-size:.73rem; vertical-align:middle; }
 .gantt-table thead th.th-month    { font-size:.7rem; font-weight:700; }
-.gantt-table thead th.col-today   { background:#b45309 !important; color:#fff !important; }
-.gantt-table thead th.col-weekend { background:#334155 !important; }
+.gantt-table thead th.col-today   { background:#16a34a !important; color:#fff !important; }
+.gantt-table thead th.col-weekend { background:#991b1b !important; }
 .gantt-table thead th.month-last  { border-right:2px solid #4b5e7a !important; }
 
 /* ── tbody: force white ── */
 .gantt-table tbody td             { background:#fff !important; vertical-align:middle; }
 .gantt-table tbody td.td-label    { background:#f8fafc !important; }
-.gantt-table tbody td.col-weekend { background:#f1f5f9 !important; }
-.gantt-table tbody td.col-today   { background:#fef9c3 !important; }
+.gantt-table tbody td.col-weekend { background:#fee2e2 !important; }
+.gantt-table tbody td.col-today   { background:#dcfce7 !important; }
 .gantt-table tbody td.month-last  { border-right:2px solid #94a3b8 !important; }
 
 /* ── group header row (digital) ── */
 .gantt-table tr.row-header td          { background:#edf2f7 !important; border-top:2px solid #94a3b8 !important; }
 .gantt-table tr.row-header td.td-label { background:#dde3ea !important; }
-.gantt-table tr.row-header td.col-today  { background:#fef3c7 !important; }
-.gantt-table tr.row-header td.col-weekend{ background:#e4eaf0 !important; }
+.gantt-table tr.row-header td.col-today  { background:#bbf7d0 !important; }
+.gantt-table tr.row-header td.col-weekend{ background:#fecaca !important; }
 
 /* ── single row top border ── */
 .gantt-table tr.row-single td { border-top:2px solid #94a3b8 !important; }
@@ -145,7 +150,7 @@ $renderDays = function(array $rowUsages, int $rowH)
 
 /* ── sticky label column ── */
 .td-label                      { position:sticky; left:0; z-index:2; }
-.gantt-table thead th.th-label { position:sticky; left:0; z-index:5; }
+.gantt-table thead th.th-label { position:sticky; left:0; top:0; z-index:6; }
 
 /* ── bar ── */
 .gbar {
@@ -217,10 +222,10 @@ $renderDays = function(array $rowUsages, int $rowH)
     </span>
     <?php endforeach; ?>
     <span class="d-flex align-items-center gap-1 ms-1 text-muted">
-        <span style="width:13px;height:13px;border-radius:3px;background:#f1f5f9;border:1px solid #cbd5e1;display:inline-block"></span>Akhir pekan
+        <span style="width:13px;height:13px;border-radius:3px;background:#fee2e2;border:1px solid #fca5a5;display:inline-block"></span>Akhir pekan
     </span>
     <span class="d-flex align-items-center gap-1 text-muted">
-        <span style="width:13px;height:13px;border-radius:3px;background:#fef9c3;border:1px solid #fde68a;display:inline-block"></span>Hari ini
+        <span style="width:13px;height:13px;border-radius:3px;background:#dcfce7;border:1px solid #86efac;display:inline-block"></span>Hari ini
     </span>
 </div>
 
@@ -228,7 +233,7 @@ $renderDays = function(array $rowUsages, int $rowH)
 <div class="card"><div class="card-body text-center text-muted py-5">Tidak ada titik media yang sesuai filter.</div></div>
 <?php else: ?>
 
-<div class="gantt-wrap">
+<div class="gantt-wrap" id="ganttWrap">
 <table class="gantt-table" style="width:<?= $tableWidth ?>px">
 <colgroup>
     <col style="width:<?= $labelW ?>px">
@@ -317,6 +322,18 @@ $renderDays = function(array $rowUsages, int $rowH)
 </table>
 </div>
 
+<!-- Scroll bar bawah -->
+<div id="ganttScrollBar" style="overflow-x:scroll;overflow-y:hidden;height:18px;border-radius:0 0 10px 10px;border:1px solid #cbd5e1;border-top:none">
+    <div id="ganttScrollInner" style="height:1px"></div>
+</div>
+<style>
+#ganttScrollBar::-webkit-scrollbar        { height:12px; }
+#ganttScrollBar::-webkit-scrollbar-track  { background:#e2e8f0; border-radius:6px; }
+#ganttScrollBar::-webkit-scrollbar-thumb  { background:#94a3b8; border-radius:6px; }
+#ganttScrollBar::-webkit-scrollbar-thumb:hover { background:#64748b; }
+#ganttScrollBar { scrollbar-width:auto; scrollbar-color:#94a3b8 #e2e8f0; }
+</style>
+
 <?php endif; ?>
 
 <!-- Modal — ID gModal, CSS override di atas sudah force-light -->
@@ -389,6 +406,46 @@ function qReject(id) {
                  <input type="hidden" name="rejection_reason" value="${r}">`;
     document.body.appendChild(f); f.submit();
 }
+
+// Sticky thead row 2 — top = tinggi row 1
+(function() {
+    const thead = document.querySelector('.gantt-table thead');
+    if (!thead) return;
+    const row1H = thead.rows[0].offsetHeight;
+    Array.from(thead.rows[1].cells).forEach(th => th.style.top = row1H + 'px');
+})();
+
+// Scroll bar bawah — sinkronisasi dua arah
+(function() {
+    const wrap  = document.getElementById('ganttWrap');
+    const bar   = document.getElementById('ganttScrollBar');
+    const inner = document.getElementById('ganttScrollInner');
+
+    // Samakan lebar inner dengan lebar tabel agar thumb proporsional
+    inner.style.width = wrap.scrollWidth + 'px';
+
+    let syncingFromBar = false, syncingFromWrap = false;
+    wrap.addEventListener('scroll', () => {
+        if (syncingFromBar) return;
+        syncingFromWrap = true;
+        bar.scrollLeft = wrap.scrollLeft;
+        syncingFromWrap = false;
+    });
+    bar.addEventListener('scroll', () => {
+        if (syncingFromWrap) return;
+        syncingFromBar = true;
+        wrap.scrollLeft = bar.scrollLeft;
+        syncingFromBar = false;
+    });
+
+    // Scroll ke hari ini saat load
+    const today = wrap.querySelector('.col-today');
+    if (today) {
+        const target = today.offsetLeft - 200;
+        wrap.scrollLeft = target;
+        bar.scrollLeft  = target;
+    }
+})();
 </script>
 
 <?= $this->endSection() ?>

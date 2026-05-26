@@ -175,6 +175,11 @@ $routes->get('events/(:num)/sponsors/(:num)/realisasi/(:num)/delete', 'EventSpon
 $routes->get('loyalty', 'LoyaltyCtrl::index', ['filter' => 'auth']);
 $routes->get('loyalty/summary',       'LoyaltyCtrl::summary',       ['filter' => 'auth']);
 $routes->get('loyalty/summary/print', 'LoyaltyCtrl::printSummary',  ['filter' => 'auth']);
+$routes->get('loyalty/tenants',               'LoyaltyCtrl::indexTenants',      ['filter' => 'auth']);
+$routes->post('loyalty/tenants/add',          'LoyaltyCtrl::storeTenant',       ['filter' => 'auth']);
+$routes->post('loyalty/tenants/(:num)/edit',  'LoyaltyCtrl::updateTenant/$1',   ['filter' => 'auth']);
+$routes->post('loyalty/tenants/(:num)/delete','LoyaltyCtrl::deleteTenant/$1',   ['filter' => 'auth']);
+$routes->get('loyalty/tenants/(:num)',        'LoyaltyCtrl::tenantDetail/$1',   ['filter' => 'auth']);
 $routes->get('loyalty/detail/(:alpha)/(:num)', 'LoyaltyCtrl::detail/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/add', 'LoyaltyCtrl::storeProgram', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/edit', 'LoyaltyCtrl::updateProgram/$1', ['filter' => 'auth']);
@@ -409,6 +414,23 @@ $routes->get('people/pip/aspek/(:num)/toggle',                'PipAspekMasterCtr
 // PIP Approval — public token-based (no auth)
 $routes->get('pip/approval/(:alpha)/(:segment)',               'PipApproval::show/$1/$2');
 $routes->post('pip/approval/(:alpha)/(:segment)/submit',       'PipApproval::submit/$1/$2');
+
+// IDP — Individual Development Plan
+$routes->get('people/idp',                                     'PeopleIdp::index',                ['filter' => 'auth']);
+$routes->post('people/idp/store',                              'PeopleIdp::store',                ['filter' => 'auth']);
+$routes->get('people/idp/import-tna/(:num)/(:num)',            'PeopleIdp::importFromTna/$1/$2',  ['filter' => 'auth']);
+$routes->get('people/idp/(:num)',                              'PeopleIdp::show/$1',              ['filter' => 'auth']);
+$routes->post('people/idp/(:num)/update',                      'PeopleIdp::update/$1',            ['filter' => 'auth']);
+$routes->get('people/idp/(:num)/delete',                       'PeopleIdp::delete/$1',            ['filter' => 'auth']);
+$routes->get('people/idp/(:num)/print',                        'PeopleIdp::printIdp/$1',          ['filter' => 'auth']);
+$routes->get('people/idp/(:num)/token',                        'PeopleIdp::generateToken/$1',     ['filter' => 'auth']);
+$routes->post('people/idp/(:num)/items/store',                 'PeopleIdp::storeItem/$1',         ['filter' => 'auth']);
+$routes->post('people/idp/(:num)/items/(:num)/update',         'PeopleIdp::updateItem/$1/$2',     ['filter' => 'auth']);
+$routes->get('people/idp/(:num)/items/(:num)/delete',          'PeopleIdp::deleteItem/$1/$2',     ['filter' => 'auth']);
+
+// IDP Approval — public token-based (no auth)
+$routes->get('idp/approval/(:segment)',                        'IdpApproval::show/$1');
+$routes->post('idp/approval/(:segment)/submit',                'IdpApproval::submit/$1');
 
 // People Development — Competencies
 $routes->get('people/competencies',                               'PeopleCompetencies::index',           ['filter' => 'auth']);

@@ -19,6 +19,7 @@ use App\Models\StockBarangModel;
 use App\Models\StockBarangLogModel;
 use App\Models\StockVoucherBatchModel;
 use App\Models\StockVoucherKodeModel;
+use App\Models\TenantModel;
 
 class LoyaltyCtrl extends BaseController
 {
@@ -124,6 +125,7 @@ class LoyaltyCtrl extends BaseController
             'canEdit'          => $this->canEditMenu('loyalty_main'),
             'stockBarang'      => (new StockBarangModel())->getAll(),
             'stockVoucherBatch'=> (new StockVoucherBatchModel())->getAvailable(),
+            'tenants'          => (new TenantModel())->getActive(),
         ]);
     }
 
@@ -415,8 +417,12 @@ class LoyaltyCtrl extends BaseController
         if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
         $post        = $this->request->getPost();
         $progModel   = new LoyaltyProgramModel();
+        $jenis      = in_array($post['jenis'] ?? '', ['internal', 'tenant']) ? $post['jenis'] : 'internal';
+        $tenantId   = ($jenis === 'tenant' && ! empty($post['tenant_id'])) ? (int)$post['tenant_id'] : null;
         $progModel->insert([
             'nama_program'    => $post['nama_program'],
+            'jenis'           => $jenis,
+            'tenant_id'       => $tenantId,
             'tanggal_mulai'   => $post['tanggal_mulai']  ?? null ?: null,
             'tanggal_selesai' => $post['tanggal_selesai'] ?? null ?: null,
             'jam_mulai'       => $post['jam_mulai']       ?? null ?: null,
@@ -439,8 +445,12 @@ class LoyaltyCtrl extends BaseController
         $post        = $this->request->getPost();
         $loyaltyModel = new LoyaltyProgramModel();
         ActivityLog::captureBefore($loyaltyModel->find($id));
+        $jenis    = in_array($post['jenis'] ?? '', ['internal', 'tenant']) ? $post['jenis'] : 'internal';
+        $tenantId = ($jenis === 'tenant' && ! empty($post['tenant_id'])) ? (int)$post['tenant_id'] : null;
         $loyaltyData = [
             'nama_program'    => $post['nama_program'],
+            'jenis'           => $jenis,
+            'tenant_id'       => $tenantId,
             'tanggal_mulai'   => $post['tanggal_mulai']  ?? null ?: null,
             'tanggal_selesai' => $post['tanggal_selesai'] ?? null ?: null,
             'jam_mulai'       => $post['jam_mulai']       ?? null ?: null,
@@ -894,6 +904,93 @@ class LoyaltyCtrl extends BaseController
             'kpiHadiah'         => $kpiHadiah,
             'printedBy'         => $this->currentUser()['name'] ?? '',
             'printedAt'         => date('d M Y H:i'),
+        ]);
+    }
+
+    // ── Master Tenant ─────────────────────────────────────────────────────────
+
+    public function indexTenants()
+    {
+        if (! $this->canViewMenu('loyalty_main')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+        return view('loyalty_program/tenants', [
+            'user'     => $this->currentUser(),
+            'tenants'  => (new TenantModel())->getAllWithProgramCount(),
+            'canEdit'  => $this->canEditMenu('loyalty_main'),
+        ]);
+    }
+
+    public function storeTenant()
+    {
+        if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty/tenants')->with('error', 'Akses ditolak.');
+        $post  = $this->request->getPost();
+        $model = new TenantModel();
+        $model->insert([
+            'nama'           => $post['nama'],
+            'kategori'       => $post['kategori']       ?? null ?: null,
+            'lantai'         => $post['lantai']         ?? null ?: null,
+            'nomor_unit'     => $post['nomor_unit']     ?? null ?: null,
+            'contact_person' => $post['contact_person'] ?? null ?: null,
+            'no_hp'          => $post['no_hp']          ?? null ?: null,
+            'email'          => $post['email']          ?? null ?: null,
+            'catatan'        => $post['catatan']        ?? null ?: null,
+            'status'         => 'active',
+            'created_by'     => $this->currentUser()['id'],
+        ]);
+        ActivityLog::write('create', 'tenant', (string)$model->getInsertID(), $post['nama']);
+        return redirect()->to('/loyalty/tenants')->with('success', 'Tenant berhasil ditambahkan.');
+    }
+
+    public function updateTenant(int $id)
+    {
+        if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty/tenants')->with('error', 'Akses ditolak.');
+        $post  = $this->request->getPost();
+        $model = new TenantModel();
+        ActivityLog::captureBefore($model->find($id));
+        $data = [
+            'nama'           => $post['nama'],
+            'kategori'       => $post['kategori']       ?? null ?: null,
+            'lantai'         => $post['lantai']         ?? null ?: null,
+            'nomor_unit'     => $post['nomor_unit']     ?? null ?: null,
+            'contact_person' => $post['contact_person'] ?? null ?: null,
+            'no_hp'          => $post['no_hp']          ?? null ?: null,
+            'email'          => $post['email']          ?? null ?: null,
+            'catatan'        => $post['catatan']        ?? null ?: null,
+        ];
+        $model->update($id, $data);
+        ActivityLog::captureAfter($data);
+        ActivityLog::write('update', 'tenant', (string)$id, $post['nama']);
+        return redirect()->to('/loyalty/tenants')->with('success', 'Tenant berhasil diperbarui.');
+    }
+
+    public function deleteTenant(int $id)
+    {
+        if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty/tenants')->with('error', 'Akses ditolak.');
+        $model  = new TenantModel();
+        $tenant = $model->find($id);
+        if (! $tenant) return redirect()->to('/loyalty/tenants')->with('error', 'Tenant tidak ditemukan.');
+        $count = db_connect()->table('loyalty_programs')->where('tenant_id', $id)->countAllResults();
+        if ($count > 0) {
+            return redirect()->to('/loyalty/tenants')->with('error', 'Tenant tidak bisa dihapus karena masih memiliki ' . $count . ' program terkait.');
+        }
+        $model->delete($id);
+        ActivityLog::write('delete', 'tenant', (string)$id, $tenant['nama']);
+        return redirect()->to('/loyalty/tenants')->with('success', 'Tenant berhasil dihapus.');
+    }
+
+    public function tenantDetail(int $id)
+    {
+        if (! $this->canViewMenu('loyalty_main')) return redirect()->to('/')->with('error', 'Akses ditolak.');
+        $model  = new TenantModel();
+        $tenant = $model->find($id);
+        if (! $tenant) return redirect()->to('/loyalty/tenants')->with('error', 'Tenant tidak ditemukan.');
+        $programs = $model->getPrograms($id);
+        return view('loyalty_program/tenant_detail', [
+            'user'     => $this->currentUser(),
+            'tenant'   => $tenant,
+            'programs' => $programs,
+            'canEdit'  => $this->canEditMenu('loyalty_main'),
         ]);
     }
 

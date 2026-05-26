@@ -10,7 +10,8 @@ class LoyaltyProgramModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'nama_program', 'tanggal_mulai', 'tanggal_selesai', 'jam_mulai', 'jam_selesai',
+        'nama_program', 'jenis', 'tenant_id',
+        'tanggal_mulai', 'tanggal_selesai', 'jam_mulai', 'jam_selesai',
         'mekanisme', 'target_type', 'target_peserta', 'target_member_aktif', 'target_penyerapan', 'total_voucher',
         'nilai_voucher', 'biaya_per_member',
         'budget', 'status', 'locked', 'locked_by', 'locked_at', 'catatan', 'created_by',
@@ -18,12 +19,22 @@ class LoyaltyProgramModel extends Model
 
     public function getAll(): array
     {
-        return $this->orderBy('status', 'ASC')->orderBy('nama_program', 'ASC')->findAll();
+        return db_connect()->table('loyalty_programs lp')
+            ->select('lp.*, t.nama as nama_tenant, t.kategori as tenant_kategori')
+            ->join('tenants t', 't.id = lp.tenant_id', 'left')
+            ->orderBy('lp.status', 'ASC')
+            ->orderBy('lp.nama_program', 'ASC')
+            ->get()->getResultArray();
     }
 
     public function getActive(): array
     {
-        return $this->where('status', 'active')->orderBy('nama_program', 'ASC')->findAll();
+        return db_connect()->table('loyalty_programs lp')
+            ->select('lp.*, t.nama as nama_tenant, t.kategori as tenant_kategori')
+            ->join('tenants t', 't.id = lp.tenant_id', 'left')
+            ->where('lp.status', 'active')
+            ->orderBy('lp.nama_program', 'ASC')
+            ->get()->getResultArray();
     }
 
     public function toggleStatus(int $id): void

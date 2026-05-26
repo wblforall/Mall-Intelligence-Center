@@ -166,4 +166,25 @@ class EmailNotifier
             <p style='color:#6b7280;font-size:9pt'>Data diambil secara otomatis setiap hari pukul 07.00.</p>";
         return self::wrap('Traffic Summary — ' . $tgl, $content);
     }
+
+    public static function idpApprovalAtasan(array $plan, string $url): string
+    {
+        $label    = htmlspecialchars($plan['periode_label']);
+        $karyawan = htmlspecialchars($plan['employee_nama']);
+        $jabatan  = htmlspecialchars($plan['jabatan'] ?? '');
+        $tujuan   = htmlspecialchars($plan['tujuan_karir'] ?? '-');
+        $content  = "
+            <p>Yth. Bapak/Ibu,</p>
+            <p>Anda diminta untuk menyetujui <strong>Individual Development Plan (IDP)</strong> berikut:</p>
+            <table style='width:100%;border-collapse:collapse;margin:12px 0;font-size:9.5pt'>
+                <tr><td style='padding:4px 0;color:#6b7280;width:40%'>Karyawan</td><td style='padding:4px 0'><strong>{$karyawan}</strong></td></tr>
+                <tr><td style='padding:4px 0;color:#6b7280'>Jabatan</td><td style='padding:4px 0'>{$jabatan}</td></tr>
+                <tr><td style='padding:4px 0;color:#6b7280'>Periode IDP</td><td style='padding:4px 0'>{$label}</td></tr>
+                <tr><td style='padding:4px 0;color:#6b7280'>Tujuan Karir</td><td style='padding:4px 0'>{$tujuan}</td></tr>
+            </table>
+            <p>Klik tombol di bawah untuk melihat detail rencana pengembangan dan memberikan persetujuan:</p>
+            " . self::button($url, 'Lihat & Setujui IDP') . "
+            <p style='color:#6b7280;font-size:9pt'>Link ini bersifat personal. Jangan bagikan ke orang lain.</p>";
+        return self::wrap('Persetujuan IDP — ' . $label, $content);
+    }
 }

@@ -360,6 +360,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('people/pip/aspek') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/pip/aspek') ? 'active' : '' ?>">
             <i class="bi bi-list-columns-reverse"></i> Master Aspek PIP
         </a>
+        <a href="<?= base_url('people/idp') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/idp') ? 'active' : '' ?>">
+            <i class="bi bi-journal-richtext"></i> IDP
+        </a>
         <a href="<?= base_url('people/eei') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/eei') ? 'active' : '' ?>">
             <i class="bi bi-heart-pulse-fill"></i> EEI Survey
         </a>

@@ -511,15 +511,21 @@ td strong { color: var(--gray-800); }
       <div class="desc">Employee engagement per dimensi</div>
     </div>
     <div class="cover-module">
-      <div class="num">Referensi</div>
-      <div class="icon">⚡</div>
-      <div class="label">Panduan Cepat</div>
-      <div class="desc">Ringkasan aksi paling sering</div>
+      <div class="num">Modul 6</div>
+      <div class="icon">📋</div>
+      <div class="label">PIP</div>
+      <div class="desc">Rencana perbaikan kinerja + approval + review</div>
+    </div>
+    <div class="cover-module">
+      <div class="num">Modul 7</div>
+      <div class="icon">📗</div>
+      <div class="label">IDP</div>
+      <div class="desc">Rencana pengembangan diri dari gap TNA</div>
     </div>
   </div>
 
   <div class="cover-meta">
-    <div><strong>Versi</strong>v1.2 — Mei 2026</div>
+    <div><strong>Versi</strong>v1.4 — Mei 2026</div>
     <div><strong>Departemen</strong>IT Dept WBL</div>
     <div><strong>Dokumen</strong>Handout Pengguna</div>
     <div><strong>Sifat</strong>Internal</div>
@@ -1424,7 +1430,280 @@ td strong { color: var(--gray-800); }
 
 </div>
 
-<!-- ══════════════════════════════════════════════════════════ PAGE 7 — Quick Reference -->
+<!-- ══════════════════════════════════════════════════════════ PAGE 7 — PIP -->
+<div class="page page-break">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#fef2f2">📋</div>
+    <div>
+      <div class="mod-num">Modul 6</div>
+      <h2>PIP — Performance Improvement Plan</h2>
+      <p>Rencana perbaikan kinerja terstruktur untuk karyawan yang membutuhkan pembinaan. Dilengkapi workflow persetujuan dua pihak (atasan &amp; karyawan), review berkala, dan notifikasi email otomatis.</p>
+    </div>
+  </div>
+
+  <!-- Status Flow -->
+  <h3><span class="h3-icon">🚦</span> Status PIP</h3>
+  <table style="margin-bottom:14px">
+    <tr><th>Status</th><th>Keterangan</th><th>Aksi Lanjutan</th></tr>
+    <tr>
+      <td><span class="badge badge-orange">Menunggu Persetujuan</span></td>
+      <td>Baru dibuat, belum disetujui atasan &amp; karyawan</td>
+      <td>Kirim link approval ke atasan &amp; karyawan</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-blue">Aktif</span></td>
+      <td>Sudah disetujui, review sedang berjalan</td>
+      <td>Catat review berkala sesuai frekuensi</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-green">Selesai</span></td>
+      <td>Periode berakhir, karyawan memenuhi target</td>
+      <td>Tutup PIP — arsip</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-red">Tidak Lulus</span></td>
+      <td>Periode berakhir, target tidak tercapai</td>
+      <td>Eskalasi ke HR untuk tindak lanjut</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-purple">Diperpanjang</span></td>
+      <td>Perpanjangan masa PIP</td>
+      <td>Lanjutkan review dengan periode baru</td>
+    </tr>
+  </table>
+
+  <!-- Flow Buat PIP -->
+  <h3><span class="h3-icon">➕</span> Flow: Buat PIP Baru</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>People →<br>PIP</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Buat PIP<br>Baru</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Isi Header<br>+ Aspek</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node orange"><div class="flow-num">4</div>Simpan →<br>Email Otomatis</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Tunggu<br>Persetujuan</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h4>Field Header PIP</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Karyawan<span class="field-req">*</span></span><span class="field-desc">Karyawan yang dikenakan PIP</span></div>
+        <div class="field-item"><span class="field-name">Judul<span class="field-req">*</span></span><span class="field-desc">Judul singkat rencana perbaikan</span></div>
+        <div class="field-item"><span class="field-name">Alasan</span><span class="field-desc">Latar belakang / dasar penerbitan PIP</span></div>
+        <div class="field-item"><span class="field-name">Level SP</span><span class="field-desc">None / SP1 / SP2 / SP3</span></div>
+        <div class="field-item"><span class="field-name">Tanggal Mulai / Selesai<span class="field-req">*</span></span><span class="field-desc">Periode berlaku PIP</span></div>
+        <div class="field-item"><span class="field-name">Frekuensi Review<span class="field-req">*</span></span><span class="field-desc">Mingguan / Dua Mingguan / Bulanan</span></div>
+        <div class="field-item"><span class="field-name">Dukungan</span><span class="field-desc">Dukungan yang diberikan perusahaan</span></div>
+        <div class="field-item"><span class="field-name">Konsekuensi</span><span class="field-desc">Konsekuensi jika target tidak tercapai</span></div>
+      </div>
+    </div>
+    <div>
+      <h4>Field Aspek / Item PIP</h4>
+      <p class="small" style="color:var(--gray-500)">Satu PIP bisa memiliki banyak aspek yang harus diperbaiki.</p>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Aspek<span class="field-req">*</span></span><span class="field-desc">Nama area yang perlu diperbaiki (bisa pilih dari master aspek atau ketik manual)</span></div>
+        <div class="field-item"><span class="field-name">Masalah</span><span class="field-desc">Deskripsi masalah yang terjadi</span></div>
+        <div class="field-item"><span class="field-name">Target</span><span class="field-desc">Target konkret yang harus dicapai</span></div>
+        <div class="field-item"><span class="field-name">Metrik</span><span class="field-desc">Cara mengukur keberhasilan</span></div>
+        <div class="field-item"><span class="field-name">Deadline</span><span class="field-desc">Batas waktu per aspek</span></div>
+      </div>
+      <div class="callout" style="margin-top:8px;font-size:8.5pt">
+        <strong>Master Aspek:</strong> Admin dapat mengisi daftar aspek standar di <em>People → PIP → Master Aspek</em> agar mudah dipilih saat buat PIP baru.
+      </div>
+    </div>
+  </div>
+
+  <!-- Approval Flow -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">✅</span> Workflow Persetujuan (Dua Pihak)</h3>
+  <div class="card card-purple" style="margin-bottom:14px">
+    <div class="card-title" style="color:var(--purple)">🔐 Token Unik — Atasan &amp; Karyawan Tidak Perlu Login</div>
+    <p style="font-size:8.5pt;margin-bottom:10px">Saat PIP pertama dibuat, sistem otomatis mengirim email ke atasan dan karyawan masing-masing berisi <strong>link persetujuan unik</strong>. Pihak yang bersangkutan cukup buka link dan klik Setuju atau Tolak.</p>
+    <div class="grid-2" style="gap:10px;margin:0">
+      <table style="margin:0;font-size:8pt">
+        <tr><th colspan="2">Detail Link Approval</th></tr>
+        <tr><td><strong>Pihak</strong></td><td>Atasan langsung &amp; Karyawan ybs</td></tr>
+        <tr><td><strong>Format URL</strong></td><td><code style="font-size:7.5pt">pip/approval/[atasan|karyawan]/[token]</code></td></tr>
+        <tr><td><strong>Tanpa login?</strong></td><td>Ya — akses publik via token</td></tr>
+        <tr><td><strong>Reset link?</strong></td><td>People → PIP → detail → Generate Token</td></tr>
+      </table>
+      <div>
+        <table style="margin:0;font-size:8pt">
+          <tr><th>Keputusan</th><th>Efek</th></tr>
+          <tr><td><span class="badge badge-green">Setuju</span></td><td>Persetujuan pihak tersebut tercatat</td></tr>
+          <tr><td><span class="badge badge-red">Tolak</span></td><td>Tercatat beserta catatan penolakan</td></tr>
+        </table>
+        <div class="callout orange" style="margin-top:8px;font-size:8pt">
+          <strong>Approve final di sistem:</strong> Setelah kedua pihak setuju, HR/Admin dengan permission <code>can_approve_pip</code> klik tombol <strong>Setujui PIP</strong> di halaman detail → status berubah ke <span class="badge badge-blue">Aktif</span>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Review Berkala -->
+  <hr class="divider-sm">
+  <h3><span class="h3-icon">🔄</span> Flow: Catat Review Berkala</h3>
+  <div class="flow">
+    <div class="flow-node"><div class="flow-num">1</div>Detail PIP<br>(status Aktif)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Bagian<br>Review</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Tambah<br>Review</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Isi Progres<br>+ Catatan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div class="flow-num">5</div>Simpan</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h4>Field Review</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Tanggal Review<span class="field-req">*</span></span><span class="field-desc">Tanggal review dilakukan</span></div>
+        <div class="field-item"><span class="field-name">Nama Reviewer<span class="field-req">*</span></span><span class="field-desc">Nama yang melakukan review</span></div>
+        <div class="field-item"><span class="field-name">Progres<span class="field-req">*</span></span><span class="field-desc">On Track / Perlu Perhatian / Tidak Ada Progres</span></div>
+        <div class="field-item"><span class="field-name">Catatan</span><span class="field-desc">Observasi dan tindak lanjut</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="card card-blue" style="margin:0">
+        <div class="card-title">⏰ Reminder Otomatis</div>
+        <p style="font-size:8.5pt;margin-bottom:6px">Sistem mengirim email pengingat review yang akan jatuh tempo dalam <strong>2 hari ke depan</strong>.</p>
+        <ul class="sub-steps" style="margin:0">
+          <li>Dijalankan via Spark command: <code>mic:pip-review-reminder</code></li>
+          <li>Frekuensi reminder sesuai <em>frekuensi_review</em> yang diset saat buat PIP</li>
+          <li>Hanya PIP berstatus <span class="badge badge-blue">Aktif</span> atau <span class="badge badge-purple">Diperpanjang</span> yang dikirim</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:4px">
+    <strong>Cetak Laporan PIP:</strong> Buka detail PIP → klik <strong>Print</strong>. Laporan mencakup header PIP, semua aspek, dan riwayat review lengkap dalam format print-friendly.
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 8 — IDP -->
+<div class="page page-break">
+
+  <div class="mod-header">
+    <div class="mod-icon" style="background:#dcfce7">📗</div>
+    <div>
+      <div class="mod-num">Modul 7</div>
+      <h2>IDP — Individual Development Plan</h2>
+      <p>Rencana pengembangan diri karyawan berbasis gap hasil TNA. Bersifat kolaboratif dan growth-oriented — berbeda dengan PIP yang bersifat korektif.</p>
+    </div>
+  </div>
+
+  <!-- Status IDP -->
+  <h3><span class="h3-icon">🚦</span> Status IDP</h3>
+  <table>
+    <tr><th style="width:22%">Status</th><th style="width:22%">Warna</th><th>Keterangan</th></tr>
+    <tr><td><strong>Draft</strong></td><td>Abu-abu</td><td>IDP baru dibuat, belum disetujui atasan</td></tr>
+    <tr><td><strong>Aktif</strong></td><td>Biru</td><td>Atasan sudah setuju via token — pengembangan berjalan</td></tr>
+    <tr><td><strong>Selesai</strong></td><td>Hijau</td><td>Semua goal selesai / periode berakhir</td></tr>
+    <tr><td><strong>Dibatalkan</strong></td><td>Merah</td><td>IDP dibatalkan (bisa diedit manual oleh HR)</td></tr>
+  </table>
+
+  <!-- Flow Buat IDP -->
+  <h3><span class="h3-icon">➕</span> Flow: Buat IDP Baru</h3>
+  <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0;margin-bottom:14px">
+    <div class="flow-node"><div class="flow-num">1</div>Hasil TNA<br>(opsional)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">2</div>Klik "Buat IDP<br>dari Hasil Ini"</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">3</div>Modal auto-<br>terisi gap</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">4</div>Simpan →<br>Email ke atasan</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">5</div>Atasan approve<br>via token</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="flow-num">6</div>Status<br>→ Aktif</div>
+  </div>
+  <p class="small" style="color:var(--gray-500)">IDP bisa juga dibuat manual tanpa TNA: People → IDP → Buat IDP Baru → isi goal sendiri.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div>
+      <h4>Field Header IDP</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Karyawan<span class="field-req">*</span></span><span class="field-desc">Karyawan yang menjadi subjek IDP</span></div>
+        <div class="field-item"><span class="field-name">Periode TNA</span><span class="field-desc">Opsional — untuk melacak asal gap</span></div>
+        <div class="field-item"><span class="field-name">Periode Label<span class="field-req">*</span></span><span class="field-desc">Contoh: "H1 2026", "Q2 2026"</span></div>
+        <div class="field-item"><span class="field-name">Tahun<span class="field-req">*</span></span><span class="field-desc">Tahun IDP untuk filter laporan</span></div>
+        <div class="field-item"><span class="field-name">Tujuan Karir</span><span class="field-desc">Aspirasi jangka menengah karyawan</span></div>
+        <div class="field-item"><span class="field-name">Catatan HR</span><span class="field-desc">Catatan internal HR (tidak tampil di approval)</span></div>
+      </div>
+    </div>
+    <div>
+      <h4>Field Goal / Item IDP</h4>
+      <div class="field-list">
+        <div class="field-item"><span class="field-name">Judul Goal<span class="field-req">*</span></span><span class="field-desc">Nama sasaran pengembangan</span></div>
+        <div class="field-item"><span class="field-name">Kompetensi</span><span class="field-desc">Link ke kompetensi (opsional, dari gap TNA)</span></div>
+        <div class="field-item"><span class="field-name">Level Saat Ini</span><span class="field-desc">Skor saat ini (dari TNA atau manual)</span></div>
+        <div class="field-item"><span class="field-name">Level Target</span><span class="field-desc">Skor yang ingin dicapai</span></div>
+        <div class="field-item"><span class="field-name">Langkah Aksi</span><span class="field-desc">Aktivitas / cara mencapai goal</span></div>
+        <div class="field-item"><span class="field-name">Deadline</span><span class="field-desc">Target tanggal penyelesaian goal</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approval Atasan -->
+  <h3><span class="h3-icon">✅</span> Approval Atasan via Token</h3>
+  <div class="card" style="padding:14px 16px;margin-bottom:14px">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px">
+        <div style="font-weight:700;font-size:8.5pt;margin-bottom:6px">Langkah HR</div>
+        <ol style="margin:0;padding-left:16px;font-size:8pt;line-height:1.7">
+          <li>Buat IDP → sistem kirim email ke atasan otomatis</li>
+          <li>Atau: Detail IDP → klik <strong>Generate Link Ulang</strong> → salin → kirim manual</li>
+        </ol>
+      </div>
+      <div style="flex:1;min-width:180px">
+        <div style="font-weight:700;font-size:8.5pt;margin-bottom:6px">Langkah Atasan</div>
+        <ol style="margin:0;padding-left:16px;font-size:8pt;line-height:1.7">
+          <li>Buka link dari email (tanpa perlu login ke sistem)</li>
+          <li>Review goal-goal IDP karyawan</li>
+          <li>Pilih <strong>Setuju</strong> atau <strong>Tolak</strong> → Kirim Keputusan</li>
+          <li>Jika Setuju → status IDP otomatis berubah ke <strong>Aktif</strong></li>
+        </ol>
+      </div>
+    </div>
+    <p style="margin-top:10px;margin-bottom:0;font-size:7.5pt;color:var(--gray-500)">
+      <strong>Catatan:</strong> Token bersifat one-time per plan — jika atasan sudah submit, form tidak bisa disubmit ulang. Jika token perlu direset, klik Generate Link Ulang di detail IDP.
+    </p>
+  </div>
+
+  <!-- Rekomendasi Training -->
+  <h3><span class="h3-icon">🎓</span> Rekomendasi Training Otomatis</h3>
+  <p style="font-size:8.5pt;color:var(--gray-600);margin-bottom:10px">Di halaman detail IDP, setiap goal yang ter-link ke kompetensi akan menampilkan program training yang sudah di-link ke kompetensi tersebut dan berstatus <em>Upcoming</em> atau <em>Ongoing</em>.</p>
+  <div class="card" style="padding:12px 14px;font-size:8pt;color:var(--gray-600)">
+    <strong>Prasyarat rekomendasi muncul:</strong>
+    <ol style="margin:6px 0 0;padding-left:16px;line-height:1.8">
+      <li>Goal harus ter-link ke kompetensi (field Kompetensi diisi)</li>
+      <li>Ada program training yang sudah di-link ke kompetensi tersebut</li>
+      <li>Status program training = <strong>Upcoming</strong> atau <strong>Ongoing</strong></li>
+    </ol>
+  </div>
+
+  <div class="footer-bar">
+    <div>
+      <div class="title">Mall Intelligence Center · People Development</div>
+      <div class="sub">v1.4 — Mei 2026 · IT Dept PT. Wulandari Bangun Laksana Tbk.</div>
+    </div>
+    <div class="right">
+      Dokumen bersifat internal.<br>
+      Dilarang disebarluaskan.
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PAGE 9 — Quick Reference -->
 <div class="page page-break">
 
   <div class="mod-header">
@@ -1559,6 +1838,76 @@ td strong { color: var(--gray-800); }
       <td>People → EEI Survey (karyawan)</td>
       <td>Isi skor per pertanyaan → pilih level jabatan → Submit</td>
     </tr>
+    <tr>
+      <td><strong>Buat PIP baru</strong></td>
+      <td>People → PIP → Buat PIP Baru</td>
+      <td>Pilih karyawan, isi header + aspek → Simpan (email approval terkirim otomatis)</td>
+    </tr>
+    <tr>
+      <td><strong>Kirim ulang link approval</strong></td>
+      <td>Detail PIP → Generate Token (atasan/karyawan)</td>
+      <td>Klik Generate Token pihak yang bersangkutan → salin link → kirim manual</td>
+    </tr>
+    <tr>
+      <td><strong>Approve PIP di sistem</strong></td>
+      <td>Detail PIP → tombol Setujui PIP</td>
+      <td>Hanya user dengan <code>can_approve_pip</code>. Klik Setujui → status → Aktif</td>
+    </tr>
+    <tr>
+      <td><strong>Catat review PIP</strong></td>
+      <td>Detail PIP → Tambah Review</td>
+      <td>Isi tanggal, reviewer, progres, catatan → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Update status PIP</strong></td>
+      <td>Detail PIP → Edit → field Status</td>
+      <td>Ubah ke Selesai / Tidak Lulus / Diperpanjang sesuai hasil akhir</td>
+    </tr>
+    <tr>
+      <td><strong>Cetak laporan PIP</strong></td>
+      <td>Detail PIP → tombol Print</td>
+      <td>Klik Print → laporan lengkap aspek + riwayat review</td>
+    </tr>
+    <tr>
+      <td><strong>Kelola master aspek PIP</strong></td>
+      <td>People → PIP → Master Aspek</td>
+      <td>Tambah/edit daftar aspek standar yang bisa dipilih saat buat PIP</td>
+    </tr>
+    <tr>
+      <td><strong>Buat IDP dari hasil TNA</strong></td>
+      <td>Hasil TNA → tombol "Buat IDP dari Hasil Ini"</td>
+      <td>Klik tombol → modal terbuka dengan gap terisi otomatis → review → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Buat IDP manual</strong></td>
+      <td>People → IDP → Buat IDP Baru</td>
+      <td>Pilih karyawan, isi periode, tambah goal → Simpan (email ke atasan terkirim)</td>
+    </tr>
+    <tr>
+      <td><strong>Kirim link approval IDP ke atasan</strong></td>
+      <td>Detail IDP → bagian Approval Atasan → Salin Link</td>
+      <td>Klik Salin Link → tempel ke WhatsApp/Email atasan; atau Generate Link Ulang jika perlu reset</td>
+    </tr>
+    <tr>
+      <td><strong>Update progres goal IDP</strong></td>
+      <td>Detail IDP → klik ikon edit di baris goal</td>
+      <td>Ubah Status (Dalam Proses / Selesai) + isi Catatan Progres → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Tambah goal ke IDP yang sudah ada</strong></td>
+      <td>Detail IDP → Tambah Goal</td>
+      <td>Klik Tambah Goal → isi form → Simpan</td>
+    </tr>
+    <tr>
+      <td><strong>Cetak laporan IDP</strong></td>
+      <td>Detail IDP → tombol Print</td>
+      <td>Klik Print → laporan lengkap semua goal dalam format print-friendly</td>
+    </tr>
+    <tr>
+      <td><strong>Filter IDP per dept/tahun</strong></td>
+      <td>People → IDP → form filter</td>
+      <td>Pilih Dept, Karyawan, Status, atau Tahun → filter otomatis</td>
+    </tr>
   </table>
 
   <!-- Troubleshooting -->
@@ -1609,6 +1958,46 @@ td strong { color: var(--gray-800); }
       <td>Status kehadiran peserta belum diupdate ke "Hadir"</td>
       <td>Detail program → edit peserta → set Status Kehadiran = Hadir</td>
     </tr>
+    <tr>
+      <td>Email approval PIP tidak terkirim</td>
+      <td>Email atasan / karyawan kosong di data master karyawan</td>
+      <td>Cek &amp; isi email di Data Karyawan, lalu Generate Token ulang → salin link → kirim manual</td>
+    </tr>
+    <tr>
+      <td>Tombol "Setujui PIP" tidak muncul</td>
+      <td>User tidak punya permission <code>can_approve_pip</code></td>
+      <td>Admin → Roles → centang <em>can_approve_pip</em> untuk role yang bersangkutan</td>
+    </tr>
+    <tr>
+      <td>Link approval PIP tidak bisa dibuka</td>
+      <td>Token sudah direset / link lama</td>
+      <td>Detail PIP → Generate Token pihak yang sesuai → salin link baru → kirim ulang</td>
+    </tr>
+    <tr>
+      <td>Reminder review PIP tidak dikirim</td>
+      <td>Spark command belum dijadwalkan / PIP tidak berstatus Aktif</td>
+      <td>Pastikan status PIP = Aktif/Diperpanjang; jalankan <code>mic:pip-review-reminder</code> via cron</td>
+    </tr>
+    <tr>
+      <td>Email approval IDP tidak terkirim ke atasan</td>
+      <td>Email atasan kosong di data karyawan</td>
+      <td>Cek &amp; isi email di Data Karyawan → Detail IDP → Generate Link Ulang → salin link → kirim manual ke atasan</td>
+    </tr>
+    <tr>
+      <td>Link approval IDP tidak valid / halaman error</td>
+      <td>Token sudah direset atau URL salah</td>
+      <td>Detail IDP → Generate Link Ulang → salin link baru → kirim ulang ke atasan</td>
+    </tr>
+    <tr>
+      <td>Goal tidak terisi otomatis saat import dari TNA</td>
+      <td>Semua kompetensi sudah di atas target (tidak ada gap positif)</td>
+      <td>Normal — tidak ada gap yang perlu dikembangkan. Tambah goal manual jika tetap diperlukan</td>
+    </tr>
+    <tr>
+      <td>Rekomendasi training tidak muncul di detail IDP</td>
+      <td>Goal tidak ter-link ke kompetensi, atau program training belum di-link</td>
+      <td>Edit goal → isi field Kompetensi; pastikan program training ter-link ke kompetensi dan berstatus Upcoming/Ongoing</td>
+    </tr>
   </table>
 
   <!-- Alur Data -->
@@ -1630,16 +2019,20 @@ td strong { color: var(--gray-800); }
       <div style="background:var(--purple-light);border:1.5px solid #c4b5fd;border-radius:7px;padding:8px 12px;color:var(--purple);font-weight:600">
         Program Training<br><span style="font-weight:400;font-size:7.5pt">Rekomendasi otomatis via linkage</span>
       </div>
+      <div style="color:var(--gray-400);font-size:16pt">↓</div>
+      <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:7px;padding:8px 12px;color:#166534;font-weight:600">
+        IDP<br><span style="font-weight:400;font-size:7.5pt">Rencana pengembangan dari gap TNA</span>
+      </div>
     </div>
     <p style="margin-top:12px;margin-bottom:0;font-size:8pt;color:var(--gray-500)">
-      <strong>Alur data:</strong> Data karyawan (jabatan &amp; atasan) dipakai TNA untuk menentukan kompetensi yang dinilai dan membangun rantai assessor. Competency Framework menyediakan kompetensi + target. Hasil TNA (gap) memicu rekomendasi dari Program Training yang ter-link ke kompetensi tersebut.
+      <strong>Alur data:</strong> Data karyawan (jabatan &amp; atasan) dipakai TNA untuk menentukan kompetensi yang dinilai dan membangun rantai assessor. Competency Framework menyediakan kompetensi + target. Hasil TNA (gap) memicu rekomendasi dari Program Training dan dapat langsung dikonversi ke IDP.
     </p>
   </div>
 
   <div class="footer-bar">
     <div>
       <div class="title">Mall Intelligence Center · People Development</div>
-      <div class="sub">v1.2 — Mei 2026 · IT Dept PT. Wulandari Bangun Laksana Tbk.</div>
+      <div class="sub">v1.4 — Mei 2026 · IT Dept PT. Wulandari Bangun Laksana Tbk.</div>
     </div>
     <div class="right">
       Dokumen bersifat internal.<br>
