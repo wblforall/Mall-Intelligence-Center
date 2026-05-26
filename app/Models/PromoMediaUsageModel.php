@@ -74,7 +74,7 @@ class PromoMediaUsageModel extends Model
             ->whereIn('u.status', ['pending', 'approved', 'done'])
             ->where('u.tanggal_mulai <=', $tglSelesai)
             ->where('u.tanggal_selesai >=', $tglMulai)
-            ->orderBy('s.tipe')->orderBy('s.kode')->orderBy('u.slot_number');
+            ->orderBy("s.tipe = 'digital'", 'ASC', false)->orderBy('s.tipe')->orderBy('s.kode')->orderBy('u.slot_number');
 
         if ($tipe)  $q->where('s.tipe', $tipe);
         if ($dept)  $q->like('u.dept', $dept, 'both');

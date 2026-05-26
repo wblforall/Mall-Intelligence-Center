@@ -307,7 +307,7 @@ class PromoMediaCtrl extends BaseController
         $usageModel->markDoneExpired();
 
         $usages = $usageModel->getForGantt($tglMulai, $tglSelesai, $tipe, $dept);
-        $spots  = $spotModel->orderBy('tipe')->orderBy('kode')->findAll();
+        $spots  = $spotModel->orderBy("tipe = 'digital'", 'ASC', false)->orderBy('tipe')->orderBy('kode')->findAll();
 
         $depts = db_connect()->table('promo_media_usage')->select('dept')->distinct()->orderBy('dept')->get()->getResultArray();
 
