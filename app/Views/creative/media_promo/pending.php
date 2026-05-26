@@ -42,7 +42,14 @@
             <div class="small text-info mt-1"><i class="bi bi-chat-left-text me-1"></i><?= esc($first['catatan_pemohon']) ?></div>
             <?php endif; ?>
         </div>
-        <span class="badge bg-warning text-dark"><?= count($items) ?> item</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-warning text-dark"><?= count($items) ?> item</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0"
+                    onclick="openDetail(<?= htmlspecialchars(json_encode($first)) ?>, <?= count($items) ?>)"
+                    title="Lihat detail">
+                <i class="bi bi-eye"></i>
+            </button>
+        </div>
     </div>
 
     <!-- Batch items with checkboxes -->
@@ -57,6 +64,7 @@
                            data-batch="<?= esc($batchKey) ?>" checked title="Pilih semua">
                 </th>
                 <th>Titik</th>
+                <th>Materi</th>
                 <th>Slot</th>
                 <th>Area</th>
                 <th></th>
@@ -73,6 +81,12 @@
             <td>
                 <span class="fw-semibold font-monospace"><?= esc($u['spot_kode']) ?></span>
                 <div class="text-muted" style="font-size:.72rem"><?= esc($u['spot_nama']) ?></div>
+            </td>
+            <td>
+                <div class="fw-semibold"><?= esc($u['nama_materi']) ?></div>
+                <?php if ($u['deskripsi_materi']): ?>
+                <div class="text-muted" style="font-size:.72rem"><?= esc($u['deskripsi_materi']) ?></div>
+                <?php endif; ?>
             </td>
             <td><?= $u['slot_number'] ? 'Slot '.$u['slot_number'] : '—' ?></td>
             <td class="text-muted"><?= esc($u['spot_area'] ?? '—') ?></td>
@@ -101,6 +115,37 @@
 </div>
 <?php endforeach; ?>
 <?php endif; ?>
+
+<!-- Modal Detail Request -->
+<div class="modal fade" id="modalDetail" tabindex="-1">
+<div class="modal-dialog"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>Detail Request</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-body">
+    <dl class="row mb-0 small">
+        <dt class="col-4 text-muted fw-normal">Nama Materi</dt>
+        <dd class="col-8 fw-semibold mb-2" id="detailNamaMateri"></dd>
+        <dt class="col-4 text-muted fw-normal">Deskripsi</dt>
+        <dd class="col-8 mb-2" id="detailDeskripsi"></dd>
+        <dt class="col-4 text-muted fw-normal">Dept / Pemohon</dt>
+        <dd class="col-8 mb-2" id="detailDept"></dd>
+        <dt class="col-4 text-muted fw-normal">Periode</dt>
+        <dd class="col-8 mb-2" id="detailPeriode"></dd>
+        <dt class="col-4 text-muted fw-normal">Sumber</dt>
+        <dd class="col-8 mb-2" id="detailSumber"></dd>
+        <dt class="col-4 text-muted fw-normal">Berbayar</dt>
+        <dd class="col-8 mb-2" id="detailBerbayar"></dd>
+        <dt class="col-4 text-muted fw-normal">Jumlah Item</dt>
+        <dd class="col-8 mb-2" id="detailJumlahItem"></dd>
+        <dt class="col-4 text-muted fw-normal">Catatan</dt>
+        <dd class="col-8 mb-2" id="detailCatatan"></dd>
+        <dt class="col-4 text-muted fw-normal">Disubmit oleh</dt>
+        <dd class="col-8 mb-2" id="detailSubmittedBy"></dd>
+        <dt class="col-4 text-muted fw-normal">Waktu Submit</dt>
+        <dd class="col-8 mb-0" id="detailSubmittedAt"></dd>
+    </dl>
+</div>
+<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button></div>
+</div></div></div>
 
 <!-- Modal Reject Batch -->
 <div class="modal fade" id="modalRejectBatch" tabindex="-1">
@@ -174,6 +219,21 @@ function openRejectBatch(batchKey, ids) {
     document.getElementById('formRejectBatch').action = BASE + 'creative/media-promo/usage/reject-batch';
     document.querySelector('#modalRejectBatch textarea').value = '';
     new bootstrap.Modal(document.getElementById('modalRejectBatch')).show();
+}
+
+function openDetail(d, itemCount) {
+    const sumberLabel = {internal:'Internal Manajemen', tenant:'Tenant Mall', external:'External Client'};
+    document.getElementById('detailNamaMateri').textContent  = d.nama_materi;
+    document.getElementById('detailDeskripsi').textContent   = d.deskripsi_materi || '—';
+    document.getElementById('detailDept').textContent        = d.dept + (d.requested_by ? ' · ' + d.requested_by : '');
+    document.getElementById('detailPeriode').textContent     = d.tanggal_mulai + ' s/d ' + d.tanggal_selesai;
+    document.getElementById('detailSumber').textContent      = sumberLabel[d.sumber] || d.sumber;
+    document.getElementById('detailBerbayar').textContent    = d.is_berbayar == 1 ? 'Ya' : 'Tidak';
+    document.getElementById('detailCatatan').textContent     = d.catatan_pemohon || '—';
+    document.getElementById('detailSubmittedBy').textContent = d.submitted_by_name || '—';
+    document.getElementById('detailSubmittedAt').textContent = d.submitted_at || '—';
+    document.getElementById('detailJumlahItem').textContent  = itemCount + ' titik / slot';
+    new bootstrap.Modal(document.getElementById('modalDetail')).show();
 }
 
 function openApprove(id, nama) {
