@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v1.9** (Mei 2026)
+> Versi saat ini: **v2.0** (Mei 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,46 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.0
+
+**Tanggal Rilis:** 26 Mei 2026
+
+### Perubahan dari v1.9
+
+#### Modul Baru — IDP (Individual Development Plan)
+
+- **IDP Plan** — buat dan kelola rencana pengembangan individu per karyawan: goal, periode, kompetensi target, status (draft → aktif → selesai / dibatalkan), dan catatan penolakan.
+- **IDP Items** — daftar kegiatan pengembangan per plan: jenis kegiatan, deskripsi, target penyelesaian, dan status progress per item.
+- **Approval via Token** — generate link approval publik yang dikirim ke atasan langsung. Atasan bisa menyetujui atau menolak (dengan alasan) tanpa perlu login ke sistem.
+- **Email Notifikasi** — saat token di-generate, sistem otomatis mengirim email ke atasan berisi link approval berformat HTML branded MIC.
+- **Import dari TNA** — tombol "Buat IDP" di halaman hasil TNA untuk langsung membuat plan baru berbasis hasil penilaian kompetensi karyawan.
+- **Cetak IDP** — laporan IDP per karyawan dalam format print-friendly.
+- **Sidebar nav** — link IDP ditambahkan di submenu People Development setelah Master Aspek PIP.
+- **Handout People Development** — diperbarui ke v1.4, menambahkan halaman IDP (status, alur 6 langkah, field header & goal, token approval flow, prerequisite rekomendasi training) beserta entri Quick Reference dan Troubleshooting.
+- **Migrations:** `idp_plans`, `idp_items`
+
+#### Loyalty — Master Tenant & Pemisahan Jenis Program
+
+- **Jenis Program** — field `jenis` baru (ENUM `internal` / `tenant`) pada `loyalty_programs` untuk memisahkan program internal loyalty dari program kerjasama tenant.
+- **Master Tenant** — tabel `tenants` baru: nama, kategori, lantai, nomor unit, contact person, no HP, email, catatan, status.
+- **CRUD Tenant** — halaman `/loyalty/tenants` untuk tambah, edit, hapus tenant. Hapus diblokir jika masih ada program terkait.
+- **Histori Kerjasama** — halaman `/loyalty/tenants/{id}` menampilkan semua program yang pernah dilakukan dengan tenant tersebut, dipisah antara aktif dan closed.
+- **Sidebar** — link "Master Tenant" ditambahkan di submenu Program Loyalty.
+- **Tab Closed** — tab keempat di halaman Program Loyalty yang mengumpulkan semua program inactive dari semua jenis (Internal, Kerjasama Tenant, Dari Event) dalam satu tempat.
+- **Dropdown Tenant** — field input nama tenant di modal Add/Edit Program diubah dari teks bebas menjadi dropdown yang terhubung ke master tenant.
+- **Migrations:** tambah kolom `jenis` & `tenant_id` ke `loyalty_programs`, buat tabel `tenants`, drop kolom `nama_tenant` (lama).
+
+#### Creative — Gantt Media Promo
+
+- **Scrollbar horizontal kustom** — bar navigasi kiri-kanan di bawah tabel Gantt (menggantikan tombol chevron), sinkron dua arah dengan scroll tabel. Lebar thumb proporsional terhadap rentang tanggal.
+- **Scrollbar vertikal dalam container** — Gantt diberi `max-height: calc(100vh - 260px)` sehingga bisa di-scroll secara mandiri tanpa harus scroll halaman penuh terlebih dahulu.
+- **Sticky header dua baris** — baris bulan (`top: 0`) dan baris tanggal (`top: tinggi baris bulan`, diukur JS) keduanya sticky saat scroll vertikal.
+- **Warna hari ini** — diubah dari amber ke hijau (`#16a34a` header, `#dcfce7` body).
+- **Warna akhir pekan** — diubah dari abu ke merah (`#991b1b` header, `#fee2e2` body).
+- **Fix: Badge tipe titik media** — badge di halaman Master Titik hanya menampilkan "T-Banner" atau "Hanging Banner"; sekarang menggunakan map lengkap sehingga `sticker_lift` menampilkan "Sticker Lift" dan `totem_stainless` menampilkan "Totem Stainless".
 
 ---
 

@@ -145,6 +145,9 @@ body { min-height: 100vh; }
             <a href="<?= base_url('loyalty/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'loyalty/summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
                 <i class="bi bi-bar-chart-line"></i> Summary Bulanan
             </a>
+            <a href="<?= base_url('loyalty/tenants') ?>" class="nav-link <?= str_starts_with(uri_string(), 'loyalty/tenants') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+                <i class="bi bi-shop"></i> Master Tenant
+            </a>
             <a href="<?= base_url('stock/barang') ?>" class="nav-link <?= str_starts_with(uri_string(), 'stock/barang') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
                 <i class="bi bi-box-seam"></i> Stock Hadiah Fisik
             </a>

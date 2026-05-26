@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v1.9** (Mei 2026).
+Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v2.0** (Mei 2026).
 
 Stack: CodeIgniter 4 (v4.4.x), MySQL (XAMPP), Bootstrap 5.3, Chart.js, Apache.  
 Base URL: `http://localhost/mall-intelligence-center/public/`
@@ -115,4 +115,4 @@ Lihat diagram lengkap di [ARCHITECTURE.md](ARCHITECTURE.md#3-modul--tabel-databa
 | Purchasing | REST API | Modul VM & Creative |
 | PAM Plus (membership) | REST API | Modul Loyalty |
 
-Belum ada integrasi aktif di v1.9.
+Belum ada integrasi aktif di v2.0.
