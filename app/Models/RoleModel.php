@@ -8,7 +8,7 @@ class RoleModel extends Model
 {
     protected $table         = 'roles';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name', 'slug', 'description', 'is_admin', 'can_create_event', 'can_delete_event', 'can_manage_users', 'can_delete_traffic', 'can_import_traffic', 'can_view_logs', 'can_approve_events', 'can_approve_pip', 'can_approve_promo_media', 'can_view_gantt'];
+    protected $allowedFields = ['name', 'slug', 'description', 'is_admin', 'can_create_event', 'can_delete_event', 'can_manage_users', 'can_delete_traffic', 'can_import_traffic', 'can_view_logs', 'can_approve_events', 'can_approve_pip', 'can_approve_promo_media', 'can_approve_legal', 'can_view_gantt'];
     protected $useTimestamps = true;
 
     public function getBySlug(string $slug): ?array
