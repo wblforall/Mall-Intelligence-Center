@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.0** (Mei 2026)
+> Versi saat ini: **v2.1** (Mei 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,45 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.1
+
+**Tanggal Rilis:** 29 Mei 2026
+
+### Perubahan dari v2.0
+
+#### Modul Baru — Legal
+
+- **Dashboard Legal** (`/legal`) — ringkasan 3 sub-modul arsip dengan kartu jumlah aktif, draft, dan expired per modul; tabel terpadu dokumen yang akan berakhir dalam 30 hari (H-30/H-7).
+- **Perjanjian Sewa** (`/legal/leases`) — CRUD perjanjian sewa tenant: nomor kontrak, nama tenant, nomor unit, jenis sewa (tahunan/bulanan/harian), nilai sewa, periode pembayaran, tanggal mulai–berakhir, status (active/draft/expired/terminated), catatan. Upload/download dokumen (scan fisik/PDF).
+- **Perizinan & Lisensi** (`/legal/permits`) — CRUD izin dan lisensi operasional mall: nama izin, nomor, instansi penerbit, tanggal terbit, tanggal berakhir (opsional = berlaku tetap), status, catatan. Upload/download dokumen.
+- **Kontrak Vendor** (`/legal/contracts`) — CRUD kontrak vendor/supplier: nama vendor, nomor kontrak, jenis kontrak, nilai kontrak, mall terkait (eWalk / Pentacity / keduanya), tanggal mulai–berakhir, status, catatan. Upload/download dokumen.
+- **Dokumen Polimorfik** — satu tabel `legal_documents` melayani ketiga entitas (lease/permit/contract) via `entity_type` + `entity_id`. Upload PDF/scan, download, delete dengan hapus fisik otomatis.
+- **Expiry Badge** — badge warna otomatis: merah "H-X hari" (≤7 hari), kuning "H-X hari" (8–30 hari), hijau "Berlaku", abu "Berlaku Tetap" (tanpa tanggal berakhir).
+- **Spark Command `legal:check-expiry`** — cron command harian yang mengecek semua entitas Legal yang akan berakhir ≤30 hari dan menulis peringatan ke `activity_logs` dengan level KRITIS (H-7) atau PERINGATAN (H-30). Skip duplikat pada hari yang sama.
+
+#### Modul Baru — Review Kontrak
+
+- **Index Review** (`/legal/reviews`) — daftar review dengan 4 tab: Semua, Perlu Tindakan Saya, Di-assign ke Saya, Saya Buat. Badge status (Draft/In Review/Perlu Revisi/Final/Signed).
+- **Buat Review** — form buat review baru dengan upload dokumen v1 wajib, deskripsi, nama pihak kedua, dan pilih reviewer internal (multi-select). Versi pertama otomatis ter-assign.
+- **Alur Bolak-Balik** — reviewer bisa Minta Revisi (status → `revision`) atau Finalisasi (status → `final`). Drafter upload versi baru (status → `in_review`). Semua aksi dicatat sebagai komentar berjenis `request_revision` / `mark_final` di thread.
+- **Versioning Dokumen** — riwayat versi lengkap per review (versi ke-N, uploader, tanggal, catatan perubahan). Versi terkini selalu tampil di panel kiri; riwayat versi (>1) ditampilkan di card terpisah.
+- **Thread Komentar** — diskusi internal berupa komentar bersarang (reply). Komentar internal dan komentar aksi (revisi/finalisasi) dibedakan secara visual.
+- **Share Link Eksternal** — generate token 64-char (`bin2hex(random_bytes(32))`). Pihak kedua mengakses `/legal/ext/{token}` tanpa login: download dokumen terkini + baca thread + kirim komentar dengan nama. Link bisa diaktifkan/nonaktifkan kapan saja; otomatis nonaktif saat status `signed`.
+- **Tandai Signed** — setelah Final, dokumen bisa ditandai Signed. Ext link otomatis dinonaktifkan.
+- **Arsipkan ke Legal** — review berstatus Final/Signed bisa diarsipkan langsung ke salah satu sub-modul arsip (Perizinan, Kontrak Vendor, atau Perjanjian Sewa).
+- **Migrations:** `legal_leases`, `legal_permits`, `legal_contracts`, `legal_documents`, `legal_reviews`, `legal_review_versions`, `legal_review_comments`, `legal_review_assignees`
+
+#### Role & Akses
+
+- **Permission `can_approve_legal`** — permission baru di sistem role. Hanya user dengan izin ini (atau admin) yang bisa menekan tombol Finalisasi dan Tandai Signed pada review kontrak. Tampil di tabel dan modal tambah/edit Role Management.
+- **Menu `legal` di Department Access** — kunci `legal` ditambahkan ke `SectionConfig::MENU_LABELS` (grup Standalone) dan `$standaloneKeys` di halaman edit departemen. Dept Legal (id=5) mendapat akses default `can_view + can_edit`.
+
+#### Perbaikan Bug
+
+- **Fix: `section('content')` tidak ditutup sebelum `section('scripts')` di `reviews/show.php`** — `endSection()` eksplisit untuk content section ditambahkan; extra `endSection()` di akhir file dihapus.
 
 ---
 
