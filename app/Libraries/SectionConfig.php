@@ -16,6 +16,7 @@ class SectionConfig
         'sponsorship_main'   => 'Sponsorship — Standalone',
         'people_dev'         => 'People Development',
         'traffic'            => 'Daily Traffic',
+        'legal'              => 'Legal',
         // ── Per-Event (Event Sub-menu) ───────────────────────────
         'summary'       => 'Event Summary',
         'content'       => 'Content & Rundown',

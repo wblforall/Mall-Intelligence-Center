@@ -23,6 +23,7 @@ $globalPerms = [
     'can_approve_events' => ['label' => 'Approve Event',  'icon' => 'patch-check',              'color' => 'success'],
     'can_approve_pip'         => ['label' => 'Approve PIP',         'icon' => 'person-check-fill',  'color' => 'primary'],
     'can_approve_promo_media' => ['label' => 'Approve Media Promo', 'icon' => 'megaphone-fill',     'color' => 'warning'],
+    'can_approve_legal'       => ['label' => 'Approve Legal',       'icon' => 'shield-check',       'color' => 'success'],
     'can_view_gantt'          => ['label' => 'Lihat Gantt',         'icon' => 'bar-chart-steps',    'color' => 'info'],
 ];
 ?>
@@ -80,6 +81,7 @@ $globalPerms = [
             data-can_approve_events="<?= $r['can_approve_events'] ?? 0 ?>"
             data-can_approve_pip="<?= $r['can_approve_pip'] ?? 0 ?>"
             data-can_approve_promo_media="<?= $r['can_approve_promo_media'] ?? 0 ?>"
+            data-can_approve_legal="<?= $r['can_approve_legal'] ?? 0 ?>"
             data-can_view_gantt="<?= $r['can_view_gantt'] ?? 0 ?>">
             <i class="bi bi-pencil"></i>
         </button>
@@ -201,7 +203,7 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
 
         // Global perms
         ['is_admin','can_create_event','can_delete_event','can_manage_users',
-         'can_delete_traffic','can_import_traffic','can_view_logs','can_approve_events','can_approve_pip','can_approve_promo_media','can_view_gantt'].forEach(key => {
+         'can_delete_traffic','can_import_traffic','can_view_logs','can_approve_events','can_approve_pip','can_approve_promo_media','can_approve_legal','can_view_gantt'].forEach(key => {
             const cb = document.getElementById('edit_' + key);
             if (cb) cb.checked = this.dataset[key] === '1';
         });

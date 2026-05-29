@@ -374,6 +374,30 @@ body { min-height: 100vh; }
         </a>
         <?php endif; ?>
 
+        <?php
+        $_isAdminLegal  = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+        $_deptMenusLegal = session()->get('dept_menus');
+        $_canViewLegal   = $_isAdminLegal || $_deptMenusLegal === null || ($_deptMenusLegal['legal']['can_view'] ?? false);
+        if ($_canViewLegal):
+        ?>
+        <div class="nav-label">Legal</div>
+        <a href="<?= base_url('legal') ?>" class="nav-link <?= uri_string() === 'legal' ? 'active' : '' ?>">
+            <i class="bi bi-shield-check"></i> Dashboard Legal
+        </a>
+        <a href="<?= base_url('legal/reviews') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/reviews') ? 'active' : '' ?>">
+            <i class="bi bi-file-earmark-text"></i> Review Kontrak
+        </a>
+        <a href="<?= base_url('legal/permits') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/permits') ? 'active' : '' ?>">
+            <i class="bi bi-patch-check"></i> Perizinan & Lisensi
+        </a>
+        <a href="<?= base_url('legal/contracts') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/contracts') ? 'active' : '' ?>">
+            <i class="bi bi-briefcase"></i> Kontrak Vendor
+        </a>
+        <a href="<?= base_url('legal/leases') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/leases') ? 'active' : '' ?>">
+            <i class="bi bi-building"></i> Perjanjian Sewa
+        </a>
+        <?php endif; ?>
+
         <?php if (session()->get('role_perms')['can_view_logs'] ?? session()->get('role_is_admin') || session()->get('user_role') === 'admin'): ?>
         <div class="nav-label">System</div>
         <a href="<?= base_url('logs') ?>" class="nav-link <?= str_starts_with(uri_string(), 'logs') ? 'active' : '' ?>">

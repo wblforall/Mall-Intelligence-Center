@@ -4,6 +4,44 @@ use CodeIgniter\Router\RouteCollection;
 
 /** @var RouteCollection $routes */
 
+// Mobile API
+$routes->group('api', function ($routes) {
+    // CORS preflight
+    $routes->options('(:any)', 'Api\AuthController::options');
+
+    // Auth
+    $routes->post('auth/login',  'Api\AuthController::login');
+    $routes->post('auth/logout', 'Api\AuthController::logout');
+    $routes->get('auth/me',      'Api\AuthController::me');
+
+    // Dashboard
+    $routes->get('dashboard/summary', 'Api\DashboardController::summary');
+
+    // Events
+    $routes->get('events',     'Api\EventsController::index');
+    $routes->get('events/(:num)', 'Api\EventsController::show/$1');
+
+    // Media Promo Approval
+    $routes->get('media-promo/approvals',        'Api\PromoMediaController::approvals');
+    $routes->post('media-promo/(:num)/approve',  'Api\PromoMediaController::approve/$1');
+    $routes->post('media-promo/(:num)/reject',   'Api\PromoMediaController::reject/$1');
+
+    // IDP Approval
+    $routes->get('idp/approvals',        'Api\IdpController::approvals');
+    $routes->get('idp/(:num)',           'Api\IdpController::show/$1');
+    $routes->post('idp/(:num)/approve',  'Api\IdpController::approve/$1');
+    $routes->post('idp/(:num)/reject',   'Api\IdpController::reject/$1');
+
+    // PIP Approval
+    $routes->get('pip/approvals',        'Api\PipController::approvals');
+    $routes->get('pip/(:num)',           'Api\PipController::show/$1');
+    $routes->post('pip/(:num)/approve',  'Api\PipController::approve/$1');
+    $routes->post('pip/(:num)/reject',   'Api\PipController::reject/$1');
+
+    // Push token
+    $routes->post('auth/push-token', 'Api\AuthController::savePushToken');
+});
+
 // Auth
 $routes->get('login', 'Auth::index');
 $routes->post('login', 'Auth::login');
@@ -467,3 +505,59 @@ $routes->get('people/employees/(:num)/certificates/(:num)/delete',        'Peopl
 $routes->get('profile', 'Users::profile', ['filter' => 'auth']);
 $routes->post('profile', 'Users::updateProfile', ['filter' => 'auth']);
 $routes->post('profile/theme', 'Users::updateTheme', ['filter' => 'auth']);
+
+// ── Legal ────────────────────────────────────────────────────────────────
+$routes->get ('legal',                                    'Legal\LegalController::index',                   ['filter' => 'auth']);
+
+// Perizinan
+$routes->get ('legal/permits',                            'Legal\LegalPermitController::index',             ['filter' => 'auth']);
+$routes->get ('legal/permits/new',                        'Legal\LegalPermitController::new',               ['filter' => 'auth']);
+$routes->post('legal/permits',                            'Legal\LegalPermitController::create',            ['filter' => 'auth']);
+$routes->get ('legal/permits/(:num)',                     'Legal\LegalPermitController::show/$1',           ['filter' => 'auth']);
+$routes->get ('legal/permits/(:num)/edit',                'Legal\LegalPermitController::edit/$1',           ['filter' => 'auth']);
+$routes->post('legal/permits/(:num)/edit',                'Legal\LegalPermitController::update/$1',         ['filter' => 'auth']);
+$routes->post('legal/permits/(:num)/delete',              'Legal\LegalPermitController::delete/$1',         ['filter' => 'auth']);
+
+// Kontrak Vendor
+$routes->get ('legal/contracts',                          'Legal\LegalContractController::index',           ['filter' => 'auth']);
+$routes->get ('legal/contracts/new',                      'Legal\LegalContractController::new',             ['filter' => 'auth']);
+$routes->post('legal/contracts',                          'Legal\LegalContractController::create',          ['filter' => 'auth']);
+$routes->get ('legal/contracts/(:num)',                   'Legal\LegalContractController::show/$1',         ['filter' => 'auth']);
+$routes->get ('legal/contracts/(:num)/edit',              'Legal\LegalContractController::edit/$1',         ['filter' => 'auth']);
+$routes->post('legal/contracts/(:num)/edit',              'Legal\LegalContractController::update/$1',       ['filter' => 'auth']);
+$routes->post('legal/contracts/(:num)/delete',            'Legal\LegalContractController::delete/$1',       ['filter' => 'auth']);
+
+// Perjanjian Sewa
+$routes->get ('legal/leases',                             'Legal\LegalLeaseController::index',              ['filter' => 'auth']);
+$routes->get ('legal/leases/new',                         'Legal\LegalLeaseController::new',                ['filter' => 'auth']);
+$routes->post('legal/leases',                             'Legal\LegalLeaseController::create',             ['filter' => 'auth']);
+$routes->get ('legal/leases/(:num)',                      'Legal\LegalLeaseController::show/$1',            ['filter' => 'auth']);
+$routes->get ('legal/leases/(:num)/edit',                 'Legal\LegalLeaseController::edit/$1',            ['filter' => 'auth']);
+$routes->post('legal/leases/(:num)/edit',                 'Legal\LegalLeaseController::update/$1',          ['filter' => 'auth']);
+$routes->post('legal/leases/(:num)/delete',               'Legal\LegalLeaseController::delete/$1',          ['filter' => 'auth']);
+
+// Dokumen (shared upload/delete)
+$routes->post('legal/documents/upload',                   'Legal\LegalController::uploadDocument',          ['filter' => 'auth']);
+$routes->post('legal/documents/(:num)/delete',            'Legal\LegalController::deleteDocument/$1',       ['filter' => 'auth']);
+$routes->get ('legal/documents/(:num)/download',          'Legal\LegalController::downloadDocument/$1',     ['filter' => 'auth']);
+
+// Review Kontrak
+$routes->get ('legal/reviews',                            'Legal\LegalReviewController::index',             ['filter' => 'auth']);
+$routes->get ('legal/reviews/new',                        'Legal\LegalReviewController::new',               ['filter' => 'auth']);
+$routes->post('legal/reviews',                            'Legal\LegalReviewController::create',            ['filter' => 'auth']);
+$routes->get ('legal/reviews/(:num)',                     'Legal\LegalReviewController::show/$1',           ['filter' => 'auth']);
+$routes->get ('legal/reviews/(:num)/edit',                'Legal\LegalReviewController::edit/$1',           ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/edit',                'Legal\LegalReviewController::update/$1',         ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/delete',              'Legal\LegalReviewController::delete/$1',         ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/version',             'Legal\LegalReviewController::uploadVersion/$1',  ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/comment',             'Legal\LegalReviewController::addComment/$1',     ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/request-revision',    'Legal\LegalReviewController::requestRevision/$1',['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/mark-final',          'Legal\LegalReviewController::markFinal/$1',      ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/mark-signed',         'Legal\LegalReviewController::markSigned/$1',     ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/generate-link',       'Legal\LegalReviewController::generateLink/$1',   ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/toggle-link',         'Legal\LegalReviewController::toggleLink/$1',     ['filter' => 'auth']);
+$routes->post('legal/reviews/(:num)/archive',             'Legal\LegalReviewController::archive/$1',        ['filter' => 'auth']);
+
+// Review eksternal (tanpa auth)
+$routes->get ('legal/ext/(:segment)',                     'Legal\LegalReviewExtController::show/$1');
+$routes->post('legal/ext/(:segment)/comment',             'Legal\LegalReviewExtController::comment/$1');

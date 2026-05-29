@@ -47,6 +47,7 @@ class Roles extends BaseController
             'can_approve_events'  => isset($post['can_approve_events'])  ? 1 : 0,
             'can_approve_pip'         => isset($post['can_approve_pip'])         ? 1 : 0,
             'can_approve_promo_media' => isset($post['can_approve_promo_media']) ? 1 : 0,
+            'can_approve_legal'       => isset($post['can_approve_legal'])       ? 1 : 0,
             'can_view_gantt'          => isset($post['can_view_gantt'])          ? 1 : 0,
         ]);
 
@@ -85,6 +86,7 @@ class Roles extends BaseController
             'can_approve_events'  => isset($post['can_approve_events'])  ? 1 : 0,
             'can_approve_pip'         => isset($post['can_approve_pip'])         ? 1 : 0,
             'can_approve_promo_media' => isset($post['can_approve_promo_media']) ? 1 : 0,
+            'can_approve_legal'       => isset($post['can_approve_legal'])       ? 1 : 0,
             'can_view_gantt'          => isset($post['can_view_gantt'])          ? 1 : 0,
         ];
         $model->update($id, $roleData);

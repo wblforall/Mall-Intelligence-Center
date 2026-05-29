@@ -38,6 +38,7 @@ class RoleModel extends Model
             'can_approve_events'  => $isAdmin || (bool)($role['can_approve_events']  ?? false),
             'can_approve_pip'          => $isAdmin || (bool)($role['can_approve_pip']          ?? false),
             'can_approve_promo_media'  => $isAdmin || (bool)($role['can_approve_promo_media']  ?? false),
+            'can_approve_legal'        => $isAdmin || (bool)($role['can_approve_legal']        ?? false),
             'can_view_gantt'           => $isAdmin || (bool)($role['can_view_gantt']           ?? false),
         ];
     }
