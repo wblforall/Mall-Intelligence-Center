@@ -179,7 +179,8 @@ $routes->get('creative/media-promo/print-summary',                'PromoMediaCtr
 $routes->post('creative/media-promo/spots/store',                 'PromoMediaCtrl::storeSpot',          ['filter' => 'auth']);
 $routes->post('creative/media-promo/spots/(:num)/update',         'PromoMediaCtrl::updateSpot/$1',      ['filter' => 'auth']);
 $routes->get('creative/media-promo/spots/(:num)/delete',          'PromoMediaCtrl::deleteSpot/$1',      ['filter' => 'auth']);
-$routes->get('creative/media-promo/spots/check-cetak',            'PromoMediaCtrl::checkCetakAvailability', ['filter' => 'auth']);
+$routes->get('creative/media-promo/spots/check-cetak',            'PromoMediaCtrl::checkCetakAvailability',  ['filter' => 'auth']);
+$routes->get('creative/media-promo/spots/check-digital',          'PromoMediaCtrl::checkDigitalAvailability', ['filter' => 'auth']);
 $routes->get('creative/media-promo/spots/(:num)/slots',           'PromoMediaCtrl::getAvailableSlots/$1', ['filter' => 'auth']);
 $routes->post('creative/media-promo/usage/batch-approve',         'PromoMediaCtrl::batchApprove',       ['filter' => 'auth']);
 $routes->post('creative/media-promo/usage/reject-batch',          'PromoMediaCtrl::rejectBatch',        ['filter' => 'auth']);

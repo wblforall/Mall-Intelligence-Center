@@ -303,27 +303,43 @@
         <?php endif; ?>
         <div id="cetakNoCheck" class="text-danger small mt-1" style="display:none">Pilih minimal 1 titik.</div>
     </div>
-    <!-- Digital: spot + slot grid -->
+    <!-- Digital: checkbox list per spot dengan slot inline -->
     <div id="digitalSection" style="display:none">
-        <div class="mb-3">
-            <label class="form-label small fw-semibold">Titik Digital <span class="text-danger">*</span></label>
-            <select name="spot_id" id="reqSpotId" class="form-select">
-                <option value="">-- Pilih Titik --</option>
-                <?php foreach ($digital as $s): ?>
-                <option value="<?= $s['id'] ?>">
-                    [<?= esc($s['kode']) ?>] <?= esc($s['nama']) ?>
-                </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label class="form-label small fw-semibold">Pilih Slot <span class="text-danger">*</span></label>
-            <div id="slotGrid" class="d-flex flex-wrap gap-1 border rounded p-2 bg-light" style="min-height:42px">
-                <span class="text-muted small align-self-center">Pilih titik dan isi tanggal terlebih dahulu.</span>
+        <label class="form-label small fw-semibold">Pilih Slot Digital <span class="text-danger">*</span></label>
+        <?php if (empty($digital)): ?>
+        <div class="border rounded p-3 text-center text-muted small">Belum ada titik media digital.</div>
+        <?php else: ?>
+        <div class="border rounded p-2" style="max-height:240px;overflow-y:auto" id="digitalSpotList">
+        <?php foreach ($digital as $s): ?>
+            <div class="py-2 border-bottom digital-spot-row" data-spot-id="<?= $s['id'] ?>">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-secondary font-monospace" style="font-size:.65rem"><?= esc($s['kode']) ?></span>
+                    <span class="fw-semibold small"><?= esc($s['nama']) ?></span>
+                    <?php if ($s['area']): ?>
+                    <span class="text-muted" style="font-size:.7rem">· <?= esc($s['area']) ?></span>
+                    <?php endif; ?>
+                    <span class="ms-auto text-muted small spot-sisa-label">
+                        <?= $s['sisa_slots'] ?>/<?= $s['total_slots'] ?> bebas
+                    </span>
+                </div>
+                <div class="d-flex flex-wrap gap-1 slot-btn-group">
+                <?php for ($sl = 1; $sl <= (int)$s['total_slots']; $sl++): ?>
+                    <div>
+                        <input type="checkbox" class="btn-check digital-slot-check"
+                               name="slot_selections[<?= $s['id'] ?>][]"
+                               id="ds_<?= $s['id'] ?>_<?= $sl ?>" value="<?= $sl ?>"
+                               autocomplete="off">
+                        <label class="btn btn-sm btn-outline-secondary slot-btn"
+                               for="ds_<?= $s['id'] ?>_<?= $sl ?>"
+                               style="min-width:36px;font-size:.72rem"><?= $sl ?></label>
+                    </div>
+                <?php endfor; ?>
+                </div>
             </div>
-            <div class="form-text small text-muted" id="slotInfo"></div>
-            <div id="digitalNoSlot" class="text-danger small mt-1" style="display:none">Pilih minimal 1 slot.</div>
+        <?php endforeach; ?>
         </div>
+        <?php endif; ?>
+        <div id="digitalNoSlot" class="text-danger small mt-1" style="display:none">Pilih minimal 1 slot.</div>
     </div>
     <!-- Shared bottom -->
     <div class="row g-3 mt-1">
@@ -376,40 +392,37 @@ function switchReqMode(mode) {
     document.getElementById('reqMode').value = mode;
     document.getElementById('cetakSection').style.display   = mode === 'cetak' ? '' : 'none';
     document.getElementById('digitalSection').style.display = mode === 'digital' ? '' : 'none';
+    if (mode === 'digital') checkDigitalDates();
 }
 
-document.getElementById('reqSpotId').addEventListener('change', loadAvailableSlots);
-
-function loadAvailableSlots() {
-    const spotId     = document.getElementById('reqSpotId').value;
+function checkDigitalDates() {
     const tglMulai   = document.getElementById('reqTglMulai').value;
     const tglSelesai = document.getElementById('reqTglSelesai').value;
-    const grid       = document.getElementById('slotGrid');
+    if (!tglMulai || !tglSelesai || tglMulai > tglSelesai) return;
 
-    if (!spotId || !tglMulai || !tglSelesai) {
-        grid.innerHTML = '<span class="text-muted small align-self-center">Pilih titik dan isi tanggal terlebih dahulu.</span>';
-        document.getElementById('slotInfo').textContent = '';
-        return;
-    }
-
-    grid.innerHTML = '<span class="text-muted small align-self-center"><i class="bi bi-hourglass-split me-1"></i>Memuat...</span>';
-    fetch(BASE_URL + 'creative/media-promo/spots/' + spotId + '/slots?tgl_mulai=' + tglMulai + '&tgl_selesai=' + tglSelesai)
+    fetch(BASE_URL + 'creative/media-promo/spots/check-digital?tgl_mulai=' + tglMulai + '&tgl_selesai=' + tglSelesai)
         .then(r => r.json())
         .then(data => {
-            const available = new Set(data.available);
-            let html = '';
-            for (let s = 1; s <= data.total; s++) {
-                const ok = available.has(s);
-                html += `<div>
-                    <input type="checkbox" class="btn-check slot-check" name="slot_numbers[]"
-                           id="slotCk_${s}" value="${s}" ${ok ? '' : 'disabled'} autocomplete="off">
-                    <label class="btn btn-sm ${ok ? 'btn-outline-success' : 'btn-outline-danger disabled'}"
-                           for="slotCk_${s}" style="min-width:38px">${s}</label>
-                </div>`;
-            }
-            grid.innerHTML = html || '<span class="text-muted small">Tidak ada slot.</span>';
-            document.getElementById('slotInfo').textContent =
-                data.available.length + ' dari ' + data.total + ' slot tersedia';
+            document.querySelectorAll('.digital-spot-row').forEach(row => {
+                const spotId   = row.dataset.spotId;
+                const info     = data[spotId];
+                if (!info) return;
+                const avail    = new Set(info.available);
+                const sisal    = row.querySelector('.spot-sisa-label');
+                if (sisal) sisal.textContent = info.available.length + '/' + info.total + ' bebas';
+                row.querySelectorAll('.digital-slot-check').forEach(cb => {
+                    const slot = parseInt(cb.value);
+                    const ok   = avail.has(slot);
+                    cb.disabled = !ok;
+                    if (!ok) cb.checked = false;
+                    const lbl = cb.nextElementSibling;
+                    if (lbl) {
+                        lbl.classList.remove('btn-outline-success', 'btn-outline-danger', 'btn-outline-secondary', 'disabled');
+                        lbl.classList.add(ok ? 'btn-outline-success' : 'btn-outline-danger');
+                        if (!ok) lbl.classList.add('disabled');
+                    }
+                });
+            });
         });
 }
 
@@ -439,8 +452,8 @@ function checkCetakDates() {
 ['reqTglMulai', 'reqTglSelesai'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => {
         const mode = document.getElementById('reqMode').value;
-        if (mode === 'cetak') checkCetakDates();
-        if (mode === 'digital') loadAvailableSlots();
+        if (mode === 'cetak')   checkCetakDates();
+        if (mode === 'digital') checkDigitalDates();
     });
 });
 
@@ -456,11 +469,10 @@ document.getElementById('formBuatRequest').addEventListener('submit', function(e
         }
         noCheckDiv.style.display = 'none';
     } else {
-        const noSpot = !document.getElementById('reqSpotId').value;
-        const noSlot = document.querySelectorAll('.slot-check:checked').length === 0;
-        if (noSpot || noSlot) {
+        const noSlot = document.querySelectorAll('.digital-slot-check:checked').length === 0;
+        if (noSlot) {
             e.preventDefault();
-            document.getElementById('digitalNoSlot').style.display = noSlot ? '' : 'none';
+            document.getElementById('digitalNoSlot').style.display = '';
             return;
         }
         document.getElementById('digitalNoSlot').style.display = 'none';

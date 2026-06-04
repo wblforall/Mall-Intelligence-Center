@@ -420,6 +420,24 @@ class PromoMediaCtrl extends BaseController
         ]);
     }
 
+    public function checkDigitalAvailability()
+    {
+        $tglMulai   = $this->request->getGet('tgl_mulai');
+        $tglSelesai = $this->request->getGet('tgl_selesai');
+        $spotModel  = new PromoMediaSpotModel();
+
+        $spots  = $spotModel->where('tipe', 'digital')->where('is_active', 1)->orderBy('kode')->findAll();
+        $result = [];
+        foreach ($spots as $spot) {
+            $total     = (int)$spot['total_slots'];
+            $available = ($tglMulai && $tglSelesai && $tglMulai <= $tglSelesai)
+                ? $spotModel->getAvailableSlots($spot['id'], $tglMulai, $tglSelesai)
+                : range(1, $total);
+            $result[$spot['id']] = ['total' => $total, 'available' => array_values($available)];
+        }
+        return $this->response->setJSON($result);
+    }
+
     public function checkCetakAvailability()
     {
         $tglMulai   = $this->request->getGet('tgl_mulai');

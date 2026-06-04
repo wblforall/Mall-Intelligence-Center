@@ -66,26 +66,27 @@ class PromoMediaUsageCtrl extends BaseController
         ];
 
         if ($mode === 'digital') {
-            $spotId = (int)($post['spot_id'] ?? 0);
-            $spot   = $spotModel->find($spotId);
-            if (! $spot) {
-                return redirect()->to('/creative/media-promo')->with('error', 'Titik media tidak ditemukan.');
-            }
-            $slotNumbers = array_filter(array_map('intval', (array)($post['slot_numbers'] ?? [])));
-            if (empty($slotNumbers)) {
-                return redirect()->to('/creative/media-promo')->with('error', 'Pilih minimal 1 slot.');
+            $slotSelections = $post['slot_selections'] ?? [];
+            if (empty($slotSelections)) {
+                return redirect()->to('/creative/media-promo')->with('error', 'Pilih minimal 1 slot digital.');
             }
             $created  = [];
             $conflict = [];
-            foreach ($slotNumbers as $slotNum) {
-                if ($slotNum < 1 || $slotNum > $spot['total_slots']) continue;
-                if ($usageModel->hasConflictDigital($spotId, $slotNum, $tglMulai, $tglSelesai)) {
-                    $conflict[] = 'Slot ' . $slotNum;
-                    continue;
+            foreach ($slotSelections as $rawSpotId => $slotNums) {
+                $spotId = (int)$rawSpotId;
+                $spot   = $spotModel->find($spotId);
+                if (! $spot || $spot['tipe'] !== 'digital') continue;
+                foreach ((array)$slotNums as $slotNum) {
+                    $slotNum = (int)$slotNum;
+                    if ($slotNum < 1 || $slotNum > $spot['total_slots']) continue;
+                    if ($usageModel->hasConflictDigital($spotId, $slotNum, $tglMulai, $tglSelesai)) {
+                        $conflict[] = $spot['kode'] . ' Slot ' . $slotNum;
+                        continue;
+                    }
+                    $id = $usageModel->insert(array_merge($commonData, ['spot_id' => $spotId, 'slot_number' => $slotNum]));
+                    ActivityLog::write('create', 'promo_media_usage', (string)$id, $post['nama_materi']);
+                    $created[] = $spot['kode'] . ' Slot ' . $slotNum;
                 }
-                $id = $usageModel->insert(array_merge($commonData, ['spot_id' => $spotId, 'slot_number' => $slotNum]));
-                ActivityLog::write('create', 'promo_media_usage', (string)$id, $post['nama_materi']);
-                $created[] = 'Slot ' . $slotNum;
             }
             if (empty($created)) {
                 return redirect()->to('/creative/media-promo')->with('error', 'Semua slot yang dipilih sudah terpakai: ' . implode(', ', $conflict));
