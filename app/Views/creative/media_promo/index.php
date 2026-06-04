@@ -1,4 +1,12 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<style>
+.spot-card { transition: box-shadow .15s; }
+.spot-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.spot-actions { opacity: 0; transition: opacity .15s; }
+.spot-card:hover .spot-actions { opacity: 1; }
+</style>
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -21,60 +29,70 @@
     </div>
 </div>
 
+<?php
+$tipeBadgeMap = ['t_banner'=>'primary','hanging'=>'info','sticker_lift'=>'warning','totem_stainless'=>'secondary'];
+$tipeLabelMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'Sticker Lift','totem_stainless'=>'Totem Stainless'];
+?>
+
 <!-- Media Cetak -->
 <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-file-earmark-image me-1"></i>Media Cetak</h6>
 <?php if (empty($cetak)): ?>
-<div class="card mb-4"><div class="card-body text-center text-muted py-4 small">Belum ada titik media cetak.</div></div>
+<div class="card mb-4"><div class="card-body text-center text-muted py-3 small">Belum ada titik media cetak.</div></div>
 <?php else: ?>
 <div class="row g-2 mb-4">
 <?php foreach ($cetak as $spot):
-    $occupied = !empty($spot['active_usage']);
+    $occupied  = !empty($spot['active_usage']);
     $isPending = $occupied && $spot['active_usage']['status'] === 'pending';
+    $borderCol = $occupied ? ($isPending ? 'warning' : 'danger') : 'success';
 ?>
-<div class="col-md-3 col-sm-4">
-<div class="card h-100 border-<?= $occupied ? ($isPending ? 'warning' : 'danger') : 'success' ?>">
-<div class="card-body p-3">
-    <div class="d-flex justify-content-between align-items-start mb-1">
-        <span class="badge bg-secondary small"><?= esc($spot['kode']) ?></span>
-        <?php
-        $tipeBadgeMap = ['t_banner'=>'primary','hanging'=>'info','sticker_lift'=>'warning','totem_stainless'=>'secondary'];
-        $tipeLabelMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'Sticker Lift','totem_stainless'=>'Totem Stainless'];
-        ?>
-        <span class="badge bg-<?= $tipeBadgeMap[$spot['tipe']] ?? 'secondary' ?> text-dark small">
+<div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+<div class="card h-100 spot-card border-<?= $borderCol ?>">
+<div class="card-body p-2">
+
+    <!-- Kode + tipe -->
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="badge bg-secondary font-monospace" style="font-size:.6rem"><?= esc($spot['kode']) ?></span>
+        <span class="badge bg-<?= $tipeBadgeMap[$spot['tipe']] ?? 'secondary' ?>" style="font-size:.6rem">
             <?= $tipeLabelMap[$spot['tipe']] ?? esc($spot['tipe']) ?>
         </span>
     </div>
-    <div class="fw-semibold small"><?= esc($spot['nama']) ?></div>
-    <?php if ($spot['area']): ?><div class="text-muted" style="font-size:.72rem"><?= esc($spot['area']) ?></div><?php endif; ?>
-    <?php if ($spot['ukuran']): ?><div class="text-muted" style="font-size:.72rem"><?= esc($spot['ukuran']) ?></div><?php endif; ?>
-    <hr class="my-2">
+
+    <!-- Nama + area + ukuran -->
+    <div class="fw-semibold" style="font-size:.78rem;line-height:1.3"><?= esc($spot['nama']) ?></div>
+    <div class="text-muted" style="font-size:.68rem;line-height:1.3">
+        <?= esc($spot['area']) ?><?= ($spot['area'] && $spot['ukuran']) ? ' · ' : '' ?><?= esc($spot['ukuran']) ?>
+    </div>
+
+    <!-- Status -->
+    <div class="mt-1">
     <?php if ($occupied): ?>
-    <div class="small">
-        <span class="badge bg-<?= $isPending ? 'warning text-dark' : 'danger' ?> mb-1">
+        <span class="badge bg-<?= $isPending ? 'warning text-dark' : 'danger' ?>" style="font-size:.6rem">
             <?= $isPending ? 'Pending' : 'Terpakai' ?>
         </span>
-        <div class="fw-semibold text-truncate"><?= esc($spot['active_usage']['nama_materi']) ?></div>
-        <div class="text-muted" style="font-size:.72rem"><?= esc($spot['active_usage']['dept']) ?></div>
-        <div class="text-muted" style="font-size:.72rem">
-            <?= date('d M', strtotime($spot['active_usage']['tanggal_mulai'])) ?> – <?= date('d M Y', strtotime($spot['active_usage']['tanggal_selesai'])) ?>
+        <div class="fw-semibold text-truncate" style="font-size:.72rem"><?= esc($spot['active_usage']['nama_materi']) ?></div>
+        <div class="text-muted" style="font-size:.65rem">
+            <?= esc($spot['active_usage']['dept']) ?> ·
+            <?= date('d M', strtotime($spot['active_usage']['tanggal_mulai'])) ?>–<?= date('d M', strtotime($spot['active_usage']['tanggal_selesai'])) ?>
         </div>
-    </div>
     <?php else: ?>
-    <div class="text-success small"><i class="bi bi-check-circle me-1"></i>Tersedia</div>
+        <span class="text-success" style="font-size:.72rem"><i class="bi bi-check-circle me-1"></i>Tersedia</span>
     <?php endif; ?>
+    </div>
+
     <?php if ($canEdit): ?>
-    <div class="mt-2 d-flex gap-1">
+    <div class="spot-actions d-flex gap-1 mt-1">
         <button class="btn btn-xs btn-outline-secondary py-0 px-1"
             onclick="openEditSpot(<?= htmlspecialchars(json_encode($spot)) ?>)" title="Edit">
-            <i class="bi bi-pencil" style="font-size:.7rem"></i>
+            <i class="bi bi-pencil" style="font-size:.65rem"></i>
         </button>
         <a href="<?= base_url('creative/media-promo/spots/'.$spot['id'].'/delete') ?>"
            onclick="return confirm('Hapus titik ini?')"
            class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus">
-            <i class="bi bi-trash" style="font-size:.7rem"></i>
+            <i class="bi bi-trash" style="font-size:.65rem"></i>
         </a>
     </div>
     <?php endif; ?>
+
 </div>
 </div>
 </div>
@@ -85,52 +103,62 @@
 <!-- Media Digital -->
 <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-display me-1"></i>Media Digital</h6>
 <?php if (empty($digital)): ?>
-<div class="card"><div class="card-body text-center text-muted py-4 small">Belum ada titik media digital.</div></div>
+<div class="card"><div class="card-body text-center text-muted py-3 small">Belum ada titik media digital.</div></div>
 <?php else: ?>
 <div class="row g-2">
 <?php foreach ($digital as $spot):
-    $usedCount = count($spot['used_slots'] ?? []);
+    $usedCount  = count($spot['used_slots'] ?? []);
     $totalSlots = (int)$spot['total_slots'];
-    $pct = $totalSlots > 0 ? round($usedCount / $totalSlots * 100) : 0;
-    $barClass = $pct >= 100 ? 'danger' : ($pct >= 75 ? 'warning' : 'success');
+    $pct        = $totalSlots > 0 ? round($usedCount / $totalSlots * 100) : 0;
+    $barClass   = $pct >= 100 ? 'danger' : ($pct >= 75 ? 'warning' : 'success');
 ?>
-<div class="col-md-4 col-sm-6">
-<div class="card h-100">
-<div class="card-body p-3">
-    <div class="d-flex justify-content-between align-items-start mb-1">
-        <span class="badge bg-secondary small"><?= esc($spot['kode']) ?></span>
-        <span class="badge bg-dark small">Digital</span>
+<div class="col-xl-3 col-lg-4 col-md-6">
+<div class="card h-100 spot-card">
+<div class="card-body p-2">
+
+    <!-- Kode + badge -->
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="badge bg-secondary font-monospace" style="font-size:.6rem"><?= esc($spot['kode']) ?></span>
+        <span class="badge bg-dark" style="font-size:.6rem">Digital</span>
     </div>
-    <div class="fw-semibold small"><?= esc($spot['nama']) ?></div>
-    <?php if ($spot['area']): ?><div class="text-muted" style="font-size:.72rem"><?= esc($spot['area']) ?></div><?php endif; ?>
-    <hr class="my-2">
-    <div class="d-flex justify-content-between small mb-1">
-        <span><?= $usedCount ?>/<?= $totalSlots ?> slot terpakai</span>
+
+    <!-- Nama + area -->
+    <div class="fw-semibold" style="font-size:.78rem;line-height:1.3"><?= esc($spot['nama']) ?></div>
+    <?php if ($spot['area']): ?>
+    <div class="text-muted" style="font-size:.68rem"><?= esc($spot['area']) ?></div>
+    <?php endif; ?>
+
+    <!-- Progress -->
+    <div class="d-flex justify-content-between mt-1 mb-1" style="font-size:.68rem">
+        <span class="text-muted"><?= $usedCount ?>/<?= $totalSlots ?> slot</span>
         <span class="text-<?= $spot['sisa_slots'] > 0 ? 'success' : 'danger' ?>"><?= $spot['sisa_slots'] ?> bebas</span>
     </div>
-    <div class="progress mb-2" style="height:6px">
+    <div class="progress mb-1" style="height:4px">
         <div class="progress-bar bg-<?= $barClass ?>" style="width:<?= $pct ?>%"></div>
     </div>
-    <!-- Slot grid -->
+
+    <!-- Slot badges -->
     <div class="d-flex flex-wrap gap-1">
     <?php for ($s = 1; $s <= $totalSlots; $s++): ?>
         <span class="badge bg-<?= in_array($s, $spot['used_slots']) ? 'danger' : 'success' ?>"
-              style="font-size:.65rem;min-width:22px"><?= $s ?></span>
+              style="font-size:.6rem;min-width:20px"><?= $s ?></span>
     <?php endfor; ?>
     </div>
+
     <?php if ($canEdit): ?>
-    <div class="mt-2 d-flex gap-1">
+    <div class="spot-actions d-flex gap-1 mt-1">
         <button class="btn btn-xs btn-outline-secondary py-0 px-1"
             onclick="openEditSpot(<?= htmlspecialchars(json_encode($spot)) ?>)" title="Edit">
-            <i class="bi bi-pencil" style="font-size:.7rem"></i>
+            <i class="bi bi-pencil" style="font-size:.65rem"></i>
         </button>
         <a href="<?= base_url('creative/media-promo/spots/'.$spot['id'].'/delete') ?>"
            onclick="return confirm('Hapus titik ini?')"
            class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus">
-            <i class="bi bi-trash" style="font-size:.7rem"></i>
+            <i class="bi bi-trash" style="font-size:.65rem"></i>
         </a>
     </div>
     <?php endif; ?>
+
 </div>
 </div>
 </div>
