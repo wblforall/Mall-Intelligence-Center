@@ -24,6 +24,7 @@ class TrafficExcelParser
         'pentacity' => [
             'pintu utama'              => 'GF Lobby Utama',
             'pintu gf flying tiger'    => 'GF Lobby Flying Tiger',
+            'pintu flying tiger'       => 'GF Lobby Flying Tiger',
             'pintu gf beach gate'      => 'GF Lobby Beach Gate',
             'pintu gf pentacity hotel' => 'GF Pentacity hotel',
             'pintu h&m'                => 'GF H&M',
