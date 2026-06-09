@@ -90,10 +90,20 @@ body { min-height: 100vh; }
     <!-- Nav -->
     <div class="nav-section flex-grow-1">
 
+        <?php
+        // Inputter traffic-only (mis. Security: can_edit tanpa can_view) tidak punya akses dashboard.
+        $_dmMain     = session()->get('dept_menus');
+        $_isAdminM   = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+        $_inputOnly  = ! $_isAdminM && is_array($_dmMain)
+            && ! ($_dmMain['traffic']['can_view'] ?? false)
+            && ($_dmMain['traffic']['can_edit'] ?? false);
+        if (! $_inputOnly):
+        ?>
         <div class="nav-label">Main</div>
         <a href="<?= base_url('/') ?>" class="nav-link <?= uri_string() === '' ? 'active' : '' ?>">
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
+        <?php endif; ?>
         <?php
         $_rp = session()->get('role_perms') ?? [];
         if (($_rp['is_admin'] ?? false) || ($_rp['can_view_gantt'] ?? false)):
@@ -236,24 +246,25 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $canSeeTraffic = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || $deptMenusNav === null || ($deptMenusNav['traffic']['can_view'] ?? false);
+        $_isAdminNav    = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+        $canViewTraffic = $_isAdminNav || $deptMenusNav === null || ($deptMenusNav['traffic']['can_view'] ?? false);
+        $canEditTraffic = $_isAdminNav || $deptMenusNav === null || ($deptMenusNav['traffic']['can_edit'] ?? false);
+        $canSeeTraffic  = $canViewTraffic || $canEditTraffic; // inputter (edit-only, mis. Security) tetap lihat menu
         if ($canSeeTraffic):
         ?>
         <div class="nav-label">Traffic</div>
         <a href="<?= base_url('traffic') ?>" class="nav-link <?= uri_string() === 'traffic' ? 'active' : '' ?>">
             <i class="bi bi-person-walking"></i> Daily Traffic
         </a>
+        <?php if ($canViewTraffic): ?>
         <a href="<?= base_url('traffic/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'traffic/summary') ? 'active' : '' ?>">
             <i class="bi bi-bar-chart-line-fill"></i> Summary
         </a>
         <a href="<?= base_url('traffic/compare') ?>" class="nav-link <?= str_starts_with(uri_string(), 'traffic/compare') ? 'active' : '' ?>">
             <i class="bi bi-arrow-left-right"></i> Compare
         </a>
-        <?php
-        $canEditTraffic = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || $deptMenusNav === null || ($deptMenusNav['traffic']['can_edit'] ?? false);
-        if ($canEditTraffic): ?>
+        <?php endif; ?>
+        <?php if ($canViewTraffic && $canEditTraffic): // input kendaraan butuh akses penuh ?>
         <a href="<?= base_url('traffic/vehicles') ?>" class="nav-link <?= str_starts_with(uri_string(), 'traffic/vehicles') ? 'active' : '' ?>">
             <i class="bi bi-car-front"></i> Input Kendaraan
         </a>

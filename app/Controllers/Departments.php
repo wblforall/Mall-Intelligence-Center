@@ -28,8 +28,9 @@ class Departments extends BaseController
 
         $deptModel = new DepartmentModel();
         $deptModel->insert([
-            'name'        => $name,
-            'description' => $this->request->getPost('description'),
+            'name'         => $name,
+            'description'  => $this->request->getPost('description'),
+            'is_outsource' => $this->request->getPost('is_outsource') ? 1 : 0,
         ]);
         ActivityLog::write('create', 'department', (string)$deptModel->getInsertID(), $name);
 
@@ -61,8 +62,9 @@ class Departments extends BaseController
         $name = trim($this->request->getPost('name'));
         ActivityLog::captureBefore($deptModel->find($id));
         $deptData = [
-            'name'        => $name,
-            'description' => $this->request->getPost('description'),
+            'name'         => $name,
+            'description'  => $this->request->getPost('description'),
+            'is_outsource' => $this->request->getPost('is_outsource') ? 1 : 0,
         ];
         $deptModel->update($id, $deptData);
         ActivityLog::captureAfter($deptData);

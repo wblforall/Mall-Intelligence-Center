@@ -91,7 +91,7 @@ class PeopleDashboard extends BaseController
         // Budget rows for current year
         $realisasiMap = (new TrainingProgramModel())->getRealisasiByDeptYear($tahun);
         $budgetMap    = (new TrainingBudgetModel())->getMapByYear($tahun);
-        $departments  = (new DepartmentModel())->orderBy('name')->findAll();
+        $departments  = (new DepartmentModel())->selectable();
 
         $budgetRows     = [];
         $totalAnggaran  = 0;

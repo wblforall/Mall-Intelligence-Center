@@ -25,7 +25,7 @@ class PeopleEmployees extends BaseController
         return view('people/employees/index', [
             'user'        => $this->currentUser(),
             'employees'   => $employees,
-            'departments' => (new DepartmentModel())->orderBy('name')->findAll(),
+            'departments' => (new DepartmentModel())->selectable(),
             'divisions'   => (new DivisionModel())->orderBy('nama')->findAll(),
             'jabatanMap'  => (new JabatanModel())->getAllAsMap(),
             'allEmployees'=> $employees,
@@ -48,7 +48,7 @@ class PeopleEmployees extends BaseController
         }
 
         $allEmployees = (new EmployeeModel())->getWithDept();
-        $departments  = (new DepartmentModel())->orderBy('name')->findAll();
+        $departments  = (new DepartmentModel())->selectable();
 
         // Derive current division for the edit form (deputy case: dept_id is null)
         $currentDivisionId = null;

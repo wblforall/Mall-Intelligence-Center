@@ -16,7 +16,7 @@ class Divisions extends BaseController
         return view('admin/divisions/index', [
             'user'        => $this->currentUser(),
             'divisions'   => $divModel->getAllWithDepts(),
-            'departments' => $deptModel->orderBy('name')->findAll(),
+            'departments' => $deptModel->selectable(),
         ]);
     }
 

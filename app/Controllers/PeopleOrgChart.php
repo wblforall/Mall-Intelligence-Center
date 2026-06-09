@@ -13,7 +13,7 @@ class PeopleOrgChart extends BaseController
         $db = db_connect();
 
         $divisions = (new DivisionModel())->orderBy('nama')->findAll();
-        $depts     = (new DepartmentModel())->orderBy('name')->findAll();
+        $depts     = (new DepartmentModel())->selectable();
 
         $jabatans  = $db->table('jabatans')
             ->orderBy('grade')->orderBy('nama')

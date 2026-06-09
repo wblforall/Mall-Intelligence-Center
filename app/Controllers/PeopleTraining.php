@@ -206,7 +206,7 @@ class PeopleTraining extends BaseController
         $budgetModel = new TrainingBudgetModel();
         $progModel   = new TrainingProgramModel();
 
-        $departments = (new DepartmentModel())->orderBy('name')->findAll();
+        $departments = (new DepartmentModel())->selectable();
         $budgetMap   = $budgetModel->getMapByYear($tahun);
         $realisasiMap = $progModel->getRealisasiByDeptYear($tahun);
         $years       = $budgetModel->getAvailableYears();

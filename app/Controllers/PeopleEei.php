@@ -74,7 +74,7 @@ class PeopleEei extends BaseController
 
         $deptId = (int)(session()->get('dept_id') ?? 0);
 
-        $depts = $deptId ? [] : (new \App\Models\DepartmentModel())->orderBy('name')->findAll();
+        $depts = $deptId ? [] : (new \App\Models\DepartmentModel())->selectable();
 
         return view('people/eei/survey', [
             'user'        => $user,
@@ -152,7 +152,7 @@ class PeopleEei extends BaseController
         }
 
         $data['dimensions']  = (new EeiDimensionModel())->getWithQuestions();
-        $data['departments'] = (new \App\Models\DepartmentModel())->orderBy('name')->findAll();
+        $data['departments'] = (new \App\Models\DepartmentModel())->selectable();
         $data['divisions']   = (new \App\Models\DivisionModel())->orderBy('nama')->findAll();
         return view('people/eei/public_survey', $data);
     }

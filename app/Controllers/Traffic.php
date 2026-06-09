@@ -32,7 +32,9 @@ class Traffic extends BaseController
 
     public function index()
     {
-        if (! $this->canViewMenu('traffic')) {
+        // Inputter (can_edit) boleh masuk daftar untuk akses form input,
+        // walau tidak punya can_view (mis. Security outsource).
+        if (! $this->canViewMenu('traffic') && ! $this->canEditMenu('traffic')) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -48,6 +50,7 @@ class Traffic extends BaseController
             'ewalkDates' => $ewalkDates,
             'pentaDates' => $pentaDates,
             'canEdit'    => $this->canEditMenu('traffic'),
+            'canView'    => $this->canViewMenu('traffic'),
             'month'      => $month,
         ]);
     }
@@ -946,7 +949,8 @@ class Traffic extends BaseController
 
     public function vehicles(string $tanggal = '')
     {
-        if (! $this->canEditMenu('traffic')) {
+        // Input kendaraan butuh akses penuh (view + edit); inputter pejalan-only ditolak.
+        if (! $this->canEditMenu('traffic') || ! $this->canViewMenu('traffic')) {
             return redirect()->to('/traffic')->with('error', 'Akses ditolak.');
         }
 
@@ -962,7 +966,7 @@ class Traffic extends BaseController
 
     public function saveVehicles()
     {
-        if (! $this->canEditMenu('traffic')) {
+        if (! $this->canEditMenu('traffic') || ! $this->canViewMenu('traffic')) {
             return redirect()->to('/traffic/vehicles')->with('error', 'Akses ditolak.');
         }
 

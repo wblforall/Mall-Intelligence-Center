@@ -32,6 +32,7 @@ class Jabatans extends BaseController
             'divisions'    => (new DivisionModel())->orderBy('nama')->findAll(),
             'departments'  => (new DepartmentModel())->select('departments.*, divisions.nama AS division_nama')
                                 ->join('divisions', 'divisions.id = departments.division_id', 'left')
+                                ->where('departments.is_outsource', 0)
                                 ->orderBy('divisions.nama')->orderBy('departments.name')->findAll(),
             'filterDept'   => $filterDept,
             'filterDiv'    => $filterDiv,

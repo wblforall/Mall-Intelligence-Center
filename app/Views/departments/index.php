@@ -79,6 +79,12 @@
         <label class="form-label small fw-semibold">Deskripsi (opsional)</label>
         <input type="text" name="description" class="form-control" placeholder="Contoh: Mengelola data loyalty & member">
     </div>
+    <div class="form-check mb-3">
+        <input type="checkbox" class="form-check-input" id="add_is_outsource" name="is_outsource" value="1">
+        <label class="form-check-label small" for="add_is_outsource">
+            Departemen <strong>outsource</strong> (mis. Security) — sembunyikan dari dropdown People Development & struktur organisasi
+        </label>
+    </div>
     <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>Setelah membuat departemen, klik tombol <strong>pengaturan</strong> untuk mengatur akses menu.</p>
 </div>
 <div class="modal-footer">

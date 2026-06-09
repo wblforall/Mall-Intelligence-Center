@@ -43,7 +43,7 @@ class PeoplePip extends BaseController
             'reviewAlerts' => array_values($reviewAlerts),
             'stats'        => (new PipPlanModel())->getDashboardStats(),
             'employees'    => (new EmployeeModel())->getWithDept(),
-            'departments'  => (new DepartmentModel())->findAll(),
+            'departments'  => (new DepartmentModel())->selectable(),
             'aspekMaster'  => (new PipAspekMasterModel())->getAktif(),
             'filters'      => $filters,
             'canEdit'      => $this->canEditMenu('people_dev'),

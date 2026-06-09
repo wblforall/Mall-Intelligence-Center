@@ -23,9 +23,15 @@
         <label class="form-label small fw-semibold">Nama Departemen <span class="text-danger">*</span></label>
         <input type="text" name="name" class="form-control" value="<?= esc($dept['name']) ?>" required>
     </div>
-    <div class="mb-0">
+    <div class="mb-3">
         <label class="form-label small fw-semibold">Deskripsi</label>
         <input type="text" name="description" class="form-control" value="<?= esc($dept['description']) ?>" placeholder="Opsional">
+    </div>
+    <div class="form-check mb-0">
+        <input type="checkbox" class="form-check-input" id="is_outsource" name="is_outsource" value="1" <?= !empty($dept['is_outsource']) ? 'checked' : '' ?>>
+        <label class="form-check-label small" for="is_outsource">
+            Departemen <strong>outsource</strong> (sembunyikan dari dropdown People Development & struktur organisasi)
+        </label>
     </div>
 </div>
 </div>
@@ -113,19 +119,21 @@ foreach ($menuLabels as $key => $label):
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
-// When "edit" is checked, auto-check "view" too
+// Menu yang boleh "edit tanpa view" (input-only, mis. Security input traffic).
+const INPUT_ONLY_MENUS = ['traffic'];
+// When "edit" is checked, auto-check "view" too — kecuali menu input-only
 document.querySelectorAll('.menu-edit-cb').forEach(cb => {
     cb.addEventListener('change', function() {
-        if (this.checked) {
+        if (this.checked && ! INPUT_ONLY_MENUS.includes(this.dataset.menu)) {
             const viewCb = document.querySelector(`.menu-view-cb[data-menu="${this.dataset.menu}"]`);
             if (viewCb) viewCb.checked = true;
         }
     });
 });
-// When "view" is unchecked, also uncheck "edit"
+// When "view" is unchecked, also uncheck "edit" — kecuali menu input-only
 document.querySelectorAll('.menu-view-cb').forEach(cb => {
     cb.addEventListener('change', function() {
-        if (! this.checked) {
+        if (! this.checked && ! INPUT_ONLY_MENUS.includes(this.dataset.menu)) {
             const editCb = document.querySelector(`.menu-edit-cb[data-menu="${this.dataset.menu}"]`);
             if (editCb) editCb.checked = false;
         }

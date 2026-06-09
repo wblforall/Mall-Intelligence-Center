@@ -18,9 +18,11 @@
         <small class="text-muted">Input traffic pengunjung harian per pintu masuk</small>
     </div>
     <div class="d-flex gap-2">
+        <?php if ($canView): ?>
         <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#exportModal">
             <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
         </button>
+        <?php endif; ?>
         <?php if ($canEdit): ?>
         <a href="<?= base_url('traffic/input/ewalk/'.date('Y-m-d')) ?>" class="btn btn-sm btn-primary">
             <i class="bi bi-plus-lg me-1"></i> Input eWalk
@@ -129,6 +131,7 @@
 </div>
 
 <!-- Export Modal -->
+<?php if ($canView): ?>
 <div class="modal fade" id="exportModal" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
@@ -167,5 +170,6 @@
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <?= $this->endSection() ?>

@@ -18,7 +18,7 @@ class PeopleCompetencies extends BaseController
         $targetModel = new CompetencyTargetModel();
         $deptId      = (int)($this->request->getGet('dept_id') ?? 0);
         $jabatan     = trim($this->request->getGet('jabatan') ?? '');
-        $departments = (new DepartmentModel())->orderBy('name')->findAll();
+        $departments = (new DepartmentModel())->selectable();
 
         $deptTargetMap = [];
         $targetMap     = [];

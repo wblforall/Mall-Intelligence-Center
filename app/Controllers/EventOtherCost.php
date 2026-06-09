@@ -21,7 +21,7 @@ class EventOtherCost extends BaseController
         if (! $event) return redirect()->to('/events')->with('error', 'Akses ditolak.');
 
         $items       = (new EventBudgetModel())->getByEvent($eventId);
-        $departments = (new DepartmentModel())->orderBy('name')->findAll();
+        $departments = (new DepartmentModel())->selectable();
         $total       = array_sum(array_column($items, 'jumlah'));
 
         return view('other_cost/index', [

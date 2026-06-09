@@ -10,6 +10,16 @@ class Dashboard extends BaseController
 {
     public function index()
     {
+        // Inputter traffic-only (mis. Security outsource: can_edit tanpa can_view)
+        // tidak boleh lihat dashboard makro — arahkan langsung ke input traffic.
+        $isAdmin   = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+        $deptMenus = session()->get('dept_menus');
+        if (! $isAdmin && is_array($deptMenus)
+            && ! ($deptMenus['traffic']['can_view'] ?? false)
+            && ($deptMenus['traffic']['can_edit'] ?? false)) {
+            return redirect()->to('/traffic');
+        }
+
         $user   = $this->currentUser();
         $model  = new EventModel();
         $events = $model->getEventsForUser($user['id'], $user['role']);

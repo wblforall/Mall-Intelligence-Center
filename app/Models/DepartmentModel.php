@@ -8,8 +8,14 @@ class DepartmentModel extends Model
 {
     protected $table         = 'departments';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name', 'description'];
+    protected $allowedFields = ['name', 'description', 'is_outsource'];
     protected $useTimestamps = true;
+
+    // Departemen yang boleh tampil di dropdown People-dev / org (exclude outsource)
+    public function selectable(): array
+    {
+        return $this->where('is_outsource', 0)->orderBy('name')->findAll();
+    }
 
     public function getAllWithMenuCount(): array
     {
