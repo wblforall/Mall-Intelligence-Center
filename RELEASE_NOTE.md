@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.1** (Mei 2026)
+> Versi saat ini: **v2.2** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,27 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.2
+
+**Tanggal Rilis:** 9 Juni 2026
+
+### Perubahan dari v2.1
+
+#### Akses Department Security (Input Traffic Only)
+
+- **Department input-only** — department dengan akses `can_edit` tanpa `can_view` pada menu Traffic (mis. tim Security outsource) kini hanya bisa menginput traffic pengunjung harian, tanpa bisa melihat Summary, Compare, Export, atau modul lain.
+- **Penguncian halaman** — `Traffic::index()` boleh diakses inputter untuk masuk ke form input; Summary/Compare/Export/Print serta Input Kendaraan tetap memerlukan `can_view`.
+- **Sidebar adaptif** — user input-only hanya melihat menu "Daily Traffic"; label Main beserta link Dashboard disembunyikan. Setelah login langsung diarahkan ke halaman input traffic (`Dashboard::index` redirect ke `/traffic`).
+- **Form akses menu** — baris Traffic dikecualikan dari coupling otomatis "edit → view", sehingga admin bisa men-set department sebagai input-only. Modul lain tetap mengunci edit mengikuti view.
+
+#### Department Outsource
+
+- **Flag `is_outsource`** — kolom baru pada tabel `departments`. Department yang ditandai outsource (mis. Security) disembunyikan dari seluruh dropdown People Development & struktur organisasi (Employees, Org Chart, PIP, IDP, TNA/EEI, Competencies, Training, Divisi, Jabatan, Other Cost) via `DepartmentModel::selectable()`.
+- **Admin tetap penuh** — manajemen Users & Departments tetap menampilkan semua department termasuk outsource.
+- **Checkbox di form** — opsi "Departemen outsource" tersedia saat menambah maupun mengedit department.
 
 ---
 
