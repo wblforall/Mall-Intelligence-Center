@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.4** (Juni 2026)
+> Versi saat ini: **v2.5** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,23 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.5
+
+**Tanggal Rilis:** 10 Juni 2026
+
+### Perubahan dari v2.4
+
+#### Parameter Kendaraan Traffic
+
+- Parameter kendaraan diubah menjadi: **Mobil, Motor, Box, Truk, Bus, Mobil Free, Motor Free**. Taxi dihapus; "Mobil Box" → "Box", "Truck" → "Truk"; ditambah **Mobil Free** & **Motor Free**.
+- Berlaku di form input kendaraan, KPI & grafik summary, laporan cetak, export Excel, serta halaman compare. (Migration: kolom `total_taxi` dihapus, `total_mobil_free` & `total_motor_free` ditambah.)
+
+#### Halaman User — Filter
+
+- Ditambah filter di halaman User Management: pencarian nama/email (live), serta filter Role, Departemen, dan Status (Aktif/Nonaktif), dengan penghitung hasil dan tombol Reset. Berjalan client-side (instan).
 
 ---
 
