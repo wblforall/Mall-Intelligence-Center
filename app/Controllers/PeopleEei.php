@@ -244,7 +244,10 @@ class PeopleEei extends BaseController
     public function activatePeriod(int $id)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        (new EeiPeriodModel())->activate($id);
+        $pm = new EeiPeriodModel();
+        ActivityLog::captureBefore($pm->find($id));
+        $pm->activate($id);
+        ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'eei_period_activate', (string)$id, 'activated');
         return redirect()->to('/people/eei/manage')->with('success', 'Periode diaktifkan.');
     }

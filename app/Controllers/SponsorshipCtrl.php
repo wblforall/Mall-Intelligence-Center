@@ -190,8 +190,11 @@ class SponsorshipCtrl extends BaseController
     public function toggleStatus(int $id)
     {
         if (! $this->canEditMenu('sponsorship_main')) return redirect()->to('/sponsorship')->with('error', 'Akses ditolak.');
-        if ((new SponsorshipProgramModel())->isLocked($id)) return redirect()->to('/sponsorship#program-' . $id)->with('error', 'Program terkunci.');
-        (new SponsorshipProgramModel())->toggleStatus($id);
+        $pm = new SponsorshipProgramModel();
+        if ($pm->isLocked($id)) return redirect()->to('/sponsorship#program-' . $id)->with('error', 'Program terkunci.');
+        ActivityLog::captureBefore($pm->find($id));
+        $pm->toggleStatus($id);
+        ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'sponsorship_program', (string)$id, '', ['action' => 'toggle_status']);
         return redirect()->to('/sponsorship')->with('success', 'Status program diperbarui.');
     }
@@ -199,7 +202,10 @@ class SponsorshipCtrl extends BaseController
     public function lock(int $id)
     {
         if (! $this->canEditMenu('sponsorship_main')) return redirect()->to('/sponsorship')->with('error', 'Akses ditolak.');
-        (new SponsorshipProgramModel())->lock($id, $this->currentUser()['id']);
+        $pm = new SponsorshipProgramModel();
+        ActivityLog::captureBefore($pm->find($id));
+        $pm->lock($id, $this->currentUser()['id']);
+        ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'sponsorship_program', (string)$id, '', ['action' => 'lock']);
         return redirect()->to('/sponsorship#program-' . $id)->with('success', 'Program berhasil dikunci.');
     }
@@ -207,7 +213,10 @@ class SponsorshipCtrl extends BaseController
     public function unlock(int $id)
     {
         if (! $this->isAdmin()) return redirect()->to('/sponsorship#program-' . $id)->with('error', 'Hanya admin yang bisa membuka kunci.');
-        (new SponsorshipProgramModel())->unlock($id);
+        $pm = new SponsorshipProgramModel();
+        ActivityLog::captureBefore($pm->find($id));
+        $pm->unlock($id);
+        ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'sponsorship_program', (string)$id, '', ['action' => 'unlock']);
         return redirect()->to('/sponsorship#program-' . $id)->with('success', 'Kunci program berhasil dibuka.');
     }

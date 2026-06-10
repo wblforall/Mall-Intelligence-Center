@@ -105,8 +105,15 @@ class EventExhibitors extends BaseController
         $targetJumlah = (int)($post['target_jumlah'] ?? 0);
         $targetNilai  = (int)str_replace([',', '.', ' '], '', $post['target_nilai_dealing'] ?? 0);
 
-        (new EventExhibitorTargetModel())->saveTarget($eventId, $targetJumlah, $targetNilai);
-        ActivityLog::write('update', 'exhibitor_target', (string)$eventId, 'Target Exhibition', ['event_id' => $eventId, 'target_jumlah' => $targetJumlah, 'target_nilai_dealing' => $targetNilai]);
+        $targetModel = new EventExhibitorTargetModel();
+        $before = $targetModel->getByEvent($eventId);
+        ActivityLog::captureBefore([
+            'target_jumlah'        => (int)($before['target_jumlah'] ?? 0),
+            'target_nilai_dealing' => (int)($before['target_nilai_dealing'] ?? 0),
+        ]);
+        $targetModel->saveTarget($eventId, $targetJumlah, $targetNilai);
+        ActivityLog::captureAfter(['target_jumlah' => $targetJumlah, 'target_nilai_dealing' => $targetNilai]);
+        ActivityLog::write('update', 'exhibitor_target', (string)$eventId, 'Target Exhibition', ['event_id' => $eventId]);
 
         return redirect()->to("/events/{$eventId}/exhibitors")->with('success', 'Target exhibition berhasil disimpan.');
     }

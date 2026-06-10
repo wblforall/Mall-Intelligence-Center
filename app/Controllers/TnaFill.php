@@ -80,6 +80,8 @@ class TnaFill extends Controller
                 'status'       => 'submitted',
                 'submitted_at' => date('Y-m-d H:i:s'),
             ]);
+            ActivityLog::captureBefore(['status' => $assessment['status']]);
+            ActivityLog::captureAfter(['status' => 'submitted']);
             ActivityLog::write('submit', 'tna_assessment', (string)$assessment['id'], 'via token: ' . $assessment['assessor_type']);
             return view('people/tna/fill_done', [
                 'message' => 'Penilaian berhasil disubmit. Terima kasih!',

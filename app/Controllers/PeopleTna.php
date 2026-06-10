@@ -95,6 +95,8 @@ class PeopleTna extends BaseController
 
         $newStatus = $period['status'] === 'open' ? 'closed' : 'open';
         (new TnaPeriodModel())->update($id, ['status' => $newStatus]);
+        ActivityLog::captureBefore(['status' => $period['status']]);
+        ActivityLog::captureAfter(['status' => $newStatus]);
         ActivityLog::write('update', 'tna_period', (string)$id, $period['nama'] . ' → ' . $newStatus);
         return redirect()->to('/people/tna/period/' . $id)
             ->with('success', 'Status periode diubah ke ' . $newStatus . '.');
@@ -298,6 +300,8 @@ class PeopleTna extends BaseController
                 'status'       => 'submitted',
                 'submitted_at' => date('Y-m-d H:i:s'),
             ]);
+            ActivityLog::captureBefore(['status' => $assessment['status']]);
+            ActivityLog::captureAfter(['status' => 'submitted']);
             ActivityLog::write('submit', 'tna_assessment', (string)$assessmentId, $assessment['assessor_type']);
             return redirect()->to('/people/tna/period/' . $assessment['period_id'])
                 ->with('success', 'Assessment berhasil disubmit.');

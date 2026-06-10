@@ -14,6 +14,8 @@ class EventCompletion extends BaseController
         }
 
         (new EventCompletionModel())->mark($eventId, $module, $this->currentUser()['id']);
+        ActivityLog::captureBefore(['status' => 'Belum selesai']);
+        ActivityLog::captureAfter(['status' => 'Selesai']);
         ActivityLog::write('update', 'completion', (string)$eventId, "Mark selesai: {$module}", ['event_id' => $eventId, 'module' => $module]);
 
         return redirect()->to("/events/{$eventId}/{$module}")->with('success', 'Data berhasil ditandai selesai.');

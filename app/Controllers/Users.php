@@ -101,11 +101,9 @@ class Users extends BaseController
         if ($user) {
             $newStatus = $user['is_active'] ? 0 : 1;
             (new UserModel())->update($id, ['is_active' => $newStatus]);
-            ActivityLog::write('update', 'user', (string)$id, $user['name'], [
-                'field' => 'is_active',
-                'before' => (bool)$user['is_active'],
-                'after'  => (bool)$newStatus,
-            ]);
+            ActivityLog::captureBefore(['is_active' => $user['is_active'] ? 'Aktif' : 'Nonaktif']);
+            ActivityLog::captureAfter(['is_active'  => $newStatus ? 'Aktif' : 'Nonaktif']);
+            ActivityLog::write('update', 'user', (string)$id, $user['name']);
         }
         return redirect()->to('/users')->with('success', 'Status user diperbarui.');
     }
@@ -114,7 +112,9 @@ class Users extends BaseController
     {
         $user = (new UserModel())->find($id);
         if ($user) {
+            ActivityLog::captureBefore(['locked_until' => $user['locked_until'], 'failed_login_attempts' => $user['failed_login_attempts']]);
             (new UserModel())->update($id, ['failed_login_attempts' => 0, 'locked_until' => null]);
+            ActivityLog::captureAfter(['locked_until' => null, 'failed_login_attempts' => 0]);
             ActivityLog::write('update', 'user', (string)$id, $user['name'], ['action' => 'manual_unlock']);
         }
         return redirect()->to('/users')->with('success', 'Akun berhasil dibuka.');

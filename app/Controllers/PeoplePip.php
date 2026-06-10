@@ -158,6 +158,8 @@ class PeoplePip extends BaseController
             'status'               => 'aktif',
             'approved_by_user_id'  => session()->get('user_id'),
         ]);
+        ActivityLog::captureBefore(['status' => $plan['status']]);
+        ActivityLog::captureAfter(['status' => 'aktif']);
         ActivityLog::write('update', 'pip_plan', (string)$id, 'approve: ' . $plan['judul']);
         return redirect()->to('/people/pip/' . $id)->with('success', 'PIP disetujui dan sekarang aktif.');
     }

@@ -194,6 +194,8 @@ class PromoMediaCtrl extends BaseController
                 'approved_by'      => $userId,
                 'approved_at'      => $now,
             ]);
+            ActivityLog::captureBefore(['status' => $usage['status']]);
+            ActivityLog::captureAfter(['status' => 'approved', 'catatan_approver' => $catatan ?: '—']);
             ActivityLog::write('update', 'promo_media_usage', (string)$id, "Approve: {$usage['nama_materi']}");
             $approved++;
         }
@@ -223,6 +225,8 @@ class PromoMediaCtrl extends BaseController
                 'approved_by'      => $this->currentUser()['id'],
                 'approved_at'      => date('Y-m-d H:i:s'),
             ]);
+            ActivityLog::captureBefore(['status' => $usage['status']]);
+            ActivityLog::captureAfter(['status' => 'rejected', 'rejection_reason' => $reason]);
             ActivityLog::write('update', 'promo_media_usage', (string)$id, "Reject: {$usage['nama_materi']}");
             $rejected++;
         }
@@ -250,6 +254,8 @@ class PromoMediaCtrl extends BaseController
             'approved_at'      => date('Y-m-d H:i:s'),
         ]);
 
+        ActivityLog::captureBefore(['status' => $usage['status']]);
+        ActivityLog::captureAfter(['status' => 'approved', 'catatan_approver' => $catatan ?: '—']);
         ActivityLog::write('update', 'promo_media_usage', (string)$id, "Approve: {$usage['nama_materi']}");
         return redirect()->to('/creative/media-promo/pending')->with('success', 'Request disetujui.');
     }
@@ -276,6 +282,8 @@ class PromoMediaCtrl extends BaseController
             'approved_at'      => date('Y-m-d H:i:s'),
         ]);
 
+        ActivityLog::captureBefore(['status' => $usage['status']]);
+        ActivityLog::captureAfter(['status' => 'rejected', 'rejection_reason' => $reason]);
         ActivityLog::write('update', 'promo_media_usage', (string)$id, "Reject: {$usage['nama_materi']}");
         return redirect()->to('/creative/media-promo/pending')->with('success', 'Request ditolak.');
     }

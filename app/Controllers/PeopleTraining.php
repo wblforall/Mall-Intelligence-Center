@@ -229,6 +229,18 @@ class PeopleTraining extends BaseController
         $budgets     = $post['budgets'] ?? [];
         $budgetModel = new TrainingBudgetModel();
 
+        // Snapshot sebelum untuk diff (per departemen)
+        $deptNames = array_column((new DepartmentModel())->findAll(), 'name', 'id');
+        $budgetMap = function (array $rows) use ($deptNames) {
+            $out = [];
+            foreach ($rows as $r) {
+                $out[$deptNames[$r['dept_id']] ?? ('#' . $r['dept_id'])] = 'Rp ' . number_format((float)$r['anggaran'], 0, ',', '.');
+            }
+            ksort($out);
+            return $out;
+        };
+        $beforeBudget = $budgetMap($budgetModel->where('tahun', $tahun)->findAll());
+
         foreach ($budgets as $deptId => $data) {
             $anggaran = trim($data['anggaran'] ?? '');
             if ($anggaran === '') continue;
@@ -242,6 +254,8 @@ class PeopleTraining extends BaseController
             );
         }
 
+        ActivityLog::captureBefore($beforeBudget);
+        ActivityLog::captureAfter($budgetMap($budgetModel->where('tahun', $tahun)->findAll()));
         ActivityLog::write('update', 'training_budget', (string)$tahun, 'Budget Training ' . $tahun);
         return redirect()->to('/people/training/budget?tahun=' . $tahun)->with('success', 'Budget training disimpan.');
     }

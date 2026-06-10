@@ -217,6 +217,8 @@ class PromoMediaUsageCtrl extends BaseController
             'submitted_at' => date('Y-m-d H:i:s'),
         ]);
 
+        ActivityLog::captureBefore(['status' => $usage['status']]);
+        ActivityLog::captureAfter(['status' => 'pending']);
         ActivityLog::write('update', 'promo_media_usage', (string)$id, "Submit: {$usage['nama_materi']}");
         return redirect()->to('/creative/media-promo/my')->with('success', 'Request berhasil disubmit untuk approval.');
     }
@@ -254,7 +256,9 @@ class PromoMediaUsageCtrl extends BaseController
                 continue;
             }
 
+            ActivityLog::captureBefore(['status' => $usage['status']]);
             $usageModel->update($id, ['status' => 'pending', 'submitted_at' => $now]);
+            ActivityLog::captureAfter(['status' => 'pending']);
             ActivityLog::write('update', 'promo_media_usage', (string)$id, "Submit: {$usage['nama_materi']}");
             $submitted[] = $label;
         }

@@ -98,11 +98,14 @@ class StockBarangCtrl extends BaseController
         $barang = $model->find($id);
         if (! $barang) return redirect()->to('/stock/barang')->with('error', 'Barang tidak ditemukan.');
 
-        $userId = $this->currentUser()['id'];
+        $userId   = $this->currentUser()['id'];
+        $stokAwal = (int)$barang['stok_tersedia'];
         $model->restoreStock($id, $jumlah);
-        (new StockBarangLogModel())->writeMasuk($id, $jumlah, (int)$barang['stok_tersedia'], date('Y-m-d'), $userId, $post['catatan'] ?? null);
+        (new StockBarangLogModel())->writeMasuk($id, $jumlah, $stokAwal, date('Y-m-d'), $userId, $post['catatan'] ?? null);
 
-        ActivityLog::write('update', 'stock_barang', (string)$id, "Tambah stok {$barang['nama_barang']} +{$jumlah}");
+        ActivityLog::captureBefore(['stok_tersedia' => $stokAwal]);
+        ActivityLog::captureAfter(['stok_tersedia'  => $stokAwal + $jumlah]);
+        ActivityLog::write('update', 'stock_barang', (string)$id, "Tambah stok {$barang['nama_barang']} +{$jumlah}", ['jumlah_masuk' => $jumlah, 'catatan' => $post['catatan'] ?? null]);
         return redirect()->to('/stock/barang')->with('success', "Stok {$barang['nama_barang']} berhasil ditambah {$jumlah} {$barang['satuan']}.");
     }
 
@@ -130,10 +133,13 @@ class StockBarangCtrl extends BaseController
         $tanggal = $post['tanggal'] ?? date('Y-m-d');
         $catatan = trim($post['catatan'] ?? '') ?: 'Distribusi manual';
 
+        $stokAwal = (int)$barang['stok_tersedia'];
         $model->deductStock($id, $jumlah);
-        (new StockBarangLogModel())->writeKeluar($id, $jumlah, (int)$barang['stok_tersedia'], 'manual', 0, $tanggal, $userId, $catatan);
+        (new StockBarangLogModel())->writeKeluar($id, $jumlah, $stokAwal, 'manual', 0, $tanggal, $userId, $catatan);
 
-        ActivityLog::write('update', 'stock_barang', (string)$id, "Distribusi manual {$barang['nama_barang']} -{$jumlah}");
+        ActivityLog::captureBefore(['stok_tersedia' => $stokAwal]);
+        ActivityLog::captureAfter(['stok_tersedia'  => $stokAwal - $jumlah]);
+        ActivityLog::write('update', 'stock_barang', (string)$id, "Distribusi manual {$barang['nama_barang']} -{$jumlah}", ['jumlah_keluar' => $jumlah, 'catatan' => $catatan]);
         return redirect()->to('/stock/barang')->with('success', "{$jumlah} {$barang['satuan']} {$barang['nama_barang']} berhasil dikeluarkan.");
     }
 

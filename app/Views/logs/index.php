@@ -19,7 +19,7 @@
             <option value="">Semua modul</option>
             <?php foreach ($modules as $m): ?>
             <option value="<?= $m['module'] ?>" <?= $filters['module'] === $m['module'] ? 'selected' : '' ?>>
-                <?= ucfirst($m['module']) ?>
+                <?= esc(\App\Libraries\ActivityLog::moduleLabel($m['module'])) ?>
             </option>
             <?php endforeach; ?>
         </select>
@@ -126,7 +126,7 @@ $moduleBadge = [
         </span>
     </td>
     <td>
-        <span class="badge bg-<?= $mbColor ?>-subtle text-<?= $mbColor ?>"><?= $log['module'] ?></span>
+        <span class="badge bg-<?= $mbColor ?>-subtle text-<?= $mbColor ?>"><?= esc(\App\Libraries\ActivityLog::moduleLabel($log['module'])) ?></span>
     </td>
     <td class="small">
         <?php if ($log['target_label']): ?>
@@ -148,7 +148,7 @@ $moduleBadge = [
             data-id="<?= $log['id'] ?>"
             data-label="<?= esc($log['target_label']) ?>"
             data-action="<?= $log['action'] ?>"
-            data-module="<?= $log['module'] ?>"
+            data-module="<?= esc(\App\Libraries\ActivityLog::moduleLabel($log['module'])) ?>"
             data-time="<?= date('d M Y H:i:s', strtotime($log['created_at'])) ?>"
             data-ip="<?= esc($log['ip_address'] ?? '') ?>"
             data-computer="<?= esc($log['computer_name'] ?? '') ?>"

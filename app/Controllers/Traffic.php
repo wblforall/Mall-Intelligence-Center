@@ -911,6 +911,12 @@ class Traffic extends BaseController
 
         $trafficModel = new DailyTrafficModel();
 
+        // Snapshot sebelum (untuk diff per-sel di activity log)
+        $beforeMap = [];
+        foreach ($trafficModel->where('tanggal', $tanggal)->where('mall', $mall)->findAll() as $r) {
+            $beforeMap[$r['pintu'] . ' · jam ' . (int)$r['jam'] . '.00'] = (int)$r['jumlah_pengunjung'];
+        }
+
         // Replace traffic rows for this date+mall
         $trafficModel->deleteByDateMall($tanggal, $mall);
 
@@ -918,6 +924,7 @@ class Traffic extends BaseController
         $doors   = (new TrafficDoorModel())->getByMall($mall, false);
         $doorMap = array_column($doors, 'nama_pintu', 'id');
 
+        $afterMap = [];
         foreach (($post['jumlah'] ?? []) as $jam => $doorCounts) {
             foreach ($doorCounts as $doorId => $jumlah) {
                 $jumlah = (int)$jumlah;
@@ -932,17 +939,30 @@ class Traffic extends BaseController
                     'jumlah_pengunjung' => $jumlah,
                     'created_by'        => $userId,
                 ]);
+                $afterMap[$pintu . ' · jam ' . (int)$jam . '.00'] = $jumlah;
             }
         }
 
-        $totalSaved = array_sum(array_column(
-            $trafficModel->where('tanggal', $tanggal)->where('mall', $mall)->findAll(),
-            'jumlah_pengunjung'
-        ));
+        // Diff: hanya sel (pintu·jam) yang nilainya berubah
+        $allKeys = array_unique(array_merge(array_keys($beforeMap), array_keys($afterMap)));
+        sort($allKeys);
+        $diffBefore = $diffAfter = [];
+        foreach ($allKeys as $k) {
+            $bv = $beforeMap[$k] ?? 0;
+            $av = $afterMap[$k]  ?? 0;
+            if ($bv !== $av) { $diffBefore[$k] = $bv; $diffAfter[$k] = $av; }
+        }
+
+        $totalSaved = array_sum($afterMap);
+        if ($diffBefore || $diffAfter) {
+            ActivityLog::captureBefore($diffBefore);
+            ActivityLog::captureAfter($diffAfter);
+        }
         ActivityLog::write('update', 'traffic', "{$mall}/{$tanggal}", "Traffic {$mall} — {$tanggal}", [
             'mall'             => $mall,
             'tanggal'          => $tanggal,
             'total_pengunjung' => $totalSaved,
+            'sel_berubah'      => count($diffBefore),
         ]);
         return redirect()->to('/traffic')->with('success', "Data traffic {$mall} tanggal {$tanggal} berhasil disimpan.");
     }

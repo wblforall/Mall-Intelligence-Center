@@ -148,6 +148,8 @@ class StockVoucherCtrl extends BaseController
         (new StockVoucherBatchModel())->deductSisa($batchId);
         // stok_reserved tidak diubah — distribusi manual bukan realisasi dari reservasi program
 
+        ActivityLog::captureBefore(['status' => $kode['status'], 'nama_penerima' => $kode['nama_penerima'] ?? '']);
+        ActivityLog::captureAfter(['status'  => 'assigned',      'nama_penerima' => $namaPenerima]);
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Distribusi manual kode {$kode['kode']}");
         return redirect()->to('/stock/voucher')->with('success', "Kode {$kode['kode']} berhasil didistribusikan.");
     }

@@ -218,8 +218,12 @@ class PeopleCompetencies extends BaseController
     public function saveAssignments(int $deptId)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $compModel = new CompetencyModel();
+        $beforeIds = $compModel->getAssignedIdsByDept($deptId);
         $ids = array_map('intval', $this->request->getPost('competency_ids') ?? []);
-        (new CompetencyModel())->saveAssignmentsForDept($deptId, $ids);
+        $compModel->saveAssignmentsForDept($deptId, $ids);
+        ActivityLog::captureBefore(['kompetensi' => $this->competencyNames($beforeIds)]);
+        ActivityLog::captureAfter(['kompetensi'  => $this->competencyNames($ids)]);
         ActivityLog::write('update', 'competency_dept_map', (string)$deptId, count($ids) . ' kompetensi di-assign');
         return redirect()->to('/people/competencies?dept_id=' . $deptId)
             ->with('success', count($ids) . ' kompetensi di-assign ke departemen ini.');
@@ -243,8 +247,12 @@ class PeopleCompetencies extends BaseController
     public function saveJabatanAssignments(int $jabatanId)
     {
         if (! $this->canEditMenu('people_dev')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $compModel = new CompetencyModel();
+        $beforeIds = $compModel->getAssignedIdsByJabatan($jabatanId);
         $ids = array_map('intval', $this->request->getPost('competency_ids') ?? []);
-        (new CompetencyModel())->saveAssignmentsForJabatan($jabatanId, $ids);
+        $compModel->saveAssignmentsForJabatan($jabatanId, $ids);
+        ActivityLog::captureBefore(['kompetensi' => $this->competencyNames($beforeIds)]);
+        ActivityLog::captureAfter(['kompetensi'  => $this->competencyNames($ids)]);
         ActivityLog::write('update', 'competency_jabatan_map', (string)$jabatanId, count($ids) . ' kompetensi di-assign');
         return redirect()->to('/people/competencies/jabatan/' . $jabatanId . '/assign')
             ->with('success', count($ids) . ' kompetensi di-assign ke jabatan ini.');
@@ -431,6 +439,10 @@ class PeopleCompetencies extends BaseController
         $levels      = $post['levels'] ?? [];
         $targetModel = new CompetencyTargetModel();
 
+        $beforeMap = $jabatan
+            ? $targetModel->getMapByDeptJabatan($deptId, $jabatan)
+            : $targetModel->getMapByDept($deptId);
+
         if ($jabatan) {
             $targetModel->saveForDeptJabatan($deptId, $jabatan, $levels);
         } else {
@@ -438,9 +450,33 @@ class PeopleCompetencies extends BaseController
         }
 
         $label = $jabatan ? "Jabatan: {$jabatan}" : 'Dept default';
+        ActivityLog::captureBefore($this->levelMapNamed($beforeMap));
+        ActivityLog::captureAfter($this->levelMapNamed($levels));
         ActivityLog::write('update', 'competency_targets', (string)$deptId, $label);
 
         $qs = '?dept_id=' . $deptId . ($jabatan ? '&jabatan=' . urlencode($jabatan) : '');
         return redirect()->to('/people/competencies' . $qs)->with('success', 'Target kompetensi disimpan.');
+    }
+
+    // Daftar nama kompetensi dari array id (untuk diff activity log)
+    private function competencyNames(array $ids): string
+    {
+        $ids = array_filter(array_map('intval', $ids));
+        if (! $ids) return '—';
+        $rows = (new CompetencyModel())->whereIn('id', $ids)->orderBy('nama')->findAll();
+        return implode(', ', array_column($rows, 'nama')) ?: '—';
+    }
+
+    // Ubah map [competency_id => level] menjadi [nama kompetensi => level] (untuk diff)
+    private function levelMapNamed(array $idLevel): array
+    {
+        $idLevel = array_filter($idLevel, fn($v) => $v !== '' && $v !== null && (int)$v > 0);
+        if (! $idLevel) return [];
+        $rows = (new CompetencyModel())->whereIn('id', array_map('intval', array_keys($idLevel)))->findAll();
+        $nameById = array_column($rows, 'nama', 'id');
+        $out = [];
+        foreach ($idLevel as $id => $lvl) { $out[$nameById[$id] ?? ('#' . $id)] = (int)$lvl; }
+        ksort($out);
+        return $out;
     }
 }
