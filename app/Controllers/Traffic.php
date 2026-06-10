@@ -100,19 +100,21 @@ class Traffic extends BaseController
         $vehicleRows    = $vehicleModel->getDailyTotals($from, $to);
         $chartVMobil    = [];
         $chartVMotor    = [];
-        $chartVMobilBox = [];
-        $chartVBus      = [];
-        $chartVTruck    = [];
-        $chartVTaxi     = [];
+        $chartVMobilBox  = [];
+        $chartVTruck     = [];
+        $chartVBus       = [];
+        $chartVMobilFree = [];
+        $chartVMotorFree = [];
         $vehicleMap     = array_column($vehicleRows, null, 'tanggal');
         foreach ($chartDates as $i => $label) {
             $date = date('Y-m-d', strtotime($from . " +{$i} days"));
-            $chartVMobil[]    = (int)($vehicleMap[$date]['total_mobil']     ?? 0);
-            $chartVMotor[]    = (int)($vehicleMap[$date]['total_motor']     ?? 0);
-            $chartVMobilBox[] = (int)($vehicleMap[$date]['total_mobil_box'] ?? 0);
-            $chartVBus[]      = (int)($vehicleMap[$date]['total_bus']       ?? 0);
-            $chartVTruck[]    = (int)($vehicleMap[$date]['total_truck']     ?? 0);
-            $chartVTaxi[]     = (int)($vehicleMap[$date]['total_taxi']      ?? 0);
+            $chartVMobil[]     = (int)($vehicleMap[$date]['total_mobil']      ?? 0);
+            $chartVMotor[]     = (int)($vehicleMap[$date]['total_motor']      ?? 0);
+            $chartVMobilBox[]  = (int)($vehicleMap[$date]['total_mobil_box']  ?? 0);
+            $chartVTruck[]     = (int)($vehicleMap[$date]['total_truck']      ?? 0);
+            $chartVBus[]       = (int)($vehicleMap[$date]['total_bus']        ?? 0);
+            $chartVMobilFree[] = (int)($vehicleMap[$date]['total_mobil_free'] ?? 0);
+            $chartVMotorFree[] = (int)($vehicleMap[$date]['total_motor_free'] ?? 0);
         }
 
         // By hour per mall
@@ -190,21 +192,23 @@ class Traffic extends BaseController
             'totalEwalk'    => $totalEwalk,
             'totalPenta'    => $totalPenta,
             'totalVisitor'  => $totalEwalk + $totalPenta,
-            'totalMobil'    => $vehicles['mobil'],
-            'totalMotor'    => $vehicles['motor'],
-            'totalMobilBox' => $vehicles['mobil_box'],
-            'totalBus'      => $vehicles['bus'],
-            'totalTruck'    => $vehicles['truck'],
-            'totalTaxi'     => $vehicles['taxi'],
+            'totalMobil'     => $vehicles['mobil'],
+            'totalMotor'     => $vehicles['motor'],
+            'totalMobilBox'  => $vehicles['mobil_box'],
+            'totalTruck'     => $vehicles['truck'],
+            'totalBus'       => $vehicles['bus'],
+            'totalMobilFree' => $vehicles['mobil_free'],
+            'totalMotorFree' => $vehicles['motor_free'],
             'chartDates'    => $chartDates,
             'chartEwalk'    => $chartEwalk,
             'chartPenta'    => $chartPenta,
-            'chartVMobil'    => $chartVMobil,
-            'chartVMotor'    => $chartVMotor,
-            'chartVMobilBox' => $chartVMobilBox,
-            'chartVBus'      => $chartVBus,
-            'chartVTruck'    => $chartVTruck,
-            'chartVTaxi'     => $chartVTaxi,
+            'chartVMobil'     => $chartVMobil,
+            'chartVMotor'     => $chartVMotor,
+            'chartVMobilBox'  => $chartVMobilBox,
+            'chartVTruck'     => $chartVTruck,
+            'chartVBus'       => $chartVBus,
+            'chartVMobilFree' => $chartVMobilFree,
+            'chartVMotorFree' => $chartVMotorFree,
             'chartHours'     => $chartHours,
             'chartHourEwalk' => $chartHourEwalk,
             'chartHourPenta' => $chartHourPenta,
@@ -259,10 +263,11 @@ class Traffic extends BaseController
                 'total'     => $ew + $pt,
                 'mobil'     => (int) ($vehicleMap[$cursor]['total_mobil']     ?? 0),
                 'motor'     => (int) ($vehicleMap[$cursor]['total_motor']     ?? 0),
-                'mobil_box' => (int) ($vehicleMap[$cursor]['total_mobil_box'] ?? 0),
-                'bus'       => (int) ($vehicleMap[$cursor]['total_bus']       ?? 0),
-                'truck'     => (int) ($vehicleMap[$cursor]['total_truck']     ?? 0),
-                'taxi'      => (int) ($vehicleMap[$cursor]['total_taxi']      ?? 0),
+                'mobil_box'  => (int) ($vehicleMap[$cursor]['total_mobil_box']  ?? 0),
+                'truck'      => (int) ($vehicleMap[$cursor]['total_truck']      ?? 0),
+                'bus'        => (int) ($vehicleMap[$cursor]['total_bus']        ?? 0),
+                'mobil_free' => (int) ($vehicleMap[$cursor]['total_mobil_free'] ?? 0),
+                'motor_free' => (int) ($vehicleMap[$cursor]['total_motor_free'] ?? 0),
             ];
             $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'));
         }
@@ -348,10 +353,11 @@ class Traffic extends BaseController
                 'total'     => $ew + $pt,
                 'mobil'     => (int) ($vehicleMap[$cursor]['total_mobil']     ?? 0),
                 'motor'     => (int) ($vehicleMap[$cursor]['total_motor']     ?? 0),
-                'mobil_box' => (int) ($vehicleMap[$cursor]['total_mobil_box'] ?? 0),
-                'bus'       => (int) ($vehicleMap[$cursor]['total_bus']       ?? 0),
-                'truck'     => (int) ($vehicleMap[$cursor]['total_truck']     ?? 0),
-                'taxi'      => (int) ($vehicleMap[$cursor]['total_taxi']      ?? 0),
+                'mobil_box'  => (int) ($vehicleMap[$cursor]['total_mobil_box']  ?? 0),
+                'truck'      => (int) ($vehicleMap[$cursor]['total_truck']      ?? 0),
+                'bus'        => (int) ($vehicleMap[$cursor]['total_bus']        ?? 0),
+                'mobil_free' => (int) ($vehicleMap[$cursor]['total_mobil_free'] ?? 0),
+                'motor_free' => (int) ($vehicleMap[$cursor]['total_motor_free'] ?? 0),
             ];
             $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'));
         }
@@ -493,7 +499,7 @@ class Traffic extends BaseController
         $door2Penta = $this->mergeDoors($trafficModel->getByDoor($from2, $to2, 'pentacity'));
 
         $p3Total    = $p3Ewalk = $p3Penta = 0;
-        $p3Vehicles = ['mobil' => 0, 'motor' => 0, 'mobil_box' => 0, 'bus' => 0, 'truck' => 0, 'taxi' => 0];
+        $p3Vehicles = ['mobil' => 0, 'motor' => 0, 'mobil_box' => 0, 'truck' => 0, 'bus' => 0, 'mobil_free' => 0, 'motor_free' => 0];
         $p3Daily    = [];
         $p3HourData = [];
         $door3Ewalk = $door3Penta = [];
@@ -616,12 +622,13 @@ class Traffic extends BaseController
             ['Rata-rata / Hari',          $fmt((int)round($d['totalEwalk'] / max(1, count($d['days'])))),
                                           $fmt((int)round($d['totalPenta'] / max(1, count($d['days'])))),
                                           $n($d['avgDaily']),                                                   false],
-            ['Kendaraan — Mobil',         '—', '—', $n($d['vehicles']['mobil']),     false],
-            ['Kendaraan — Motor',         '—', '—', $n($d['vehicles']['motor']),     false],
-            ['Kendaraan — Mobil Box',     '—', '—', $n($d['vehicles']['mobil_box']), false],
-            ['Kendaraan — Bus',           '—', '—', $n($d['vehicles']['bus']),       false],
-            ['Kendaraan — Truck',         '—', '—', $n($d['vehicles']['truck']),     false],
-            ['Kendaraan — Taxi',          '—', '—', $n($d['vehicles']['taxi']),      false],
+            ['Kendaraan — Mobil',         '—', '—', $n($d['vehicles']['mobil']),      false],
+            ['Kendaraan — Motor',         '—', '—', $n($d['vehicles']['motor']),      false],
+            ['Kendaraan — Box',           '—', '—', $n($d['vehicles']['mobil_box']),  false],
+            ['Kendaraan — Truk',          '—', '—', $n($d['vehicles']['truck']),      false],
+            ['Kendaraan — Bus',           '—', '—', $n($d['vehicles']['bus']),        false],
+            ['Kendaraan — Mobil Free',    '—', '—', $n($d['vehicles']['mobil_free']), false],
+            ['Kendaraan — Motor Free',    '—', '—', $n($d['vehicles']['motor_free']), false],
         ];
         if ($d['peakHour']) {
             $rows[] = ['Jam Tersibuk', $d['peakHour'], '', $n($d['peakHourVal']) . ' orang', false];
@@ -642,17 +649,17 @@ class Traffic extends BaseController
         $out .= '</table>';
 
         // ── Daily ─────────────────────────────────────────────────────────────
-        $hasExtra = ($d['vehicles']['mobil_box'] + $d['vehicles']['bus'] + $d['vehicles']['truck'] + $d['vehicles']['taxi']) > 0;
-        $totalVeh = $d['vehicles']['mobil'] + $d['vehicles']['motor'] + $d['vehicles']['mobil_box'] + $d['vehicles']['bus'] + $d['vehicles']['truck'] + $d['vehicles']['taxi'];
-        $colspan  = $hasExtra ? 10 : 6;
+        $hasExtra = ($d['vehicles']['mobil_box'] + $d['vehicles']['truck'] + $d['vehicles']['bus'] + $d['vehicles']['mobil_free'] + $d['vehicles']['motor_free']) > 0;
+        $totalVeh = $d['vehicles']['mobil'] + $d['vehicles']['motor'] + $d['vehicles']['mobil_box'] + $d['vehicles']['truck'] + $d['vehicles']['bus'] + $d['vehicles']['mobil_free'] + $d['vehicles']['motor_free'];
+        $colspan  = $hasExtra ? 11 : 6;
         $out .= '<table>';
         $out .= '<tr><td colspan="' . $colspan . '" style="' . $sec . '">TRAFFIC HARIAN</td></tr>';
         $out .= '<tr><th style="' . $th . '">Tanggal</th><th style="' . $thR . '">eWalk</th><th style="' . $thR . '">Pentacity</th><th style="' . $thR . '">Total</th><th style="' . $thR . '">Mobil</th><th style="' . $thR . '">Motor</th>';
-        if ($hasExtra) $out .= '<th style="' . $thR . '">Box</th><th style="' . $thR . '">Bus</th><th style="' . $thR . '">Truck</th><th style="' . $thR . '">Taxi</th>';
+        if ($hasExtra) $out .= '<th style="' . $thR . '">Box</th><th style="' . $thR . '">Truk</th><th style="' . $thR . '">Bus</th><th style="' . $thR . '">Mobil Free</th><th style="' . $thR . '">Motor Free</th>';
         $out .= '</tr>';
 
         foreach ($d['days'] as $row) {
-            $rowVeh = $row['mobil'] + $row['motor'] + $row['mobil_box'] + $row['bus'] + $row['truck'] + $row['taxi'];
+            $rowVeh = $row['mobil'] + $row['motor'] + $row['mobil_box'] + $row['truck'] + $row['bus'] + $row['mobil_free'] + $row['motor_free'];
             $out .= '<tr>';
             $out .= '<td style="' . $td . '">'  . $row['date_fmt'] . '</td>';
             $out .= '<td style="' . $tdR . '">' . $fmt($row['ewalk'])     . '</td>';
@@ -661,10 +668,11 @@ class Traffic extends BaseController
             $out .= '<td style="' . $tdR . '">' . $fmt($row['mobil'])  . '</td>';
             $out .= '<td style="' . $tdR . '">' . $fmt($row['motor'])  . '</td>';
             if ($hasExtra) {
-                $out .= '<td style="' . $tdR . '">' . $fmt($row['mobil_box']) . '</td>';
-                $out .= '<td style="' . $tdR . '">' . $fmt($row['bus'])       . '</td>';
-                $out .= '<td style="' . $tdR . '">' . $fmt($row['truck'])     . '</td>';
-                $out .= '<td style="' . $tdR . '">' . $fmt($row['taxi'])      . '</td>';
+                $out .= '<td style="' . $tdR . '">' . $fmt($row['mobil_box'])  . '</td>';
+                $out .= '<td style="' . $tdR . '">' . $fmt($row['truck'])      . '</td>';
+                $out .= '<td style="' . $tdR . '">' . $fmt($row['bus'])        . '</td>';
+                $out .= '<td style="' . $tdR . '">' . $fmt($row['mobil_free']) . '</td>';
+                $out .= '<td style="' . $tdR . '">' . $fmt($row['motor_free']) . '</td>';
             }
             $out .= '</tr>';
         }
@@ -676,10 +684,11 @@ class Traffic extends BaseController
         $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['mobil']) . '</td>';
         $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['motor']) . '</td>';
         if ($hasExtra) {
-            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['mobil_box']) . '</td>';
-            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['bus'])       . '</td>';
-            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['truck'])     . '</td>';
-            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['taxi'])      . '</td>';
+            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['mobil_box'])  . '</td>';
+            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['truck'])      . '</td>';
+            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['bus'])        . '</td>';
+            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['mobil_free']) . '</td>';
+            $out .= '<td style="' . $totR . '">' . $n($d['vehicles']['motor_free']) . '</td>';
         }
         $out .= '</tr></table>';
 
@@ -795,7 +804,7 @@ class Traffic extends BaseController
 
         // Periode 3 — opsional
         $p3Total    = $p3Ewalk = $p3Penta = 0;
-        $p3Vehicles = ['mobil' => 0, 'motor' => 0, 'mobil_box' => 0, 'bus' => 0, 'truck' => 0, 'taxi' => 0];
+        $p3Vehicles = ['mobil' => 0, 'motor' => 0, 'mobil_box' => 0, 'truck' => 0, 'bus' => 0, 'mobil_free' => 0, 'motor_free' => 0];
         $p3Daily    = [];
         $p3HourData = [];
         $door3Ewalk = $door3Penta = [];
@@ -1016,11 +1025,12 @@ class Traffic extends BaseController
             'tanggal'         => $tanggal,
             'total_mobil'     => (int)($post['total_mobil']     ?? 0),
             'total_motor'     => (int)($post['total_motor']     ?? 0),
-            'total_mobil_box' => (int)($post['total_mobil_box'] ?? 0),
-            'total_bus'       => (int)($post['total_bus']       ?? 0),
-            'total_truck'     => (int)($post['total_truck']     ?? 0),
-            'total_taxi'      => (int)($post['total_taxi']      ?? 0),
-            'created_by'      => $userId,
+            'total_mobil_box'  => (int)($post['total_mobil_box']  ?? 0),
+            'total_truck'      => (int)($post['total_truck']      ?? 0),
+            'total_bus'        => (int)($post['total_bus']        ?? 0),
+            'total_mobil_free' => (int)($post['total_mobil_free'] ?? 0),
+            'total_motor_free' => (int)($post['total_motor_free'] ?? 0),
+            'created_by'       => $userId,
         ];
 
         if ($existing) {

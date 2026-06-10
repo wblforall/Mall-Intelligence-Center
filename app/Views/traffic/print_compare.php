@@ -163,7 +163,7 @@ $hasVehicleData = array_sum(array_column($p1Vehicles, null))
                 + array_sum(array_column($p2Vehicles, null))
                 + array_sum(array_column($p3Vehicles, null)) > 0;
 
-$vtypes = ['mobil' => 'Mobil', 'motor' => 'Motor', 'mobil_box' => 'Mobil Box', 'bus' => 'Bus', 'truck' => 'Truck', 'taxi' => 'Taxi'];
+$vtypes = ['mobil' => 'Mobil', 'motor' => 'Motor', 'mobil_box' => 'Box', 'truck' => 'Truk', 'bus' => 'Bus', 'mobil_free' => 'Mobil Free', 'motor_free' => 'Motor Free'];
 
 $backUrl = base_url('traffic/compare') . '?from1=' . $from1 . '&to1=' . $to1 . '&from2=' . $from2 . '&to2=' . $to2;
 if ($hasP3) $backUrl .= '&from3=' . $from3 . '&to3=' . $to3;

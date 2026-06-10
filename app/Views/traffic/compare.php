@@ -191,12 +191,13 @@ $visitorKpis = [
     ['label' => 'Pentacity',        'icon' => 'bi-building', 'p1' => $p1Penta, 'p2' => $p2Penta, 'p3' => $p3Penta],
 ];
 $vehicleKpis = [
-    ['label' => 'Mobil',     'icon' => 'bi-car-front',  'p1' => $p1Vehicles['mobil'],     'p2' => $p2Vehicles['mobil'],     'p3' => $p3Vehicles['mobil']],
-    ['label' => 'Motor',     'icon' => 'bi-bicycle',    'p1' => $p1Vehicles['motor'],     'p2' => $p2Vehicles['motor'],     'p3' => $p3Vehicles['motor']],
-    ['label' => 'Mobil Box', 'icon' => 'bi-truck',      'p1' => $p1Vehicles['mobil_box'], 'p2' => $p2Vehicles['mobil_box'], 'p3' => $p3Vehicles['mobil_box']],
-    ['label' => 'Bus',       'icon' => 'bi-bus-front',  'p1' => $p1Vehicles['bus'],       'p2' => $p2Vehicles['bus'],       'p3' => $p3Vehicles['bus']],
-    ['label' => 'Truck',     'icon' => 'bi-truck',      'p1' => $p1Vehicles['truck'],     'p2' => $p2Vehicles['truck'],     'p3' => $p3Vehicles['truck']],
-    ['label' => 'Taxi',      'icon' => 'bi-taxi-front', 'p1' => $p1Vehicles['taxi'],      'p2' => $p2Vehicles['taxi'],      'p3' => $p3Vehicles['taxi']],
+    ['label' => 'Mobil',      'icon' => 'bi-car-front',  'p1' => $p1Vehicles['mobil'],      'p2' => $p2Vehicles['mobil'],      'p3' => $p3Vehicles['mobil']],
+    ['label' => 'Motor',      'icon' => 'bi-bicycle',    'p1' => $p1Vehicles['motor'],      'p2' => $p2Vehicles['motor'],      'p3' => $p3Vehicles['motor']],
+    ['label' => 'Box',        'icon' => 'bi-truck',      'p1' => $p1Vehicles['mobil_box'],  'p2' => $p2Vehicles['mobil_box'],  'p3' => $p3Vehicles['mobil_box']],
+    ['label' => 'Truk',       'icon' => 'bi-truck',      'p1' => $p1Vehicles['truck'],      'p2' => $p2Vehicles['truck'],      'p3' => $p3Vehicles['truck']],
+    ['label' => 'Bus',        'icon' => 'bi-bus-front',  'p1' => $p1Vehicles['bus'],        'p2' => $p2Vehicles['bus'],        'p3' => $p3Vehicles['bus']],
+    ['label' => 'Mobil Free', 'icon' => 'bi-car-front',  'p1' => $p1Vehicles['mobil_free'], 'p2' => $p2Vehicles['mobil_free'], 'p3' => $p3Vehicles['mobil_free']],
+    ['label' => 'Motor Free', 'icon' => 'bi-bicycle',    'p1' => $p1Vehicles['motor_free'], 'p2' => $p2Vehicles['motor_free'], 'p3' => $p3Vehicles['motor_free']],
 ];
 ?>
 
@@ -350,12 +351,13 @@ if ($anyEvents):
 <!-- Vehicle comparison chart -->
 <?php
 $vtypes = [
-    ['Mobil',     'mobil',     'rgba(245,158,11,0.8)'],
-    ['Motor',     'motor',     'rgba(239,68,68,0.8)'],
-    ['Mobil Box', 'mobil_box', 'rgba(99,102,241,0.8)'],
-    ['Bus',       'bus',       'rgba(16,185,129,0.8)'],
-    ['Truck',     'truck',     'rgba(139,92,246,0.8)'],
-    ['Taxi',      'taxi',      'rgba(236,72,153,0.8)'],
+    ['Mobil',      'mobil',      'rgba(245,158,11,0.8)'],
+    ['Motor',      'motor',      'rgba(239,68,68,0.8)'],
+    ['Box',        'mobil_box',  'rgba(99,102,241,0.8)'],
+    ['Truk',       'truck',      'rgba(139,92,246,0.8)'],
+    ['Bus',        'bus',        'rgba(16,185,129,0.8)'],
+    ['Mobil Free', 'mobil_free', 'rgba(14,165,233,0.8)'],
+    ['Motor Free', 'motor_free', 'rgba(236,72,153,0.8)'],
 ];
 ?>
 <?php if ($hasVehicleData): ?>

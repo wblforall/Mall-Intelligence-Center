@@ -105,15 +105,16 @@
         <div class="card text-center h-100">
             <div class="card-body py-3">
                 <div class="small text-muted mb-1"><i class="bi bi-car-front me-1"></i>Kendaraan</div>
-                <div class="fw-bold fs-5" data-count="<?= $totalMobil + $totalMotor + $totalMobilBox + $totalBus + $totalTruck + $totalTaxi ?>"><?= number_format($totalMobil + $totalMotor + $totalMobilBox + $totalBus + $totalTruck + $totalTaxi) ?></div>
+                <div class="fw-bold fs-5" data-count="<?= $totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree ?>"><?= number_format($totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree) ?></div>
                 <div class="small text-muted"><?= number_format($totalMobil) ?> mobil · <?= number_format($totalMotor) ?> motor</div>
-                <?php if ($totalMobilBox + $totalBus + $totalTruck + $totalTaxi > 0): ?>
+                <?php if ($totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree > 0): ?>
                 <div class="small text-muted mt-1">
                     <?php $extra = array_filter([
-                        $totalMobilBox > 0 ? number_format($totalMobilBox).' box'   : null,
-                        $totalBus      > 0 ? number_format($totalBus)     .' bus'   : null,
-                        $totalTruck    > 0 ? number_format($totalTruck)   .' truck' : null,
-                        $totalTaxi     > 0 ? number_format($totalTaxi)    .' taxi'  : null,
+                        $totalMobilBox > 0 ? number_format($totalMobilBox).' box'        : null,
+                        $totalTruck    > 0 ? number_format($totalTruck)   .' truk'       : null,
+                        $totalBus      > 0 ? number_format($totalBus)     .' bus'        : null,
+                        $totalMobilFree > 0 ? number_format($totalMobilFree).' mobil free' : null,
+                        $totalMotorFree > 0 ? number_format($totalMotorFree).' motor free' : null,
                     ]); echo implode(' · ', $extra); ?>
                 </div>
                 <?php endif; ?>
@@ -285,7 +286,7 @@
 <div class="card h-100">
 <div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-car-front me-2"></i>Kendaraan Harian</h6></div>
 <div class="card-body">
-<?php if (($totalMobil + $totalMotor + $totalMobilBox + $totalBus + $totalTruck + $totalTaxi) === 0): ?>
+<?php if (($totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree) === 0): ?>
 <p class="text-muted text-center py-4">Belum ada data kendaraan.</p>
 <?php else: ?>
 <canvas id="vehicleChart" height="160"></canvas>
@@ -472,15 +473,16 @@ new Chart(document.getElementById('hourChart'), {
 <?php endif; ?>
 
 <?php
-$totalAllVehicles = $totalMobil + $totalMotor + $totalMobilBox + $totalBus + $totalTruck + $totalTaxi;
+$totalAllVehicles = $totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree;
 if ($totalAllVehicles > 0):
     $vDatasets = [
-        ['Mobil',     $chartVMobil,    'rgba(245,158,11,0.8)'],
-        ['Motor',     $chartVMotor,    'rgba(239,68,68,0.8)'],
-        ['Mobil Box', $chartVMobilBox, 'rgba(99,102,241,0.8)'],
-        ['Bus',       $chartVBus,      'rgba(16,185,129,0.8)'],
-        ['Truck',     $chartVTruck,    'rgba(139,92,246,0.8)'],
-        ['Taxi',      $chartVTaxi,     'rgba(236,72,153,0.8)'],
+        ['Mobil',      $chartVMobil,     'rgba(245,158,11,0.8)'],
+        ['Motor',      $chartVMotor,     'rgba(239,68,68,0.8)'],
+        ['Box',        $chartVMobilBox,  'rgba(99,102,241,0.8)'],
+        ['Truk',       $chartVTruck,     'rgba(139,92,246,0.8)'],
+        ['Bus',        $chartVBus,       'rgba(16,185,129,0.8)'],
+        ['Mobil Free', $chartVMobilFree, 'rgba(14,165,233,0.8)'],
+        ['Motor Free', $chartVMotorFree, 'rgba(236,72,153,0.8)'],
     ];
     $vDatasets = array_filter($vDatasets, fn($d) => array_sum($d[1]) > 0);
 ?>

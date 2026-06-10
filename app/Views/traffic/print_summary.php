@@ -177,8 +177,8 @@ tr.nodata td { color: #cbd5e1; }
 $n    = fn(int $v) => number_format($v, 0, ',', '.');
 $fmt  = fn(int $v) => $v > 0 ? number_format($v, 0, ',', '.') : '—';
 
-$totalVehicle   = $vehicles['mobil'] + $vehicles['motor'] + $vehicles['mobil_box'] + $vehicles['bus'] + $vehicles['truck'] + $vehicles['taxi'];
-$hasExtraVehicle = ($vehicles['mobil_box'] + $vehicles['bus'] + $vehicles['truck'] + $vehicles['taxi']) > 0;
+$totalVehicle   = $vehicles['mobil'] + $vehicles['motor'] + $vehicles['mobil_box'] + $vehicles['truck'] + $vehicles['bus'] + $vehicles['mobil_free'] + $vehicles['motor_free'];
+$hasExtraVehicle = ($vehicles['mobil_box'] + $vehicles['truck'] + $vehicles['bus'] + $vehicles['mobil_free'] + $vehicles['motor_free']) > 0;
 $maxHourTotal = max(array_column($hours, 'total') ?: [0]);
 $maxDayTotal  = max(array_column($days,  'total') ?: [0]);
 
@@ -192,17 +192,19 @@ $chartEwalk = array_column($days, 'ewalk');
 $chartPenta = array_column($days, 'pentacity');
 $chartMobil    = array_column($days, 'mobil');
 $chartMotor    = array_column($days, 'motor');
-$chartMobilBox = array_column($days, 'mobil_box');
-$chartBus      = array_column($days, 'bus');
-$chartTruck    = array_column($days, 'truck');
-$chartTaxi     = array_column($days, 'taxi');
+$chartMobilBox  = array_column($days, 'mobil_box');
+$chartTruck     = array_column($days, 'truck');
+$chartBus       = array_column($days, 'bus');
+$chartMobilFree = array_column($days, 'mobil_free');
+$chartMotorFree = array_column($days, 'motor_free');
 $vPrintDatasets = array_filter([
-    ['Mobil',     $chartMobil,    'rgba(245,158,11,0.8)'],
-    ['Motor',     $chartMotor,    'rgba(239,68,68,0.75)'],
-    ['Mobil Box', $chartMobilBox, 'rgba(99,102,241,0.8)'],
-    ['Bus',       $chartBus,      'rgba(16,185,129,0.8)'],
-    ['Truck',     $chartTruck,    'rgba(139,92,246,0.8)'],
-    ['Taxi',      $chartTaxi,     'rgba(236,72,153,0.8)'],
+    ['Mobil',      $chartMobil,     'rgba(245,158,11,0.8)'],
+    ['Motor',      $chartMotor,     'rgba(239,68,68,0.75)'],
+    ['Box',        $chartMobilBox,  'rgba(99,102,241,0.8)'],
+    ['Truk',       $chartTruck,     'rgba(139,92,246,0.8)'],
+    ['Bus',        $chartBus,       'rgba(16,185,129,0.8)'],
+    ['Mobil Free', $chartMobilFree, 'rgba(14,165,233,0.8)'],
+    ['Motor Free', $chartMotorFree, 'rgba(236,72,153,0.8)'],
 ], fn($d) => array_sum($d[1]) > 0);
 $chartHours = array_column($hours, 'jam');
 $chartHrEw  = array_column($hours, 'ewalk');
@@ -263,10 +265,11 @@ $doorPentaVals   = array_map('intval', array_column($doorPenta, 'total'));
         <?php if ($hasExtraVehicle): ?>
         <div class="sub"><?php
             $parts = [];
-            if ($vehicles['mobil_box'] > 0) $parts[] = $n($vehicles['mobil_box']) . ' box';
-            if ($vehicles['bus']       > 0) $parts[] = $n($vehicles['bus'])       . ' bus';
-            if ($vehicles['truck']     > 0) $parts[] = $n($vehicles['truck'])     . ' truck';
-            if ($vehicles['taxi']      > 0) $parts[] = $n($vehicles['taxi'])      . ' taxi';
+            if ($vehicles['mobil_box']  > 0) $parts[] = $n($vehicles['mobil_box'])  . ' box';
+            if ($vehicles['truck']      > 0) $parts[] = $n($vehicles['truck'])      . ' truk';
+            if ($vehicles['bus']        > 0) $parts[] = $n($vehicles['bus'])        . ' bus';
+            if ($vehicles['mobil_free'] > 0) $parts[] = $n($vehicles['mobil_free']) . ' mobil free';
+            if ($vehicles['motor_free'] > 0) $parts[] = $n($vehicles['motor_free']) . ' motor free';
             echo implode(' · ', $parts);
         ?></div>
         <?php endif; ?>
@@ -389,9 +392,10 @@ if (! empty($insights)):
                 <th class="r" style="width:55px">Motor</th>
                 <?php if ($hasExtraVehicle): ?>
                 <th class="r" style="width:50px">Box</th>
+                <th class="r" style="width:50px">Truk</th>
                 <th class="r" style="width:50px">Bus</th>
-                <th class="r" style="width:50px">Truck</th>
-                <th class="r" style="width:50px">Taxi</th>
+                <th class="r" style="width:55px">Mobil Free</th>
+                <th class="r" style="width:55px">Motor Free</th>
                 <?php endif; ?>
                 <th class="r" style="width:65px">Kendaraan</th>
                 <th class="r" style="width:52px">% Total</th>
@@ -399,7 +403,7 @@ if (! empty($insights)):
         </thead>
         <tbody>
         <?php foreach ($days as $row):
-            $rowVehicle = $row['mobil'] + $row['motor'] + $row['mobil_box'] + $row['bus'] + $row['truck'] + $row['taxi'];
+            $rowVehicle = $row['mobil'] + $row['motor'] + $row['mobil_box'] + $row['truck'] + $row['bus'] + $row['mobil_free'] + $row['motor_free'];
             $noData = $row['total'] === 0 && $row['mobil'] === 0;
             $isBest = $row['total'] === $maxDayTotal && $maxDayTotal > 0;
         ?>
@@ -411,10 +415,11 @@ if (! empty($insights)):
                 <td class="r"><?= $fmt($row['mobil'])  ?></td>
                 <td class="r"><?= $fmt($row['motor'])  ?></td>
                 <?php if ($hasExtraVehicle): ?>
-                <td class="r"><?= $fmt($row['mobil_box']) ?></td>
-                <td class="r"><?= $fmt($row['bus'])       ?></td>
-                <td class="r"><?= $fmt($row['truck'])     ?></td>
-                <td class="r"><?= $fmt($row['taxi'])      ?></td>
+                <td class="r"><?= $fmt($row['mobil_box'])  ?></td>
+                <td class="r"><?= $fmt($row['truck'])      ?></td>
+                <td class="r"><?= $fmt($row['bus'])        ?></td>
+                <td class="r"><?= $fmt($row['mobil_free']) ?></td>
+                <td class="r"><?= $fmt($row['motor_free']) ?></td>
                 <?php endif; ?>
                 <td class="r"><?= $fmt($rowVehicle) ?></td>
                 <td class="r" style="color:#64748b"><?= $totalVisitor > 0 && $row['total'] > 0 ? round($row['total'] / $totalVisitor * 100, 1) . '%' : '—' ?></td>
@@ -430,10 +435,11 @@ if (! empty($insights)):
                 <td class="r"><?= $n($vehicles['mobil']) ?></td>
                 <td class="r"><?= $n($vehicles['motor']) ?></td>
                 <?php if ($hasExtraVehicle): ?>
-                <td class="r"><?= $n($vehicles['mobil_box']) ?></td>
-                <td class="r"><?= $n($vehicles['bus'])       ?></td>
-                <td class="r"><?= $n($vehicles['truck'])     ?></td>
-                <td class="r"><?= $n($vehicles['taxi'])      ?></td>
+                <td class="r"><?= $n($vehicles['mobil_box'])  ?></td>
+                <td class="r"><?= $n($vehicles['truck'])      ?></td>
+                <td class="r"><?= $n($vehicles['bus'])        ?></td>
+                <td class="r"><?= $n($vehicles['mobil_free']) ?></td>
+                <td class="r"><?= $n($vehicles['motor_free']) ?></td>
                 <?php endif; ?>
                 <td class="r"><?= $n($totalVehicle) ?></td>
                 <td class="r">100%</td>

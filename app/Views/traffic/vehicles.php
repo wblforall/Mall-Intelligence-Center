@@ -48,9 +48,14 @@
                    value="<?= $vehicleRow ? (int)$vehicleRow['total_motor'] : 0 ?>" min="0">
         </div>
         <div class="col-6 col-sm-4 col-md-2">
-            <label class="form-label small fw-semibold mb-1">Mobil Box</label>
+            <label class="form-label small fw-semibold mb-1">Box</label>
             <input type="number" name="total_mobil_box" class="form-control"
                    value="<?= $vehicleRow ? (int)($vehicleRow['total_mobil_box'] ?? 0) : 0 ?>" min="0">
+        </div>
+        <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Truk</label>
+            <input type="number" name="total_truck" class="form-control"
+                   value="<?= $vehicleRow ? (int)($vehicleRow['total_truck'] ?? 0) : 0 ?>" min="0">
         </div>
         <div class="col-6 col-sm-4 col-md-2">
             <label class="form-label small fw-semibold mb-1">Bus</label>
@@ -58,14 +63,14 @@
                    value="<?= $vehicleRow ? (int)($vehicleRow['total_bus'] ?? 0) : 0 ?>" min="0">
         </div>
         <div class="col-6 col-sm-4 col-md-2">
-            <label class="form-label small fw-semibold mb-1">Truck</label>
-            <input type="number" name="total_truck" class="form-control"
-                   value="<?= $vehicleRow ? (int)($vehicleRow['total_truck'] ?? 0) : 0 ?>" min="0">
+            <label class="form-label small fw-semibold mb-1">Mobil Free</label>
+            <input type="number" name="total_mobil_free" class="form-control"
+                   value="<?= $vehicleRow ? (int)($vehicleRow['total_mobil_free'] ?? 0) : 0 ?>" min="0">
         </div>
         <div class="col-6 col-sm-4 col-md-2">
-            <label class="form-label small fw-semibold mb-1">Taxi</label>
-            <input type="number" name="total_taxi" class="form-control"
-                   value="<?= $vehicleRow ? (int)($vehicleRow['total_taxi'] ?? 0) : 0 ?>" min="0">
+            <label class="form-label small fw-semibold mb-1">Motor Free</label>
+            <input type="number" name="total_motor_free" class="form-control"
+                   value="<?= $vehicleRow ? (int)($vehicleRow['total_motor_free'] ?? 0) : 0 ?>" min="0">
         </div>
     </div>
 

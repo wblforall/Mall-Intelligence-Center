@@ -8,7 +8,7 @@ class DailyVehicleModel extends Model
 {
     protected $table         = 'daily_vehicles';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['tanggal', 'total_mobil', 'total_motor', 'total_mobil_box', 'total_bus', 'total_truck', 'total_taxi', 'created_by'];
+    protected $allowedFields = ['tanggal', 'total_mobil', 'total_motor', 'total_mobil_box', 'total_truck', 'total_bus', 'total_mobil_free', 'total_motor_free', 'created_by'];
     protected $useTimestamps = true;
 
     public function getByDate(string $tanggal): ?array
@@ -19,7 +19,7 @@ class DailyVehicleModel extends Model
     public function getDailyTotals(string $startDate, string $endDate): array
     {
         return $this->db->table('daily_vehicles')
-            ->select('tanggal, total_mobil, total_motor, total_mobil_box, total_bus, total_truck, total_taxi')
+            ->select('tanggal, total_mobil, total_motor, total_mobil_box, total_truck, total_bus, total_mobil_free, total_motor_free')
             ->where('tanggal >=', $startDate)
             ->where('tanggal <=', $endDate)
             ->orderBy('tanggal')
@@ -32,20 +32,22 @@ class DailyVehicleModel extends Model
             ->selectSum('total_mobil',     'mobil')
             ->selectSum('total_motor',     'motor')
             ->selectSum('total_mobil_box', 'mobil_box')
-            ->selectSum('total_bus',       'bus')
             ->selectSum('total_truck',     'truck')
-            ->selectSum('total_taxi',      'taxi')
+            ->selectSum('total_bus',       'bus')
+            ->selectSum('total_mobil_free', 'mobil_free')
+            ->selectSum('total_motor_free', 'motor_free')
             ->where('tanggal >=', $startDate)
             ->where('tanggal <=', $endDate)
             ->get()->getRow();
 
         return [
-            'mobil'     => (int)($row->mobil     ?? 0),
-            'motor'     => (int)($row->motor     ?? 0),
-            'mobil_box' => (int)($row->mobil_box ?? 0),
-            'bus'       => (int)($row->bus       ?? 0),
-            'truck'     => (int)($row->truck     ?? 0),
-            'taxi'      => (int)($row->taxi      ?? 0),
+            'mobil'      => (int)($row->mobil      ?? 0),
+            'motor'      => (int)($row->motor      ?? 0),
+            'mobil_box'  => (int)($row->mobil_box  ?? 0),
+            'truck'      => (int)($row->truck      ?? 0),
+            'bus'        => (int)($row->bus        ?? 0),
+            'mobil_free' => (int)($row->mobil_free ?? 0),
+            'motor_free' => (int)($row->motor_free ?? 0),
         ];
     }
 }
