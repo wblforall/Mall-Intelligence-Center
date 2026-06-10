@@ -234,7 +234,7 @@ foreach ($sections as $sec):
     $statusLabel = ['active'=>'Aktif','inactive'=>'Nonaktif','locked'=>'Terkunci'][$p['status']] ?? $p['status'];
 ?>
 <tr>
-    <td><strong><?= esc($p['nama']) ?></strong></td>
+    <td><strong><?= esc($p['nama_program'] ?? ($p['nama'] ?? '—')) ?></strong></td>
     <td><span class="pill <?= $statusPill ?>"><?= $statusLabel ?></span></td>
     <?php if (!$isSt): ?><td style="color:#64748b;font-size:9px"><?= esc($p['event_name'] ?? '—') ?></td><?php endif; ?>
     <td class="<?= $member ? 'num' : 'zero' ?>"><?= numF($member) ?></td>
