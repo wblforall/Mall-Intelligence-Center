@@ -20,6 +20,7 @@ use App\Models\StockBarangLogModel;
 use App\Models\StockVoucherBatchModel;
 use App\Models\StockVoucherKodeModel;
 use App\Models\TenantModel;
+use App\Models\LoyaltySummaryAnalysisModel;
 
 class LoyaltyCtrl extends BaseController
 {
@@ -849,6 +850,8 @@ class LoyaltyCtrl extends BaseController
             'nilaiHadiah'          => $nilaiHadiah,
             'serapanPct'           => $serapanPct,
             'nilaiRealisasiPrev'   => $nilaiRealisasiPrev,
+            'analisaMap'           => (new LoyaltySummaryAnalysisModel())->getMapByMonth($bulan),
+            'canEdit'              => $this->canEditMenu('loyalty_main'),
             'trendYear'            => $trendYear,
             'kpiMemberPrev'        => $kpiMemberPrev,
             'kpiMemberAktifPrev'   => $kpiMemberAktifPrev,
@@ -860,6 +863,27 @@ class LoyaltyCtrl extends BaseController
             'dailyTersebar'        => $dailyTersebar,
             'dailyTerpakai'        => $dailyTerpakai,
         ]);
+    }
+
+    // Simpan analisa per program (AJAX) — dipakai di halaman summary
+    public function saveAnalisa()
+    {
+        if (! $this->canEditMenu('loyalty_main')) {
+            return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'error' => 'Akses ditolak.']);
+        }
+        $bulan     = (string)$this->request->getPost('bulan');
+        $source    = (string)$this->request->getPost('source');
+        $programId = (int)$this->request->getPost('program_id');
+        $analisa   = trim((string)$this->request->getPost('analisa'));
+
+        if (! preg_match('/^\d{4}-\d{2}$/', $bulan) || ! in_array($source, ['s', 'e'], true) || $programId <= 0) {
+            return $this->response->setStatusCode(400)->setJSON(['ok' => false, 'error' => 'Data tidak valid.', 'csrf' => csrf_hash()]);
+        }
+
+        (new LoyaltySummaryAnalysisModel())->saveAnalisa($bulan, $source, $programId, $analisa, $this->currentUser()['id']);
+        ActivityLog::write('update', 'loyalty_analisa', $source . '_' . $programId, 'Analisa program — ' . $bulan, ['bulan' => $bulan]);
+
+        return $this->response->setJSON(['ok' => true, 'filled' => $analisa !== '', 'csrf' => csrf_hash()]);
     }
 
     public function printSummary()
@@ -960,6 +984,7 @@ class LoyaltyCtrl extends BaseController
             'kpiTersebar'       => $kpiTersebar,
             'kpiTerpakai'       => $kpiTerpakai,
             'kpiHadiah'         => $kpiHadiah,
+            'analisaMap'        => (new LoyaltySummaryAnalysisModel())->getMapByMonth($bulan),
             'printedBy'         => $this->currentUser()['name'] ?? '',
             'printedAt'         => date('d M Y H:i'),
         ]);

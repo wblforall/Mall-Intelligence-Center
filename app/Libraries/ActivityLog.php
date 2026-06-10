@@ -57,6 +57,7 @@ class ActivityLog
         'loyalty_voucher_item'          => 'Item Voucher Loyalty',
         'loyalty_voucher_realisasi'     => 'Realisasi Voucher Loyalty',
         'tenant'                        => 'Master Tenant',
+        'loyalty_analisa'               => 'Analisa Summary Loyalty',
         // Sponsorship (standalone)
         'sponsorship_program'           => 'Program Sponsorship',
         'sponsorship_sponsor'           => 'Sponsor (Sponsorship)',

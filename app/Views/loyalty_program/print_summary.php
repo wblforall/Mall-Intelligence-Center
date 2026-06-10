@@ -244,6 +244,13 @@ foreach ($sections as $sec):
     <td class="<?= $serap  ? 'num' : 'zero' ?>"><?= $sebar ? $serap.'%' : '—' ?></td>
     <td class="<?= $hd     ? 'num' : 'zero' ?>"><?= numF($hd)     ?></td>
 </tr>
+<?php $aTxt = trim($analisaMap[$key] ?? ''); ?>
+<tr class="analisa-row">
+    <td colspan="<?= $isSt ? 8 : 9 ?>" style="background:#f8fafc;font-size:9px;color:#334155;padding:4px 8px;border-top:none">
+        <strong style="color:#0f172a">Analisa:</strong>
+        <?= $aTxt !== '' ? nl2br(esc($aTxt)) : '<em style="color:#94a3b8">(belum diisi)</em>' ?>
+    </td>
+</tr>
 <?php endforeach; ?>
 </tbody>
 </table>

@@ -85,7 +85,10 @@ $deltaBadge = function (float $cur, float $prev): string {
             <a href="?bulan=<?= $nextBulan ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>
             <span class="ms-2 fw-semibold"><?= $bulanLabel ?></span>
             <a href="?bulan=<?= date('Y-m') ?>" class="btn btn-sm btn-outline-primary ms-auto">Bulan Ini</a>
-            <a href="<?= base_url('loyalty/summary/print?bulan='.$bulan) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
+            <span id="analisaWarn" class="badge bg-warning-subtle text-warning-emphasis" style="font-size:.7rem;display:none">
+                <i class="bi bi-exclamation-triangle me-1"></i><span id="analisaWarnCount">0</span> program belum ada analisa
+            </span>
+            <a href="<?= base_url('loyalty/summary/print?bulan='.$bulan) ?>" target="_blank" id="btnCetak" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-printer me-1"></i>Cetak Laporan
             </a>
         </div>
@@ -302,7 +305,7 @@ $buildCardData = function(string $key, array $prog) use ($monthlyData, $voucherB
 };
 
 // Render a single program card (outputs HTML directly)
-$renderCard = function(string $key, array $prog) use ($buildCardData): void {
+$renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMap, $canEdit): void {
     $d = $buildCardData($key, $prog);
     extract($d); // isS, isEv, mBaru, mAktif, vSebar, vPakai, hDibagi, vQuota, tgt, ach
     $isInactive  = ($prog['status'] ?? 'active') === 'inactive';
@@ -413,6 +416,29 @@ $renderCard = function(string $key, array $prog) use ($buildCardData): void {
             <?php endif; ?>
 
             <?php endif; // hasContent ?>
+        </div>
+
+        <?php
+        $src        = $isS ? 's' : 'e';
+        $analisa    = $analisaMap[$key] ?? '';
+        $hasAnalisa = trim($analisa) !== '';
+        ?>
+        <div class="card-body border-top py-2 px-3 analisa-box" data-key="<?= $key ?>">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted fw-semibold" style="font-size:.72rem"><i class="bi bi-chat-left-text me-1"></i>Analisa</span>
+                <span class="badge analisa-flag <?= $hasAnalisa ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis' ?>" style="font-size:.6rem" data-filled="<?= $hasAnalisa ? '1' : '0' ?>"><?= $hasAnalisa ? 'terisi' : 'belum diisi' ?></span>
+            </div>
+            <?php if ($canEdit): ?>
+            <textarea class="form-control form-control-sm analisa-input" rows="2"
+                      data-source="<?= $src ?>" data-id="<?= (int)$prog['id'] ?>"
+                      placeholder="Tulis analisa program untuk bulan ini..." style="font-size:.75rem"><?= esc($analisa) ?></textarea>
+            <div class="d-flex justify-content-end align-items-center gap-2 mt-1">
+                <span class="analisa-status small"></span>
+                <button type="button" class="btn btn-sm btn-outline-primary analisa-save" style="font-size:.7rem;padding:.15rem .6rem"><i class="bi bi-save me-1"></i>Simpan</button>
+            </div>
+            <?php else: ?>
+            <div class="small <?= $hasAnalisa ? '' : 'text-muted fst-italic' ?>" style="font-size:.75rem;white-space:pre-wrap"><?= $hasAnalisa ? esc($analisa) : 'Belum ada analisa' ?></div>
+            <?php endif; ?>
         </div>
 
         <div class="card-footer py-2 px-3 bg-transparent d-flex justify-content-between align-items-center gap-2">
@@ -790,6 +816,76 @@ document.querySelectorAll('.progress-bar').forEach((bar, i) => {
         bar.style.width = target;
     }, 500 + i * 50);
 });
+</script>
+<script>
+// Analisa per program — simpan AJAX + peringatan sebelum cetak
+(function(){
+    const csrf  = { name: '<?= csrf_token() ?>', hash: '<?= csrf_hash() ?>' };
+    const bulan = '<?= esc($bulan, 'js') ?>';
+
+    function refreshWarn(){
+        const warn = document.getElementById('analisaWarn');
+        if (! warn) return;
+        const empty = [...document.querySelectorAll('.analisa-flag')].filter(f => f.dataset.filled === '0').length;
+        document.getElementById('analisaWarnCount').textContent = empty;
+        warn.style.display = empty > 0 ? '' : 'none';
+        warn.dataset.empty = empty;
+    }
+    refreshWarn();
+
+    document.querySelectorAll('.analisa-save').forEach(btn => {
+        btn.addEventListener('click', function(){
+            const box    = btn.closest('.analisa-box');
+            const ta     = box.querySelector('.analisa-input');
+            const status = box.querySelector('.analisa-status');
+            const flag   = box.querySelector('.analisa-flag');
+            btn.disabled = true;
+            status.textContent = 'Menyimpan...';
+            status.className = 'analisa-status small text-muted';
+
+            const body = new URLSearchParams();
+            body.append(csrf.name, csrf.hash);
+            body.append('bulan', bulan);
+            body.append('source', ta.dataset.source);
+            body.append('program_id', ta.dataset.id);
+            body.append('analisa', ta.value);
+
+            fetch('<?= base_url('loyalty/summary/analisa') ?>', {
+                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.csrf) csrf.hash = res.csrf;
+                if (res.ok) {
+                    status.textContent = 'Tersimpan';
+                    status.className = 'analisa-status small text-success';
+                    flag.dataset.filled = res.filled ? '1' : '0';
+                    flag.textContent = res.filled ? 'terisi' : 'belum diisi';
+                    flag.className = 'badge analisa-flag ' + (res.filled ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis');
+                    refreshWarn();
+                    setTimeout(() => { status.textContent = ''; }, 2500);
+                } else {
+                    status.textContent = res.error || 'Gagal menyimpan';
+                    status.className = 'analisa-status small text-danger';
+                }
+            })
+            .catch(() => {
+                status.textContent = 'Gagal menyimpan';
+                status.className = 'analisa-status small text-danger';
+            })
+            .finally(() => { btn.disabled = false; });
+        });
+    });
+
+    const cetak = document.getElementById('btnCetak');
+    if (cetak) cetak.addEventListener('click', function(e){
+        const warn  = document.getElementById('analisaWarn');
+        const empty = parseInt((warn && warn.dataset.empty) || '0', 10);
+        if (empty > 0 && ! confirm('Masih ada ' + empty + ' program tanpa analisa. Tetap cetak laporan?')) {
+            e.preventDefault();
+        }
+    });
+})();
 </script>
 <script>
 <?php if ($hasChartData ?? false): ?>

@@ -214,6 +214,7 @@ $routes->get('events/(:num)/sponsors/(:num)/realisasi/(:num)/delete', 'EventSpon
 $routes->get('loyalty', 'LoyaltyCtrl::index', ['filter' => 'auth']);
 $routes->get('loyalty/summary',       'LoyaltyCtrl::summary',       ['filter' => 'auth']);
 $routes->get('loyalty/summary/print', 'LoyaltyCtrl::printSummary',  ['filter' => 'auth']);
+$routes->post('loyalty/summary/analisa', 'LoyaltyCtrl::saveAnalisa', ['filter' => 'auth']);
 $routes->get('loyalty/tenants',               'LoyaltyCtrl::indexTenants',      ['filter' => 'auth']);
 $routes->post('loyalty/tenants/add',          'LoyaltyCtrl::storeTenant',       ['filter' => 'auth']);
 $routes->post('loyalty/tenants/(:num)/edit',  'LoyaltyCtrl::updateTenant/$1',   ['filter' => 'auth']);
