@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.3** (Juni 2026)
+> Versi saat ini: **v2.4** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,25 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.4
+
+**Tanggal Rilis:** 10 Juni 2026
+
+### Perubahan dari v2.3
+
+#### Summary Loyalty — Analisa per Program
+
+- **Analisa per program (per bulan)** — tiap program di halaman Summary Bulanan kini punya kotak analisa yang bisa diisi & disimpan langsung (AJAX), dengan badge status **terisi / belum diisi**.
+- **Peringatan sebelum cetak** — bila masih ada program tanpa analisa, muncul peringatan jumlahnya dan konfirmasi saat menekan "Cetak Laporan" (tetap boleh lanjut).
+- **Laporan cetak** kini menampilkan analisa di bawah ringkasan tiap program (atau "(belum diisi)").
+- Disimpan di tabel baru `loyalty_summary_analysis`; perubahan tercatat di Activity Log.
+
+#### Input Traffic — Mode Hari Ini untuk Security
+
+- Department input-only (akses Daily Traffic **Edit tanpa View**, mis. Security) kini **hanya melihat input hari ini** — tanggal sebelumnya disembunyikan, filter bulan dihilangkan, dan form tanggal lampau dialihkan otomatis ke hari ini. Berlaku sama di tampilan desktop maupun mobile. User dengan akses View tetap melihat seluruh tanggal seperti biasa.
 
 ---
 
