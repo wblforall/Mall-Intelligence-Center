@@ -56,6 +56,40 @@ tr:hover td:not(.col-pintu):not(.col-total)     { background: rgba(var(--bs-prim
 [data-theme="dark"] .col-total               { background: rgba(139,92,246,.08); }
 [data-theme="dark"] thead .col-total          { background: rgba(139,92,246,.12); }
 [data-theme="dark"] tr:hover .col-pintu       { background: rgba(139,92,246,.18); }
+
+/* ── Mobile (≤991px): layout per-jam (kartu = jam, isi = pintu) ───── */
+.mobile-save-bar { display: none; }
+@media (max-width: 991.98px) {
+    .mob-hour-card .card-header {
+        background: rgba(var(--bs-primary-rgb),.08);
+        font-weight: 700;
+    }
+    .mob-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 7px 2px; border-bottom: 1px solid var(--bs-border-color);
+    }
+    .mob-row:last-child { border-bottom: none; }
+    .mob-door-name { color: var(--txt, #1e293b); line-height: 1.2; }
+    #mobileBox .traffic-input {
+        width: 104px; flex: 0 0 auto; font-size: 1.05rem;
+        padding: 9px 10px; text-align: right;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px; background: var(--bs-body-bg);
+    }
+    [data-theme="dark"] .mob-hour-card .card-header { background: rgba(139,92,246,.14); }
+    [data-theme="dark"] #mobileBox .traffic-input  { background: #1c1248; color: #e5e7eb; }
+
+    /* Bar simpan menempel di bawah */
+    .mobile-save-bar {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        position: sticky; bottom: 0; z-index: 20;
+        margin: 12px -1rem -1rem; padding: 10px 1rem;
+        background: var(--card-bg, #fff);
+        border-top: 1px solid var(--bs-border-color);
+        box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+    }
+    [data-theme="dark"] .mobile-save-bar { background: #1c1248; }
+}
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -151,7 +185,7 @@ $grandTotal = array_sum($hourTotals);
 </div>
 <?php else: ?>
 
-<div class="traffic-wrap">
+<div class="traffic-wrap d-none d-lg-block" id="desktopBox">
 <table class="traffic-table table-hover mb-0">
 <thead>
 <tr>
@@ -168,17 +202,18 @@ $grandTotal = array_sum($hourTotals);
     <td class="col-pintu fw-medium" title="<?= esc($d['nama_pintu']) ?>"><?= esc($d['nama_pintu']) ?></td>
     <?php foreach ($hours as $h): ?>
     <?php $val = $existing[$h][$d['id']] ?? 0; ?>
-    <td class="p-0 text-center">
+    <td class="p-0 text-center" data-label="<?= $h ?>–<?= $h+1 ?>">
         <input type="number"
                name="jumlah[<?= $h ?>][<?= $d['id'] ?>]"
                class="traffic-input"
                value="<?= $val ?>"
                min="0"
+               inputmode="numeric"
                data-jam="<?= $h ?>"
                data-door="<?= $d['id'] ?>">
     </td>
     <?php endforeach; ?>
-    <td class="col-total" id="door-total-<?= $d['id'] ?>">
+    <td class="col-total" id="door-total-<?= $d['id'] ?>" data-label="Total pintu">
         <?= $doorTotals[$d['id']] > 0 ? number_format($doorTotals[$d['id']]) : '—' ?>
     </td>
 </tr>
@@ -196,44 +231,101 @@ $grandTotal = array_sum($hourTotals);
 </table>
 </div>
 
+<!-- Mobile: kartu per jam, isi semua pintu -->
+<div class="d-lg-none p-2" id="mobileBox">
+<?php foreach ($hours as $h): ?>
+<div class="card mb-2 mob-hour-card">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span class="small"><i class="bi bi-clock me-1"></i><?= $h ?>.00–<?= $h+1 ?>.00</span>
+        <span class="small">Total: <b id="m-hour-total-<?= $h ?>"><?= $hourTotals[$h] > 0 ? number_format($hourTotals[$h]) : '—' ?></b></span>
+    </div>
+    <div class="card-body p-2">
+        <?php foreach ($doors as $d): $val = $existing[$h][$d['id']] ?? 0; ?>
+        <div class="mob-row">
+            <span class="mob-door-name small"><?= esc($d['nama_pintu']) ?></span>
+            <input type="number"
+                   name="jumlah[<?= $h ?>][<?= $d['id'] ?>]"
+                   class="traffic-input"
+                   value="<?= $val ?>"
+                   min="0"
+                   inputmode="numeric"
+                   data-jam="<?= $h ?>"
+                   data-door="<?= $d['id'] ?>">
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endforeach; ?>
+</div>
+
 <?php endif; ?>
 </div>
 </div>
+
+<?php if (! empty($doors)): ?>
+<div class="mobile-save-bar">
+    <div>
+        <div class="small text-muted" style="font-size:.7rem;line-height:1">Total</div>
+        <div class="fw-bold text-<?= $mallColor ?>" id="grand-total-mobile"><?= $grandTotal > 0 ? number_format($grandTotal) : '—' ?></div>
+    </div>
+    <button type="submit" class="btn btn-<?= $mallColor ?> flex-grow-1 py-2">
+        <i class="bi bi-check-lg me-1"></i>Simpan
+    </button>
+</div>
+<?php endif; ?>
 
 </form>
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
+// Dua layout (desktop tabel & mobile per-jam) berbagi nilai yang sama.
+// Edit di layout aktif disalin ke layout lain; total dihitung dari layout aktif;
+// saat submit, layout tersembunyi dinonaktifkan agar tidak dobel terkirim.
+const desktopBox = document.getElementById('desktopBox');
+const mobileBox  = document.getElementById('mobileBox');
+const isMobile   = () => window.matchMedia('(max-width: 991.98px)').matches;
+const activeBox  = () => isMobile() ? mobileBox : desktopBox;
+const fmt        = n => n > 0 ? n.toLocaleString('id-ID') : '—';
+const setText    = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+
 document.querySelectorAll('.traffic-input').forEach(inp => {
-    inp.addEventListener('input', () => updateTotals(inp));
+    inp.addEventListener('input', () => { mirror(inp); recompute(); });
 });
 
-function updateTotals(inp) {
-    const jam    = inp.dataset.jam;
-    const doorId = inp.dataset.door;
-
-    // Hour column total
-    const hourSum = [...document.querySelectorAll(`input[data-jam="${jam}"]`)]
-        .reduce((s, i) => s + (parseInt(i.value) || 0), 0);
-    const hourCell = document.getElementById('hour-total-' + jam);
-    if (hourCell) hourCell.textContent = hourSum > 0 ? hourSum.toLocaleString('id-ID') : '—';
-
-    // Door row total
-    const doorSum = [...document.querySelectorAll(`input[data-door="${doorId}"]`)]
-        .reduce((s, i) => s + (parseInt(i.value) || 0), 0);
-    const doorCell = document.getElementById('door-total-' + doorId);
-    if (doorCell) doorCell.textContent = doorSum > 0 ? doorSum.toLocaleString('id-ID') : '—';
-
-    // Grand total
-    const grand = [...document.querySelectorAll('.traffic-input')]
-        .reduce((s, i) => s + (parseInt(i.value) || 0), 0);
-    const fmt = grand > 0 ? grand.toLocaleString('id-ID') : '—';
-    const gc = document.getElementById('grand-total');
-    if (gc) gc.textContent = fmt;
-    const gt = document.getElementById('grand-total-top');
-    if (gt) gt.textContent = fmt;
+// Salin nilai ke input pasangannya (jam+pintu sama) di layout satunya
+function mirror(inp) {
+    const other = inp.closest('#mobileBox') ? desktopBox : mobileBox;
+    if (! other) return;
+    const t = other.querySelector(`input[data-jam="${inp.dataset.jam}"][data-door="${inp.dataset.door}"]`);
+    if (t) t.value = inp.value;
 }
+
+function recompute() {
+    const box = activeBox();
+    if (! box) return;
+    const hourSum = {}, doorSum = {};
+    let grand = 0;
+    box.querySelectorAll('.traffic-input').forEach(i => {
+        const v = parseInt(i.value) || 0;
+        grand += v;
+        hourSum[i.dataset.jam]  = (hourSum[i.dataset.jam]  || 0) + v;
+        doorSum[i.dataset.door] = (doorSum[i.dataset.door] || 0) + v;
+    });
+    for (const h in hourSum) { setText('hour-total-' + h, fmt(hourSum[h])); setText('m-hour-total-' + h, fmt(hourSum[h])); }
+    for (const d in doorSum) { setText('door-total-' + d, fmt(doorSum[d])); }
+    const fg = fmt(grand);
+    setText('grand-total', fg); setText('grand-total-top', fg); setText('grand-total-mobile', fg);
+}
+
+// Recompute saat ganti orientasi/ukuran (layout aktif bisa berganti)
+window.addEventListener('resize', recompute);
+
+// Anti dobel-submit: nonaktifkan input di layout tersembunyi
+document.querySelector('form').addEventListener('submit', () => {
+    const hidden = isMobile() ? desktopBox : mobileBox;
+    if (hidden) hidden.querySelectorAll('.traffic-input').forEach(i => i.disabled = true);
+});
 
 document.getElementById('changeDate').addEventListener('click', function () {
     const d = document.getElementById('datePicker').value;
