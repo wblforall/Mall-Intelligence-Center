@@ -38,12 +38,21 @@ class Traffic extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
-        $month = $this->request->getGet('bulan') ?: date('Y-m');
+        // Inputter (edit tanpa view, mis. Security) hanya boleh lihat input hari ini.
+        $inputOnly = $this->canEditMenu('traffic') && ! $this->canViewMenu('traffic');
+        $month     = $inputOnly ? date('Y-m') : ($this->request->getGet('bulan') ?: date('Y-m'));
 
         $trafficModel = new DailyTrafficModel();
 
         $ewalkDates  = $trafficModel->getInputtedDates('ewalk',     $month);
         $pentaDates  = $trafficModel->getInputtedDates('pentacity', $month);
+
+        if ($inputOnly) {
+            $today = date('Y-m-d');
+            $onlyToday = fn(array $rows) => array_values(array_filter($rows, fn($r) => $r['tanggal'] === $today));
+            $ewalkDates = $onlyToday($ewalkDates);
+            $pentaDates = $onlyToday($pentaDates);
+        }
 
         return view('traffic/index', [
             'user'       => $this->currentUser(),
@@ -51,6 +60,7 @@ class Traffic extends BaseController
             'pentaDates' => $pentaDates,
             'canEdit'    => $this->canEditMenu('traffic'),
             'canView'    => $this->canViewMenu('traffic'),
+            'inputOnly'  => $inputOnly,
             'month'      => $month,
         ]);
     }
@@ -880,6 +890,12 @@ class Traffic extends BaseController
         }
 
         $tanggal = $tanggal ?: date('Y-m-d');
+
+        // Inputter (edit tanpa view, mis. Security) hanya boleh input tanggal hari ini.
+        if ($this->canEditMenu('traffic') && ! $this->canViewMenu('traffic') && $tanggal !== date('Y-m-d')) {
+            return redirect()->to('/traffic/input/' . $mall . '/' . date('Y-m-d'))
+                ->with('error', 'Anda hanya dapat menginput traffic untuk hari ini.');
+        }
 
         $trafficModel  = new DailyTrafficModel();
         $trafficRows   = $trafficModel->getByDateMall($tanggal, $mall);

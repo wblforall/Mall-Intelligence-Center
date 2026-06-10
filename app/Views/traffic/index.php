@@ -15,7 +15,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3 fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-person-walking me-2"></i>Daily Traffic</h4>
-        <small class="text-muted">Input traffic pengunjung harian per pintu masuk</small>
+        <small class="text-muted"><?= ($inputOnly ?? false) ? 'Input traffic hari ini — ' . date('d M Y') : 'Input traffic pengunjung harian per pintu masuk' ?></small>
     </div>
     <div class="d-flex gap-2">
         <?php if ($canView): ?>
@@ -34,6 +34,7 @@
     </div>
 </div>
 
+<?php if (! ($inputOnly ?? false)): ?>
 <form method="GET" class="mb-3 fade-up" style="animation-delay:.1s">
     <div class="d-flex align-items-center gap-2">
         <label class="form-label mb-0 small fw-semibold text-muted">Bulan</label>
@@ -41,6 +42,7 @@
                value="<?= esc($month) ?>" onchange="this.form.submit()">
     </div>
 </form>
+<?php endif; ?>
 
 <div class="row g-3">
 
@@ -53,7 +55,7 @@
 </div>
 <div class="card-body p-0">
 <?php if (empty($ewalkDates)): ?>
-<div class="text-center py-4 text-muted small">Belum ada data traffic eWalk.</div>
+<div class="text-center py-4 text-muted small"><?= ($inputOnly ?? false) ? 'Belum ada input traffic eWalk hari ini.' : 'Belum ada data traffic eWalk.' ?></div>
 <?php else: ?>
 <div class="list-group list-group-flush">
 <?php foreach ($ewalkDates as $i => $row): ?>
@@ -95,7 +97,7 @@
 </div>
 <div class="card-body p-0">
 <?php if (empty($pentaDates)): ?>
-<div class="text-center py-4 text-muted small">Belum ada data traffic Pentacity.</div>
+<div class="text-center py-4 text-muted small"><?= ($inputOnly ?? false) ? 'Belum ada input traffic Pentacity hari ini.' : 'Belum ada data traffic Pentacity.' ?></div>
 <?php else: ?>
 <div class="list-group list-group-flush">
 <?php foreach ($pentaDates as $i => $row): ?>
