@@ -486,8 +486,11 @@ class LoyaltyCtrl extends BaseController
     public function toggleStatus(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
-        if ((new LoyaltyProgramModel())->isLocked($id)) return redirect()->to('/loyalty#program-s-'.$id)->with('error', 'Program terkunci, tidak bisa diubah.');
-        (new LoyaltyProgramModel())->toggleStatus($id);
+        $pm = new LoyaltyProgramModel();
+        if ($pm->isLocked($id)) return redirect()->to('/loyalty#program-s-'.$id)->with('error', 'Program terkunci, tidak bisa diubah.');
+        ActivityLog::captureBefore($pm->find($id));
+        $pm->toggleStatus($id);
+        ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'loyalty_program', (string)$id, '', ['action' => 'toggle_status']);
         return redirect()->to('/loyalty')->with('success', 'Status program diperbarui.');
     }
@@ -495,7 +498,10 @@ class LoyaltyCtrl extends BaseController
     public function lock(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
-        (new LoyaltyProgramModel())->lock($id, $this->currentUser()['id']);
+        $pm = new LoyaltyProgramModel();
+        ActivityLog::captureBefore($pm->find($id));
+        $pm->lock($id, $this->currentUser()['id']);
+        ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'loyalty_program', (string)$id, '', ['action' => 'lock']);
         return redirect()->to('/loyalty#program-s-'.$id)->with('success', 'Program berhasil dikunci.');
     }
@@ -503,7 +509,10 @@ class LoyaltyCtrl extends BaseController
     public function unlock(int $id)
     {
         if (! $this->isAdmin()) return redirect()->to('/loyalty#program-s-'.$id)->with('error', 'Hanya admin yang bisa membuka kunci.');
-        (new LoyaltyProgramModel())->unlock($id);
+        $pm = new LoyaltyProgramModel();
+        ActivityLog::captureBefore($pm->find($id));
+        $pm->unlock($id);
+        ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'loyalty_program', (string)$id, '', ['action' => 'unlock']);
         return redirect()->to('/loyalty#program-s-'.$id)->with('success', 'Kunci program berhasil dibuka.');
     }
@@ -729,8 +738,9 @@ class LoyaltyCtrl extends BaseController
             $allMonthlyTotals[$m]['total_hadiah'] += (int)$row['total_dibagikan'];
         }
         ksort($allMonthlyTotals);
-        $currentYear      = date('Y');
-        $allMonthlyTotals = array_filter($allMonthlyTotals, fn($row) => str_starts_with($row['bulan'], $currentYear));
+        $allMonthlyMap    = $allMonthlyTotals;                 // semua bulan (untuk delta lintas tahun)
+        $trendYear        = substr($bulan, 0, 4);              // tren ikut tahun bulan yang dipilih
+        $allMonthlyTotals = array_filter($allMonthlyTotals, fn($row) => str_starts_with($row['bulan'], $trendYear));
 
         // Daily data for selected month
         $sDailyRows  = $sModel->getDailyForMonth($bulan, $standaloneIds);
@@ -768,6 +778,43 @@ class LoyaltyCtrl extends BaseController
         $totalBudget       = array_sum(array_column($programs, 'budget'));
         $totalBudgetActive = array_sum(array_column(array_filter($programs, fn($p) => $p['status'] === 'active'), 'budget'));
 
+        // ── Nilai realisasi (Rp) & serapan budget ─────────────────────────
+        $voucherNilai = $evoucherNilai = $hadiahNilai = $ehadiahNilai = [];
+        foreach ($voucherItemsGrouped as $items)  foreach ($items as $vi) $voucherNilai[$vi['id']]  = (float)($vi['nilai_voucher'] ?? 0);
+        foreach ($evoucherItemsGrouped as $items) foreach ($items as $vi) $evoucherNilai[$vi['id']] = (float)($vi['nilai_voucher'] ?? 0);
+        foreach ($hadiahItemsGrouped as $items)   foreach ($items as $hi) $hadiahNilai[$hi['id']]   = (float)($hi['nilai_satuan'] ?? 0);
+        foreach ($ehadiahItemsGrouped as $items)  foreach ($items as $hi) $ehadiahNilai[$hi['id']]  = (float)($hi['nilai_satuan'] ?? 0);
+
+        $calcNilai = function (array $vMon, array $evMon, array $hMon, array $ehMon)
+            use ($voucherNilai, $evoucherNilai, $hadiahNilai, $ehadiahNilai): array {
+            $v = 0.0;
+            foreach ($vMon  as $id => $d) $v += (int)($d['total_terpakai'] ?? 0) * ($voucherNilai[$id]  ?? 0);
+            foreach ($evMon as $id => $d) $v += (int)($d['total_terpakai'] ?? 0) * ($evoucherNilai[$id] ?? 0);
+            $h = 0.0;
+            foreach ($hMon  as $id => $n) $h += (int)$n * ($hadiahNilai[$id]  ?? 0);
+            foreach ($ehMon as $id => $n) $h += (int)$n * ($ehadiahNilai[$id] ?? 0);
+            return [$v, $h];
+        };
+        [$nilaiVoucher, $nilaiHadiah] = $calcNilai($vMonthly, $evMonthly, $hMonthly, $ehMonthly);
+        $nilaiRealisasi = $nilaiVoucher + $nilaiHadiah;
+        $serapanPct     = $totalBudgetActive > 0 ? round($nilaiRealisasi / $totalBudgetActive * 100, 1) : 0;
+
+        // ── Delta vs bulan sebelumnya ─────────────────────────────────────
+        $prevBulan = date('Y-m', strtotime($bulan . '-01 -1 month'));
+        $prevRow   = $allMonthlyMap[$prevBulan] ?? $empty;
+        $kpiMemberPrev      = (int)$prevRow['total_jumlah'];
+        $kpiMemberAktifPrev = (int)$prevRow['total_member_aktif'];
+        $kpiTersebarPrev    = (int)$prevRow['total_tersebar'];
+        $kpiTerpakaiPrev    = (int)$prevRow['total_terpakai'];
+        $kpiHadiahPrev      = (int)$prevRow['total_hadiah'];
+        [$nvPrev, $nhPrev]  = $calcNilai(
+            $vrModel->getMonthlyByItems($prevBulan, $allVoucherIds),
+            $evrModel->getMonthlyByItems($prevBulan, $allEvoucherIds),
+            $hrModel->getMonthlyByItems($prevBulan, $allHadiahIds),
+            $ehrModel->getMonthlyByItems($prevBulan, $allEhadiahIds)
+        );
+        $nilaiRealisasiPrev = $nvPrev + $nhPrev;
+
         return view('loyalty_program/summary', [
             'user'                 => $this->currentUser(),
             'programs'             => $programs,
@@ -797,6 +844,17 @@ class LoyaltyCtrl extends BaseController
             'ehadiahByProgram'     => $ehadiahByProgram,
             'totalBudget'          => $totalBudget,
             'totalBudgetActive'    => $totalBudgetActive,
+            'nilaiRealisasi'       => $nilaiRealisasi,
+            'nilaiVoucher'         => $nilaiVoucher,
+            'nilaiHadiah'          => $nilaiHadiah,
+            'serapanPct'           => $serapanPct,
+            'nilaiRealisasiPrev'   => $nilaiRealisasiPrev,
+            'trendYear'            => $trendYear,
+            'kpiMemberPrev'        => $kpiMemberPrev,
+            'kpiMemberAktifPrev'   => $kpiMemberAktifPrev,
+            'kpiTersebarPrev'      => $kpiTersebarPrev,
+            'kpiTerpakaiPrev'      => $kpiTerpakaiPrev,
+            'kpiHadiahPrev'        => $kpiHadiahPrev,
             'chartDates'           => $chartDates,
             'dailyMember'          => $dailyMember,
             'dailyTersebar'        => $dailyTersebar,

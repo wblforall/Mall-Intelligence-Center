@@ -36,13 +36,28 @@ $trendHadiah      = [];
 $shortBulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
 foreach ($allMonthlyTotals as $row) {
     $dt = \DateTime::createFromFormat('Y-m', $row['bulan']);
-    $trendLabels[]      = strtr($dt->format('M Y'), array_combine(array_keys($idBulan), $shortBulan));
+    $trendLabels[]      = $shortBulan[(int)$dt->format('n') - 1] . ' ' . $dt->format('Y');
     $trendMember[]      = (int)$row['total_jumlah'];
     $trendMemberAktif[] = (int)($row['total_member_aktif'] ?? 0);
     $trendSebar[]       = (int)$row['total_tersebar'];
     $trendTerpakai[]    = (int)$row['total_terpakai'];
     $trendHadiah[]      = (int)($row['total_hadiah'] ?? 0);
 }
+
+// Badge delta vs bulan sebelumnya (naik = hijau, turun = merah)
+$deltaBadge = function (float $cur, float $prev): string {
+    if ($prev <= 0) {
+        return $cur > 0
+            ? '<span class="small text-success"><i class="bi bi-dot"></i>baru vs bln lalu</span>'
+            : '';
+    }
+    $d = round(($cur - $prev) / $prev * 100);
+    if ($d == 0) return '<span class="small text-muted">±0% vs bln lalu</span>';
+    $up = $d > 0;
+    return '<span class="small ' . ($up ? 'text-success' : 'text-danger') . '">'
+         . '<i class="bi bi-arrow-' . ($up ? 'up' : 'down') . '-short"></i>'
+         . abs($d) . '% vs bln lalu</span>';
+};
 ?>
 
 <!-- Header -->
@@ -88,7 +103,7 @@ foreach ($allMonthlyTotals as $row) {
                     <span class="small text-muted">Member Baru</span>
                 </div>
                 <div class="fw-bold fs-4 text-primary" data-count="<?= $kpiMember ?>"><?= number_format($kpiMember) ?></div>
-                <div class="small text-muted">bulan <?= $bulanLabel ?></div>
+                <div><?= $deltaBadge($kpiMember, $kpiMemberPrev) ?: '<span class="small text-muted">bulan '.$bulanLabel.'</span>' ?></div>
             </div>
         </div>
     </div>
@@ -100,7 +115,7 @@ foreach ($allMonthlyTotals as $row) {
                     <span class="small text-muted">Member Aktif</span>
                 </div>
                 <div class="fw-bold fs-4 text-info" data-count="<?= $kpiMemberAktif ?>"><?= number_format($kpiMemberAktif) ?></div>
-                <div class="small text-muted">bulan <?= $bulanLabel ?></div>
+                <div><?= $deltaBadge($kpiMemberAktif, $kpiMemberAktifPrev) ?: '<span class="small text-muted">bulan '.$bulanLabel.'</span>' ?></div>
             </div>
         </div>
     </div>
@@ -112,7 +127,7 @@ foreach ($allMonthlyTotals as $row) {
                     <span class="small text-muted">Voucher Tersebar</span>
                 </div>
                 <div class="fw-bold fs-4 text-warning" data-count="<?= $kpiTersebar ?>"><?= number_format($kpiTersebar) ?></div>
-                <div class="small text-muted">bulan <?= $bulanLabel ?></div>
+                <div><?= $deltaBadge($kpiTersebar, $kpiTersebarPrev) ?: '<span class="small text-muted">bulan '.$bulanLabel.'</span>' ?></div>
             </div>
         </div>
     </div>
@@ -124,7 +139,7 @@ foreach ($allMonthlyTotals as $row) {
                     <span class="small text-muted">Voucher Dipakai</span>
                 </div>
                 <div class="fw-bold fs-4 text-success" data-count="<?= $kpiTerpakai ?>"><?= number_format($kpiTerpakai) ?></div>
-                <div class="small text-muted"><?= $pctTerpakai ?>% dari tersebar</div>
+                <div class="small text-muted"><?= $pctTerpakai ?>% dari tersebar <?= $deltaBadge($kpiTerpakai, $kpiTerpakaiPrev) ?></div>
             </div>
         </div>
     </div>
@@ -136,7 +151,25 @@ foreach ($allMonthlyTotals as $row) {
                     <span class="small text-muted">Hadiah Dibagikan</span>
                 </div>
                 <div class="fw-bold fs-4 text-danger" data-count="<?= $kpiHadiah ?>"><?= number_format($kpiHadiah) ?></div>
-                <div class="small text-muted">bulan <?= $bulanLabel ?></div>
+                <div><?= $deltaBadge($kpiHadiah, $kpiHadiahPrev) ?: '<span class="small text-muted">bulan '.$bulanLabel.'</span>' ?></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl">
+        <div class="card border-success-subtle h-100 fade-up" style="animation-delay:.54s"
+             title="Voucher Rp <?= number_format($nilaiVoucher,0,',','.') ?> + Hadiah Rp <?= number_format($nilaiHadiah,0,',','.') ?>">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <div class="rounded-2 p-1 bg-success-subtle"><i class="bi bi-cash-coin text-success fs-5"></i></div>
+                    <span class="small text-muted">Benefit Tersalurkan</span>
+                </div>
+                <div class="fw-bold fs-5 text-success">Rp <?= number_format($nilaiRealisasi,0,',','.') ?></div>
+                <div class="small text-muted">
+                    <?php if ($totalBudgetActive > 0): ?>
+                    <span class="fw-semibold <?= $serapanPct > 100 ? 'text-danger' : ($serapanPct >= 80 ? 'text-warning' : 'text-success') ?>"><?= $serapanPct ?>%</span> serapan budget
+                    <?php else: ?>budget aktif belum di-set<?php endif; ?>
+                    <?= $deltaBadge($nilaiRealisasi, $nilaiRealisasiPrev) ?>
+                </div>
             </div>
         </div>
     </div>
@@ -437,8 +470,7 @@ $renderCard = function(string $key, array $prog) use ($buildCardData): void {
 $flatVouchers = [];
 // Standalone voucher items
 foreach ($voucherItemsGrouped as $progId => $items) {
-    $prog = null;
-    foreach ($programMap as $p) { if ($p['id'] == $progId && $p['source'] === 'standalone') { $prog = $p; break; } }
+    $prog = $programMap['s_' . $progId] ?? null;
     foreach ($items as $vi) {
         $vd = $vMonthly[$vi['id']] ?? ['total_tersebar' => 0, 'total_terpakai' => 0];
         $flatVouchers[] = ['item' => $vi, 'prog' => $prog, 'vd' => $vd];
@@ -446,8 +478,7 @@ foreach ($voucherItemsGrouped as $progId => $items) {
 }
 // Event voucher items
 foreach ($evoucherItemsGrouped as $progId => $items) {
-    $prog = null;
-    foreach ($programMap as $p) { if ($p['id'] == $progId && $p['source'] === 'event') { $prog = $p; break; } }
+    $prog = $programMap['e_' . $progId] ?? null;
     foreach ($items as $vi) {
         $vd = $evMonthly[$vi['id']] ?? ['total_tersebar' => 0, 'total_terpakai' => 0];
         $flatVouchers[] = ['item' => $vi, 'prog' => $prog, 'vd' => $vd];
@@ -458,8 +489,7 @@ $hasVouchers = !empty($flatVouchers);
 $flatHadiah = [];
 // Standalone hadiah items
 foreach ($hadiahItemsGrouped as $progId => $items) {
-    $prog = null;
-    foreach ($programMap as $p) { if ($p['id'] == $progId && $p['source'] === 'standalone') { $prog = $p; break; } }
+    $prog = $programMap['s_' . $progId] ?? null;
     foreach ($items as $hi) {
         $flatHadiah[] = [
             'item'     => $hi,
@@ -471,8 +501,7 @@ foreach ($hadiahItemsGrouped as $progId => $items) {
 }
 // Event hadiah items
 foreach ($ehadiahItemsGrouped as $progId => $items) {
-    $prog = null;
-    foreach ($programMap as $p) { if ($p['id'] == $progId && $p['source'] === 'event') { $prog = $p; break; } }
+    $prog = $programMap['e_' . $progId] ?? null;
     foreach ($items as $hi) {
         $flatHadiah[] = [
             'item'     => $hi,
@@ -641,7 +670,7 @@ $hasHadiah = !empty($flatHadiah);
 <!-- Monthly Trend Table -->
 <div class="card fade-up" style="animation-delay:.1s">
     <div class="card-header d-flex align-items-center justify-content-between">
-        <span class="fw-semibold small"><i class="bi bi-table me-2"></i>Tren Bulanan — <?= date('Y') ?></span>
+        <span class="fw-semibold small"><i class="bi bi-table me-2"></i>Tren Bulanan — <?= esc($trendYear) ?></span>
     </div>
     <?php if (empty($allMonthlyTotals)): ?>
     <div class="card-body text-center text-muted py-4">Belum ada data realisasi.</div>
