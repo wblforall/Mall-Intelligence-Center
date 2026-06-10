@@ -14,8 +14,8 @@ $bulanDt    = \DateTime::createFromFormat('Y-m', $bulan);
 $bulanLabel = strtr($bulanDt->format('F Y'), $idBulan);
 
 $totalProfit = $totalRevenue - $totalBudget;
-$totalMobil  = (int)($monthVehicle['total_mobil'] ?? 0);
-$totalMotor  = (int)($monthVehicle['total_motor'] ?? 0);
+$totalMobil  = (int)($monthVehicle['mobil'] ?? 0);
+$totalMotor  = (int)($monthVehicle['motor'] ?? 0);
 ?>
 
 <!-- Header & Navigator -->
