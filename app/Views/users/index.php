@@ -15,8 +15,49 @@ $roleMap = [];
 foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
 ?>
 
+<div class="card mb-3 fade-up" style="animation-delay:.1s">
+    <div class="card-body py-2">
+    <div class="row g-2 align-items-end">
+        <div class="col-md">
+            <label class="form-label small fw-semibold mb-1 text-muted">Cari nama / email</label>
+            <input type="text" id="fSearch" class="form-control form-control-sm" placeholder="Ketik nama atau email...">
+        </div>
+        <div class="col-6 col-md-auto">
+            <label class="form-label small fw-semibold mb-1 text-muted">Role</label>
+            <select id="fRole" class="form-select form-select-sm">
+                <option value="">Semua</option>
+                <?php foreach ($roles as $r): ?>
+                <option value="<?= $r['id'] ?>"><?= esc($r['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-6 col-md-auto">
+            <label class="form-label small fw-semibold mb-1 text-muted">Departemen</label>
+            <select id="fDept" class="form-select form-select-sm">
+                <option value="">Semua</option>
+                <?php foreach ($depts as $d): ?>
+                <option value="<?= $d['id'] ?>"><?= esc($d['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-6 col-md-auto">
+            <label class="form-label small fw-semibold mb-1 text-muted">Status</label>
+            <select id="fStatus" class="form-select form-select-sm">
+                <option value="">Semua</option>
+                <option value="1">Aktif</option>
+                <option value="0">Nonaktif</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-auto">
+            <button type="button" id="fReset" class="btn btn-sm btn-outline-secondary">Reset</button>
+        </div>
+    </div>
+    </div>
+</div>
+
 <div class="card fade-up" style="animation-delay:.15s">
     <div class="card-body p-0">
+    <div class="px-3 pt-2 small text-muted">Menampilkan <span id="fCount"><?= count($users) ?></span> dari <?= count($users) ?> user</div>
     <div class="table-responsive">
     <table class="table table-hover mb-0">
         <thead><tr><th>#</th><th>Nama</th><th>Email</th><th>Role</th><th>Departemen</th><th>Status</th><th>Last Login</th><th>Aksi</th></tr></thead>
@@ -27,8 +68,12 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
             $roleName = $roleRow ? $roleRow['name'] : ucfirst($u['role']);
             $roleColor = $roleRow && $roleRow['is_admin'] ? 'danger' : (in_array($u['role'], ['manager']) ? 'primary' : 'secondary');
         ?>
-        <tr class="fade-up" style="animation-delay:<?= .2 + $i * .04 ?>s">
-            <td class="text-muted small"><?= $i+1 ?></td>
+        <tr class="fade-up user-row" style="animation-delay:<?= .2 + $i * .04 ?>s"
+            data-search="<?= esc(strtolower($u['name'] . ' ' . $u['email'])) ?>"
+            data-role="<?= $u['role_id'] ?? '' ?>"
+            data-dept="<?= $u['department_id'] ?? '' ?>"
+            data-status="<?= $u['is_active'] ? '1' : '0' ?>">
+            <td class="text-muted small row-num"><?= $i+1 ?></td>
             <td class="fw-medium"><?= esc($u['name']) ?></td>
             <td><?= esc($u['email']) ?></td>
             <td><span class="badge bg-<?= $roleColor ?>-subtle text-<?= $roleColor ?>"><?= esc($roleName) ?></span></td>
@@ -99,6 +144,7 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
             </td>
         </tr>
         <?php endforeach; ?>
+        <tr id="noResultRow" style="display:none"><td colspan="8" class="text-center text-muted py-4">Tidak ada user yang cocok dengan filter.</td></tr>
         </tbody>
     </table>
     </div>
@@ -202,6 +248,45 @@ const loginLogsData = <?= json_encode($loginLogsJson) ?>;
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<script>
+// Filter halaman User (client-side)
+(function(){
+    const fSearch = document.getElementById('fSearch');
+    const fRole   = document.getElementById('fRole');
+    const fDept   = document.getElementById('fDept');
+    const fStatus = document.getElementById('fStatus');
+    const fReset  = document.getElementById('fReset');
+    const fCount  = document.getElementById('fCount');
+    const noRow   = document.getElementById('noResultRow');
+    const rows    = [...document.querySelectorAll('.user-row')];
+    if (! rows.length) return;
+
+    function apply(){
+        const q = (fSearch.value || '').trim().toLowerCase();
+        const r = fRole.value, d = fDept.value, s = fStatus.value;
+        let shown = 0, n = 0;
+        rows.forEach(row => {
+            const ok = (! q || row.dataset.search.includes(q))
+                && (! r || row.dataset.role === r)
+                && (! d || row.dataset.dept === d)
+                && (! s || row.dataset.status === s);
+            row.style.display = ok ? '' : 'none';
+            if (ok) { shown++; const num = row.querySelector('.row-num'); if (num) num.textContent = ++n; }
+        });
+        fCount.textContent = shown;
+        noRow.style.display = shown ? 'none' : '';
+    }
+
+    [fSearch, fRole, fDept, fStatus].forEach(el => {
+        el.addEventListener('input', apply);
+        el.addEventListener('change', apply);
+    });
+    fReset.addEventListener('click', () => {
+        fSearch.value = ''; fRole.value = ''; fDept.value = ''; fStatus.value = '';
+        apply();
+    });
+})();
+</script>
 <script>
 document.querySelectorAll('.login-hist-btn').forEach(btn => {
     btn.addEventListener('click', function() {
