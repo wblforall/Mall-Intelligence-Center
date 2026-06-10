@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.2** (Juni 2026)
+> Versi saat ini: **v2.3** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,32 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.3
+
+**Tanggal Rilis:** 10 Juni 2026
+
+### Perubahan dari v2.2
+
+#### Input Traffic — Tampilan Mobile
+
+- **Layout per-jam di HP** — pada layar ≤991px, form input traffic berubah dari tabel lebar (pintu × jam) menjadi kartu per-jam: tiap kartu = satu jam berisi semua pintu, dengan input besar ramah-sentuhan dan keypad angka (`inputmode="numeric"`). Desktop tetap memakai grid tabel seperti semula.
+- **Bar Simpan menempel** di bawah layar saat mode mobile, menampilkan total berjalan. Deteksi via CSS viewport (bukan user-agent) sehingga otomatis menyesuaikan saat orientasi berubah.
+- Input satu set tersinkron antar layout; layout tersembunyi dinonaktifkan saat submit sehingga data tidak terkirim ganda.
+
+#### Activity Log — Pelacakan Perubahan & Label Modul
+
+- **Diff nilai per-sel input traffic** — log perubahan traffic kini mencatat hanya sel (pintu·jam) yang berubah, lengkap nilai lama → baru.
+- **Diff antar modul** — perubahan nilai yang sebelumnya tidak terlacak kini tercatat before→after: target Exhibition, assignment & target kompetensi, budget training, stok barang (tambah/realisasi), distribusi voucher; serta status before→after untuk aksi toggle/lock/unlock, approve/reject (Loyalty, Sponsorship, Media Promo, PIP, TNA, EEI, User, dll).
+- **Label modul ramah-baca** — filter, badge, dan modal detail Activity Log kini menampilkan nama modul yang mudah dibaca (mis. "Assign Kompetensi (Dept)", "Request Media Promo") menggantikan nama tabel internal.
+
+#### Summary Bulanan Loyalty
+
+- **Benefit Tersalurkan (Rp)** — KPI baru: nilai realisasi rupiah dari voucher terpakai × nilai + hadiah dibagikan × nilai, beserta **% serapan budget** (berwarna sesuai tingkat serapan).
+- **Delta vs bulan sebelumnya** — indikator naik/turun % pada kartu KPI (akurat lintas pergantian tahun).
+- **Perbaikan**: grafik & tabel tren kini mengikuti tahun dari bulan yang dipilih (bukan selalu tahun berjalan); label bulan pada grafik tren kini berbahasa Indonesia.
 
 ---
 
