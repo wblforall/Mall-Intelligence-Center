@@ -48,6 +48,7 @@ class StockVoucherCtrl extends BaseController
             'batches'     => $batches,
             'canDeassign' => $this->can('can_deassign_voucher'),
             'progNames'   => $progNames,
+            'assignedBy'  => (new StockVoucherLogModel())->getAssignerByKode(),
         ]);
     }
 

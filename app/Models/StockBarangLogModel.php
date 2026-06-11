@@ -59,7 +59,9 @@ class StockBarangLogModel extends Model
     // Kartu stok satu barang (kronologis ASC, dengan saldo berjalan stok_sesudah)
     public function getByBarangAsc(int $barangId, ?string $dari = null, ?string $sampai = null): array
     {
-        $q = $this->where('barang_id', $barangId);
+        $q = $this->select('stock_barang_log.*, u.name AS pengisi')
+                  ->join('users u', 'u.id = stock_barang_log.created_by', 'left')
+                  ->where('barang_id', $barangId);
         if ($dari)   $q->where('tanggal >=', $dari);
         if ($sampai) $q->where('tanggal <=', $sampai);
         return $q->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC')->findAll();

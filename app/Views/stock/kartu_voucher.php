@@ -28,25 +28,41 @@
         <th class="text-end" style="width:90px">Jumlah</th>
         <th class="text-end" style="width:100px">Saldo</th>
         <th>Referensi</th>
-        <th class="pe-3">Catatan</th>
+        <th>Catatan</th>
+        <th class="pe-3" style="width:130px">Oleh</th>
     </tr></thead>
     <tbody>
     <?php if (empty($entries)): ?>
-    <tr><td colspan="6" class="text-center text-muted py-4">Belum ada mutasi pada periode ini.</td></tr>
+    <tr><td colspan="7" class="text-center text-muted py-4">Belum ada mutasi pada periode ini.</td></tr>
     <?php endif; ?>
     <?php
     $tipeBadge = ['masuk' => ['success','Masuk'], 'keluar' => ['danger','Keluar'], 'retur' => ['info','Retur']];
+    $refLabel  = [
+        'import'        => 'Import kode',
+        'manual'        => 'Distribusi manual',
+        'deassign'      => 'Batal distribusi manual',
+        'delete'        => 'Hapus kode',
+        'program'       => 'Distribusi via program',
+        'program_batal' => 'Batal realisasi program',
+        'backfill'      => 'Data lama',
+    ];
     foreach ($entries as $e):
         [$col, $lbl] = $tipeBadge[$e['tipe']] ?? ['secondary', $e['tipe']];
         $plus = $e['tipe'] !== 'keluar';
+        $refTxt = $refLabel[$e['referensi_tipe']] ?? ($e['referensi_tipe'] ?? '—');
+        if (in_array($e['referensi_tipe'], ['program', 'program_batal'], true) && $e['referensi_id']) {
+            $pn = $progNames[(int)$e['referensi_id']] ?? null;
+            $refTxt .= $pn ? ' — ' . $pn : ' #' . $e['referensi_id'];
+        }
     ?>
     <tr>
         <td class="ps-3 small"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
         <td><span class="badge bg-<?= $col ?>-subtle text-<?= $col ?>"><?= $lbl ?></span></td>
         <td class="text-end fw-semibold text-<?= $col ?>"><?= ($plus ? '+' : '-') . number_format((int)$e['jumlah']) ?></td>
         <td class="text-end"><?= number_format((int)$e['saldo_sesudah']) ?></td>
-        <td class="small text-muted"><?= esc($e['referensi_tipe'] ?? '—') ?><?= $e['referensi_id'] ? ' #'.$e['referensi_id'] : '' ?></td>
-        <td class="pe-3 small"><?= esc($e['catatan'] ?? '') ?></td>
+        <td class="small text-muted"><?= esc($refTxt) ?></td>
+        <td class="small"><?= esc($e['catatan'] ?? '') ?></td>
+        <td class="pe-3 small text-muted"><i class="bi bi-person me-1"></i><?= esc($e['pengisi'] ?? '—') ?></td>
     </tr>
     <?php endforeach; ?>
     </tbody>

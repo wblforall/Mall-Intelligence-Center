@@ -35,9 +35,27 @@ class StockVoucherLogModel extends Model
 
     public function getByBatch(int $batchId): array
     {
-        return $this->where('batch_id', $batchId)
+        return $this->select('stock_voucher_log.*, u.name AS pengisi')
+                    ->join('users u', 'u.id = stock_voucher_log.created_by', 'left')
+                    ->where('batch_id', $batchId)
                     ->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC')
                     ->findAll();
+    }
+
+    // Map kode_id → nama user yang meng-assign (dari entri 'keluar' terbaru per kode)
+    public function getAssignerByKode(): array
+    {
+        $rows = $this->select('stock_voucher_log.referensi_id, u.name AS pengisi')
+                     ->join('users u', 'u.id = stock_voucher_log.created_by', 'left')
+                     ->where('tipe', 'keluar')
+                     ->where('referensi_id IS NOT NULL', null, false)
+                     ->orderBy('stock_voucher_log.id', 'ASC')
+                     ->findAll();
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int)$r['referensi_id']] = $r['pengisi']; // entri terbaru menimpa yg lama
+        }
+        return $map;
     }
 
     // Rekap masuk/keluar/retur per batch dalam periode → [batch_id => ['masuk'=>, 'keluar'=>, 'retur'=>]]

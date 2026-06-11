@@ -28,11 +28,12 @@
         <th class="text-end" style="width:90px">Jumlah</th>
         <th class="text-end" style="width:100px">Saldo</th>
         <th>Referensi</th>
-        <th class="pe-3">Catatan</th>
+        <th>Catatan</th>
+        <th class="pe-3" style="width:130px">Oleh</th>
     </tr></thead>
     <tbody>
     <?php if (empty($entries)): ?>
-    <tr><td colspan="6" class="text-center text-muted py-4">Belum ada mutasi pada periode ini.</td></tr>
+    <tr><td colspan="7" class="text-center text-muted py-4">Belum ada mutasi pada periode ini.</td></tr>
     <?php endif; ?>
     <?php foreach ($entries as $e):
         $masuk = $e['tipe'] === 'masuk';
@@ -43,7 +44,8 @@
         <td class="text-end fw-semibold <?= $masuk ? 'text-success' : 'text-danger' ?>"><?= ($masuk ? '+' : '-') . number_format((int)$e['jumlah']) ?></td>
         <td class="text-end"><?= number_format((int)$e['stok_sesudah']) ?></td>
         <td class="small text-muted"><?= esc($e['referensi_tipe'] ?? '—') ?><?= $e['referensi_id'] ? ' #'.$e['referensi_id'] : '' ?></td>
-        <td class="pe-3 small"><?= esc($e['catatan'] ?? '') ?></td>
+        <td class="small"><?= esc($e['catatan'] ?? '') ?></td>
+        <td class="pe-3 small text-muted"><i class="bi bi-person me-1"></i><?= esc($e['pengisi'] ?? '—') ?></td>
     </tr>
     <?php endforeach; ?>
     </tbody>

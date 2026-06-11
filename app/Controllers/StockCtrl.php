@@ -88,12 +88,28 @@ class StockCtrl extends BaseController
 
         $all     = (new StockVoucherLogModel())->getByBatch($batchId);
         $entries = array_filter($all, fn($e) => $e['tanggal'] >= $from && $e['tanggal'] <= $to);
+
+        // Resolusi nama program untuk entri yg referensinya program loyalty
+        $progIds = [];
+        foreach ($entries as $e) {
+            if (in_array($e['referensi_tipe'], ['program', 'program_batal'], true) && $e['referensi_id']) {
+                $progIds[] = (int)$e['referensi_id'];
+            }
+        }
+        $progNames = [];
+        if ($progIds) {
+            foreach ((new \App\Models\LoyaltyProgramModel())->whereIn('id', array_unique($progIds))->findAll() as $p) {
+                $progNames[(int)$p['id']] = $p['nama_program'];
+            }
+        }
+
         return view('stock/kartu_voucher', [
-            'user'    => $this->currentUser(),
-            'batch'   => $batch,
-            'entries' => array_values($entries),
-            'from'    => $from,
-            'to'      => $to,
+            'user'      => $this->currentUser(),
+            'batch'     => $batch,
+            'entries'   => array_values($entries),
+            'progNames' => $progNames,
+            'from'      => $from,
+            'to'        => $to,
         ]);
     }
 }
