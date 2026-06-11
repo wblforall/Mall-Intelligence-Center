@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.9** (Juni 2026)
+> Versi saat ini: **v2.9.1** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,15 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.9.1
+
+**Tanggal Rilis:** 11 Juni 2026
+
+- Sponsor pada program sponsorship: capture & tampilkan **PIC** (user yang menambahkan).
+- **Backfill** mutasi voucher fisik dari data kode lama (import/assign sebelum fitur log) agar Kartu Stok & Summary menampilkan riwayat yang sudah ada.
 
 ---
 
