@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.6** (Juni 2026)
+> Versi saat ini: **v2.7** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,16 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.7
+
+**Tanggal Rilis:** 11 Juni 2026
+
+### Perbaikan
+
+- **Event pembuat tidak hilang**: user pembuat event kini tetap melihat event buatannya sendiri di daftar Event walau masih berstatus `pending` (menunggu persetujuan). Sebelumnya event `pending` hanya tampil bagi user yang bisa approve, sehingga event terlihat "hilang" oleh pembuatnya. Pembuat tetap tidak melihat event `pending` milik orang lain; ringkasan finansial per periode tetap menghitung event `approved` saja.
 
 ---
 
