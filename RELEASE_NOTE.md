@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.9.1** (Juni 2026)
+> Versi saat ini: **v2.9.2** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,17 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.9.2
+
+**Tanggal Rilis:** 11 Juni 2026
+
+- **Kartu Stok voucher**: kolom Referensi tampilkan **nama program** (bukan kode/id) + kolom **"Oleh"** (user pelaku mutasi); Kartu Stok barang juga ada kolom "Oleh".
+- **Daftar Stock Voucher**: kode ter-assign menampilkan **user yang mendistribusikan**.
+- **Loyalty standalone**: program yang **di-lock otomatis pindah ke tab Closed** (status nonaktif); unlock mengaktifkan kembali.
+- **Sponsorship**: tampilkan tanggal input sponsor → tanggal realisasi terpenuhi + **durasi (hari)** sampai nilai deal tercapai.
 
 ---
 
