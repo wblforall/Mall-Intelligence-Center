@@ -18,7 +18,9 @@ class SponsorshipSponsorModel extends Model
     public function getByPrograms(array $programIds): array
     {
         if (empty($programIds)) return [];
-        $rows = $this->whereIn('program_id', $programIds)
+        $rows = $this->select('sponsorship_sponsors.*, u.name AS pic_nama')
+                     ->join('users u', 'u.id = sponsorship_sponsors.created_by', 'left')
+                     ->whereIn('program_id', $programIds)
                      ->orderBy('program_id')
                      ->orderBy('status_deal')
                      ->orderBy('nama_sponsor')

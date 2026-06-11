@@ -267,6 +267,7 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                         <?php if ($sp['detail']): ?>
                         <div class="text-muted" style="font-size:.75rem"><?= esc($sp['detail']) ?></div>
                         <?php endif; ?>
+                        <div class="text-muted" style="font-size:.72rem"><i class="bi bi-person me-1"></i>PIC: <?= esc($sp['pic_nama'] ?? '—') ?></div>
                         <?php if (! empty($items)): ?>
                         <div class="mt-1">
                             <?php foreach ($items as $item):
