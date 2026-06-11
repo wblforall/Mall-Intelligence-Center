@@ -109,6 +109,23 @@ $idBulan = ['January'=>'Januari','February'=>'Februari','March'=>'Maret','April'
 $bulanDt    = \DateTime::createFromFormat('Y-m', $bulan);
 $bulanLabel = strtr($bulanDt->format('F Y'), $idBulan);
 
+// Hanya program yang relevan dengan bulan terpilih (overlap tanggal / ada aktivitas bulan ini)
+$bMonthStart = $bulan . '-01';
+$bMonthEnd   = date('Y-m-t', strtotime($bMonthStart));
+$programs = array_values(array_filter($programs, function ($p) use ($bMonthStart, $bMonthEnd, $monthlyData, $voucherByProgram, $evoucherByProgram, $hadiahByProgram, $ehadiahByProgram) {
+    $isS     = $p['source'] === 'standalone';
+    $key     = ($isS ? 's_' : 'e_') . $p['id'];
+    $mulai   = $isS ? ($p['tanggal_mulai']   ?? '') : ($p['event_start_date'] ?? '');
+    $selesai = $isS ? ($p['tanggal_selesai'] ?? '') : ($p['event_start_date'] ?? '');
+    if ($mulai && $mulai <= $bMonthEnd && (empty($selesai) || $selesai >= $bMonthStart)) return true;
+    $md = $monthlyData[$key] ?? [];
+    if ((int)($md['total_jumlah'] ?? 0) > 0 || (int)($md['total_member_aktif'] ?? 0) > 0) return true;
+    $vd = $isS ? ($voucherByProgram[$p['id']] ?? []) : ($evoucherByProgram[$p['id']] ?? []);
+    if ((int)($vd['total_tersebar'] ?? 0) > 0 || (int)($vd['total_terpakai'] ?? 0) > 0) return true;
+    $h = $isS ? (int)($hadiahByProgram[$p['id']] ?? 0) : (int)($ehadiahByProgram[$p['id']] ?? 0);
+    return $h > 0;
+}));
+
 $totalProgram = count($programs);
 $activeProgram = count(array_filter($programs, fn($p) => $p['status'] === 'active'));
 

@@ -270,11 +270,29 @@ $sumWithTarget = $sumPrograms - $sumNoTarget;
 </div>
 
 <?php
-// Split programs into sections
+// Apakah program relevan dengan bulan terpilih:
+// overlap rentang tanggal program, ATAU ada aktivitas (member/voucher/hadiah) di bulan ini.
+$bMonthStart = $bulan . '-01';
+$bMonthEnd   = date('Y-m-t', strtotime($bMonthStart));
+$progInMonth = function (string $key, array $prog) use ($bMonthStart, $bMonthEnd, $monthlyData, $voucherByProgram, $evoucherByProgram, $hadiahByProgram, $ehadiahByProgram): bool {
+    $isS     = str_starts_with($key, 's_');
+    $mulai   = $isS ? ($prog['tanggal_mulai']   ?? '') : ($prog['event_start_date'] ?? '');
+    $selesai = $isS ? ($prog['tanggal_selesai'] ?? '') : ($prog['event_start_date'] ?? '');
+    if ($mulai && $mulai <= $bMonthEnd && (empty($selesai) || $selesai >= $bMonthStart)) return true;
+    $md = $monthlyData[$key] ?? [];
+    if ((int)($md['total_jumlah'] ?? 0) > 0 || (int)($md['total_member_aktif'] ?? 0) > 0) return true;
+    $vd = $isS ? ($voucherByProgram[$prog['id']] ?? []) : ($evoucherByProgram[$prog['id']] ?? []);
+    if ((int)($vd['total_tersebar'] ?? 0) > 0 || (int)($vd['total_terpakai'] ?? 0) > 0) return true;
+    $h = $isS ? (int)($hadiahByProgram[$prog['id']] ?? 0) : (int)($ehadiahByProgram[$prog['id']] ?? 0);
+    return $h > 0;
+};
+
+// Split programs into sections (hanya program yang relevan dgn bulan terpilih)
 $mapStandaloneActive   = [];
 $mapStandaloneInactive = [];
 $mapEvent              = [];
 foreach ($programMap as $key => $prog) {
+    if (! $progInMonth($key, $prog)) continue;
     if ($prog['source'] === 'event')                         $mapEvent[$key] = $prog;
     elseif (($prog['status'] ?? 'active') === 'inactive')   $mapStandaloneInactive[$key] = $prog;
     else                                                      $mapStandaloneActive[$key] = $prog;
