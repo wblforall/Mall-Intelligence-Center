@@ -48,19 +48,23 @@ class LoyaltyProgramModel extends Model
 
     public function lock(int $id, int $userId): void
     {
+        // Lock = finalisasi/tutup → sekalian nonaktifkan agar pindah ke tab Closed
         $this->update($id, [
             'locked'    => 1,
             'locked_by' => $userId,
             'locked_at' => date('Y-m-d H:i:s'),
+            'status'    => 'inactive',
         ]);
     }
 
     public function unlock(int $id): void
     {
+        // Buka kunci → aktifkan kembali (keluar dari tab Closed)
         $this->update($id, [
             'locked'    => 0,
             'locked_by' => null,
             'locked_at' => null,
+            'status'    => 'active',
         ]);
     }
 
