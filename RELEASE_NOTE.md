@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.7** (Juni 2026)
+> Versi saat ini: **v2.8** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,23 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.8
+
+**Tanggal Rilis:** 11 Juni 2026
+
+### Creative & Design — Tanggal & Status Selesai Item
+
+- Setiap item creative kini punya field **Tanggal** (berlaku semua tipe, termasuk master design/cetak/influencer) — penentu item masuk bulan apa di Summary Bulanan. Item digital tetap pakai `tanggal_take` sebagai fallback.
+- Penanda **Selesai/Close** per item (checkbox + tanggal close otomatis), tampil sebagai badge di halaman Creative, summary, dan laporan cetak.
+- **Summary Bulanan Creative** kini menyaring item standalone **per bulan** (berdasarkan tanggal item, atau bila ada aktivitas bulan itu) — item tanpa tanggal seperti master design tidak lagi "hilang"/salah bulan.
+- (Migration: kolom `tanggal`, `is_closed`, `closed_at` pada `creative_items`.)
+
+### Summary Loyalty — Filter Program per Bulan
+
+- Summary Bulanan Loyalty (layar & cetak) hanya menampilkan program yang **relevan dengan bulan terpilih** (rentang tanggal program overlap bulan itu, atau ada aktivitas member/voucher/hadiah di bulan itu). Sebelumnya program bulan lain (mis. Mei) ikut tampil di bulan Juni.
 
 ---
 
