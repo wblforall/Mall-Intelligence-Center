@@ -61,7 +61,11 @@ class EventModel extends Model
     {
         $builder = $this->orderBy('start_date', 'ASC');
         if (! $canApprove) {
-            $builder->where('approval_status', 'approved');
+            // Non-approver: lihat event approved, plus event buatannya sendiri (status apa pun)
+            $builder->groupStart()
+                        ->where('approval_status', 'approved')
+                        ->orWhere('created_by', $userId)
+                    ->groupEnd();
         }
         return $builder->findAll();
     }
