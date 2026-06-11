@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.5** (Juni 2026)
+> Versi saat ini: **v2.6** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,27 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.6
+
+**Tanggal Rilis:** 11 Juni 2026
+
+### Perubahan dari v2.5
+
+#### Summary Bulanan Creative & Design
+
+- **KPI baru**: Engagement (likes+comments+shares+saves) + **engagement rate**, **CPM** (biaya per 1.000 impresi) & cost-per-reach, serta **serapan budget kumulatif** (realisasi s/d bulan ini ÷ budget).
+- **Delta vs bulan lalu** pada KPI realisasi/reach/impressions, **grafik tren 6 bulan** (reach/impressions/engagement/realisasi), dan highlight **konten terbaik bulan ini**.
+- **Analisa Otomatis** — narasi ringkas otomatis dari data (tren, engagement, serapan, efisiensi, rekomendasi). Tampil di layar & laporan cetak. (Berbasis aturan; disiapkan untuk di-upgrade ke analisa AI di kemudian hari.)
+- Kolom **Engagement** per item di tabel digital; perbaikan label grafik "Budget vs Realisasi Bulan Ini (per Item)".
+- **Laporan cetak disamakan** dengan tampilan layar (serapan, engagement, CPM, analisa).
+
+#### Perbaikan
+
+- **Tombol "Buat Event"**: kini menghormati permission **`can_create_event`**. Sebelumnya tombol hanya muncul untuk role admin/manager dan permission tersebut tidak berefek. Sekarang user dengan izin buat event (atau akses edit Content) melihat tombol dan dapat membuat event.
+- **KPI Kendaraan** di Summary Bulanan (event) yang sebelumnya selalu menampilkan 0 (salah key) — diperbaiki.
 
 ---
 
