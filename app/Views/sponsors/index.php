@@ -132,7 +132,9 @@
     <tr>
         <td class="text-nowrap"><?= $r['tanggal'] ? date('d M Y', strtotime($r['tanggal'])) : '—' ?></td>
         <td class="text-end fw-medium"><?= $r['nilai'] ? 'Rp ' . number_format($r['nilai'],0,',','.') : '—' ?></td>
-        <td><?= esc($r['catatan'] ?: '—') ?></td>
+        <td><?= esc($r['catatan'] ?: '—') ?>
+            <div class="text-muted" style="font-size:.7rem"><i class="bi bi-person me-1"></i>PIC: <?= esc($r['pengisi'] ?? '—') ?></div>
+        </td>
         <td class="text-center">
             <?php if ($r['file_foto']): ?>
             <?php $ext = strtolower(pathinfo($r['file_foto'], PATHINFO_EXTENSION)); ?>

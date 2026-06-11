@@ -204,11 +204,28 @@ class EventLoyaltyCtrl extends BaseController
         return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('success', 'Voucher dihapus.');
     }
 
+    // Upload foto bukti realisasi (wajib barang & voucher fisik). Return [filename|null, error|null].
+    private function uploadRealisasiFoto(): array
+    {
+        $file = $this->request->getFile('foto');
+        if (! $file || ! $file->isValid() || $file->hasMoved()) {
+            return [null, 'Foto bukti wajib diupload sebelum menyimpan realisasi.'];
+        }
+        if ($err = $this->validateUpload($file, self::MIME_IMAGE, 10)) {
+            return [null, $err];
+        }
+        $name = 'lr_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $this->safeExt($file);
+        $file->move(FCPATH . 'uploads/loyalty-realisasi', $name);
+        return [$name, null];
+    }
+
     public function storeVoucherRealisasi(int $eventId, int $programId, int $itemId)
     {
         if (! $this->canEditMenu('loyalty')) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Tanggal wajib diisi.');
+        [$fotoName, $fotoErr] = $this->uploadRealisasiFoto();
+        if ($fotoErr) return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('error', $fotoErr);
         $userId  = $this->currentUser()['id'];
         $kodeId  = ($post['kode_id'] ?? '') !== '' ? (int)$post['kode_id'] : null;
         $vrModel = new EventLoyaltyVoucherRealisasiModel();
@@ -221,6 +238,7 @@ class EventLoyaltyCtrl extends BaseController
             'tersebar'      => $kodeId ? 1 : (int)($post['tersebar'] ?? 0),
             'terpakai'      => (int)($post['terpakai'] ?? 0),
             'catatan'       => $post['catatan'] ?? null,
+            'foto'          => $fotoName,
             'created_by'    => $userId,
         ]);
         $rid = $vrModel->getInsertID();
@@ -238,6 +256,7 @@ class EventLoyaltyCtrl extends BaseController
         $vrModel = new EventLoyaltyVoucherRealisasiModel();
         $entry   = $vrModel->find($rid);
         $vrModel->delete($rid);
+        if ($entry && ! empty($entry['foto'])) { $f = FCPATH . 'uploads/loyalty-realisasi/' . $entry['foto']; if (is_file($f)) @unlink($f); }
         if ($entry && ! empty($entry['kode_id'])) {
             (new StockVoucherKodeModel())->unassign((int)$entry['kode_id']);
             $item = (new EventLoyaltyVoucherItemModel())->find($itemId);
@@ -345,6 +364,8 @@ class EventLoyaltyCtrl extends BaseController
         if (! $this->canEditMenu('loyalty')) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Tanggal wajib diisi.');
+        [$fotoName, $fotoErr] = $this->uploadRealisasiFoto();
+        if ($fotoErr) return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('error', $fotoErr);
         $userId  = $this->currentUser()['id'];
         $jumlah  = (int)($post['jumlah_dibagikan'] ?? 0);
         $kodeId  = ($post['kode_id'] ?? '') !== '' ? (int)$post['kode_id'] : null;
@@ -357,6 +378,7 @@ class EventLoyaltyCtrl extends BaseController
             'tanggal'          => $post['tanggal'],
             'jumlah_dibagikan' => $kodeId ? 1 : $jumlah,
             'catatan'          => $post['catatan'] ?? null,
+            'foto'             => $fotoName,
             'created_by'       => $userId,
         ]);
         $rid = $hrModel->getInsertID();
@@ -384,6 +406,7 @@ class EventLoyaltyCtrl extends BaseController
         $entry   = $hrModel->find($rid);
         $hrModel->delete($rid);
         if ($entry) {
+            if (! empty($entry['foto'])) { $f = FCPATH . 'uploads/loyalty-realisasi/' . $entry['foto']; if (is_file($f)) @unlink($f); }
             $item = (new EventLoyaltyHadiahItemModel())->find($itemId);
             if (! empty($entry['kode_id'])) {
                 (new StockVoucherKodeModel())->unassign((int)$entry['kode_id']);

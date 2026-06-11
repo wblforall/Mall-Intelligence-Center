@@ -234,7 +234,9 @@
             <td class="ps-3 small"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
             <td class="small fw-medium"><?= number_format($e['jumlah']) ?></td>
             <td class="small fw-medium"><?= number_format($e['member_aktif'] ?? 0) ?></td>
-            <td class="small text-muted"><?= esc($e['catatan']) ?></td>
+            <td class="small text-muted"><?= esc($e['catatan']) ?>
+                <div class="text-muted" style="font-size:.68rem"><i class="bi bi-person me-1"></i>oleh <?= esc($e['pengisi'] ?? '—') ?></div>
+            </td>
             <?php if ($canEdit): ?>
             <td>
                 <a href="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/realisasi/'.$e['id'].'/delete') ?>"
@@ -386,12 +388,16 @@
 
             <?php if ($canEdit): ?>
             <div id="add-voucher-real-<?= $pid ?>-<?= $vid ?>" class="d-none px-3 py-2 border-top bg-warning-subtle bg-opacity-25">
-                <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/voucher/'.$vid.'/realisasi/add') ?>">
+                <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/voucher/'.$vid.'/realisasi/add') ?>" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <div class="row g-2 align-items-end">
                         <div class="col-sm-2">
                             <label class="form-label small fw-semibold mb-1">Tanggal</label>
                             <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Foto Bukti <span class="text-danger">*</span></label>
+                            <input type="file" name="foto" accept="image/*" capture="environment" class="form-control form-control-sm" required>
                         </div>
                         <?php if (!empty($vi['batch_id'])): ?>
                         <div class="col-sm-3">
@@ -445,7 +451,10 @@
                 <td class="ps-3 small"><?= date('d M Y', strtotime($er['tanggal'])) ?></td>
                 <td class="small fw-medium"><?= number_format($er['tersebar'] ?? 0) ?></td>
                 <td class="small fw-medium"><?= number_format($er['terpakai'] ?? 0) ?></td>
-                <td class="small text-muted"><?= esc($er['catatan']) ?></td>
+                <td class="small text-muted"><?= esc($er['catatan']) ?>
+                    <?php if (!empty($er['foto'])): ?><a href="<?= base_url('uploads/loyalty-realisasi/'.$er['foto']) ?>" target="_blank" class="ms-1"><img src="<?= base_url('uploads/loyalty-realisasi/'.$er['foto']) ?>" alt="bukti" style="height:28px;width:28px;object-fit:cover;border-radius:4px;vertical-align:middle"></a><?php endif; ?>
+                    <div class="text-muted" style="font-size:.68rem"><i class="bi bi-person me-1"></i>oleh <?= esc($er['pengisi'] ?? '—') ?></div>
+                </td>
                 <?php if ($canEdit): ?>
                 <td>
                     <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/voucher/'.$vid.'/realisasi/'.$er['id'].'/delete') ?>" style="display:inline" onsubmit="return confirm('Hapus entri ini?')">
@@ -640,12 +649,16 @@
                 </form>
             </div>
             <div id="add-hadiah-real-<?= $pid ?>-<?= $hid ?>" class="d-none px-3 py-2 border-top bg-success-subtle bg-opacity-25">
-                <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/hadiah/'.$hid.'/realisasi/add') ?>">
+                <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/hadiah/'.$hid.'/realisasi/add') ?>" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <div class="row g-2 align-items-end">
                         <div class="col-sm-2">
                             <label class="form-label small fw-semibold mb-1">Tanggal</label>
                             <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Foto Bukti <span class="text-danger">*</span></label>
+                            <input type="file" name="foto" accept="image/*" capture="environment" class="form-control form-control-sm" required>
                         </div>
                         <?php if (!empty($hi['batch_id'])): ?>
                         <div class="col-sm-3">
@@ -693,7 +706,10 @@
             <tr>
                 <td class="ps-3 small"><?= date('d M Y', strtotime($er['tanggal'])) ?></td>
                 <td class="small fw-medium"><?= number_format($er['jumlah_dibagikan']) ?></td>
-                <td class="small text-muted"><?= esc($er['catatan']) ?></td>
+                <td class="small text-muted"><?= esc($er['catatan']) ?>
+                    <?php if (!empty($er['foto'])): ?><a href="<?= base_url('uploads/loyalty-realisasi/'.$er['foto']) ?>" target="_blank" class="ms-1"><img src="<?= base_url('uploads/loyalty-realisasi/'.$er['foto']) ?>" alt="bukti" style="height:28px;width:28px;object-fit:cover;border-radius:4px;vertical-align:middle"></a><?php endif; ?>
+                    <div class="text-muted" style="font-size:.68rem"><i class="bi bi-person me-1"></i>oleh <?= esc($er['pengisi'] ?? '—') ?></div>
+                </td>
                 <?php if ($canEdit): ?>
                 <td>
                     <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/hadiah/'.$hid.'/realisasi/'.$er['id'].'/delete') ?>" style="display:inline" onsubmit="return confirm('Hapus entri ini?')">

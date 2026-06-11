@@ -337,6 +337,7 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                                 <?php if ($r['file_bukti']): ?>
                                 <a href="<?= base_url('uploads/sponsorship/' . $pid . '/' . $r['file_bukti']) ?>" target="_blank" class="text-primary"><i class="bi bi-paperclip"></i></a>
                                 <?php endif; ?>
+                                <span class="text-muted" title="PIC pengisi realisasi"><i class="bi bi-person"></i> <?= esc($r['pengisi'] ?? '—') ?></span>
                                 <form method="post" action="<?= base_url('sponsorship/' . $pid . '/sponsor/' . $sp['id'] . '/realisasi/' . $r['id'] . '/delete') ?>"
                                       class="d-inline" onsubmit="return confirm('Hapus entri realisasi ini?')">
                                     <?= csrf_field() ?>

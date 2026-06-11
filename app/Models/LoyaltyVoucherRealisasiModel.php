@@ -10,14 +10,16 @@ class LoyaltyVoucherRealisasiModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'program_id', 'item_id', 'kode_id', 'nama_penerima', 'tanggal', 'tersebar', 'terpakai', 'catatan', 'created_by',
+        'program_id', 'item_id', 'kode_id', 'nama_penerima', 'tanggal', 'tersebar', 'terpakai', 'catatan', 'foto', 'created_by',
     ];
 
     // Keyed by item_id → { total_tersebar, total_terpakai, entries[] }
     public function getGroupedByItems(array $itemIds): array
     {
         if (empty($itemIds)) return [];
-        $rows = $this->whereIn('item_id', $itemIds)->orderBy('tanggal', 'DESC')->findAll();
+        $rows = $this->select('loyalty_voucher_realisasi.*, u.name AS pengisi')
+                     ->join('users u', 'u.id = loyalty_voucher_realisasi.created_by', 'left')
+                     ->whereIn('item_id', $itemIds)->orderBy('tanggal', 'DESC')->findAll();
         $grouped = [];
         foreach ($rows as $row) {
             $iid = $row['item_id'];

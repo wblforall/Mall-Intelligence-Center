@@ -22,7 +22,9 @@ class LoyaltyRealisasiModel extends Model
     {
         if (empty($programIds)) return [];
 
-        $rows = $this->whereIn('program_id', $programIds)->orderBy('tanggal', 'DESC')->findAll();
+        $rows = $this->select('loyalty_realisasi.*, u.name AS pengisi')
+                     ->join('users u', 'u.id = loyalty_realisasi.created_by', 'left')
+                     ->whereIn('program_id', $programIds)->orderBy('tanggal', 'DESC')->findAll();
 
         $grouped = [];
         foreach ($rows as $row) {

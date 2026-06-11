@@ -29,7 +29,9 @@ class EventLoyaltyRealisasiModel extends Model
     public function getGroupedByPrograms(array $programIds): array
     {
         if (empty($programIds)) return [];
-        $rows = $this->whereIn('program_id', $programIds)->orderBy('tanggal', 'DESC')->findAll();
+        $rows = $this->select('event_loyalty_realisasi.*, u.name AS pengisi')
+                     ->join('users u', 'u.id = event_loyalty_realisasi.created_by', 'left')
+                     ->whereIn('program_id', $programIds)->orderBy('tanggal', 'DESC')->findAll();
         $map  = [];
         foreach ($rows as $r) {
             $pid = $r['program_id'];
@@ -97,7 +99,9 @@ class EventLoyaltyRealisasiModel extends Model
     // Returns keyed by program_id: ['total' => int, 'entries' => array]
     public function getGroupedByEvent(int $eventId): array
     {
-        $rows = $this->where('event_id', $eventId)
+        $rows = $this->select('event_loyalty_realisasi.*, u.name AS pengisi')
+            ->join('users u', 'u.id = event_loyalty_realisasi.created_by', 'left')
+            ->where('event_id', $eventId)
             ->orderBy('program_id')->orderBy('tanggal')
             ->findAll();
 

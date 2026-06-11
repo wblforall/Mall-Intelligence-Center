@@ -40,7 +40,12 @@ $allClosed        = array_filter($programs, fn($p) => $p['status'] === 'inactive
         <h4 class="fw-bold mb-0">Program Loyalty</h4>
         <small class="text-muted">Standalone &amp; dari event — Member, e-Voucher &amp; Hadiah</small>
     </div>
-    <div class="d-flex gap-2 ms-auto">
+    <div class="d-flex gap-2 ms-auto align-items-center">
+        <div class="position-relative">
+            <i class="bi bi-search position-absolute" style="left:.6rem;top:50%;transform:translateY(-50%);font-size:.8rem;color:#94a3b8"></i>
+            <input type="text" id="progSearch" class="form-control form-control-sm" placeholder="Cari program..."
+                   style="width:200px;padding-left:1.9rem" autocomplete="off">
+        </div>
         <a href="<?= base_url('loyalty/summary') ?>" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-bar-chart-line me-1"></i>Summary Bulanan
         </a>
@@ -133,7 +138,8 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
 
     $anchorId = 'program-' . ($isStandalone ? 's' : 'e') . '-' . $pid;
 ?>
-<div class="card mb-4 <?= $isInactive ? 'opacity-75' : '' ?> border-start border-4 <?= $isStandalone ? 'border-primary' : 'border-warning' ?>" id="<?= $anchorId ?>">
+<div class="card mb-4 loyalty-prog <?= $isInactive ? 'opacity-75' : '' ?> border-start border-4 <?= $isStandalone ? 'border-primary' : 'border-warning' ?>" id="<?= $anchorId ?>"
+     data-prog-search="<?= esc(strtolower(($p['nama_program'] ?? '') . ' ' . ($p['event_name'] ?? '')), 'attr') ?>">
     <?php if ($isStandalone):
         $isTenant = ($p['jenis'] ?? 'internal') === 'tenant';
     ?>
@@ -389,7 +395,9 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
             <td class="ps-3 small"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
             <td class="small fw-medium"><?= number_format($e['jumlah']) ?></td>
             <td class="small fw-medium"><?= number_format($e['member_aktif'] ?? 0) ?></td>
-            <td class="small text-muted"><?= esc($e['catatan']) ?></td>
+            <td class="small text-muted"><?= esc($e['catatan']) ?>
+                <div class="text-muted" style="font-size:.68rem"><i class="bi bi-person me-1"></i>oleh <?= esc($e['pengisi'] ?? '—') ?></div>
+            </td>
             <?php if ($canManage): ?>
             <td>
                 <form method="POST" action="<?= base_url('loyalty/'.$pid.'/realisasi/'.$e['id'].'/delete') ?>"
@@ -573,12 +581,16 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
             </div>
             <?php if ($canManage && !$isInactive): ?>
             <div id="add-voucher-real-<?= $vid ?>" class="d-none px-3 py-2 border-top bg-warning-subtle bg-opacity-25">
-                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/voucher/'.$vid.'/realisasi/add') ?>">
+                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/voucher/'.$vid.'/realisasi/add') ?>" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <div class="row g-2 align-items-end">
                         <div class="col-sm-2">
                             <label class="form-label small fw-semibold mb-1">Tanggal</label>
                             <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Foto Bukti <span class="text-danger">*</span></label>
+                            <input type="file" name="foto" accept="image/*" capture="environment" class="form-control form-control-sm" required>
                         </div>
                         <?php if (!empty($vi['batch_id'])): ?>
                         <div class="col-sm-3">
@@ -631,7 +643,10 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <td class="ps-3 small"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
                 <td class="small fw-medium"><?= number_format($e['tersebar']) ?></td>
                 <td class="small fw-medium"><?= number_format($e['terpakai']) ?></td>
-                <td class="small text-muted"><?= esc($e['catatan']) ?></td>
+                <td class="small text-muted"><?= esc($e['catatan']) ?>
+                    <?php if (!empty($e['foto'])): ?><a href="<?= base_url('uploads/loyalty-realisasi/'.$e['foto']) ?>" target="_blank" class="ms-1"><img src="<?= base_url('uploads/loyalty-realisasi/'.$e['foto']) ?>" alt="bukti" style="height:28px;width:28px;object-fit:cover;border-radius:4px;vertical-align:middle"></a><?php endif; ?>
+                    <div class="text-muted" style="font-size:.68rem"><i class="bi bi-person me-1"></i>oleh <?= esc($e['pengisi'] ?? '—') ?></div>
+                </td>
                 <?php if ($canManage): ?>
                 <td>
                     <form method="POST" action="<?= base_url('loyalty/'.$pid.'/voucher/'.$vid.'/realisasi/'.$e['id'].'/delete') ?>"
@@ -837,12 +852,16 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 </form>
             </div>
             <div id="add-hadiah-real-<?= $iid ?>" class="d-none px-3 py-2 border-top bg-success-subtle bg-opacity-25">
-                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/hadiah/'.$iid.'/realisasi/add') ?>">
+                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/hadiah/'.$iid.'/realisasi/add') ?>" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <div class="row g-2 align-items-end">
                         <div class="col-sm-2">
                             <label class="form-label small fw-semibold mb-1">Tanggal</label>
                             <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label small fw-semibold mb-1">Foto Bukti <span class="text-danger">*</span></label>
+                            <input type="file" name="foto" accept="image/*" capture="environment" class="form-control form-control-sm" required>
                         </div>
                         <?php if (!empty($item['batch_id'])): ?>
                         <div class="col-sm-3">
@@ -889,7 +908,10 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
             <tr>
                 <td class="ps-3 small"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
                 <td class="small fw-medium"><?= number_format($e['jumlah_dibagikan']) ?></td>
-                <td class="small text-muted"><?= esc($e['catatan']) ?></td>
+                <td class="small text-muted"><?= esc($e['catatan']) ?>
+                    <?php if (!empty($e['foto'])): ?><a href="<?= base_url('uploads/loyalty-realisasi/'.$e['foto']) ?>" target="_blank" class="ms-1"><img src="<?= base_url('uploads/loyalty-realisasi/'.$e['foto']) ?>" alt="bukti" style="height:28px;width:28px;object-fit:cover;border-radius:4px;vertical-align:middle"></a><?php endif; ?>
+                    <div class="text-muted" style="font-size:.68rem"><i class="bi bi-person me-1"></i>oleh <?= esc($e['pengisi'] ?? '—') ?></div>
+                </td>
                 <?php if ($canManage): ?>
                 <td>
                     <form method="POST" action="<?= base_url('loyalty/'.$pid.'/hadiah/'.$iid.'/realisasi/'.$e['id'].'/delete') ?>"
@@ -1272,6 +1294,28 @@ $cntClosed     = count($allClosed);
     tabs.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.tab)));
     const hash = location.hash.replace('#', '');
     if (validTabs.includes(hash)) activate(hash);
+})();
+
+// Search program (lintas tab)
+(function() {
+    const input = document.getElementById('progSearch');
+    if (!input) return;
+    const cards = [...document.querySelectorAll('.loyalty-prog')];
+    const panes = [...document.querySelectorAll('#tab-internal, #tab-tenant, #tab-event, #tab-closed')];
+    input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        if (!q) {
+            const active = document.querySelector('[data-tab].active');
+            const name = active ? active.dataset.tab : 'internal';
+            panes.forEach(p => p.classList.toggle('d-none', p.id !== 'tab-' + name));
+            cards.forEach(c => c.style.display = '');
+            return;
+        }
+        panes.forEach(p => p.classList.remove('d-none'));   // mode cari: tampilkan semua tab
+        cards.forEach(c => {
+            c.style.display = (c.dataset.progSearch || '').includes(q) ? '' : 'none';
+        });
+    });
 })();
 
 // KPI count-up

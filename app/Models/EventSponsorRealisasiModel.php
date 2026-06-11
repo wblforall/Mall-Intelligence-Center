@@ -13,7 +13,9 @@ class EventSponsorRealisasiModel extends Model
 
     public function getGroupedByEvent(int $eventId): array
     {
-        $rows   = $this->where('event_id', $eventId)->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC')->findAll();
+        $rows   = $this->select('event_sponsor_realisasi.*, u.name AS pengisi')
+                       ->join('users u', 'u.id = event_sponsor_realisasi.created_by', 'left')
+                       ->where('event_id', $eventId)->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC')->findAll();
         $result = [];
         foreach ($rows as $r) {
             $result[$r['sponsor_id']][] = $r;

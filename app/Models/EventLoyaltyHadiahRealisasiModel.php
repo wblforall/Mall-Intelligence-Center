@@ -10,13 +10,15 @@ class EventLoyaltyHadiahRealisasiModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'program_id', 'item_id', 'nama_penerima', 'kode_id', 'tanggal', 'jumlah_dibagikan', 'catatan', 'created_by',
+        'program_id', 'item_id', 'nama_penerima', 'kode_id', 'tanggal', 'jumlah_dibagikan', 'catatan', 'foto', 'created_by',
     ];
 
     public function getGroupedByItems(array $itemIds): array
     {
         if (empty($itemIds)) return [];
-        $rows = $this->whereIn('item_id', $itemIds)->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC')->findAll();
+        $rows = $this->select('event_loyalty_hadiah_realisasi.*, u.name AS pengisi')
+                     ->join('users u', 'u.id = event_loyalty_hadiah_realisasi.created_by', 'left')
+                     ->whereIn('item_id', $itemIds)->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC')->findAll();
         $grouped = [];
         foreach ($rows as $row) {
             $iid = $row['item_id'];

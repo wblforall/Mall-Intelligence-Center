@@ -17,7 +17,9 @@ class SponsorshipRealisasiModel extends Model
     public function getGroupedBySponsors(array $sponsorIds): array
     {
         if (empty($sponsorIds)) return [];
-        $rows = $this->whereIn('sponsor_id', $sponsorIds)->orderBy('tanggal', 'DESC')->findAll();
+        $rows = $this->select('sponsorship_realisasi.*, u.name AS pengisi')
+                     ->join('users u', 'u.id = sponsorship_realisasi.created_by', 'left')
+                     ->whereIn('sponsor_id', $sponsorIds)->orderBy('tanggal', 'DESC')->findAll();
         $grouped = [];
         foreach ($rows as $row) {
             $sid = (int)$row['sponsor_id'];

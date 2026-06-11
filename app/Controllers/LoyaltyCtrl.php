@@ -19,6 +19,7 @@ use App\Models\StockBarangModel;
 use App\Models\StockBarangLogModel;
 use App\Models\StockVoucherBatchModel;
 use App\Models\StockVoucherKodeModel;
+use App\Models\StockVoucherLogModel;
 use App\Models\TenantModel;
 use App\Models\LoyaltySummaryAnalysisModel;
 
@@ -234,12 +235,29 @@ class LoyaltyCtrl extends BaseController
         return redirect()->to('/loyalty#program-s-' . $programId)->with('success', 'Item hadiah dihapus.');
     }
 
+    // Upload foto bukti realisasi (wajib untuk barang & voucher fisik). Return [filename|null, error|null].
+    private function uploadRealisasiFoto(): array
+    {
+        $file = $this->request->getFile('foto');
+        if (! $file || ! $file->isValid() || $file->hasMoved()) {
+            return [null, 'Foto bukti wajib diupload sebelum menyimpan realisasi.'];
+        }
+        if ($err = $this->validateUpload($file, self::MIME_IMAGE, 10)) {
+            return [null, $err];
+        }
+        $name = 'lr_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $this->safeExt($file);
+        $file->move(FCPATH . 'uploads/loyalty-realisasi', $name);
+        return [$name, null];
+    }
+
     public function storeHadiahRealisasi(int $programId, int $itemId)
     {
         if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
         if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to('/loyalty')->with('error', 'Tanggal wajib diisi.');
+        [$fotoName, $fotoErr] = $this->uploadRealisasiFoto();
+        if ($fotoErr) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', $fotoErr);
         $userId  = $this->currentUser()['id'];
         $jumlah  = (int)($post['jumlah_dibagikan'] ?? 0);
         $kodeId  = ($post['kode_id'] ?? '') !== '' ? (int)$post['kode_id'] : null;
@@ -252,6 +270,7 @@ class LoyaltyCtrl extends BaseController
             'tanggal'          => $post['tanggal'],
             'jumlah_dibagikan' => $kodeId ? 1 : $jumlah,
             'catatan'          => $post['catatan'] ?? null,
+            'foto'             => $fotoName,
             'created_by'       => $userId,
         ]);
         $rid = $hrModel->getInsertID();
@@ -261,8 +280,11 @@ class LoyaltyCtrl extends BaseController
             // Assign kode voucher fisik
             (new StockVoucherKodeModel())->assign($kodeId, $post['nama_penerima'] ?? '', 'standalone', $programId, $itemId, (int)$rid);
             if (! empty($item['batch_id'])) {
-                (new StockVoucherBatchModel())->deductSisa((int)$item['batch_id']);
-                (new StockVoucherBatchModel())->releaseSisa((int)$item['batch_id']); // reservation terpenuhi
+                $svBatch = new StockVoucherBatchModel();
+                $svSisa  = (int)($svBatch->find((int)$item['batch_id'])['sisa_kode'] ?? 0);
+                $svBatch->deductSisa((int)$item['batch_id']);
+                $svBatch->releaseSisa((int)$item['batch_id']); // reservation terpenuhi
+                (new StockVoucherLogModel())->record((int)$item['batch_id'], 'keluar', 1, $svSisa, 'program', $programId, $this->currentUser()['id'], 'Distribusi via program');
             }
         } elseif (! empty($item['barang_id']) && $jumlah > 0) {
             // Kurangi stok barang fisik + release reservation (terealisasi)
@@ -286,13 +308,17 @@ class LoyaltyCtrl extends BaseController
         $hrModel->delete($rid);
 
         if ($entry) {
+            if (! empty($entry['foto'])) { $f = FCPATH . 'uploads/loyalty-realisasi/' . $entry['foto']; if (is_file($f)) @unlink($f); }
             $item = (new LoyaltyHadiahItemModel())->find($itemId);
             if (! empty($entry['kode_id'])) {
                 // Kembalikan kode voucher fisik
                 (new StockVoucherKodeModel())->unassign((int)$entry['kode_id']);
                 if (! empty($item['batch_id'])) {
-                    (new StockVoucherBatchModel())->restoreSisa((int)$item['batch_id']);
-                    (new StockVoucherBatchModel())->reserveSisa((int)$item['batch_id']); // restore reservation
+                    $svBatch = new StockVoucherBatchModel();
+                    $svSisa  = (int)($svBatch->find((int)$item['batch_id'])['sisa_kode'] ?? 0);
+                    $svBatch->restoreSisa((int)$item['batch_id']);
+                    $svBatch->reserveSisa((int)$item['batch_id']); // restore reservation
+                    (new StockVoucherLogModel())->record((int)$item['batch_id'], 'retur', 1, $svSisa, 'program_batal', $programId, $this->currentUser()['id'], 'Batal realisasi program');
                 }
             } elseif (! empty($item['barang_id']) && (int)($entry['jumlah_dibagikan'] ?? 0) > 0) {
                 // Kembalikan stok barang fisik + restore reservation
@@ -361,6 +387,8 @@ class LoyaltyCtrl extends BaseController
         if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to('/loyalty')->with('error', 'Tanggal wajib diisi.');
+        [$fotoName, $fotoErr] = $this->uploadRealisasiFoto();
+        if ($fotoErr) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', $fotoErr);
         $userId  = $this->currentUser()['id'];
         $kodeId  = ($post['kode_id'] ?? '') !== '' ? (int)$post['kode_id'] : null;
         $vrModel = new LoyaltyVoucherRealisasiModel();
@@ -373,6 +401,7 @@ class LoyaltyCtrl extends BaseController
             'tersebar'      => $kodeId ? 1 : (int)($post['tersebar'] ?? 0),
             'terpakai'      => (int)($post['terpakai'] ?? 0),
             'catatan'       => $post['catatan'] ?? null,
+            'foto'          => $fotoName,
             'created_by'    => $userId,
         ]);
         $rid = $vrModel->getInsertID();
@@ -398,6 +427,7 @@ class LoyaltyCtrl extends BaseController
         $entry   = $vrModel->find($rid);
         $vrModel->delete($rid);
 
+        if ($entry && ! empty($entry['foto'])) { $f = FCPATH . 'uploads/loyalty-realisasi/' . $entry['foto']; if (is_file($f)) @unlink($f); }
         // Kembalikan kode ke available
         if ($entry && ! empty($entry['kode_id'])) {
             (new StockVoucherKodeModel())->unassign((int)$entry['kode_id']);
