@@ -192,10 +192,14 @@ foreach ($byTipe as $tipeItems) {
                 <?= csrf_field() ?>
                 <input type="hidden" name="tipe" value="<?= $tipe ?>">
                 <div class="row g-2 align-items-end">
-                    <div class="col-sm-4">
+                    <div class="col-sm-3">
                         <label class="form-label small fw-semibold mb-1">Nama <span class="text-danger">*</span></label>
                         <input type="text" name="nama" class="form-control form-control-sm" required
                                placeholder="<?= $tipePlaceholders[$tipe] ?? '' ?>">
+                    </div>
+                    <div class="col-sm-2">
+                        <label class="form-label small fw-semibold mb-1"><i class="bi bi-calendar3 me-1"></i>Tanggal</label>
+                        <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>">
                     </div>
                     <?php if ($tipe === 'digital'): ?>
                     <div class="col-sm-2">
@@ -218,6 +222,10 @@ foreach ($byTipe as $tipeItems) {
                         <input type="text" name="deskripsi" class="form-control form-control-sm" placeholder="Opsional">
                     </div>
                     <div class="col-sm-auto">
+                        <div class="form-check mb-1" title="Tandai item sudah selesai/close">
+                            <input type="checkbox" class="form-check-input" name="is_closed" value="1" id="close-<?= $tipe ?>">
+                            <label class="form-check-label small" for="close-<?= $tipe ?>">Selesai</label>
+                        </div>
                         <button type="submit" class="btn btn-<?= $cfg['color'] ?> btn-sm">Tambah</button>
                     </div>
                 </div>
@@ -282,6 +290,8 @@ foreach ($byTipe as $tipeItems) {
                     </span>
                     <?php endif; ?>
                     <span class="fw-semibold"><?= esc($item['nama']) ?></span>
+                    <?php if (!empty($item['is_closed'])): ?><span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-check2-circle me-1"></i>Selesai</span><?php endif; ?>
+                    <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?><span class="text-muted ms-1" style="font-size:.7rem"><i class="bi bi-calendar3"></i> <?= date('d M Y', strtotime($itgl)) ?></span><?php endif; ?>
                 </div>
                 <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '') || ($item['pic'] ?? ''))): ?>
                 <div class="small text-muted mb-1">
@@ -359,6 +369,8 @@ foreach ($byTipe as $tipeItems) {
                         data-jam-take="<?= substr($item['jam_take'] ?? '', 0, 5) ?>"
                         data-pic="<?= esc($item['pic'] ?? '', 'attr') ?>"
                         data-deskripsi="<?= esc($item['deskripsi'] ?? '', 'attr') ?>"
+                        data-tanggal="<?= $item['tanggal'] ?? '' ?>"
+                        data-is-closed="<?= !empty($item['is_closed']) ? '1' : '0' ?>"
                         data-budget="<?= number_format($iBudget, 0, ',', '.') ?>"
                         data-catatan="<?= esc($item['catatan'] ?? '', 'attr') ?>">
                     <i class="bi bi-pencil"></i>
@@ -882,6 +894,8 @@ foreach ($byTipe as $tipeItems) {
                     </span>
                     <?php endif; ?>
                     <span class="fw-semibold"><?= esc($item['nama']) ?></span>
+                    <?php if (!empty($item['is_closed'])): ?><span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-check2-circle me-1"></i>Selesai</span><?php endif; ?>
+                    <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?><span class="text-muted ms-1" style="font-size:.7rem"><i class="bi bi-calendar3"></i> <?= date('d M Y', strtotime($itgl)) ?></span><?php endif; ?>
                 </div>
                 <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '') || ($item['pic'] ?? ''))): ?>
                 <div class="small text-muted mb-1">
@@ -956,6 +970,11 @@ foreach ($byTipe as $tipeItems) {
         <label class="form-label small fw-semibold">Nama <span class="text-danger">*</span></label>
         <input type="text" name="nama" id="editNama" class="form-control" required>
     </div>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold"><i class="bi bi-calendar3 me-1"></i>Tanggal</label>
+        <input type="date" name="tanggal" id="editTanggal" class="form-control">
+        <div class="form-text" style="font-size:.72rem">Menentukan item masuk bulan apa di Summary Bulanan.</div>
+    </div>
     <div id="editPlatformDiv" class="mb-3 d-none">
         <label class="form-label small fw-semibold">Platform</label>
         <select name="platform" id="editPlatform" class="form-select">
@@ -987,9 +1006,13 @@ foreach ($byTipe as $tipeItems) {
         <label class="form-label small fw-semibold">Deskripsi</label>
         <textarea name="deskripsi" id="editDeskripsi" class="form-control" rows="2"></textarea>
     </div>
-    <div class="mb-0">
+    <div class="mb-3">
         <label class="form-label small fw-semibold">Catatan</label>
         <input type="text" name="catatan" id="editCatatan" class="form-control">
+    </div>
+    <div class="form-check mb-0">
+        <input type="checkbox" class="form-check-input" name="is_closed" id="editIsClosed" value="1">
+        <label class="form-check-label small fw-semibold" for="editIsClosed">Sudah selesai / close</label>
     </div>
 </div>
 <div class="modal-footer">
@@ -1093,6 +1116,8 @@ document.querySelectorAll('.edit-item-btn').forEach(btn => {
         document.getElementById('editItemForm').action   = '<?= base_url('creative/') ?>' + this.dataset.id + '/edit';
         document.getElementById('editTipeDisplay').textContent = tipeLabels[tipe] || tipe;
         document.getElementById('editNama').value        = this.dataset.nama;
+        document.getElementById('editTanggal').value     = this.dataset.tanggal || '';
+        document.getElementById('editIsClosed').checked  = this.dataset.isClosed === '1';
         document.getElementById('editDeskripsi').value   = this.dataset.deskripsi;
         document.getElementById('editBudget').value      = this.dataset.budget;
         document.getElementById('editCatatan').value     = this.dataset.catatan;

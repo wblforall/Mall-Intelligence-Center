@@ -318,6 +318,12 @@ foreach ($tipeOrder as $tipe):
                     <?php if ($r['hasActivity']): ?>
                     <span class="badge bg-success-subtle text-success ms-1" style="font-size:.6rem">aktif</span>
                     <?php endif; ?>
+                    <?php if (!empty($item['is_closed'])): ?>
+                    <span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-check2-circle me-1"></i>Selesai</span>
+                    <?php endif; ?>
+                    <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?>
+                    <div class="small text-muted"><i class="bi bi-calendar3 me-1"></i><?= date('d M Y', strtotime($itgl)) ?></div>
+                    <?php endif; ?>
                     <?php if (!empty($item['event_name'])): ?>
                     <div class="small text-muted"><?= esc($item['event_name']) ?></div>
                     <?php endif; ?>

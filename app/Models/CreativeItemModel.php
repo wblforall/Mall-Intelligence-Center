@@ -11,7 +11,7 @@ class CreativeItemModel extends Model
     protected $useTimestamps = true;
     protected $allowedFields = [
         'tipe', 'nama', 'platform', 'tanggal_take', 'jam_take', 'pic',
-        'deskripsi', 'budget', 'status', 'catatan', 'urutan', 'created_by',
+        'deskripsi', 'tanggal', 'budget', 'status', 'is_closed', 'closed_at', 'catatan', 'urutan', 'created_by',
     ];
 
     public function getAll(): array

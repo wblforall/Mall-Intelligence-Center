@@ -264,7 +264,13 @@ foreach ($rows as $r) {
     $isSt    = $item['_source'] === 's';
 ?>
 <tr class="<?= $r['hasActivity'] ? 'has-activity' : '' ?>">
-    <td><strong><?= esc($item['nama']) ?></strong></td>
+    <td>
+        <strong><?= esc($item['nama']) ?></strong>
+        <?php if (!empty($item['is_closed'])): ?> <span style="font-size:8px;color:#15803d;font-weight:700">[Selesai]</span><?php endif; ?>
+        <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?>
+        <div style="font-size:8px;color:#94a3b8"><?= date('d M Y', strtotime($itgl)) ?></div>
+        <?php endif; ?>
+    </td>
     <td>
         <span class="src-pill <?= $isSt ? 'src-standalone' : 'src-event' ?>">
             <?= $isSt ? 'Standalone' : 'Event' ?>

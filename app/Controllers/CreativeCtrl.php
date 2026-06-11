@@ -206,6 +206,13 @@ $user = $this->currentUser();
             $insMonth    = $isSt ? ($sIns[$iid]  ?? null) : ($eIns[$iid]  ?? null);
             $hasActivity = $isSt ? isset($activeStSet[$iid]) : isset($activeEvSet[$iid]);
 
+            // Item standalone: hanya tampil di bulan miliknya (dari tanggal item, fallback tanggal_take)
+            // atau bila ada aktivitas (realisasi/insight) di bulan ini.
+            if ($isSt) {
+                $itemMonth = substr(($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''), 0, 7);
+                if (! $hasActivity && $itemMonth !== $bulan) continue;
+            }
+
             $rows[] = compact('item', 'realMonth', 'insMonth', 'hasActivity');
         }
 
@@ -434,7 +441,10 @@ $user = $this->currentUser();
             'jam_take'     => $isDigital ? ($post['jam_take'] ?: null) : null,
             'pic'          => $isDigital ? ($post['pic'] ?: null) : null,
             'deskripsi'    => $post['deskripsi'] ?? null,
+            'tanggal'      => ($post['tanggal'] ?? '') ?: null,
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
+            'is_closed'    => !empty($post['is_closed']) ? 1 : 0,
+            'closed_at'    => !empty($post['is_closed']) ? (($post['closed_at'] ?? '') ?: date('Y-m-d')) : null,
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
             'created_by'   => $this->currentUser()['id'],
@@ -463,7 +473,10 @@ $user = $this->currentUser();
             'jam_take'     => $isDigital ? ($post['jam_take'] ?: null) : null,
             'pic'          => $isDigital ? ($post['pic'] ?: null) : null,
             'deskripsi'    => $post['deskripsi'] ?? null,
+            'tanggal'      => ($post['tanggal'] ?? '') ?: null,
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
+            'is_closed'    => !empty($post['is_closed']) ? 1 : 0,
+            'closed_at'    => !empty($post['is_closed']) ? (($post['closed_at'] ?? '') ?: date('Y-m-d')) : null,
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
         ];
