@@ -56,6 +56,27 @@ class StockBarangLogModel extends Model
         $this->where('referensi_tipe', $refTipe)->where('referensi_id', $refId)->delete();
     }
 
+    // Kartu stok satu barang (kronologis ASC, dengan saldo berjalan stok_sesudah)
+    public function getByBarangAsc(int $barangId, ?string $dari = null, ?string $sampai = null): array
+    {
+        $q = $this->where('barang_id', $barangId);
+        if ($dari)   $q->where('tanggal >=', $dari);
+        if ($sampai) $q->where('tanggal <=', $sampai);
+        return $q->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC')->findAll();
+    }
+
+    // Rekap masuk/keluar per barang dalam periode → [barang_id => ['masuk'=>, 'keluar'=>]]
+    public function getPeriodSummary(string $dari, string $sampai): array
+    {
+        $rows = $this->select('barang_id, tipe, SUM(jumlah) AS total')
+                     ->where('tanggal >=', $dari)->where('tanggal <=', $sampai)
+                     ->groupBy('barang_id')->groupBy('tipe')
+                     ->findAll();
+        $map = [];
+        foreach ($rows as $r) { $map[$r['barang_id']][$r['tipe']] = (int)$r['total']; }
+        return $map;
+    }
+
     public function getMutasi(string $dari, string $sampai, ?int $barangId = null): array
     {
         $q = $this->db->table('stock_barang_log l')

@@ -74,8 +74,16 @@
     <td>
         <?php if ($kode['program_type'] === 'manual'): ?>
         <span class="badge bg-secondary">Manual</span>
-        <?php elseif ($kode['program_type']): ?>
-        <?= esc($kode['program_type'].' #'.$kode['program_id']) ?>
+        <?php elseif ($kode['program_type']):
+            $pnKey = $kode['program_type'] . '_' . $kode['program_id'];
+            $pn    = $progNames[$pnKey] ?? null;
+        ?>
+        <?php if ($pn): ?>
+        <span class="fw-medium"><?= esc($pn) ?></span>
+        <span class="badge bg-<?= $kode['program_type'] === 'event' ? 'warning text-dark' : 'primary' ?>-subtle text-<?= $kode['program_type'] === 'event' ? 'warning-emphasis' : 'primary' ?>" style="font-size:.6rem"><?= $kode['program_type'] === 'event' ? 'Event' : 'Standalone' ?></span>
+        <?php else: ?>
+        <?= esc(($kode['program_type'] === 'event' ? 'Event' : 'Program') . ' #' . $kode['program_id']) ?>
+        <?php endif; ?>
         <?php else: ?>
         —
         <?php endif; ?>
@@ -88,6 +96,10 @@
         <a href="<?= base_url('stock/voucher/'.$batch['id'].'/kode/'.$kode['id'].'/delete') ?>"
            onclick="return confirm('Hapus kode ini?')"
            class="btn btn-xs btn-outline-danger py-0 px-1"><i class="bi bi-x"></i></a>
+        <?php elseif (($canDeassign ?? false) && $kode['status'] === 'assigned' && $kode['program_type'] === 'manual'): ?>
+        <a href="<?= base_url('stock/voucher/'.$batch['id'].'/kode/'.$kode['id'].'/deassign') ?>"
+           onclick="return confirm('Batalkan distribusi manual kode ini? Kode kembali ke stok tersedia agar bisa dialokasikan via program.')"
+           class="btn btn-xs btn-outline-warning py-0 px-1" title="Batalkan distribusi manual"><i class="bi bi-arrow-counterclockwise me-1"></i>Batalkan</a>
         <?php endif; ?>
     </td>
 </tr>

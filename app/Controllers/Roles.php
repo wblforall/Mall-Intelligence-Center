@@ -49,6 +49,7 @@ class Roles extends BaseController
             'can_approve_promo_media' => isset($post['can_approve_promo_media']) ? 1 : 0,
             'can_approve_legal'       => isset($post['can_approve_legal'])       ? 1 : 0,
             'can_view_gantt'          => isset($post['can_view_gantt'])          ? 1 : 0,
+            'can_deassign_voucher'    => isset($post['can_deassign_voucher'])    ? 1 : 0,
         ]);
 
         ActivityLog::write('create', 'role', null, trim($post['name']));
@@ -88,6 +89,7 @@ class Roles extends BaseController
             'can_approve_promo_media' => isset($post['can_approve_promo_media']) ? 1 : 0,
             'can_approve_legal'       => isset($post['can_approve_legal'])       ? 1 : 0,
             'can_view_gantt'          => isset($post['can_view_gantt'])          ? 1 : 0,
+            'can_deassign_voucher'    => isset($post['can_deassign_voucher'])    ? 1 : 0,
         ];
         $model->update($id, $roleData);
         ActivityLog::captureAfter($roleData);

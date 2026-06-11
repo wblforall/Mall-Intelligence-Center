@@ -249,12 +249,16 @@ $routes->post('stock/barang/(:num)/realisasi', 'StockBarangCtrl::storeRealisasi/
 $routes->get('stock/barang/(:num)/delete', 'StockBarangCtrl::delete/$1', ['filter' => 'auth']);
 
 // Stock Voucher Fisik
+$routes->get('stock/summary', 'StockCtrl::summary', ['filter' => 'auth']);
+$routes->get('stock/barang/(:num)/kartu', 'StockCtrl::kartuBarang/$1', ['filter' => 'auth']);
+$routes->get('stock/voucher/(:num)/kartu', 'StockCtrl::kartuVoucher/$1', ['filter' => 'auth']);
 $routes->get('stock/voucher', 'StockVoucherCtrl::index', ['filter' => 'auth']);
 $routes->post('stock/voucher/store', 'StockVoucherCtrl::store', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/update', 'StockVoucherCtrl::update/$1', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/import-kode', 'StockVoucherCtrl::importKode/$1', ['filter' => 'auth']);
 $routes->get('stock/voucher/(:num)/kode/(:num)/delete', 'StockVoucherCtrl::deleteKode/$1/$2', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/kode/(:num)/distribute', 'StockVoucherCtrl::distributeKode/$1/$2', ['filter' => 'auth']);
+$routes->get('stock/voucher/(:num)/kode/(:num)/deassign', 'StockVoucherCtrl::deassignKode/$1/$2', ['filter' => 'auth']);
 $routes->get('stock/voucher/(:num)/delete', 'StockVoucherCtrl::deleteBatch/$1', ['filter' => 'auth']);
 $routes->get('stock/voucher/(:num)/available-kodes', 'StockVoucherCtrl::getAvailableKodes/$1', ['filter' => 'auth']);
 

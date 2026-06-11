@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Libraries\ActivityLog;
 use App\Models\StockVoucherBatchModel;
 use App\Models\StockVoucherKodeModel;
+use App\Models\StockVoucherLogModel;
 
 class StockVoucherCtrl extends BaseController
 {
@@ -18,13 +19,35 @@ class StockVoucherCtrl extends BaseController
         $kodeModel  = new StockVoucherKodeModel();
         $batches    = $batchModel->getAll();
 
+        $stIds = []; $evIds = [];
         foreach ($batches as &$batch) {
             $batch['kodes'] = $kodeModel->getByBatch((int)$batch['id']);
+            foreach ($batch['kodes'] as $k) {
+                if (! $k['program_id']) continue;
+                if ($k['program_type'] === 'standalone') $stIds[] = (int)$k['program_id'];
+                elseif ($k['program_type'] === 'event')  $evIds[] = (int)$k['program_id'];
+            }
+        }
+        unset($batch);
+
+        // Map nama program (standalone + event) untuk ditampilkan, bukan kode/id
+        $progNames = [];
+        if ($stIds) {
+            foreach ((new \App\Models\LoyaltyProgramModel())->whereIn('id', array_unique($stIds))->findAll() as $p) {
+                $progNames['standalone_' . $p['id']] = $p['nama_program'];
+            }
+        }
+        if ($evIds) {
+            foreach ((new \App\Models\EventLoyaltyModel())->whereIn('id', array_unique($evIds))->findAll() as $p) {
+                $progNames['event_' . $p['id']] = $p['nama_program'];
+            }
         }
 
         return view('stock/voucher/index', [
-            'user'    => $this->currentUser(),
-            'batches' => $batches,
+            'user'        => $this->currentUser(),
+            'batches'     => $batches,
+            'canDeassign' => $this->can('can_deassign_voucher'),
+            'progNames'   => $progNames,
         ]);
     }
 
@@ -90,7 +113,11 @@ class StockVoucherCtrl extends BaseController
         $kodes    = array_unique(array_filter(array_map('trim', explode("\n", $raw))));
         $kodeModel = new StockVoucherKodeModel();
 
+        $sisaSebelum = (int)$batch['sisa_kode'];
         $inserted = $kodeModel->importKodes($batchId, $kodes);
+        if ($inserted > 0) {
+            (new StockVoucherLogModel())->record($batchId, 'masuk', $inserted, $sisaSebelum, 'import', null, $this->currentUser()['id'], "Import {$inserted} kode");
+        }
 
         // Update total_kode and sisa_kode
         $total     = db_connect()->table('stock_voucher_kode')->where('batch_id', $batchId)->countAllResults();
@@ -118,12 +145,17 @@ class StockVoucherCtrl extends BaseController
             return redirect()->to('/stock/voucher')->with('error', 'Kode sudah diassign, tidak bisa dihapus.');
         }
 
+        $batchModel  = new StockVoucherBatchModel();
+        $sisaSebelum = (int)($batchModel->find($batchId)['sisa_kode'] ?? 0);
+
         (new StockVoucherKodeModel())->delete($kodeId);
 
-        $batchModel = new StockVoucherBatchModel();
         $total = db_connect()->table('stock_voucher_kode')->where('batch_id', $batchId)->countAllResults();
         $sisa  = db_connect()->table('stock_voucher_kode')->where('batch_id', $batchId)->where('status', 'available')->countAllResults();
         $batchModel->update($batchId, ['total_kode' => $total, 'sisa_kode' => $sisa]);
+
+        // kode available yang dihapus mengurangi stok tersedia
+        (new StockVoucherLogModel())->record($batchId, 'keluar', 1, $sisaSebelum, 'delete', $kodeId, $this->currentUser()['id'], "Hapus kode {$kode['kode']}");
 
         return redirect()->to('/stock/voucher')->with('success', 'Kode dihapus.');
     }
@@ -144,14 +176,45 @@ class StockVoucherCtrl extends BaseController
         }
 
         $namaPenerima = trim($this->request->getPost('nama_penerima') ?? '');
+        $batchModel   = new StockVoucherBatchModel();
+        $sisaSebelum  = (int)($batchModel->find($batchId)['sisa_kode'] ?? 0);
         $kodeModel->assignManual($kodeId, $namaPenerima);
-        (new StockVoucherBatchModel())->deductSisa($batchId);
+        $batchModel->deductSisa($batchId);
+        (new StockVoucherLogModel())->record($batchId, 'keluar', 1, $sisaSebelum, 'manual', $kodeId, $this->currentUser()['id'], 'Distribusi manual' . ($namaPenerima ? " ke {$namaPenerima}" : ''));
         // stok_reserved tidak diubah — distribusi manual bukan realisasi dari reservasi program
 
         ActivityLog::captureBefore(['status' => $kode['status'], 'nama_penerima' => $kode['nama_penerima'] ?? '']);
         ActivityLog::captureAfter(['status'  => 'assigned',      'nama_penerima' => $namaPenerima]);
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Distribusi manual kode {$kode['kode']}");
         return redirect()->to('/stock/voucher')->with('success', "Kode {$kode['kode']} berhasil didistribusikan.");
+    }
+
+    // Batalkan distribusi MANUAL — kode kembali ke stok tersedia (mis. mau dialokasikan via program)
+    public function deassignKode(int $batchId, int $kodeId)
+    {
+        if (! $this->can('can_deassign_voucher')) {
+            return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak. Anda tidak memiliki izin membatalkan distribusi voucher.');
+        }
+
+        $kodeModel = new StockVoucherKodeModel();
+        $kode      = $kodeModel->find($kodeId);
+        if (! $kode || (int)$kode['batch_id'] !== $batchId) {
+            return redirect()->to('/stock/voucher')->with('error', 'Kode tidak ditemukan.');
+        }
+        if ($kode['status'] !== 'assigned' || $kode['program_type'] !== 'manual') {
+            return redirect()->to('/stock/voucher')->with('error', 'Hanya distribusi manual yang bisa dibatalkan di sini. Untuk kode dari program, batalkan lewat realisasi program terkait.');
+        }
+
+        $batchModel  = new StockVoucherBatchModel();
+        $sisaSebelum = (int)($batchModel->find($batchId)['sisa_kode'] ?? 0);
+        $kodeModel->unassign($kodeId);
+        $batchModel->restoreSisa($batchId); // kembalikan ke stok tersedia
+        (new StockVoucherLogModel())->record($batchId, 'retur', 1, $sisaSebelum, 'deassign', $kodeId, $this->currentUser()['id'], "Batal distribusi kode {$kode['kode']}");
+
+        ActivityLog::captureBefore(['status' => 'assigned',  'nama_penerima' => $kode['nama_penerima'] ?? '']);
+        ActivityLog::captureAfter(['status'  => 'available', 'nama_penerima' => '']);
+        ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Batal distribusi manual kode {$kode['kode']}");
+        return redirect()->to('/stock/voucher')->with('success', "Distribusi kode {$kode['kode']} dibatalkan — kembali ke stok tersedia.");
     }
 
     public function deleteBatch(int $id)
