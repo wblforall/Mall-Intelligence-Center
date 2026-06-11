@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.8** (Juni 2026)
+> Versi saat ini: **v2.9** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,29 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.9
+
+**Tanggal Rilis:** 11 Juni 2026
+
+### Stok Fisik — Summary & Kartu Stok
+
+- Halaman **Summary Stok Fisik** (`stock/summary`): rekap gabungan barang & voucher fisik — stok tersedia, masuk/keluar (voucher + retur) per periode, nilai stok, dengan link ke Kartu Stok tiap item. Link di sidebar.
+- **Kartu Stok per item** (barang & voucher): riwayat mutasi kronologis + saldo berjalan, filter periode.
+- **Log mutasi voucher** baru (`stock_voucher_log`): tercatat otomatis saat import (masuk), distribusi manual/ via program (keluar), deassign/batal program (retur), hapus kode.
+- Halaman Stock Voucher kini menampilkan **nama program** (bukan kode/id).
+
+### Voucher — Batalkan Distribusi Manual + Permission
+
+- Tombol **Batalkan** pada kode voucher yang didistribusi manual → kembali ke stok tersedia (untuk dialokasikan via program). Dikontrol permission baru **`can_deassign_voucher`** (per role).
+
+### Loyalty & Sponsorship — Nama Pengisi + Foto Bukti
+
+- **Nama pengisi** ditampilkan di semua entri realisasi loyalty (member, hadiah, voucher — standalone & event) dan realisasi **sponsorship** (PIC), otomatis dari user yang menginput.
+- Realisasi **barang & voucher fisik** kini **wajib upload foto bukti** sebelum bisa disimpan (standalone & event); foto tampil sebagai thumbnail.
+- Pencarian program di halaman Loyalty (cari lintas tab).
 
 ---
 
