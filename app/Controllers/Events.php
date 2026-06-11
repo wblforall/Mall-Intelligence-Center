@@ -33,13 +33,14 @@ class Events extends BaseController
             'incompleteCount' => $incompleteCount,
             'pendingCount'    => $pendingCount,
             'canApprove'      => $canApprove,
+            'canCreate'       => $this->can('can_create_event') || $this->canEditMenu('content'),
         ]);
     }
 
     public function create()
     {
-        if (! $this->canEditMenu('content')) {
-            return redirect()->to('/events')->with('error', 'Akses ditolak. Hanya Event & Promo yang dapat membuat event.');
+        if (! $this->can('can_create_event') && ! $this->canEditMenu('content')) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak. Anda tidak memiliki izin membuat event.');
         }
         $locModel = new EventLocationModel();
         return view('events/create', [
@@ -50,7 +51,7 @@ class Events extends BaseController
 
     public function store()
     {
-        if (! $this->canEditMenu('content')) {
+        if (! $this->can('can_create_event') && ! $this->canEditMenu('content')) {
             return redirect()->to('/events')->with('error', 'Akses ditolak.');
         }
 

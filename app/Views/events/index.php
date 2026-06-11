@@ -25,7 +25,7 @@ tr.table-danger  { --bs-table-bg: rgba(239,68,68,.12) !important; }
         <a href="<?= base_url('events/compare') ?>" class="btn btn-outline-secondary btn-sm" id="compareBtn" style="display:none!important">
             <i class="bi bi-arrow-left-right me-1"></i> Bandingkan
         </a>
-        <?php if ($user['role'] === 'admin' || $user['role'] === 'manager'): ?>
+        <?php if ($canCreate ?? false): ?>
         <a href="<?= base_url('events/create') ?>" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i> Buat Event
         </a>
@@ -62,7 +62,7 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
         <div class="p-5 text-center text-muted">
             <i class="bi bi-inbox display-3 d-block mb-3"></i>
             <p>Belum ada event. Mulai dengan membuat event baru.</p>
-            <?php if ($user['role'] === 'admin' || $user['role'] === 'manager'): ?>
+            <?php if ($canCreate ?? false): ?>
             <a href="<?= base_url('events/create') ?>" class="btn btn-primary">Buat Event Pertama</a>
             <?php endif; ?>
         </div>
