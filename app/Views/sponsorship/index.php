@@ -296,6 +296,30 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                         <?php elseif ($nilaiDeal > 0 && $nilaiReal > 0): ?>
                         <div class="text-muted" style="font-size:.7rem"><?= round($nilaiReal / $nilaiDeal * 100) ?>%</div>
                         <?php endif; ?>
+                        <?php
+                        // Tanggal input sponsor → durasi sampai realisasi terpenuhi (kumulatif capai nilai deal)
+                        $inputDate   = ! empty($sp['created_at']) ? substr($sp['created_at'], 0, 10) : null;
+                        $fulfillDate = null;
+                        if ($nilaiDeal > 0 && ! empty($spReal['entries'])) {
+                            $ents = $spReal['entries'];
+                            usort($ents, fn($a, $b) => strcmp($a['tanggal'] ?? '', $b['tanggal'] ?? ''));
+                            $cum = 0;
+                            foreach ($ents as $en) {
+                                $cum += (int)$en['nilai'];
+                                if ($cum >= $nilaiDeal) { $fulfillDate = $en['tanggal']; break; }
+                            }
+                        }
+                        ?>
+                        <?php if ($inputDate): ?>
+                        <div class="text-muted fw-normal" style="font-size:.66rem">
+                            <i class="bi bi-calendar-plus me-1"></i><?= date('d/m/y', strtotime($inputDate)) ?>
+                            <?php if ($fulfillDate): $days = max(0, (int)floor((strtotime($fulfillDate) - strtotime($inputDate)) / 86400)); ?>
+                            → <span class="text-success"><?= date('d/m/y', strtotime($fulfillDate)) ?> (<?= $days ?> hari)</span>
+                            <?php else: ?>
+                            · <span class="text-warning-emphasis">belum terpenuhi</span>
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
                     </td>
                     <td><span class="deal-badge deal-<?= $sp['status_deal'] ?>"><?= $dealStatusLabel[$sp['status_deal']] ?? $sp['status_deal'] ?></span></td>
                     <?php if ($canEditProg): ?>
