@@ -116,9 +116,14 @@ $user = $this->currentUser();
         }
 
         $bulan = $this->request->getGet('bulan') ?? date('Y-m');
-        if (!preg_match('/^\d{4}-\d{2}$/', $bulan)) {
-            $bulan = date('Y-m');
-        }
+        if (!preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+
+        return view('creative_main/monthly', ['user' => $this->currentUser()] + $this->computeCreativeMonthly($bulan));
+    }
+
+    // Hitung seluruh data summary creative untuk satu bulan (dipakai layar & cetak)
+    private function computeCreativeMonthly(string $bulan): array
+    {
         [$year, $month] = explode('-', $bulan);
         $year  = (int)$year;
         $month = (int)$month;
@@ -149,6 +154,38 @@ $user = $this->currentUser();
         $totalReach     = array_sum(array_map(fn($g) => $g['max_reach'] ?? 0, array_merge($sIns, $eIns)));
         $totalImpr      = array_sum(array_map(fn($g) => $g['max_impressions'] ?? 0, array_merge($sIns, $eIns)));
         $totalFollowers = array_sum(array_map(fn($g) => $g['total_followers_gained'] ?? 0, array_merge($sIns, $eIns)));
+
+        // Engagement & efisiensi (bulan ini)
+        $allIns = array_merge($sIns, $eIns);
+        $totalViews      = array_sum(array_map(fn($g) => $g['max_views'] ?? 0, $allIns));
+        $totalEngagement = array_sum(array_map(fn($g) =>
+            ($g['max_likes'] ?? 0) + ($g['max_comments'] ?? 0) + ($g['max_shares'] ?? 0) + ($g['max_saves'] ?? 0), $allIns));
+        $engagementRate  = $totalReach > 0 ? round($totalEngagement / $totalReach * 100, 1) : 0;
+        $cpm             = $totalImpr  > 0 ? (int) round($totalRealisasi / $totalImpr * 1000) : 0; // biaya / 1.000 impresi
+        $costPerReach    = $totalReach > 0 ? (int) round($totalRealisasi / $totalReach) : 0;
+
+        // Serapan budget kumulatif (realisasi s/d bulan ini ÷ total budget)
+        $realCumulative = (new CreativeRealisasiModel())->getTotalUpTo($bulan, $standaloneIds)
+                        + (new EventCreativeRealisasiModel())->getTotalUpTo($bulan, $eventItemIds);
+        $serapanPct     = $totalBudget > 0 ? round($realCumulative / $totalBudget * 100, 1) : 0;
+
+        // Delta vs bulan sebelumnya
+        $prev = $this->creativeMonthlyTotals($prevBulan, $standaloneIds, $eventItemIds);
+
+        // Tren 6 bulan terakhir
+        $trendLabels = $trendReach = $trendImpr = $trendEng = $trendReal = $trendFoll = [];
+        $shortBulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+        for ($i = 5; $i >= 0; $i--) {
+            $mt = date('Y-m', mktime(0, 0, 0, $month - $i, 1, $year));
+            $t  = $this->creativeMonthlyTotals($mt, $standaloneIds, $eventItemIds);
+            $dt = \DateTime::createFromFormat('Y-m', $mt);
+            $trendLabels[] = $shortBulan[(int)$dt->format('n') - 1] . ' ' . $dt->format('y');
+            $trendReach[]  = $t['reach'];
+            $trendImpr[]   = $t['impr'];
+            $trendEng[]    = $t['eng'];
+            $trendReal[]   = $t['real'];
+            $trendFoll[]   = $t['foll'];
+        }
 
         $statusCounts = [];
         foreach ($allItems as $item) {
@@ -200,8 +237,46 @@ $user = $this->currentUser();
             }
         }
 
-        return view('creative_main/monthly', [
-            'user'            => $this->currentUser(),
+        // Konten terbaik bulan ini (by reach)
+        $topItemName = ''; $topItemReach = 0; $topItemEng = 0;
+        foreach ($rows as $r) {
+            if ($r['insMonth'] === null) continue;
+            $rr = (int)($r['insMonth']['max_reach'] ?? 0);
+            if ($rr > $topItemReach) {
+                $topItemReach = $rr;
+                $topItemName  = $r['item']['nama'];
+                $topItemEng   = (int)(($r['insMonth']['max_likes'] ?? 0) + ($r['insMonth']['max_comments'] ?? 0)
+                                    + ($r['insMonth']['max_shares'] ?? 0) + ($r['insMonth']['max_saves'] ?? 0));
+            }
+        }
+
+        // Analisa otomatis (berbasis aturan; bisa di-upgrade ke AI nanti)
+        $analysis = $this->buildCreativeAnalysis([
+            'bulan'           => $bulan,
+            'totalItems'      => count($rows),
+            'activeCount'     => $activeCount,
+            'totalBudget'     => $totalBudget,
+            'realCumulative'  => $realCumulative,
+            'serapanPct'      => $serapanPct,
+            'totalRealisasi'  => $totalRealisasi,
+            'realPrev'        => $prev['real'],
+            'totalReach'      => $totalReach,
+            'reachPrev'       => $prev['reach'],
+            'totalImpr'       => $totalImpr,
+            'imprPrev'        => $prev['impr'],
+            'totalEngagement' => $totalEngagement,
+            'engPrev'         => $prev['eng'],
+            'engagementRate'  => $engagementRate,
+            'totalFollowers'  => $totalFollowers,
+            'follPrev'        => $prev['foll'],
+            'cpm'             => $cpm,
+            'costPerReach'    => $costPerReach,
+            'topItemName'     => $topItemName,
+            'topItemReach'    => $topItemReach,
+            'topItemEng'      => $topItemEng,
+        ]);
+
+        return [
             'bulan'           => $bulan,
             'year'            => $year,
             'month'           => $month,
@@ -214,6 +289,23 @@ $user = $this->currentUser();
             'totalReach'      => $totalReach,
             'totalImpressions'=> $totalImpr,
             'totalFollowers'  => $totalFollowers,
+            'totalViews'      => $totalViews,
+            'totalEngagement' => $totalEngagement,
+            'engagementRate'  => $engagementRate,
+            'cpm'             => $cpm,
+            'costPerReach'    => $costPerReach,
+            'realCumulative'  => $realCumulative,
+            'serapanPct'      => $serapanPct,
+            'prev'            => $prev,
+            'trendLabels'     => $trendLabels,
+            'trendReach'      => $trendReach,
+            'trendImpr'       => $trendImpr,
+            'trendEng'        => $trendEng,
+            'trendReal'       => $trendReal,
+            'trendFoll'       => $trendFoll,
+            'topItemName'     => $topItemName,
+            'topItemReach'    => $topItemReach,
+            'topItemEng'      => $topItemEng,
             'statusCounts'    => $statusCounts,
             'chartItems'      => $chartItems,
             'chartBudget'     => $chartBudget,
@@ -221,7 +313,93 @@ $user = $this->currentUser();
             'insightLabels'   => $insightLabels,
             'insightReach'    => $insightReach,
             'insightImpr'     => $insightImpr,
-        ]);
+            'analysis'        => $analysis,
+        ];
+    }
+
+    // Generator analisa otomatis (rule-based) dari metrik bulanan
+    private function buildCreativeAnalysis(array $m): array
+    {
+        $a   = [];
+        $fmt = fn($n) => number_format((int)$n);
+        $rp  = fn($n) => 'Rp ' . number_format((int)$n, 0, ',', '.');
+        $pct = fn($cur, $prev) => $prev > 0 ? (int) round(($cur - $prev) / $prev * 100) : null;
+        $arah = fn($d) => $d > 0 ? "naik {$d}%" : ($d < 0 ? "turun " . abs($d) . "%" : "stabil");
+
+        if ($m['activeCount'] <= 0) {
+            return ["Belum ada aktivitas (realisasi/insight) creative yang tercatat bulan ini."];
+        }
+        $a[] = "{$m['activeCount']} dari {$m['totalItems']} item creative aktif bulan ini.";
+
+        if ($m['totalReach'] > 0) {
+            $d = $pct($m['totalReach'], $m['reachPrev']);
+            $a[] = $d === null
+                ? "Total reach " . $fmt($m['totalReach']) . " (belum ada pembanding bulan lalu)."
+                : "Total reach " . $fmt($m['totalReach']) . " — " . $arah($d) . " vs bulan lalu.";
+        }
+
+        if ($m['totalEngagement'] > 0) {
+            $r = $m['engagementRate'];
+            $nilai = $r >= 3 ? "tergolong sangat baik" : ($r >= 1 ? "tergolong sehat" : "tergolong rendah");
+            $a[] = "Engagement " . $fmt($m['totalEngagement']) . " (rate {$r}% dari reach), {$nilai}.";
+        }
+
+        if ($m['totalBudget'] > 0) {
+            $s = $m['serapanPct'];
+            $cat = $s > 100 ? "melebihi budget — perlu perhatian" : ($s >= 80 ? "mendekati batas budget" : "masih dalam batas aman");
+            $a[] = "Realisasi bulan ini " . $rp($m['totalRealisasi']) . "; serapan budget kumulatif {$s}% ({$cat}).";
+        } elseif ($m['totalRealisasi'] > 0) {
+            $a[] = "Realisasi bulan ini " . $rp($m['totalRealisasi']) . " (budget belum di-set).";
+        }
+
+        if ($m['cpm'] > 0) {
+            $a[] = "Efisiensi: " . $rp($m['cpm']) . " per 1.000 impresi"
+                 . ($m['costPerReach'] > 0 ? " (" . $rp($m['costPerReach']) . " per reach)." : ".");
+        }
+
+        if ($m['totalFollowers'] > 0) {
+            $d = $pct($m['totalFollowers'], $m['follPrev']);
+            $a[] = "Pertumbuhan follower +" . $fmt($m['totalFollowers']) . ($d === null ? "." : " (" . $arah($d) . " vs bulan lalu).");
+        }
+
+        if ($m['topItemReach'] > 0) {
+            $a[] = "Konten terbaik: \"{$m['topItemName']}\" — " . $fmt($m['topItemReach']) . " reach"
+                 . ($m['topItemEng'] > 0 ? " & " . $fmt($m['topItemEng']) . " engagement." : ".");
+        }
+
+        // Rekomendasi
+        $rec = [];
+        if ($m['totalEngagement'] > 0 && $m['engagementRate'] < 1) {
+            $rec[] = "tingkatkan konten interaktif (CTA, pertanyaan, video) untuk mendongkrak engagement";
+        }
+        if ($m['totalBudget'] > 0 && $m['serapanPct'] < 50) {
+            $rec[] = "percepat realisasi agar serapan budget tidak menumpuk di akhir periode";
+        }
+        if (($d = $pct($m['totalReach'], $m['reachPrev'])) !== null && $d < 0) {
+            $rec[] = "evaluasi materi karena reach menurun dibanding bulan lalu";
+        }
+        if ($rec) $a[] = "Rekomendasi: " . implode('; ', $rec) . ".";
+
+        return $a;
+    }
+
+    // Total agregat creative untuk satu bulan (untuk tren & delta)
+    private function creativeMonthlyTotals(string $bulan, array $sIds, array $eIds): array
+    {
+        $sReal = $sIds ? (new CreativeRealisasiModel())->getMonthlyGrouped($bulan, $sIds) : [];
+        $eReal = $eIds ? (new EventCreativeRealisasiModel())->getMonthlyGrouped($bulan, $eIds) : [];
+        $sIns  = $sIds ? (new CreativeInsightModel())->getMonthlyGrouped($bulan, $sIds) : [];
+        $eIns  = $eIds ? (new EventCreativeInsightModel())->getMonthlyGrouped($bulan, $eIds) : [];
+        $ins   = array_merge($sIns, $eIns);
+        return [
+            'real'  => (int) array_sum(array_map(fn($g) => $g['total'] ?? 0, array_merge($sReal, $eReal))),
+            'reach' => (int) array_sum(array_map(fn($g) => $g['max_reach'] ?? 0, $ins)),
+            'impr'  => (int) array_sum(array_map(fn($g) => $g['max_impressions'] ?? 0, $ins)),
+            'views' => (int) array_sum(array_map(fn($g) => $g['max_views'] ?? 0, $ins)),
+            'foll'  => (int) array_sum(array_map(fn($g) => $g['total_followers_gained'] ?? 0, $ins)),
+            'eng'   => (int) array_sum(array_map(fn($g) =>
+                ($g['max_likes'] ?? 0) + ($g['max_comments'] ?? 0) + ($g['max_shares'] ?? 0) + ($g['max_saves'] ?? 0), $ins)),
+        ];
     }
 
     public function printMonthly()
@@ -232,63 +410,11 @@ $user = $this->currentUser();
 
         $bulan = $this->request->getGet('bulan') ?? date('Y-m');
         if (!preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
-        [$year, $month] = explode('-', $bulan);
-
-        $standaloneItems = (new CreativeItemModel())->getAll();
-        foreach ($standaloneItems as &$si) { $si['_source'] = 's'; } unset($si);
-        $eventItems = (new EventCreativeItemModel())->getAllWithEvents();
-        foreach ($eventItems as &$ei) { $ei['_source'] = 'e'; } unset($ei);
-
-        $standaloneIds = array_column($standaloneItems, 'id');
-        $eventItemIds  = array_column($eventItems, 'id');
-
-        $sReal = empty($standaloneIds) ? [] : (new CreativeRealisasiModel())->getMonthlyGrouped($bulan, $standaloneIds);
-        $eReal = empty($eventItemIds)  ? [] : (new EventCreativeRealisasiModel())->getMonthlyGrouped($bulan, $eventItemIds);
-        $sIns  = empty($standaloneIds) ? [] : (new CreativeInsightModel())->getMonthlyGrouped($bulan, $standaloneIds);
-        $eIns  = empty($eventItemIds)  ? [] : (new EventCreativeInsightModel())->getMonthlyGrouped($bulan, $eventItemIds);
-
-        $allItems = array_merge($standaloneItems, $eventItems);
-
-        $totalBudget    = array_sum(array_column($allItems, 'budget'));
-        $totalRealisasi = array_sum(array_map(fn($g) => $g['total'] ?? 0, array_merge($sReal, $eReal)));
-        $totalReach     = array_sum(array_map(fn($g) => $g['max_reach'] ?? 0, array_merge($sIns, $eIns)));
-        $totalImpr      = array_sum(array_map(fn($g) => $g['max_impressions'] ?? 0, array_merge($sIns, $eIns)));
-        $totalFollowers = array_sum(array_map(fn($g) => $g['total_followers_gained'] ?? 0, array_merge($sIns, $eIns)));
-
-        $statusCounts = [];
-        foreach ($allItems as $item) {
-            $s = $item['status'] ?? 'draft';
-            $statusCounts[$s] = ($statusCounts[$s] ?? 0) + 1;
-        }
-
-        $rows = [];
-        foreach ($allItems as $item) {
-            $iid  = (int)$item['id'];
-            $isSt = $item['_source'] === 's';
-            $realMonth  = $isSt ? ($sReal[$iid] ?? null) : ($eReal[$iid] ?? null);
-            $insMonth   = $isSt ? ($sIns[$iid]  ?? null) : ($eIns[$iid]  ?? null);
-            $hasActivity = $realMonth !== null || $insMonth !== null;
-            $rows[] = compact('item', 'realMonth', 'insMonth', 'hasActivity');
-        }
-        usort($rows, fn($a, $b) =>
-            $b['hasActivity'] <=> $a['hasActivity'] ?: strcmp($a['item']['tipe'], $b['item']['tipe'])
-        );
 
         return view('creative_main/print_monthly', [
-            'bulan'           => $bulan,
-            'year'            => (int)$year,
-            'month'           => (int)$month,
-            'rows'            => $rows,
-            'totalBudget'     => $totalBudget,
-            'totalRealisasi'  => $totalRealisasi,
-            'totalReach'      => $totalReach,
-            'totalImpressions'=> $totalImpr,
-            'totalFollowers'  => $totalFollowers,
-            'statusCounts'    => $statusCounts,
-            'activeCount'     => count(array_filter($rows, fn($r) => $r['hasActivity'])),
-            'printedBy'       => $this->currentUser()['name'] ?? '',
-            'printedAt'       => date('d M Y H:i'),
-        ]);
+            'printedBy' => $this->currentUser()['name'] ?? '',
+            'printedAt' => date('d M Y H:i'),
+        ] + $this->computeCreativeMonthly($bulan));
     }
 
     public function store()

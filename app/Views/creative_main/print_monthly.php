@@ -174,9 +174,9 @@ foreach ($rows as $r) {
         <div class="kpi-sub"><?= $activeCount ?> aktif bulan ini</div>
     </div>
     <div class="kpi-box kpi-budget">
-        <div class="kpi-label">Total Budget</div>
+        <div class="kpi-label">Budget &amp; Serapan</div>
         <div class="kpi-num" style="font-size:13px"><?= rp($totalBudget) ?></div>
-        <div class="kpi-sub">semua item</div>
+        <div class="kpi-sub"><?= $totalBudget > 0 ? 'serapan '.$serapanPct.'%' : 'budget belum di-set' ?></div>
     </div>
     <div class="kpi-box kpi-real">
         <div class="kpi-label">Realisasi Bulan Ini</div>
@@ -195,6 +195,11 @@ foreach ($rows as $r) {
             <?php if ($totalFollowers > 0): ?>+<?= number_format($totalFollowers) ?> followers<?php else: ?>digital insight<?php endif; ?>
         </div>
     </div>
+    <div class="kpi-box" style="border-color:#bbf7d0;background:#f0fdf4">
+        <div class="kpi-label">Engagement</div>
+        <div class="kpi-num" style="color:#15803d"><?= num($totalEngagement) ?></div>
+        <div class="kpi-sub">rate <?= $engagementRate ?>%<?= $cpm > 0 ? ' · CPM '.rp($cpm) : '' ?></div>
+    </div>
 </div>
 
 <!-- ══ STATUS STRIP ══ -->
@@ -205,6 +210,18 @@ foreach ($rows as $r) {
     <span class="sbadge sbadge-<?= $key ?>"><?= $lbl ?> <?= $cnt ?></span>
     <?php endforeach; ?>
 </div>
+
+<?php if (!empty($analysis)): ?>
+<!-- ══ ANALISA OTOMATIS ══ -->
+<div style="border:1px solid #a5f3fc;background:#ecfeff;border-radius:6px;padding:8px 12px;margin-bottom:16px">
+    <div style="font-size:9.5px;font-weight:700;color:#0e7490;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Analisa Otomatis</div>
+    <ul style="margin:0;padding-left:16px;font-size:9.5px;line-height:1.7;color:#334155">
+        <?php foreach ($analysis as $line): ?>
+        <li><?= esc($line) ?></li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
 
 <!-- ══ DETAIL TABLE ══ -->
 <?php foreach ($tipeOrder as $tipe):

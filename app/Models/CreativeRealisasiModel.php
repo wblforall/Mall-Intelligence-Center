@@ -50,6 +50,17 @@ class CreativeRealisasiModel extends Model
                          ->get()->getRow()->total ?? 0);
     }
 
+    // Total realisasi (nilai) sampai akhir bulan terpilih — untuk serapan budget kumulatif
+    public function getTotalUpTo(string $bulan, array $ids): int
+    {
+        if (empty($ids)) return 0;
+        $end = date('Y-m-t', strtotime($bulan . '-01'));
+        return (int)($this->selectSum('nilai', 'total')
+                         ->whereIn('creative_item_id', $ids)
+                         ->where('tanggal <=', $end)
+                         ->get()->getRow()->total ?? 0);
+    }
+
     public function getMonthlyGrouped(string $bulan, array $ids): array
     {
         if (empty($ids)) return [];
