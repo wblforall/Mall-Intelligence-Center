@@ -47,11 +47,17 @@ class Traffic extends BaseController
         $ewalkDates  = $trafficModel->getInputtedDates('ewalk',     $month);
         $pentaDates  = $trafficModel->getInputtedDates('pentacity', $month);
 
+        // Rekap total per pintu per mall — HARI INI saja (untuk Security input-only)
+        $todayDoors = ['ewalk' => [], 'pentacity' => []];
+
         if ($inputOnly) {
             $today = date('Y-m-d');
             $onlyToday = fn(array $rows) => array_values(array_filter($rows, fn($r) => $r['tanggal'] === $today));
             $ewalkDates = $onlyToday($ewalkDates);
             $pentaDates = $onlyToday($pentaDates);
+
+            $todayDoors['ewalk']     = $this->mergeDoors($trafficModel->getByDoor($today, $today, 'ewalk'));
+            $todayDoors['pentacity'] = $this->mergeDoors($trafficModel->getByDoor($today, $today, 'pentacity'));
         }
 
         return view('traffic/index', [
@@ -62,6 +68,7 @@ class Traffic extends BaseController
             'canView'    => $this->canViewMenu('traffic'),
             'inputOnly'  => $inputOnly,
             'month'      => $month,
+            'todayDoors' => $todayDoors,
         ]);
     }
 

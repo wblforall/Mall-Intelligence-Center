@@ -34,6 +34,41 @@
     </div>
 </div>
 
+<?php if ($inputOnly ?? false): ?>
+<!-- Rekap total per pintu per mall — hari ini saja (read-only, Security) -->
+<div class="row g-3 mb-3 fade-up" style="animation-delay:.1s">
+    <?php foreach (['ewalk' => ['eWalk', 'primary'], 'pentacity' => ['Pentacity', 'success']] as $mk => $mc):
+        $rows = $todayDoors[$mk] ?? [];
+        $gt   = array_sum(array_column($rows, 'total')); ?>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold small"><i class="bi bi-door-open me-1"></i>Total per Pintu — <?= $mc[0] ?> <span class="text-muted">(Hari Ini)</span></span>
+                <span class="badge bg-<?= $mc[1] ?>"><?= number_format($gt) ?></span>
+            </div>
+            <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+                <tbody>
+                <?php if (empty($rows)): ?>
+                <tr><td class="text-center text-muted small py-3">Belum ada input hari ini.</td></tr>
+                <?php else: foreach ($rows as $r): ?>
+                <tr>
+                    <td class="ps-3 small"><?= esc($r['pintu']) ?></td>
+                    <td class="text-end pe-3 small fw-semibold"><?= number_format((int)$r['total']) ?></td>
+                </tr>
+                <?php endforeach; endif; ?>
+                </tbody>
+                <?php if (! empty($rows)): ?>
+                <tfoot class="table-light"><tr><td class="ps-3 small fw-bold">Total</td><td class="text-end pe-3 small fw-bold"><?= number_format($gt) ?></td></tr></tfoot>
+                <?php endif; ?>
+            </table>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
 <?php if (! ($inputOnly ?? false)): ?>
 <form method="GET" class="mb-3 fade-up" style="animation-delay:.1s">
     <div class="d-flex align-items-center gap-2">
