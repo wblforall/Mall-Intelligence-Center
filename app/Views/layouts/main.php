@@ -473,7 +473,7 @@ body { min-height: 100vh; }
         </a>
     </div>
     <div style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5">
-        v2.9.2 &nbsp;·&nbsp; © 2026 IT Dept WBL
+        v2.9.3 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
 </div>

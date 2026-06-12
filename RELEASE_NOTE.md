@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.9.2** (Juni 2026)
+> Versi saat ini: **v2.9.3** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,14 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.9.3
+
+**Tanggal Rilis:** 12 Juni 2026
+
+- **Daily Traffic (Security/input-only)**: panel read-only **Total per Pintu per Mall — Hari Ini** di halaman utama Traffic. Tetap patuh skema hanya data hari ini (tidak bisa lihat tanggal lain / Summary).
 
 ---
 
