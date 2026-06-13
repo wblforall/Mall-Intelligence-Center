@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.9.3** (Juni 2026)
+> Versi saat ini: **v2.9.4** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,14 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.9.4
+
+**Tanggal Rilis:** 13 Juni 2026
+
+- **Realisasi loyalty**: foto bukti **wajib hanya untuk barang & voucher fisik** (item ber-`batch_id`); **e-voucher tidak perlu foto**. Berlaku di loyalty standalone & event. Hadiah/barang tetap selalu wajib foto.
 
 ---
 
