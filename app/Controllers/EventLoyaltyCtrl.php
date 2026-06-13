@@ -224,8 +224,13 @@ class EventLoyaltyCtrl extends BaseController
         if (! $this->canEditMenu('loyalty')) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Tanggal wajib diisi.');
-        [$fotoName, $fotoErr] = $this->uploadRealisasiFoto();
-        if ($fotoErr) return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('error', $fotoErr);
+        // Foto wajib hanya untuk voucher FISIK (punya batch). E-voucher tidak perlu.
+        $vItem    = (new EventLoyaltyVoucherItemModel())->find($itemId);
+        $fotoName = null;
+        if (! empty($vItem['batch_id'])) {
+            [$fotoName, $fotoErr] = $this->uploadRealisasiFoto();
+            if ($fotoErr) return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('error', $fotoErr);
+        }
         $userId  = $this->currentUser()['id'];
         $kodeId  = ($post['kode_id'] ?? '') !== '' ? (int)$post['kode_id'] : null;
         $vrModel = new EventLoyaltyVoucherRealisasiModel();

@@ -588,11 +588,11 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                             <label class="form-label small fw-semibold mb-1">Tanggal</label>
                             <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
                         </div>
+                        <?php if (!empty($vi['batch_id'])): ?>
                         <div class="col-sm-3">
                             <label class="form-label small fw-semibold mb-1">Foto Bukti <span class="text-danger">*</span></label>
                             <input type="file" name="foto" accept="image/*" capture="environment" class="form-control form-control-sm" required>
                         </div>
-                        <?php if (!empty($vi['batch_id'])): ?>
                         <div class="col-sm-3">
                             <label class="form-label small fw-semibold mb-1">Kode Voucher</label>
                             <select name="kode_id" class="form-select form-select-sm voucher-kode-select"
