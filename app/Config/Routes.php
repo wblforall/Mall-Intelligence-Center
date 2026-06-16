@@ -439,6 +439,30 @@ $routes->get('people/eei/period/(:num)/activate',                   'PeopleEei::
 // People Development — Org Chart
 $routes->get('people/orgchart', 'PeopleOrgChart::index', ['filter' => 'auth']);
 
+// ── Appraisal (HR) ──────────────────────────────────────────────────────
+$routes->get('appraisal',                              'Appraisal::index',                ['filter' => 'auth']);
+// Template KPI per jabatan (manager susun → HR approve)
+$routes->get('appraisal/templates',                    'AppraisalTemplate::index',        ['filter' => 'auth']);
+$routes->post('appraisal/templates/create',            'AppraisalTemplate::create',       ['filter' => 'auth']);
+$routes->get('appraisal/templates/(:num)',             'AppraisalTemplate::edit/$1',      ['filter' => 'auth']);
+$routes->post('appraisal/templates/(:num)/kpi/save',   'AppraisalTemplate::saveKpi/$1',    ['filter' => 'auth']);
+$routes->post('appraisal/templates/(:num)/competency/save', 'AppraisalTemplate::saveCompetency/$1', ['filter' => 'auth']);
+$routes->post('appraisal/templates/(:num)/submit',     'AppraisalTemplate::submit/$1',     ['filter' => 'auth']);
+$routes->post('appraisal/templates/(:num)/approve',    'AppraisalTemplate::approve/$1',     ['filter' => 'auth']);
+$routes->post('appraisal/templates/(:num)/reject',     'AppraisalTemplate::reject/$1',      ['filter' => 'auth']);
+$routes->post('appraisal/templates/(:num)/delete',     'AppraisalTemplate::delete/$1',      ['filter' => 'auth']);
+// Periode + form (Phase 2/3/4)
+$routes->post('appraisal/periods/create',              'AppraisalPeriod::create',          ['filter' => 'auth']);
+$routes->get('appraisal/periods/(:num)',               'AppraisalPeriod::show/$1',          ['filter' => 'auth']);
+$routes->post('appraisal/periods/(:num)/close',        'AppraisalPeriod::close/$1',         ['filter' => 'auth']);
+$routes->get('appraisal/forms/(:num)',                 'AppraisalForm::show/$1',            ['filter' => 'auth']);
+$routes->post('appraisal/forms/(:num)/score',          'AppraisalForm::saveScore/$1',       ['filter' => 'auth']);
+$routes->post('appraisal/forms/(:num)/forward',        'AppraisalForm::forward/$1',         ['filter' => 'auth']);
+$routes->post('appraisal/forms/(:num)/finalize',       'AppraisalForm::finalize/$1',        ['filter' => 'auth']);
+$routes->post('appraisal/forms/(:num)/pendapat',       'AppraisalForm::savePendapat/$1',    ['filter' => 'auth']);
+$routes->get('appraisal/forms/(:num)/print',           'AppraisalForm::printForm/$1',       ['filter' => 'auth']);
+$routes->get('appraisal/saya',                         'AppraisalForm::saya',               ['filter' => 'auth']);
+
 // People Development — Performance Improvement Plan
 $routes->get('people/pip',                                    'PeoplePip::index',           ['filter' => 'auth']);
 $routes->post('people/pip/store',                             'PeoplePip::store',            ['filter' => 'auth']);

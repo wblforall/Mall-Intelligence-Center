@@ -350,15 +350,22 @@ body { min-height: 100vh; }
         $_isAdmin = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
         $_deptMenusPd = session()->get('dept_menus');
         $_canViewPd   = $_isAdmin || $_deptMenusPd === null || ($_deptMenusPd['people_dev']['can_view'] ?? false);
-        if ($_canViewPd):
+        $_canHr       = $_isAdmin || ($_deptMenusPd['hr_main']['can_view'] ?? false);
+        // Karyawan & Org Chart dipakai bersama People Dev + HR; sisanya khusus People Dev; Appraisal khusus HR.
+        $_canShared   = $_canViewPd || $_canHr;
+        if ($_canShared):
+            $_pdLabel = $_canViewPd ? 'People Development' : 'HR';
         ?>
-        <div class="nav-label">People Development</div>
+        <div class="nav-label"><?= $_pdLabel ?></div>
+        <?php if ($_canViewPd): ?>
         <a href="<?= base_url('people/dashboard') ?>" class="nav-link <?= uri_string() === 'people/dashboard' ? 'active' : '' ?>">
             <i class="bi bi-speedometer2"></i> Dashboard
         </a>
+        <?php endif; ?>
         <a href="<?= base_url('people/employees') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/employees') ? 'active' : '' ?>">
             <i class="bi bi-person-vcard-fill"></i> Data Karyawan
         </a>
+        <?php if ($_canViewPd): ?>
         <a href="<?= base_url('people/competencies') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/competencies') ? 'active' : '' ?>">
             <i class="bi bi-diagram-2-fill"></i> Competency Framework
         </a>
@@ -383,8 +390,24 @@ body { min-height: 100vh; }
         <a href="<?= base_url('people/eei') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/eei') ? 'active' : '' ?>">
             <i class="bi bi-heart-pulse-fill"></i> EEI Survey
         </a>
+        <?php endif; ?>
         <a href="<?= base_url('people/orgchart') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/orgchart') ? 'active' : '' ?>">
             <i class="bi bi-diagram-3-fill"></i> Struktur Organisasi
+        </a>
+        <?php if ($_canHr): ?>
+        <a href="<?= base_url('appraisal') ?>" class="nav-link <?= str_starts_with(uri_string(), 'appraisal') && !str_starts_with(uri_string(), 'appraisal/saya') ? 'active' : '' ?>">
+            <i class="bi bi-clipboard-data-fill"></i> Appraisal
+        </a>
+        <?php endif; ?>
+        <?php endif; ?>
+        <?php
+        // "Penilaian Saya" — untuk atasan/penilai (ditentukan org chart), terlepas dari menu key.
+        $_apprShow = $_isAdmin || ($_apprShowMenu ?? false);
+        if ($_apprShow):
+            if (! $_canShared): ?><div class="nav-label">Penilaian</div><?php endif; ?>
+        <a href="<?= base_url('appraisal/saya') ?>" class="nav-link <?= str_starts_with(uri_string(), 'appraisal/saya') ? 'active' : '' ?>">
+            <i class="bi bi-clipboard-check-fill"></i> Penilaian Saya
+            <?php if (($_apprInboxCount ?? 0) > 0): ?><span class="badge bg-danger ms-auto"><?= $_apprInboxCount ?></span><?php endif; ?>
         </a>
         <?php endif; ?>
 

@@ -57,9 +57,23 @@ abstract class BaseController extends Controller
             if ($this->canApproveEvents()) {
                 $pc = $db->table('events')->where('approval_status', 'pending')->countAllResults();
             }
+            // Inbox Appraisal: form yang menunggu aksi user ini (penilai/reviewer)
+            $apprInbox = 0; $apprShowMenu = false;
+            if ($db->tableExists('appraisal_forms')) {
+                $uid = session()->get('user_id');
+                $apprInbox = $db->table('appraisal_forms')
+                    ->where('current_user_id', $uid)
+                    ->whereIn('status', ['input', 'in_review'])
+                    ->countAllResults();
+                $myEmp = $db->table('employees')->select('id')->where('user_id', $uid)->get()->getRowArray();
+                $isAtasan = $myEmp ? $db->table('employees')->where('atasan_id', $myEmp['id'])->countAllResults() : 0;
+                $apprShowMenu = $apprInbox > 0 || $isAtasan > 0;
+            }
             \CodeIgniter\Config\Services::renderer()->setData([
                 '_waitingDataCount'   => $wc,
                 '_pendingApprovalCount' => $pc,
+                '_apprInboxCount'     => $apprInbox,
+                '_apprShowMenu'       => $apprShowMenu,
             ], 'raw');
         }
     }

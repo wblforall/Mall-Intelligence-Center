@@ -15,6 +15,7 @@ class SectionConfig
         'vm_main'            => 'VM — Standalone',
         'sponsorship_main'   => 'Sponsorship — Standalone',
         'people_dev'         => 'People Development',
+        'hr_main'            => 'HR (Karyawan, Org Chart, Appraisal)',
         'traffic'            => 'Daily Traffic',
         'legal'              => 'Legal',
         // ── Per-Event (Event Sub-menu) ───────────────────────────
