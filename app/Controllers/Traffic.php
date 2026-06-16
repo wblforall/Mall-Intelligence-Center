@@ -923,8 +923,86 @@ class Traffic extends BaseController
             'tanggal'     => $tanggal,
             'trafficRows' => $trafficRows,
             'doors'       => $doors,
+            // Hanya yang bisa melihat (supervisor/admin) boleh mengubah sel yang sudah terisi.
+            // Inputter (mis. Security) hanya boleh mengisi sel yang masih kosong.
+            'canEditFilled' => $this->canViewMenu('traffic'),
         ]);
     }
+
+    /**
+     * Simpan SATU sel (jam × pintu) via AJAX — upsert, tidak menyentuh sel lain.
+     * Aman untuk input paralel banyak orang & tidak pernah menghapus jam lampau.
+     */
+    public function saveCell()
+    {
+        if (! $this->canEditMenu('traffic')) {
+            return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'msg' => 'Akses ditolak.']);
+        }
+
+        $post    = $this->request->getPost();
+        $tanggal = (string) ($post['tanggal'] ?? '');
+        $mall    = (string) ($post['mall'] ?? '');
+        $jam     = (int) ($post['jam'] ?? -1);
+        $doorId  = (int) ($post['door_id'] ?? 0);
+        $jumlah  = (int) ($post['jumlah'] ?? -1);
+        $userId  = $this->currentUser()['id'];
+        $newHash = csrf_hash();
+
+        if (! in_array($mall, ['ewalk', 'pentacity'], true) || $jam < 0 || $jam > 23 || $jumlah < 0) {
+            return $this->response->setStatusCode(400)->setJSON(['ok' => false, 'msg' => 'Data tidak valid.', 'csrf' => $newHash]);
+        }
+
+        $canView = $this->canViewMenu('traffic');
+
+        // Inputter (edit tanpa view, mis. Security) hanya boleh input tanggal hari ini.
+        if (! $canView && $tanggal !== date('Y-m-d')) {
+            return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'msg' => 'Hanya dapat menginput untuk hari ini.', 'csrf' => $newHash]);
+        }
+
+        $door = (new TrafficDoorModel())->find($doorId);
+        if (! $door || $door['mall'] !== $mall) {
+            return $this->response->setStatusCode(400)->setJSON(['ok' => false, 'msg' => 'Pintu tidak valid.', 'csrf' => $newHash]);
+        }
+        $pintu = $door['nama_pintu'];
+
+        $trafficModel = new DailyTrafficModel();
+        $existing     = $trafficModel->getCell($tanggal, $mall, $jam, $pintu);
+
+        // Mengubah sel yang SUDAH terisi butuh izin lihat (supervisor/admin).
+        if ($existing !== null && ! $canView) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'ok'   => false,
+                'msg'  => 'Sel ini sudah terisi. Hanya supervisor/admin yang dapat mengubahnya.',
+                'csrf' => $newHash,
+            ]);
+        }
+
+        $res = $trafficModel->upsertCell($tanggal, $mall, $jam, $pintu, $jumlah, $userId);
+
+        // Activity log per sel — hanya jika benar-benar berubah.
+        $changed = ($res['action'] === 'insert') || ($res['before'] !== $jumlah);
+        if ($changed) {
+            $key = $pintu . ' · jam ' . $jam . '.00';
+            ActivityLog::captureBefore([$key => $res['before'] ?? 0]);
+            ActivityLog::captureAfter([$key => $jumlah]);
+            ActivityLog::write('update', 'traffic', "{$mall}/{$tanggal}", "Traffic {$mall} — {$tanggal}", [
+                'mall'    => $mall,
+                'tanggal' => $tanggal,
+                'sel'     => $key,
+                'nilai'   => $jumlah,
+                'aksi'    => $res['action'],
+            ]);
+        }
+
+        return $this->response->setJSON([
+            'ok'      => true,
+            'jam'     => $jam,
+            'door_id' => $doorId,
+            'jumlah'  => $jumlah,
+            'csrf'    => $newHash,
+        ]);
+    }
+
 
     public function save()
     {

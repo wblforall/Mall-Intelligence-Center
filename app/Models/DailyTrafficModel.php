@@ -23,6 +23,37 @@ class DailyTrafficModel extends Model
         $this->where('tanggal', $tanggal)->where('mall', $mall)->delete();
     }
 
+    // Satu sel = satu kombinasi (tanggal, mall, jam, pintu)
+    public function getCell(string $tanggal, string $mall, int $jam, string $pintu): ?array
+    {
+        return $this->where('tanggal', $tanggal)->where('mall', $mall)
+            ->where('jam', $jam)->where('pintu', $pintu)
+            ->first();
+    }
+
+    /**
+     * Upsert satu sel saja — TIDAK menyentuh sel lain (aman untuk input paralel
+     * banyak orang). Mengembalikan ['action' => 'insert'|'update', 'before' => ?int].
+     */
+    public function upsertCell(string $tanggal, string $mall, int $jam, string $pintu, int $jumlah, int $userId): array
+    {
+        $existing = $this->getCell($tanggal, $mall, $jam, $pintu);
+        if ($existing) {
+            $before = (int) $existing['jumlah_pengunjung'];
+            $this->update($existing['id'], ['jumlah_pengunjung' => $jumlah, 'created_by' => $userId]);
+            return ['action' => 'update', 'before' => $before];
+        }
+        $this->insert([
+            'tanggal'           => $tanggal,
+            'mall'              => $mall,
+            'jam'               => $jam,
+            'pintu'             => $pintu,
+            'jumlah_pengunjung' => $jumlah,
+            'created_by'        => $userId,
+        ]);
+        return ['action' => 'insert', 'before' => null];
+    }
+
     public function deleteByDateMallDoors(string $tanggal, string $mall, array $doors): void
     {
         $this->where('tanggal', $tanggal)->where('mall', $mall)->whereIn('pintu', $doors)->delete();
