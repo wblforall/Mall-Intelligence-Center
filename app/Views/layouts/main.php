@@ -402,12 +402,18 @@ body { min-height: 100vh; }
         <?php endif; ?>
         <?php
         // "Penilaian Saya" — untuk atasan/penilai (ditentukan org chart), terlepas dari menu key.
-        $_apprShow = $_isAdmin || ($_apprShowMenu ?? false);
-        if ($_apprShow):
-            if (! $_canShared): ?><div class="nav-label">Penilaian</div><?php endif; ?>
+        $_apprShow   = $_isAdmin || ($_apprShowMenu ?? false);
+        $_apprAuthor = ($_apprIsAuthor ?? false) && ! $_canHr; // dept head/deputy non-HR
+        if (($_apprShow || $_apprAuthor) && ! $_canShared): ?><div class="nav-label">Penilaian</div><?php endif; ?>
+        <?php if ($_apprShow): ?>
         <a href="<?= base_url('appraisal/saya') ?>" class="nav-link <?= str_starts_with(uri_string(), 'appraisal/saya') ? 'active' : '' ?>">
             <i class="bi bi-clipboard-check-fill"></i> Penilaian Saya
             <?php if (($_apprInboxCount ?? 0) > 0): ?><span class="badge bg-danger ms-auto"><?= $_apprInboxCount ?></span><?php endif; ?>
+        </a>
+        <?php endif; ?>
+        <?php if ($_apprAuthor): ?>
+        <a href="<?= base_url('appraisal/templates') ?>" class="nav-link <?= str_starts_with(uri_string(), 'appraisal/templates') ? 'active' : '' ?>">
+            <i class="bi bi-bullseye"></i> Template KPI
         </a>
         <?php endif; ?>
 

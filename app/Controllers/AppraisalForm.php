@@ -20,9 +20,9 @@ class AppraisalForm extends BaseController
         $formModel = new AppraisalFormModel();
         $inbox = $formModel->inboxFor($this->uid());
 
-        // apakah user manager (boleh susun template)
+        // apakah user ditunjuk menyusun template (dept head/deputy) atau HR
+        $isAuthor = $this->isHr() || (new \App\Libraries\AppraisalAuthority())->isAssignedAuthor($this->uid());
         $myEmp = (new AppraisalChain())->employeeByUser($this->uid());
-        $isManager = $myEmp ? (bool) db_connect()->table('employees')->where('atasan_id', $myEmp['id'])->countAllResults() : false;
 
         // riwayat: form yang pernah dia tangani tapi sudah diteruskan
         $done = $formModel->db->table('appraisal_forms f')
@@ -38,7 +38,7 @@ class AppraisalForm extends BaseController
             'user'      => $this->currentUser(),
             'inbox'     => $inbox,
             'done'      => $done,
-            'isManager' => $isManager,
+            'isManager' => $isAuthor,
             'isHr'      => $this->isHr(),
         ]);
     }

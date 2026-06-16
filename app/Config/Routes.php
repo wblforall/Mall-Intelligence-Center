@@ -441,7 +441,9 @@ $routes->get('people/orgchart', 'PeopleOrgChart::index', ['filter' => 'auth']);
 
 // ── Appraisal (HR) ──────────────────────────────────────────────────────
 $routes->get('appraisal',                              'Appraisal::index',                ['filter' => 'auth']);
-// Template KPI per jabatan (manager susun → HR approve)
+$routes->get('appraisal/authors',                      'Appraisal::authors',              ['filter' => 'auth']);
+$routes->post('appraisal/authors/save',                'Appraisal::saveAuthors',          ['filter' => 'auth']);
+// Template KPI per jabatan (dept head/deputy susun → HR approve)
 $routes->get('appraisal/templates',                    'AppraisalTemplate::index',        ['filter' => 'auth']);
 $routes->post('appraisal/templates/create',            'AppraisalTemplate::create',       ['filter' => 'auth']);
 $routes->get('appraisal/templates/(:num)',             'AppraisalTemplate::edit/$1',      ['filter' => 'auth']);

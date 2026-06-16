@@ -7,35 +7,34 @@ use App\Models\AppraisalTemplateKpiModel;
 use App\Models\AppraisalTemplateCompetencyModel;
 use App\Models\JabatanModel;
 use App\Libraries\AppraisalConfig;
-use App\Libraries\AppraisalChain;
+use App\Libraries\AppraisalAuthority;
 use App\Libraries\ActivityLog;
 
 class AppraisalTemplate extends BaseController
 {
+    private ?AppraisalAuthority $_auth = null;
+
     // ── Akses ────────────────────────────────────────────────────────────
     private function isHr(): bool { return $this->isAdmin() || $this->canViewMenu('hr_main'); }
+    private function uid(): int { return (int) $this->currentUser()['id']; }
+    private function authority(): AppraisalAuthority { return $this->_auth ??= new AppraisalAuthority(); }
 
-    private function myEmployee(): ?array
+    /** Boleh akses modul template = HR, atau ditunjuk sebagai dept head/deputy. */
+    private function canManage(): bool
     {
-        return (new AppraisalChain())->employeeByUser($this->currentUser()['id']);
+        return $this->isHr() || $this->authority()->isAssignedAuthor($this->uid());
     }
 
-    /** Manager = punya bawahan di org chart. */
-    private function isManager(): bool
+    private function jabatanRow(int $id): ?array
     {
-        $emp = $this->myEmployee();
-        if (! $emp) return false;
-        return (bool) db_connect()->table('employees')->where('atasan_id', $emp['id'])->countAllResults();
+        return db_connect()->table('jabatans')->select('id, grade, dept_id')->where('id', $id)->get()->getRowArray();
     }
 
-    private function canManage(): bool { return $this->isHr() || $this->isManager(); }
-
-    /** Dept yang boleh dikelola: HR = semua (null), manager = dept-nya saja. */
-    private function scopeDeptId(): ?int
+    /** Boleh menyusun template untuk satu jabatan? */
+    private function canAuthorJab(int $jabatanId): bool
     {
-        if ($this->isHr()) return null;
-        $emp = $this->myEmployee();
-        return $emp['dept_id'] ?? -1;
+        $j = $this->jabatanRow($jabatanId);
+        return $j ? $this->authority()->canAuthor($this->uid(), $j, $this->isHr()) : false;
     }
 
     // ── List ─────────────────────────────────────────────────────────────
@@ -47,9 +46,10 @@ class AppraisalTemplate extends BaseController
         $kpiModel      = new AppraisalTemplateKpiModel();
         $templates     = $templateModel->listWithJabatan();
 
-        $scopeDept = $this->scopeDeptId();
-        if ($scopeDept !== null) {
-            $templates = array_values(array_filter($templates, fn($t) => (int) ($t['jabatan_dept_id'] ?? 0) === $scopeDept));
+        $isHr = $this->isHr();
+        if (! $isHr) {
+            $templates = array_values(array_filter($templates, fn($t) =>
+                $this->authority()->canAuthor($this->uid(), ['grade' => $t['grade'], 'dept_id' => $t['jabatan_dept_id']], false)));
         }
         foreach ($templates as &$t) {
             $t['total_bobot'] = $kpiModel->totalBobot((int) $t['id']);
@@ -57,28 +57,21 @@ class AppraisalTemplate extends BaseController
         }
         unset($t);
 
-        // Jabatan yang belum punya template (untuk tombol buat baru)
-        $jabModel = new JabatanModel();
-        $jabs = $jabModel->db->table('jabatans j')
+        // Jabatan yang belum punya template & yang BOLEH disusun user ini (untuk tombol buat baru)
+        $jabs = db_connect()->table('jabatans j')
             ->select('j.id, j.nama, j.grade, d.name AS dept_name, j.dept_id')
-            ->join('departments d', 'd.id = j.dept_id', 'left');
-        if ($scopeDept !== null) $jabs->where('j.dept_id', $scopeDept);
-        $jabs = $jabs->orderBy('d.name')->orderBy('j.grade')->get()->getResultArray();
+            ->join('departments d', 'd.id = j.dept_id', 'left')
+            ->orderBy('d.name')->orderBy('j.grade')->get()->getResultArray();
         $hasTemplate = array_column($templates, null, 'jabatan_id');
-        $jabsAvailable = array_values(array_filter($jabs, fn($j) => ! isset($hasTemplate[$j['id']])));
+        $jabsAvailable = array_values(array_filter($jabs, fn($j) =>
+            ! isset($hasTemplate[$j['id']]) && $this->authority()->canAuthor($this->uid(), $j, $isHr)));
 
         return view('appraisal/templates/index', [
             'user'          => $this->currentUser(),
             'templates'     => $templates,
             'jabsAvailable' => $jabsAvailable,
-            'isHr'          => $this->isHr(),
+            'isHr'          => $isHr,
         ]);
-    }
-
-    private function jabatanDept(int $jabatanId): ?int
-    {
-        $row = db_connect()->table('jabatans')->select('dept_id')->where('id', $jabatanId)->get()->getRowArray();
-        return $row ? (int) $row['dept_id'] : null;
     }
 
     // ── Buat template untuk satu jabatan ─────────────────────────────────
@@ -89,10 +82,8 @@ class AppraisalTemplate extends BaseController
         $jabatanId = (int) $this->request->getPost('jabatan_id');
         if (! $jabatanId) return redirect()->back()->with('error', 'Jabatan wajib dipilih.');
 
-        // scope check
-        $scope = $this->scopeDeptId();
-        if ($scope !== null && $this->jabatanDept($jabatanId) !== $scope) {
-            return redirect()->back()->with('error', 'Anda hanya boleh membuat template untuk jabatan di departemen Anda.');
+        if (! $this->canAuthorJab($jabatanId)) {
+            return redirect()->back()->with('error', 'Anda tidak berwenang menyusun template untuk jabatan ini.');
         }
 
         $templateModel = new AppraisalTemplateModel();
@@ -130,8 +121,7 @@ class AppraisalTemplate extends BaseController
         $tpl = $templateModel->find($id);
         if (! $tpl) return redirect()->to('appraisal/templates')->with('error', 'Template tidak ditemukan.');
 
-        $scope = $this->scopeDeptId();
-        if ($scope !== null && $this->jabatanDept((int) $tpl['jabatan_id']) !== $scope) {
+        if (! $this->canAuthorJab((int) $tpl['jabatan_id'])) {
             return redirect()->to('appraisal/templates')->with('error', 'Akses ditolak.');
         }
 
@@ -287,8 +277,7 @@ class AppraisalTemplate extends BaseController
         $tpl = (new AppraisalTemplateModel())->find($id);
         if (! $tpl) return redirect()->to('appraisal/templates')->with('error', 'Template tidak ditemukan.');
 
-        $scope = $this->scopeDeptId();
-        if ($scope !== null && $this->jabatanDept((int) $tpl['jabatan_id']) !== $scope) {
+        if (! $this->canAuthorJab((int) $tpl['jabatan_id'])) {
             return redirect()->to('appraisal/templates')->with('error', 'Akses ditolak.');
         }
         // approved/submitted hanya HR yang boleh ubah (mengembalikan ke draft dulu untuk approved)

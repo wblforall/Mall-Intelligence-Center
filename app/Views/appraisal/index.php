@@ -21,7 +21,8 @@
                 <span><b><?= $tplStats['approved'] ?></b> disetujui</span>
                 <span class="text-warning"><b><?= $tplStats['submitted'] ?></b> perlu review</span>
             </div>
-            <a href="<?= base_url('appraisal/templates') ?>" class="btn btn-sm btn-outline-primary w-100">Kelola Template</a>
+            <a href="<?= base_url('appraisal/templates') ?>" class="btn btn-sm btn-outline-primary w-100 mb-2">Kelola Template</a>
+            <a href="<?= base_url('appraisal/authors') ?>" class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-person-gear me-1"></i>Tunjuk Penyusun</a>
         </div>
         </div>
     </div>

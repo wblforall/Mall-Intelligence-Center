@@ -67,6 +67,11 @@ abstract class BaseController extends Controller
                     ->countAllResults();
                 $myEmp = $db->table('employees')->select('id')->where('user_id', $uid)->get()->getRowArray();
                 $isAtasan = $myEmp ? $db->table('employees')->where('atasan_id', $myEmp['id'])->countAllResults() : 0;
+                // dept head / deputy yang ditunjuk menyusun template
+                $isAuthor = ($db->tableExists('appraisal_template_authors')
+                        && $db->table('appraisal_template_authors')->where('user_id', $uid)->countAllResults())
+                    || ($db->tableExists('appraisal_division_deputies')
+                        && $db->table('appraisal_division_deputies')->where('user_id', $uid)->countAllResults());
                 $apprShowMenu = $apprInbox > 0 || $isAtasan > 0;
             }
             \CodeIgniter\Config\Services::renderer()->setData([
@@ -74,6 +79,7 @@ abstract class BaseController extends Controller
                 '_pendingApprovalCount' => $pc,
                 '_apprInboxCount'     => $apprInbox,
                 '_apprShowMenu'       => $apprShowMenu,
+                '_apprIsAuthor'       => $isAuthor ?? false,
             ], 'raw');
         }
     }
