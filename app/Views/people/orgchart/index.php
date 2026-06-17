@@ -430,11 +430,12 @@ async function exportPDF() {
         expandAll();
         const prevScale = scale, prevH = ocWrap.style.height, prevOv = ocWrap.style.overflow;
         scale = 1; applyZoom();
-        // lepas batas tinggi/scroll supaya seluruh pohon tertangkap
+        // lepas batas tinggi/scroll + paksa lebar = konten penuh (cegah center melimpah ke kiri)
         ocWrap.style.height = 'auto'; ocWrap.style.overflow = 'visible';
+        ocView.style.width = 'max-content'; ocView.style.minWidth = '0';
         await new Promise(r => setTimeout(r, 350));
 
-        const fullW = ocView.scrollWidth, fullH = ocView.scrollHeight;
+        const fullW = ocView.offsetWidth, fullH = ocView.offsetHeight;
         // batasi dimensi kanvas (~16k limit browser) — hitung skala render aman
         const CAP = 14000;
         const cs = Math.min(2, CAP / Math.max(fullW, fullH, 1));
@@ -444,6 +445,7 @@ async function exportPDF() {
             scrollX: 0, scrollY: 0,
         });
         ocWrap.style.height = prevH; ocWrap.style.overflow = prevOv;
+        ocView.style.width = ''; ocView.style.minWidth = '';
         scale = prevScale; applyZoom();
 
         const { jsPDF } = window.jspdf;
