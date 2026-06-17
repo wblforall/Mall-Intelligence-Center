@@ -365,8 +365,11 @@ function divLi(array $div): string
         <i class="bi bi-arrows-collapse me-1"></i>Collapse
     </button>
     <div class="vr mx-1"></div>
-    <button class="btn btn-sm btn-outline-danger" id="btnPdf" onclick="exportPNG()">
-        <i class="bi bi-file-earmark-image me-1"></i>Export PNG
+    <button class="btn btn-sm btn-outline-secondary" id="btnPng" onclick="exportPNG()">
+        <i class="bi bi-file-earmark-image me-1"></i>PNG
+    </button>
+    <button class="btn btn-sm btn-outline-danger" id="btnPdf" onclick="exportPDF()">
+        <i class="bi bi-filetype-pdf me-1"></i>PDF
     </button>
     <div class="vr mx-1"></div>
     <input type="text" id="searchBox" class="form-control form-control-sm" style="max-width:200px"
@@ -415,51 +418,67 @@ echo jabRender($spine ?: $topJabs, $branch);
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const ocWrap = document.querySelector('.oc-wrap');
 const ocView = document.getElementById('viewport');
 let scale = 1;
 
-// ── Export PNG (tangkap seluruh pohon, resolusi setinggi mungkin yg muat) ──
-async function exportPNG() {
-    const btn = document.getElementById('btnPdf');
+// ── Tangkap seluruh pohon → canvas (resolusi setinggi mungkin yg muat) ──
+async function captureChart() {
+    expandAll();
+    const prevScale = scale, prevH = ocWrap.style.height, prevOv = ocWrap.style.overflow;
+    scale = 1; applyZoom();
+    // lepas batas tinggi/scroll + paksa lebar = konten penuh (cegah center melimpah ke kiri)
+    ocWrap.style.height = 'auto'; ocWrap.style.overflow = 'visible';
+    ocView.style.width = 'max-content'; ocView.style.minWidth = '0';
+    await new Promise(r => setTimeout(r, 350));
+
+    const W = ocView.offsetWidth, H = ocView.offsetHeight;
+    // batas browser: dimensi ≤ ~16k px DAN luas total ≤ ~16 juta px² (Safari)
+    const MAXDIM = 16000, AREA = 16e6;
+    let s = Math.min(2, MAXDIM / W, MAXDIM / H, Math.sqrt(AREA / (W * H)));
+    s = Math.max(0.2, Math.round(s * 100) / 100);
+
+    const canvas = await html2canvas(ocView, {
+        backgroundColor: '#ffffff', scale: s,
+        width: W, height: H, windowWidth: W, windowHeight: H, scrollX: 0, scrollY: 0,
+    });
+    ocWrap.style.height = prevH; ocWrap.style.overflow = prevOv;
+    ocView.style.width = ''; ocView.style.minWidth = '';
+    scale = prevScale; applyZoom();
+    return canvas;
+}
+
+async function runExport(btnId, fn) {
+    const btn = document.getElementById(btnId);
     const orig = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Membuat…';
-    try {
-        expandAll();
-        const prevScale = scale, prevH = ocWrap.style.height, prevOv = ocWrap.style.overflow;
-        scale = 1; applyZoom();
-        // lepas batas tinggi/scroll + paksa lebar = konten penuh (cegah center melimpah ke kiri)
-        ocWrap.style.height = 'auto'; ocWrap.style.overflow = 'visible';
-        ocView.style.width = 'max-content'; ocView.style.minWidth = '0';
-        await new Promise(r => setTimeout(r, 350));
+    try { await fn(); }
+    catch (err) { alert('Gagal export: ' + (err.message || err) + '\\nCoba collapse sebagian cabang dulu.'); }
+    finally { btn.disabled = false; btn.innerHTML = orig; }
+}
 
-        const W = ocView.offsetWidth, H = ocView.offsetHeight;
-        // batas browser: dimensi ≤ ~16k px DAN luas total ≤ ~16 juta px² (Safari)
-        const MAXDIM = 16000, AREA = 16e6;
-        let s = Math.min(2, MAXDIM / W, MAXDIM / H, Math.sqrt(AREA / (W * H)));
-        s = Math.max(0.2, Math.round(s * 100) / 100);
-
-        const canvas = await html2canvas(ocView, {
-            backgroundColor: '#ffffff', scale: s,
-            width: W, height: H, windowWidth: W, windowHeight: H, scrollX: 0, scrollY: 0,
-        });
-        ocWrap.style.height = prevH; ocWrap.style.overflow = prevOv;
-        ocView.style.width = ''; ocView.style.minWidth = '';
-        scale = prevScale; applyZoom();
-
-        canvas.toBlob(blob => {
+function exportPNG() {
+    runExport('btnPng', async () => {
+        const canvas = await captureChart();
+        await new Promise(res => canvas.toBlob(blob => {
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'struktur-organisasi.png';
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-        }, 'image/png');
-    } catch (err) {
-        alert('Gagal membuat gambar: ' + (err.message || err) + '\\nCoba collapse sebagian cabang dulu.');
-    } finally {
-        btn.disabled = false; btn.innerHTML = orig;
-    }
+            a.href = URL.createObjectURL(blob); a.download = 'struktur-organisasi.png';
+            a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); res();
+        }, 'image/png'));
+    });
+}
+
+function exportPDF() {
+    runExport('btnPdf', async () => {
+        const canvas = await captureChart();
+        const { jsPDF } = window.jspdf;
+        const w = canvas.width, h = canvas.height;
+        const pdf = new jsPDF({ orientation: w >= h ? 'l' : 'p', unit: 'px', format: [w, h], compress: true });
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, w, h);
+        pdf.save('struktur-organisasi.pdf');
+    });
 }
 
 function applyZoom() {
