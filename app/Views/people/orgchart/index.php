@@ -459,17 +459,21 @@ function zoom(delta) {
 }
 function resetZoom() { scale = 1; applyZoom(); ocWrap.scrollTop = 0; }
 
-// Default: zoom-out otomatis agar seluruh lebar pohon terlihat
+// Default: zoom-out otomatis agar seluruh lebar pohon terlihat & ter-center
 function fitToView() {
     const contentW = ocView.scrollWidth;
     const wrapW = ocWrap.clientWidth - 48;
     if (contentW > 0) {
         scale = Math.min(1, Math.max(0.2, Math.round((wrapW / contentW) * 100) / 100));
         applyZoom();
-        ocWrap.scrollLeft = (ocView.scrollWidth * scale - ocWrap.clientWidth) / 2;
+        // transform-origin top center → center = (layoutWidth - viewportWidth)/2
+        requestAnimationFrame(() => {
+            ocWrap.scrollLeft = Math.max(0, (ocView.scrollWidth - ocWrap.clientWidth) / 2);
+            ocWrap.scrollTop = 0;
+        });
     }
 }
-window.addEventListener('load', fitToView);
+window.addEventListener('load', () => requestAnimationFrame(fitToView));
 
 // ── Drag-to-pan (mouse) — klik biasa tetap bisa collapse node ─────────
 let down = null, dragged = false;
