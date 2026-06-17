@@ -462,9 +462,13 @@ async function captureChart(el) {
     await new Promise(r => setTimeout(r, 350));
 
     const W = el.offsetWidth, H = el.offsetHeight;
-    // batas browser: dimensi ≤ ~16k px DAN luas total ≤ ~16 juta px² (Safari)
-    const MAXDIM = 16000, AREA = 16e6;
-    let s = Math.min(2, MAXDIM / W, MAXDIM / H, Math.sqrt(AREA / (W * H)));
+    // Batas kanvas adaptif: Safari ~16 juta px² (konservatif), Chrome/Firefox jauh
+    // lebih besar → resolusi lebih tajam. Skala maksimum juga dinaikkan utk non-Safari.
+    const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent);
+    const MAXDIM = isSafari ? 16000 : 16384;
+    const AREA   = isSafari ? 16e6  : 130e6;
+    const MAXS   = isSafari ? 2     : 4;
+    let s = Math.min(MAXS, MAXDIM / W, MAXDIM / H, Math.sqrt(AREA / (W * H)));
     s = Math.max(0.2, Math.round(s * 100) / 100);
 
     const canvas = await html2canvas(el, {
