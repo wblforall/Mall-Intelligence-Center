@@ -478,7 +478,17 @@ async function captureChart(el) {
     ocWrap.style.height = prevH; ocWrap.style.overflow = prevOv;
     ocView.style.width = ''; ocView.style.minWidth = '';
     scale = prevScale; applyZoom();
-    return canvas;
+
+    // Beri margin putih di sekeliling (atas/bawah/kiri/kanan) agar tidak mentok
+    const M = Math.round(40 * s);
+    const out = document.createElement('canvas');
+    out.width = canvas.width + M * 2;
+    out.height = canvas.height + M * 2;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(canvas, M, M);
+    return out;
 }
 
 async function runExport(btnId, fn) {
