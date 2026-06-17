@@ -2,7 +2,9 @@
 <?= $this->section('styles') ?>
 <style>
 /* ── Tree structure ── */
-.oc-wrap { overflow: auto; padding: 24px 24px 48px; }
+.oc-wrap { overflow: auto; padding: 24px 24px 48px; height: 74vh; cursor: grab; overscroll-behavior: contain; }
+.oc-wrap.panning { cursor: grabbing; user-select: none; }
+.oc-wrap.panning .oc-node { pointer-events: none; }
 .oc-tree, .oc-tree ul { list-style: none; margin: 0; padding: 0; }
 .oc-tree { display: flex; flex-direction: column; align-items: center; }
 
@@ -47,6 +49,14 @@
 .oc-tree li:last-child::after,
 .oc-tree li:only-child::before,
 .oc-tree li:only-child::after { display: none; }
+
+/* Pass-through (level kosong) agar node grade lebih rendah turun ke baris grade-nya.
+   Hanya garis vertikal di tengah (node-nya transparan). */
+.oc-pass { width: 140px; min-height: 58px; position: relative; }
+.oc-pass::before {
+    content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+    border-left: 2px solid #cbd5e1; width: 0;
+}
 
 /* ── Node cards ── */
 .oc-node {
@@ -98,7 +108,7 @@
     color: #fff; font-size: .55rem; font-weight: 700;
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .oc-emp-name { font-size: .68rem; color: #475569;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+    white-space: normal; overflow-wrap: anywhere; line-height: 1.25; text-align: left; }
 .oc-vacant { font-size: .65rem; color: #94a3b8; font-style: italic; margin-top: 4px; }
 
 /* Collapse state */
@@ -121,7 +131,6 @@
 function jabNode(array $j, bool $hasChildren = false): string
 {
     $emps    = $j['employees'] ?? [];
-    $showMax = 3;
     $search  = strtolower($j['nama']);
     foreach ($emps as $e) $search .= ' ' . strtolower($e['nama']);
 
@@ -139,17 +148,15 @@ function jabNode(array $j, bool $hasChildren = false): string
         $html .= '<div class="oc-vacant"><i class="bi bi-person-dash me-1"></i>Vacant</div>';
     } else {
         $colors = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6'];
-        foreach (array_slice($emps, 0, $showMax) as $e) {
+        foreach ($emps as $e) {
             $ini   = implode('', array_map(fn($w) => strtoupper($w[0]),
-                            array_slice(explode(' ', $e['nama']), 0, 2)));
+                            array_slice(array_filter(explode(' ', $e['nama'])), 0, 2)));
             $color = $colors[abs(crc32($e['nama'])) % count($colors)];
             $html .= '<div class="oc-emp">'
                    . '<span class="oc-avatar" style="background:' . $color . '">' . esc($ini) . '</span>'
                    . '<span class="oc-emp-name">' . esc($e['nama']) . '</span>'
                    . '</div>';
         }
-        if (count($emps) > $showMax)
-            $html .= '<div class="oc-vacant">+' . (count($emps) - $showMax) . ' lainnya</div>';
     }
 
     $html .= '</div></div>';
@@ -197,23 +204,25 @@ function jabTreeRender(array $j, array $childrenOf, string $nextBranch): string
     $jid  = (int)$j['id'];
     $kids = $childrenOf[$jid] ?? [];
 
-    if (!empty($kids)) {
-        // Grade-chain the children among themselves, $nextBranch at their leaves
-        $kidsByGrade = [];
-        foreach ($kids as $kid) $kidsByGrade[(int)$kid['grade']][] = $kid;
-        ksort($kidsByGrade);
-
-        $childResult = $nextBranch;
-        foreach (array_reverse($kidsByGrade) as $gradeGroup) {
-            $liItems = '';
-            foreach ($gradeGroup as $kid) {
-                $liItems .= '<li>' . jabTreeRender($kid, $childrenOf, $childResult) . '</li>';
+    // Render anak sebagai sibling langsung sesuai parent_jabatan_id (bukan grade-chain),
+    // supaya anak grade rendah yang langsung di bawah node ini tidak ter-duplikasi
+    // ke tiap sibling grade lebih tinggi. $nextBranch ditempel di node ini.
+    $inner = '';
+    if (! empty($kids)) {
+        $liItems = '';
+        foreach ($kids as $kid) {
+            $sub = jabTreeRender($kid, $childrenOf, '');
+            // Sisipkan level kosong (pass-through) bila grade anak lompat lebih dari 1
+            // dari parent, supaya kedalaman = grade (G8 lurus dengan G8).
+            $gap = (int) $kid['grade'] - (int) $j['grade'] - 1;
+            for ($s = 0; $s < $gap; $s++) {
+                $sub = '<div class="oc-pass"></div><ul><li>' . $sub . '</li></ul>';
             }
-            $childResult = '<ul>' . $liItems . '</ul>';
+            $liItems .= '<li>' . $sub . '</li>';
         }
-        return jabNode($j, true) . $childResult;
+        $inner = '<ul>' . $liItems . '</ul>';
     }
-    return jabNode($j, $nextBranch !== '') . $nextBranch;
+    return jabNode($j, $inner !== '' || $nextBranch !== '') . $inner . $nextBranch;
 }
 
 /**
@@ -356,6 +365,10 @@ function divLi(array $div): string
         <i class="bi bi-arrows-collapse me-1"></i>Collapse
     </button>
     <div class="vr mx-1"></div>
+    <button class="btn btn-sm btn-outline-danger" id="btnPdf" onclick="exportPDF()">
+        <i class="bi bi-filetype-pdf me-1"></i>Export PDF
+    </button>
+    <div class="vr mx-1"></div>
     <input type="text" id="searchBox" class="form-control form-control-sm" style="max-width:200px"
            placeholder="Cari nama / jabatan...">
     <span class="text-muted small ms-auto" id="zoomLabel">100%</span>
@@ -376,14 +389,20 @@ function divLi(array $div): string
 </div>
 
 <?php
-// Build divisions + orphan depts branch
+// Pisahkan top-jabatan: spine = Direktur/GM (grade ≤ 2), company-level = Sekretaris dkk
+// (grade ≥ 3) yang ditempatkan sebagai sibling divisi di bawah GM (setara deputy).
+$spine = $companyJabs = [];
+foreach ($topJabs as $tj) {
+    if ((int) $tj['grade'] <= 2) $spine[] = $tj; else $companyJabs[] = $tj;
+}
+// Build branch: divisi + dept tanpa divisi + jabatan company-level (Sekretaris)
 $branchHtml = '';
+foreach ($companyJabs as $cj)  $branchHtml .= '<li>' . jabNode($cj) . '</li>';
 foreach ($divisions  as $div)  $branchHtml .= divLi($div);
 foreach ($noDivDepts as $dept) $branchHtml .= deptLi($dept);
 $branch = $branchHtml ? '<ul>' . $branchHtml . '</ul>' : '';
 
-// Chain top-level jabatans (Director, GM…) then attach branch
-echo jabRender($topJabs, $branch);
+echo jabRender($spine ?: $topJabs, $branch);
 ?>
 
 </li>
@@ -395,19 +414,108 @@ echo jabRender($topJabs, $branch);
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+const ocWrap = document.querySelector('.oc-wrap');
+const ocView = document.getElementById('viewport');
 let scale = 1;
 
-function zoom(delta) {
-    scale = Math.min(2.5, Math.max(0.25, scale + delta));
-    document.getElementById('viewport').style.transform = `scale(${scale})`;
+// ── Export PDF (tangkap seluruh pohon → 1 halaman besar) ─────────────
+async function exportPDF() {
+    const btn = document.getElementById('btnPdf');
+    const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Membuat…';
+    try {
+        expandAll();
+        const prevScale = scale, prevH = ocWrap.style.height, prevOv = ocWrap.style.overflow;
+        scale = 1; applyZoom();
+        // lepas batas tinggi/scroll supaya seluruh pohon tertangkap
+        ocWrap.style.height = 'auto'; ocWrap.style.overflow = 'visible';
+        await new Promise(r => setTimeout(r, 250));
+        const canvas = await html2canvas(ocView, { backgroundColor: '#ffffff', scale: 1.5, windowWidth: ocView.scrollWidth });
+        ocWrap.style.height = prevH; ocWrap.style.overflow = prevOv;
+        scale = prevScale; applyZoom();
+
+        const { jsPDF } = window.jspdf;
+        const w = canvas.width, h = canvas.height;
+        const pdf = new jsPDF({ orientation: w >= h ? 'l' : 'p', unit: 'px', format: [w, h], compress: true });
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, w, h);
+        pdf.save('struktur-organisasi.pdf');
+    } catch (err) {
+        alert('Gagal membuat PDF: ' + (err.message || err) + '\\nPohon mungkin terlalu besar — coba collapse sebagian dulu.');
+    } finally {
+        btn.disabled = false; btn.innerHTML = orig;
+    }
+}
+
+function applyZoom() {
+    ocView.style.transform = scale === 1 ? '' : `scale(${scale})`;
     document.getElementById('zoomLabel').textContent = Math.round(scale * 100) + '%';
 }
-function resetZoom() {
-    scale = 1;
-    document.getElementById('viewport').style.transform = '';
-    document.getElementById('zoomLabel').textContent = '100%';
+function zoom(delta) {
+    scale = Math.min(2.5, Math.max(0.25, Math.round((scale + delta) * 100) / 100));
+    applyZoom();
 }
+function resetZoom() { scale = 1; applyZoom(); ocWrap.scrollTop = 0; }
+
+// Default: zoom-out otomatis agar seluruh lebar pohon terlihat
+function fitToView() {
+    const contentW = ocView.scrollWidth;
+    const wrapW = ocWrap.clientWidth - 48;
+    if (contentW > 0) {
+        scale = Math.min(1, Math.max(0.2, Math.round((wrapW / contentW) * 100) / 100));
+        applyZoom();
+        ocWrap.scrollLeft = (ocView.scrollWidth * scale - ocWrap.clientWidth) / 2;
+    }
+}
+window.addEventListener('load', fitToView);
+
+// ── Drag-to-pan (mouse) — klik biasa tetap bisa collapse node ─────────
+let down = null, dragged = false;
+ocWrap.addEventListener('mousedown', e => {
+    if (e.button !== 0 || e.target.closest('button, input, a')) return;
+    down = { x: e.clientX, y: e.clientY, sl: ocWrap.scrollLeft, st: ocWrap.scrollTop };
+    dragged = false;
+});
+window.addEventListener('mousemove', e => {
+    if (! down) return;
+    const dx = e.clientX - down.x, dy = e.clientY - down.y;
+    if (! dragged && Math.hypot(dx, dy) > 4) { dragged = true; ocWrap.classList.add('panning'); }
+    if (dragged) { ocWrap.scrollLeft = down.sl - dx; ocWrap.scrollTop = down.st - dy; }
+});
+window.addEventListener('mouseup', () => {
+    if (dragged) ocWrap.addEventListener('click', ev => ev.stopPropagation(), { capture: true, once: true });
+    down = null; ocWrap.classList.remove('panning');
+});
+
+// ── Zoom: Ctrl/⌘ + scroll ────────────────────────────────────────────
+ocWrap.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoom(e.deltaY < 0 ? 0.1 : -0.1); }
+}, { passive: false });
+
+// ── Touch: 1 jari geser, 2 jari pinch-zoom ───────────────────────────
+let tPan = null, pinch = null;
+const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+ocWrap.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+        const t = e.touches[0];
+        if (t.target.closest('button, input, a')) return;
+        tPan = { x: t.clientX, y: t.clientY, sl: ocWrap.scrollLeft, st: ocWrap.scrollTop };
+    } else if (e.touches.length === 2) { pinch = { d: dist(e.touches), s: scale }; }
+}, { passive: true });
+ocWrap.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && pinch) {
+        e.preventDefault();
+        scale = Math.min(2.5, Math.max(0.25, Math.round(pinch.s * dist(e.touches) / pinch.d * 100) / 100));
+        applyZoom();
+    } else if (e.touches.length === 1 && tPan) {
+        const t = e.touches[0];
+        ocWrap.scrollLeft = tPan.sl - (t.clientX - tPan.x);
+        ocWrap.scrollTop  = tPan.st - (t.clientY - tPan.y);
+    }
+}, { passive: false });
+ocWrap.addEventListener('touchend', e => { if (e.touches.length === 0) { tPan = null; pinch = null; } });
 
 function toggleNode(li) {
     li.classList.toggle('collapsed');
