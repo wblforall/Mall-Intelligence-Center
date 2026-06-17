@@ -287,7 +287,7 @@ function deptLi(array $dept): string
     $icon  = $hasJ ? '<i class="bi bi-chevron-down collapse-icon"></i>' : '';
 
     $html  = '<li>';
-    $html .= '<div class="oc-node oc-dept' . ($hasJ ? ' has-children' : '') . '"' . $click . '>';
+    $html .= '<div class="oc-node oc-dept' . ($hasJ ? ' has-children' : '') . '" data-export="dept-' . (int)$dept['id'] . '"' . $click . '>';
     $html .= '<i class="bi bi-diagram-2 me-1"></i>' . esc($dept['name']) . $icon;
     $html .= '</div>';
     if ($hasJ) $html .= jabRender($dept['jabatans']);
@@ -306,7 +306,7 @@ function divLi(array $div): string
     $kode  = $div['kode'] ? '<div class="kode">' . esc($div['kode']) . '</div>' : '';
 
     $html  = '<li>';
-    $html .= '<div class="oc-node oc-div' . ($hasAny ? ' has-children' : '') . '"' . $click . '>';
+    $html .= '<div class="oc-node oc-div' . ($hasAny ? ' has-children' : '') . '" data-export="div-' . (int)$div['id'] . '"' . $click . '>';
     $html .= '<i class="bi bi-building me-1"></i>' . esc($div['nama']) . $kode . $icon;
     $html .= '</div>';
 
@@ -365,6 +365,23 @@ function divLi(array $div): string
         <i class="bi bi-arrows-collapse me-1"></i>Collapse
     </button>
     <div class="vr mx-1"></div>
+    <select id="exportScope" class="form-select form-select-sm" style="max-width:190px" title="Cakupan export">
+        <option value="all">Seluruh struktur</option>
+        <optgroup label="Per Divisi">
+            <?php foreach ($divisions as $dv): ?>
+            <option value="div-<?= (int)$dv['id'] ?>"><?= esc($dv['nama']) ?></option>
+            <?php endforeach; ?>
+        </optgroup>
+        <optgroup label="Per Departemen">
+            <?php
+            $allDepts = $noDivDepts;
+            foreach ($divisions as $dv) foreach ($dv['departments'] as $dp) $allDepts[] = $dp;
+            usort($allDepts, fn($a, $b) => strcmp($a['name'], $b['name']));
+            foreach ($allDepts as $dp): ?>
+            <option value="dept-<?= (int)$dp['id'] ?>"><?= esc($dp['name']) ?></option>
+            <?php endforeach; ?>
+        </optgroup>
+    </select>
     <button class="btn btn-sm btn-outline-secondary" id="btnPng" onclick="exportPNG()">
         <i class="bi bi-file-earmark-image me-1"></i>PNG
     </button>
@@ -424,25 +441,35 @@ const ocWrap = document.querySelector('.oc-wrap');
 const ocView = document.getElementById('viewport');
 let scale = 1;
 
-// ── Tangkap seluruh pohon → canvas (resolusi setinggi mungkin yg muat) ──
-async function captureChart() {
+// Elemen yang diekspor sesuai pilihan scope (seluruh / divisi / dept)
+function scopeTarget() {
+    const v = document.getElementById('exportScope').value;
+    if (v === 'all') return { el: ocView, name: 'struktur-organisasi' };
+    const node = ocView.querySelector('[data-export="' + v + '"]');
+    const label = node ? node.textContent.trim().replace(/[\\/:*?"<>|]+/g, '').slice(0, 60) : v;
+    return { el: node ? node.closest('li') : ocView, name: 'struktur-' + label };
+}
+
+// ── Tangkap elemen → canvas (resolusi setinggi mungkin yg muat) ──
+async function captureChart(el) {
+    el = el || ocView;
     expandAll();
     const prevScale = scale, prevH = ocWrap.style.height, prevOv = ocWrap.style.overflow;
     scale = 1; applyZoom();
-    // lepas batas tinggi/scroll + paksa lebar = konten penuh (cegah center melimpah ke kiri)
+    // lepas batas tinggi/scroll + paksa lebar konten penuh (cegah center melimpah ke kiri)
     ocWrap.style.height = 'auto'; ocWrap.style.overflow = 'visible';
     ocView.style.width = 'max-content'; ocView.style.minWidth = '0';
     await new Promise(r => setTimeout(r, 350));
 
-    const W = ocView.offsetWidth, H = ocView.offsetHeight;
+    const W = el.offsetWidth, H = el.offsetHeight;
     // batas browser: dimensi ≤ ~16k px DAN luas total ≤ ~16 juta px² (Safari)
     const MAXDIM = 16000, AREA = 16e6;
     let s = Math.min(2, MAXDIM / W, MAXDIM / H, Math.sqrt(AREA / (W * H)));
     s = Math.max(0.2, Math.round(s * 100) / 100);
 
-    const canvas = await html2canvas(ocView, {
+    const canvas = await html2canvas(el, {
         backgroundColor: '#ffffff', scale: s,
-        width: W, height: H, windowWidth: W, windowHeight: H, scrollX: 0, scrollY: 0,
+        width: W, height: H, windowWidth: ocView.offsetWidth, windowHeight: ocView.offsetHeight,
     });
     ocWrap.style.height = prevH; ocWrap.style.overflow = prevOv;
     ocView.style.width = ''; ocView.style.minWidth = '';
@@ -455,16 +482,17 @@ async function runExport(btnId, fn) {
     const orig = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Membuat…';
     try { await fn(); }
-    catch (err) { alert('Gagal export: ' + (err.message || err) + '\\nCoba collapse sebagian cabang dulu.'); }
+    catch (err) { alert('Gagal export: ' + (err.message || err) + '\\nCoba pilih scope lebih kecil (per divisi/dept).'); }
     finally { btn.disabled = false; btn.innerHTML = orig; }
 }
 
 function exportPNG() {
     runExport('btnPng', async () => {
-        const canvas = await captureChart();
+        const { el, name } = scopeTarget();
+        const canvas = await captureChart(el);
         await new Promise(res => canvas.toBlob(blob => {
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob); a.download = 'struktur-organisasi.png';
+            a.href = URL.createObjectURL(blob); a.download = name + '.png';
             a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); res();
         }, 'image/png'));
     });
@@ -472,12 +500,16 @@ function exportPNG() {
 
 function exportPDF() {
     runExport('btnPdf', async () => {
-        const canvas = await captureChart();
+        const { el, name } = scopeTarget();
+        const canvas = await captureChart(el);
         const { jsPDF } = window.jspdf;
-        const w = canvas.width, h = canvas.height;
-        const pdf = new jsPDF({ orientation: w >= h ? 'l' : 'p', unit: 'px', format: [w, h], compress: true });
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, w, h);
-        pdf.save('struktur-organisasi.pdf');
+        // batas halaman PDF ~14400pt → cap 14000pt, skala gambar agar muat (px→pt ×0.75)
+        let wpt = canvas.width * 0.75, hpt = canvas.height * 0.75;
+        const CAP = 14000, k = Math.min(1, CAP / wpt, CAP / hpt);
+        wpt = Math.round(wpt * k); hpt = Math.round(hpt * k);
+        const pdf = new jsPDF({ orientation: wpt >= hpt ? 'l' : 'p', unit: 'pt', format: [wpt, hpt], compress: true });
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, wpt, hpt);
+        pdf.save(name + '.pdf');
     });
 }
 
