@@ -32,6 +32,37 @@ class PeopleEmployees extends BaseController
         ]);
     }
 
+    // Export seluruh data karyawan ke CSV (buka di Excel)
+    public function export()
+    {
+        if (! $this->canViewMenu('people_dev') && ! $this->canViewMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $employees = (new EmployeeModel())->getWithDept();
+
+        $cols = ['No', 'NIK', 'Nama', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Masuk', 'Masa Kerja',
+                 'Departemen', 'Divisi', 'Jabatan', 'Grade', 'Atasan', 'No HP', 'Email', 'Status', 'Catatan'];
+        $esc = fn($v) => '"' . str_replace('"', '""', (string) ($v ?? '')) . '"';
+
+        $csv = "\xEF\xBB\xBF" . implode(',', array_map($esc, $cols)) . "\r\n";
+        $i = 1;
+        foreach ($employees as $e) {
+            $row = [
+                $i++, $e['nik'] ?? '', $e['nama'] ?? '',
+                ($e['jenis_kelamin'] === 'P' ? 'Perempuan' : ($e['jenis_kelamin'] === 'L' ? 'Laki-laki' : '')),
+                $e['tanggal_lahir'] ?? '', $e['tanggal_masuk'] ?? '',
+                EmployeeModel::getMasaKerja($e['tanggal_masuk'] ?? null),
+                $e['dept_name'] ?? '', $e['division_nama'] ?? '',
+                $e['jabatan'] ?? '', $e['jabatan_grade'] ?? '', $e['atasan_nama'] ?? '',
+                $e['no_hp'] ?? '', $e['email'] ?? '', $e['status'] ?? '', $e['catatan'] ?? '',
+            ];
+            $csv .= implode(',', array_map($esc, $row)) . "\r\n";
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="data-karyawan-' . date('Ymd') . '.csv"')
+            ->setBody($csv);
+    }
+
     public function show(int $id)
     {
         if (! $this->canViewMenu('people_dev') && ! $this->canViewMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');

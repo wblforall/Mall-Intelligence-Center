@@ -525,6 +525,7 @@ $routes->post('people/competencies/import/confirm',               'PeopleCompete
 
 // People Development — Employees
 $routes->get('people/employees',                                          'PeopleEmployees::index',             ['filter' => 'auth']);
+$routes->get('people/employees/export',                                   'PeopleEmployees::export',            ['filter' => 'auth']);
 $routes->post('people/employees/add',                                     'PeopleEmployees::store',             ['filter' => 'auth']);
 $routes->get('people/employees/(:num)',                                   'PeopleEmployees::show/$1',           ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/edit',                             'PeopleEmployees::update/$1',         ['filter' => 'auth']);

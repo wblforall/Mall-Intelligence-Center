@@ -14,9 +14,14 @@
         <h4 class="fw-bold mb-0"><i class="bi bi-people-fill me-2"></i>Data Karyawan</h4>
         <small class="text-muted">People Development — Employee Record</small>
     </div>
-    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
-        <i class="bi bi-plus-lg me-1"></i> Tambah Karyawan
-    </button>
+    <div class="d-flex gap-2">
+        <a href="<?= base_url('people/employees/export') ?>" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-download me-1"></i> Export
+        </a>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-lg me-1"></i> Tambah Karyawan
+        </button>
+    </div>
 </div>
 
 <!-- Stats strip -->
