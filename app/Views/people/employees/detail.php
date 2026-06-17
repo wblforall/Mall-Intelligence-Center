@@ -416,6 +416,7 @@ const employeeList = <?= json_encode(array_values(array_map(fn($e) => [
     'nama'          => $e['nama'],
     'jabatan'       => $e['jabatan'] ?? '',
     'jabatan_grade' => $e['jabatan_grade'] !== null ? (int)$e['jabatan_grade'] : null,
+    'dept_id'       => ($e['dept_id'] ?? null) !== null ? (int)$e['dept_id'] : null,
 ], $allEmployees))) ?>;
 
 const jabatanGradeMap = {};
@@ -430,6 +431,8 @@ Object.entries(jabatanMap).forEach(([key, val]) => {
 function filterAtasan(jabSelectId, atasanSelectId, excludeEmpId = 0, selectedAtasanId = 0) {
     const jabId = parseInt(document.getElementById(jabSelectId).value) || 0;
     const grade = jabatanGradeMap[jabId] ?? null;
+    const deptEl = document.getElementById(jabSelectId.replace('JabatanId', 'DeptId'));
+    const deptId = deptEl ? (parseInt(deptEl.value) || 0) : 0;
     const sel   = document.getElementById(atasanSelectId);
     sel.innerHTML = '<option value="">— Tidak ada —</option>';
     employeeList
@@ -437,6 +440,7 @@ function filterAtasan(jabSelectId, atasanSelectId, excludeEmpId = 0, selectedAta
             if (e.id === excludeEmpId) return false;
             if (!grade) return false;
             if (e.jabatan_grade !== null && e.jabatan_grade >= grade) return false;
+            if (deptId && e.dept_id !== null && e.dept_id !== deptId) return false; // beda dept (non level-divisi) → buang
             return true;
         })
         .sort((a, b) => a.jabatan_grade - b.jabatan_grade || a.nama.localeCompare(b.nama))
