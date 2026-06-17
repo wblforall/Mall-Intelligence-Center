@@ -432,8 +432,17 @@ async function exportPDF() {
         scale = 1; applyZoom();
         // lepas batas tinggi/scroll supaya seluruh pohon tertangkap
         ocWrap.style.height = 'auto'; ocWrap.style.overflow = 'visible';
-        await new Promise(r => setTimeout(r, 250));
-        const canvas = await html2canvas(ocView, { backgroundColor: '#ffffff', scale: 1.5, windowWidth: ocView.scrollWidth });
+        await new Promise(r => setTimeout(r, 350));
+
+        const fullW = ocView.scrollWidth, fullH = ocView.scrollHeight;
+        // batasi dimensi kanvas (~16k limit browser) — hitung skala render aman
+        const CAP = 14000;
+        const cs = Math.min(2, CAP / Math.max(fullW, fullH, 1));
+        const canvas = await html2canvas(ocView, {
+            backgroundColor: '#ffffff', scale: cs,
+            width: fullW, height: fullH, windowWidth: fullW, windowHeight: fullH,
+            scrollX: 0, scrollY: 0,
+        });
         ocWrap.style.height = prevH; ocWrap.style.overflow = prevOv;
         scale = prevScale; applyZoom();
 
