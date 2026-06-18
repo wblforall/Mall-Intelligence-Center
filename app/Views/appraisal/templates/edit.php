@@ -47,19 +47,27 @@ $canEdit = ! $locked && in_array($tpl['status'], ['draft']) ;
 <?php foreach ($kpis as $i => $k): ?>
 <tr class="kpi-row">
     <td class="ps-3">
-        <select name="kpi[<?= $i ?>][area]" class="form-select form-select-sm" <?= $canEdit?'':'disabled' ?>>
+        <?php if ($canEdit): ?>
+        <select name="kpi[<?= $i ?>][area]" class="form-select form-select-sm">
             <?php foreach ($areas as $slug => $label): ?>
             <option value="<?= $slug ?>" <?= $k['area']===$slug?'selected':'' ?>><?= esc($label) ?></option>
             <?php endforeach; ?>
         </select>
+        <?php else: ?>
+        <span class="small d-block"><?= esc($areas[$k['area']] ?? $k['area']) ?></span>
+        <?php endif; ?>
     </td>
     <td><textarea name="kpi[<?= $i ?>][indikator]" class="form-control form-control-sm" rows="1" <?= $canEdit?'':'readonly' ?>><?= esc($k['indikator']) ?></textarea></td>
     <td>
-        <select name="kpi[<?= $i ?>][unit]" class="form-select form-select-sm" <?= $canEdit?'':'disabled' ?>>
+        <?php if ($canEdit): ?>
+        <select name="kpi[<?= $i ?>][unit]" class="form-select form-select-sm">
             <?php foreach ($units as $slug => $label): ?>
             <option value="<?= $slug ?>" <?= $k['unit']===$slug?'selected':'' ?>><?= esc($label) ?></option>
             <?php endforeach; ?>
         </select>
+        <?php else: ?>
+        <span class="small d-block"><?= esc($units[$k['unit']] ?? $k['unit']) ?></span>
+        <?php endif; ?>
     </td>
     <td><input type="number" step="0.01" min="0" name="kpi[<?= $i ?>][bobot]" class="form-control form-control-sm text-center kpi-bobot" value="<?= rtrim(rtrim(number_format($k['bobot'],2),'0'),'.') ?>" <?= $canEdit?'':'readonly' ?>></td>
     <td><input type="number" step="0.01" name="kpi[<?= $i ?>][target]" class="form-control form-control-sm text-center" value="<?= $k['target']!==null?rtrim(rtrim(number_format($k['target'],2),'0'),'.'):'' ?>" <?= $canEdit?'':'readonly' ?>></td>
