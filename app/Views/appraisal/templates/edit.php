@@ -131,10 +131,11 @@ $canEdit = ! $locked && in_array($tpl['status'], ['draft']) ;
             <?= csrf_field() ?>
             <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Setujui</button>
         </form>
-        <form method="POST" action="<?= base_url('appraisal/templates/' . $tpl['id'] . '/reject') ?>" class="d-flex gap-2">
+        <form method="POST" action="<?= base_url('appraisal/templates/' . $tpl['id'] . '/reject') ?>" class="w-100 mt-2" onsubmit="if(this.catatan_hr.value.trim()===''){alert('Catatan revisi wajib diisi.');return false;}return true;">
             <?= csrf_field() ?>
-            <input type="text" name="catatan_hr" class="form-control form-control-sm" placeholder="Catatan revisi (opsional)" style="width:260px">
-            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-return-left me-1"></i>Kembalikan</button>
+            <label class="form-label small fw-semibold mb-1">Catatan revisi <span class="text-danger">*</span> (wajib — tulis detail yang perlu diperbaiki)</label>
+            <textarea name="catatan_hr" class="form-control mb-2" rows="4" required placeholder="Jelaskan secara detail bagian KPI/kompetensi yang perlu diperbaiki penyusun…"></textarea>
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-return-left me-1"></i>Kembalikan ke penyusun</button>
         </form>
     <?php elseif ($tpl['status'] === 'approved' && $isHr): ?>
         <a href="<?= base_url('appraisal/templates/' . $tpl['id'] . '/kpi/save') ?>" class="text-muted small" onclick="event.preventDefault();document.getElementById('reopenForm').submit();"><i class="bi bi-unlock me-1"></i>Buka kembali untuk revisi</a>

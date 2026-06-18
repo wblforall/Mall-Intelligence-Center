@@ -256,7 +256,8 @@ class AppraisalTemplate extends BaseController
         if (! $tpl || $tpl['status'] !== 'submitted') return redirect()->back()->with('error', 'Template belum diajukan.');
 
         $catatan = trim($this->request->getPost('catatan_hr') ?? '');
-        $m->update($id, ['status' => 'draft', 'catatan_hr' => $catatan ?: 'Dikembalikan untuk revisi.']);
+        if ($catatan === '') return redirect()->to('appraisal/templates/' . $id)->with('error', 'Catatan revisi wajib diisi saat mengembalikan template.');
+        $m->update($id, ['status' => 'draft', 'catatan_hr' => $catatan]);
         ActivityLog::write('update', 'appraisal_template', (string) $id, 'Reject template', ['catatan' => $catatan]);
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Template dikembalikan ke penyusun.');
     }
