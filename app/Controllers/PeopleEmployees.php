@@ -32,27 +32,49 @@ class PeopleEmployees extends BaseController
         ]);
     }
 
+    // Field profil tambahan (status kontrak, project/payroll, dll) dari form
+    private function profileData(array $post): array
+    {
+        $f = fn($k) => trim($post[$k] ?? '') ?: null;
+        return [
+            'nik_ktp'            => $f('nik_ktp'),
+            'status_kontrak'     => $f('status_kontrak'),
+            'project'            => $f('project'),
+            'pendidikan'         => $f('pendidikan'),
+            'jurusan'            => $f('jurusan'),
+            'status_pernikahan'  => $f('status_pernikahan'),
+            'agama'              => $f('agama'),
+            'jabatan_sebelumnya' => $f('jabatan_sebelumnya'),
+            'alamat'             => $f('alamat'),
+            'alamat_non_bpn'     => $f('alamat_non_bpn'),
+        ];
+    }
+
     // Export seluruh data karyawan ke CSV (buka di Excel)
     public function export()
     {
         if (! $this->canViewMenu('people_dev') && ! $this->canViewMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $employees = (new EmployeeModel())->getWithDept();
 
-        $cols = ['No', 'NIK', 'Nama', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Masuk', 'Masa Kerja',
-                 'Departemen', 'Divisi', 'Jabatan', 'Grade', 'Atasan', 'No HP', 'Email', 'Status', 'Catatan'];
+        $cols = ['No', 'NIK', 'NIK KTP', 'Nama', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Masuk', 'Masa Kerja',
+                 'Departemen', 'Divisi', 'Jabatan', 'Grade', 'Atasan', 'Status Kontrak', 'Project (Sumber Gaji)',
+                 'Pendidikan', 'Jurusan', 'Status Pernikahan', 'Agama', 'Jabatan Sebelumnya',
+                 'No HP', 'Email', 'Alamat', 'Alamat Non-BPN', 'Status', 'Catatan'];
         $esc = fn($v) => '"' . str_replace('"', '""', (string) ($v ?? '')) . '"';
 
         $csv = "\xEF\xBB\xBF" . implode(',', array_map($esc, $cols)) . "\r\n";
         $i = 1;
         foreach ($employees as $e) {
             $row = [
-                $i++, $e['nik'] ?? '', $e['nama'] ?? '',
+                $i++, $e['nik'] ?? '', $e['nik_ktp'] ?? '', $e['nama'] ?? '',
                 ($e['jenis_kelamin'] === 'P' ? 'Perempuan' : ($e['jenis_kelamin'] === 'L' ? 'Laki-laki' : '')),
                 $e['tanggal_lahir'] ?? '', $e['tanggal_masuk'] ?? '',
                 EmployeeModel::getMasaKerja($e['tanggal_masuk'] ?? null),
                 $e['dept_name'] ?? '', $e['division_nama'] ?? '',
                 $e['jabatan'] ?? '', $e['jabatan_grade'] ?? '', $e['atasan_nama'] ?? '',
-                $e['no_hp'] ?? '', $e['email'] ?? '', $e['status'] ?? '', $e['catatan'] ?? '',
+                $e['status_kontrak'] ?? '', $e['project'] ?? '',
+                $e['pendidikan'] ?? '', $e['jurusan'] ?? '', $e['status_pernikahan'] ?? '', $e['agama'] ?? '', $e['jabatan_sebelumnya'] ?? '',
+                $e['no_hp'] ?? '', $e['email'] ?? '', $e['alamat'] ?? '', $e['alamat_non_bpn'] ?? '', $e['status'] ?? '', $e['catatan'] ?? '',
             ];
             $csv .= implode(',', array_map($esc, $row)) . "\r\n";
         }
@@ -135,7 +157,7 @@ class PeopleEmployees extends BaseController
             if ($jab) $jabatanNama = $jab['nama'];
         }
 
-        $newId = $model->insert([
+        $newId = $model->insert(array_merge([
             'nik'           => trim($post['nik'] ?? '') ?: null,
             'nama'          => trim($post['nama']),
             'jenis_kelamin' => $post['jenis_kelamin'] ?: null,
@@ -150,7 +172,7 @@ class PeopleEmployees extends BaseController
             'status'        => $post['status'] ?? 'aktif',
             'foto'          => $fotoName,
             'catatan'       => trim($post['catatan'] ?? '') ?: null,
-        ]);
+        ], $this->profileData($post)));
 
         // Catat posisi awal jika jabatan diisi
         if ($jabatanNama) {
@@ -211,7 +233,7 @@ class PeopleEmployees extends BaseController
             'status'        => $post['status'] ?? 'aktif',
             'foto'          => $fotoName,
             'catatan'       => trim($post['catatan'] ?? '') ?: null,
-        ];
+        ] + $this->profileData($post);
         $model->update($id, $employeeData);
         ActivityLog::captureAfter($employeeData);
 

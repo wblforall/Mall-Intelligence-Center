@@ -301,6 +301,67 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             <div class="form-text">Sudah ada foto. Upload baru untuk mengganti.</div>
             <?php endif; ?>
         </div>
+        <?php $sel = fn($field, $val) => ($employee[$field] ?? '') === $val ? 'selected' : ''; ?>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Status Kontrak</label>
+            <select name="status_kontrak" class="form-select">
+                <option value="">—</option>
+                <?php foreach (['PERMANENT','KONTRAK','KONTRAK I','PROBATION'] as $o): ?>
+                <option <?= $sel('status_kontrak',$o) ?>><?= $o ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Project (Sumber Gaji)</label>
+            <select name="project" class="form-select">
+                <option value="">—</option>
+                <?php foreach (['eWalk','Pentacity','eWalk dan Pentacity'] as $o): ?>
+                <option <?= $sel('project',$o) ?>><?= $o ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">NIK KTP</label>
+            <input type="text" name="nik_ktp" class="form-control" value="<?= esc($employee['nik_ktp'] ?? '') ?>">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Pendidikan Terakhir</label>
+            <input type="text" name="pendidikan" class="form-control" value="<?= esc($employee['pendidikan'] ?? '') ?>">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Jurusan</label>
+            <input type="text" name="jurusan" class="form-control" value="<?= esc($employee['jurusan'] ?? '') ?>">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Status Pernikahan</label>
+            <select name="status_pernikahan" class="form-select">
+                <option value="">—</option>
+                <?php foreach (['Belum Menikah','Menikah','Cerai Hidup','Cerai Mati'] as $o): ?>
+                <option <?= $sel('status_pernikahan',$o) ?>><?= $o ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Agama</label>
+            <select name="agama" class="form-select">
+                <option value="">—</option>
+                <?php foreach (['ISLAM','Kristen','Protestan','Katolik','Hindu','Buddha','Konghucu'] as $o): ?>
+                <option <?= $sel('agama',$o) ?>><?= $o ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Jabatan Sebelumnya</label>
+            <input type="text" name="jabatan_sebelumnya" class="form-control" value="<?= esc($employee['jabatan_sebelumnya'] ?? '') ?>">
+        </div>
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Alamat (Balikpapan)</label>
+            <textarea name="alamat" class="form-control" rows="2"><?= esc($employee['alamat'] ?? '') ?></textarea>
+        </div>
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Alamat (Non-Balikpapan)</label>
+            <textarea name="alamat_non_bpn" class="form-control" rows="2"><?= esc($employee['alamat_non_bpn'] ?? '') ?></textarea>
+        </div>
         <div class="col-12">
             <label class="form-label small fw-semibold">Catatan</label>
             <textarea name="catatan" class="form-control" rows="2"><?= esc($employee['catatan'] ?? '') ?></textarea>

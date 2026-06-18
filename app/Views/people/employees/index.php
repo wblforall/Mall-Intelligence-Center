@@ -227,6 +227,55 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
             <label class="form-label small fw-semibold">Foto</label>
             <input type="file" name="foto" class="form-control" accept="image/*">
         </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Status Kontrak</label>
+            <select name="status_kontrak" class="form-select">
+                <option value="">—</option>
+                <option>PERMANENT</option><option>KONTRAK</option><option>KONTRAK I</option><option>PROBATION</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Project (Sumber Gaji)</label>
+            <select name="project" class="form-select">
+                <option value="">—</option><option>eWalk</option><option>Pentacity</option><option>eWalk dan Pentacity</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">NIK KTP</label>
+            <input type="text" name="nik_ktp" class="form-control">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Pendidikan Terakhir</label>
+            <input type="text" name="pendidikan" class="form-control">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Jurusan</label>
+            <input type="text" name="jurusan" class="form-control">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Status Pernikahan</label>
+            <select name="status_pernikahan" class="form-select">
+                <option value="">—</option><option>Belum Menikah</option><option>Menikah</option><option>Cerai Hidup</option><option>Cerai Mati</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Agama</label>
+            <select name="agama" class="form-select">
+                <option value="">—</option><option>ISLAM</option><option>Kristen</option><option>Protestan</option><option>Katolik</option><option>Hindu</option><option>Buddha</option><option>Konghucu</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Jabatan Sebelumnya</label>
+            <input type="text" name="jabatan_sebelumnya" class="form-control">
+        </div>
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Alamat (Balikpapan)</label>
+            <textarea name="alamat" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Alamat (Non-Balikpapan)</label>
+            <textarea name="alamat_non_bpn" class="form-control" rows="2"></textarea>
+        </div>
         <div class="col-12">
             <label class="form-label small fw-semibold">Catatan</label>
             <textarea name="catatan" class="form-control" rows="2"></textarea>
