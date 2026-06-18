@@ -32,11 +32,11 @@ $canEdit = ! $locked && in_array($tpl['status'], ['draft']) ;
 </div>
 <div class="card-body p-0">
 <div class="table-responsive">
-<table class="table table-sm align-middle mb-0" id="kpiTable">
+<table class="table table-sm align-middle mb-0" id="kpiTable" style="min-width:760px">
 <thead class="small text-muted">
 <tr>
     <th style="width:170px" class="ps-3">Area Kinerja</th>
-    <th>Indikator (KPI)</th>
+    <th style="min-width:280px">Indikator (KPI)</th>
     <th style="width:120px">Unit</th>
     <th style="width:80px" class="text-center">Bobot</th>
     <th style="width:90px" class="text-center">Target</th>
@@ -148,6 +148,14 @@ $canEdit = ! $locked && in_array($tpl['status'], ['draft']) ;
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<script>
+// Auto-tinggi textarea (indikator/deskripsi) agar teks panjang terbaca penuh
+function autoGrow(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
+document.querySelectorAll('#kpiTable textarea, #compBody textarea').forEach(autoGrow);
+document.addEventListener('input', e => {
+    if (e.target.matches('#kpiTable textarea, #compBody textarea')) autoGrow(e.target);
+});
+</script>
 <?php if ($canEdit): ?>
 <script>
 const areas = <?= json_encode($areas) ?>;

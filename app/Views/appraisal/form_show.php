@@ -37,9 +37,9 @@ foreach ($kpis as $k) $grouped[$k['area']][] = $k;
 <div class="card-header py-2"><h6 class="mb-0 fw-semibold"><i class="bi bi-bullseye me-1"></i>Key Performance Indicators (bobot <?= (int)($bobotKpi*100) ?>%)</h6></div>
 <div class="card-body p-0">
 <div class="table-responsive">
-<table class="table table-sm align-middle mb-0">
+<table class="table table-sm align-middle mb-0" style="min-width:820px">
 <thead class="small text-muted"><tr>
-    <th class="ps-3">Area / Indikator</th><th style="width:90px">Unit</th>
+    <th class="ps-3" style="min-width:300px">Area / Indikator</th><th style="width:90px">Unit</th>
     <th style="width:70px" class="text-center">Bobot</th><th style="width:80px" class="text-center">Target</th>
     <th style="width:90px" class="text-center">Realisasi</th><th style="width:90px" class="text-center">Skor 0–100</th>
     <th style="width:80px" class="text-center">Skor Akhir</th>
