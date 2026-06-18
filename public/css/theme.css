@@ -738,9 +738,10 @@ code        { color: #f8829a; background: rgba(232,65,90,.15); padding: .1rem .3
 }
 [data-theme="light"] .form-control::placeholder { color: rgba(249,115,22,.32) !important; }
 [data-theme="light"] .form-control:disabled,
-[data-theme="light"] .form-control[readonly] {
-    background: rgba(249,115,22,.04) !important;
-    color: rgba(249,115,22,.38) !important;
+[data-theme="light"] .form-control[readonly],
+[data-theme="light"] .form-select:disabled {
+    background: rgba(0,0,0,.035) !important;
+    color: #334155 !important;   /* abu-abu gelap, mudah dibaca */
 }
 [data-theme="light"] .form-label { color: #1e293b; }
 [data-theme="light"] .form-text  { color: rgba(249,115,22,.5) !important; }
