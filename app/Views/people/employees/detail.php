@@ -69,6 +69,34 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             <div class="text-muted small">Masa Kerja</div>
             <div class="fw-semibold"><?= $employee['masa_kerja'] ?></div>
         </div>
+        <?php
+        $infoRows = [
+            'Status Kontrak'     => $employee['status_kontrak'] ?? '',
+            'Project (Sumber Gaji)' => $employee['project'] ?? '',
+            'NIK KTP'            => $employee['nik_ktp'] ?? '',
+            'Pendidikan'         => trim(($employee['pendidikan'] ?? '') . ' ' . ($employee['jurusan'] ?? '')),
+            'Status Pernikahan'  => $employee['status_pernikahan'] ?? '',
+            'Agama'              => $employee['agama'] ?? '',
+            'Jabatan Sebelumnya' => $employee['jabatan_sebelumnya'] ?? '',
+        ];
+        foreach ($infoRows as $label => $val): ?>
+        <div class="col-md-4">
+            <div class="text-muted small"><?= $label ?></div>
+            <div><?= $val !== '' ? esc($val) : '—' ?></div>
+        </div>
+        <?php endforeach; ?>
+        <?php if (! empty($employee['alamat'])): ?>
+        <div class="col-md-6">
+            <div class="text-muted small">Alamat (Balikpapan)</div>
+            <div><?= esc($employee['alamat']) ?></div>
+        </div>
+        <?php endif; ?>
+        <?php if (! empty($employee['alamat_non_bpn'])): ?>
+        <div class="col-md-6">
+            <div class="text-muted small">Alamat (Non-Balikpapan)</div>
+            <div><?= esc($employee['alamat_non_bpn']) ?></div>
+        </div>
+        <?php endif; ?>
         <?php if ($employee['catatan']): ?>
         <div class="col-12">
             <div class="text-muted small">Catatan</div>
