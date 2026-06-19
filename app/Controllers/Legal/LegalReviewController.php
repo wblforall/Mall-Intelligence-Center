@@ -191,6 +191,7 @@ class LegalReviewController extends BaseController
         ]);
 
         $this->model->update($id, ['updated_at' => date('Y-m-d H:i:s')]);
+        ActivityLog::write('legal_review', 'comment', $id, $review['judul']);
         return redirect()->back()->with('success', 'Komentar ditambahkan.');
     }
 
@@ -266,6 +267,7 @@ class LegalReviewController extends BaseController
         $review = $this->model->find($id);
         $newVal = $review['ext_link_active'] ? 0 : 1;
         $this->model->update($id, ['ext_link_active' => $newVal]);
+        ActivityLog::write('legal_review', $newVal ? 'enable_link' : 'disable_link', $id, $review['judul']);
         return redirect()->back()->with('success', $newVal ? 'Link diaktifkan.' : 'Link dinonaktifkan.');
     }
 

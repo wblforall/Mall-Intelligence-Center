@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\EventModel;
 use App\Models\DailyTrafficModel;
 use App\Models\ThemePeriodModel;
+use App\Libraries\ActivityLog;
 
 class Dashboard extends BaseController
 {
@@ -237,6 +238,7 @@ class Dashboard extends BaseController
 
         cache()->delete('eco_bbm');
 
+        ActivityLog::write('update', 'dashboard', null, 'Update harga BBM (' . $per . ')');
         return redirect()->to('/')->with('success', 'Harga BBM diperbarui.');
     }
 
@@ -628,6 +630,7 @@ class Dashboard extends BaseController
         if ($biPct && $biPer) {
             cache()->save('eco_bi_rate', ['pct' => $biPct, 'per' => $biPer, 'live' => false], 30 * 24 * 3600);
         }
+        ActivityLog::write('update', 'dashboard', null, 'Update data makro ekonomi (GDP/BI Rate)');
         return redirect()->to(base_url())->with('success', 'Data makro diperbarui.');
     }
 

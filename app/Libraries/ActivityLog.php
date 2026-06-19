@@ -96,6 +96,12 @@ class ActivityLog
         'training_program'              => 'Program Training',
         'training_participant'          => 'Peserta Training',
         'training_budget'               => 'Budget Training',
+        // Lainnya
+        'theme_period'                  => 'Tema Periode',
+        'stock_voucher'                 => 'Stok Voucher (Kode)',
+        'legal_review'                  => 'Review Kontrak Legal',
+        'dashboard'                     => 'Dashboard Utama',
+        'profile'                       => 'Profil Akun',
     ];
 
     // Label ramah-baca untuk sebuah module key; fallback humanize bila tak terdaftar

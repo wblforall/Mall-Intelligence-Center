@@ -161,6 +161,7 @@ class EventLoyaltyCtrl extends BaseController
     {
         if (! $this->canEditMenu('loyalty')) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Akses ditolak.');
         (new EventLoyaltyRealisasiModel())->delete($rid);
+        ActivityLog::write('delete', 'loyalty', (string) $eventId, 'Hapus realisasi member loyalty');
         return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('success', 'Entri realisasi dihapus.');
     }
 
@@ -201,6 +202,7 @@ class EventLoyaltyCtrl extends BaseController
         (new EventLoyaltyVoucherRealisasiModel())->where('item_id', $itemId)->delete();
         (new EventLoyaltyVoucherItemModel())->delete($itemId);
         $this->syncLoyaltyBudget($eventId);
+        ActivityLog::write('delete', 'loyalty', (string) $eventId, 'Hapus voucher loyalty');
         return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('success', 'Voucher dihapus.');
     }
 
@@ -252,6 +254,7 @@ class EventLoyaltyCtrl extends BaseController
             (new StockVoucherKodeModel())->assign($kodeId, $post['nama_penerima'] ?? '', 'event', $programId, $itemId, (int)$rid);
             if (! empty($item['batch_id'])) (new StockVoucherBatchModel())->deductSisa((int)$item['batch_id']);
         }
+        ActivityLog::write('update', 'loyalty', (string) $eventId, 'Realisasi voucher loyalty');
         return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('success', 'Realisasi voucher disimpan.');
     }
 
@@ -267,6 +270,7 @@ class EventLoyaltyCtrl extends BaseController
             $item = (new EventLoyaltyVoucherItemModel())->find($itemId);
             if (! empty($item['batch_id'])) (new StockVoucherBatchModel())->restoreSisa((int)$item['batch_id']);
         }
+        ActivityLog::write('delete', 'loyalty', (string) $eventId, 'Hapus realisasi voucher loyalty');
         return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('success', 'Entri realisasi dihapus.');
     }
 
@@ -361,6 +365,7 @@ class EventLoyaltyCtrl extends BaseController
         (new EventLoyaltyHadiahRealisasiModel())->where('item_id', $itemId)->delete();
         (new EventLoyaltyHadiahItemModel())->delete($itemId);
         $this->syncLoyaltyBudget($eventId);
+        ActivityLog::write('delete', 'loyalty', (string) $eventId, 'Hapus item hadiah loyalty');
         return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('success', 'Item hadiah dihapus.');
     }
 
@@ -401,6 +406,7 @@ class EventLoyaltyCtrl extends BaseController
             $barangModel->releaseStock((int)$item['barang_id'], $jumlah);
             (new StockBarangLogModel())->writeKeluar((int)$item['barang_id'], $jumlah, (int)$barang['stok_tersedia'], 'event_loyalty', $programId, $post['tanggal'], $userId, $post['catatan'] ?? null);
         }
+        ActivityLog::write('update', 'loyalty', (string) $eventId, 'Realisasi hadiah loyalty');
         return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('success', 'Realisasi disimpan.');
     }
 
@@ -428,6 +434,7 @@ class EventLoyaltyCtrl extends BaseController
                 (new StockBarangLogModel())->writeMasuk((int)$item['barang_id'], $jumlah, (int)$barang['stok_tersedia'], $entry['tanggal'], $this->currentUser()['id'], 'Rollback realisasi #'.$rid);
             }
         }
+        ActivityLog::write('delete', 'loyalty', (string) $eventId, 'Hapus realisasi hadiah loyalty');
         return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('success', 'Entri realisasi dihapus.');
     }
 

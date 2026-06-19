@@ -166,6 +166,7 @@ class EventCreativeCtrl extends BaseController
             'uploaded_by'      => $this->currentUser()['id'],
         ]);
 
+        ActivityLog::write('update', 'creative', (string) $eventId, 'Upload file creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'File berhasil diupload.');
     }
 
@@ -181,6 +182,7 @@ class EventCreativeCtrl extends BaseController
             $fileModel->delete($fileId);
         }
 
+        ActivityLog::write('delete', 'creative', (string) $eventId, 'Hapus file creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'File berhasil dihapus.');
     }
 
@@ -197,6 +199,7 @@ class EventCreativeCtrl extends BaseController
         (new EventCreativeItemModel())->update($id, ['status' => $status]);
 
         $labels = ['draft' => 'Draft', 'review' => 'Diajukan untuk review', 'approved' => 'Approved', 'revision' => 'Perlu revisi'];
+        ActivityLog::write('update', 'creative', (string) $eventId, 'Ubah status item creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Status: ' . ($labels[$status] ?? $status));
     }
 
@@ -258,6 +261,7 @@ class EventCreativeCtrl extends BaseController
             'created_by'                    => $this->currentUser()['id'],
         ]);
 
+        ActivityLog::write('update', 'creative', (string) $eventId, 'Tambah realisasi creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Realisasi berhasil ditambahkan.');
     }
 
@@ -275,6 +279,7 @@ class EventCreativeCtrl extends BaseController
         }
         $model->delete($rid);
 
+        ActivityLog::write('delete', 'creative', (string) $eventId, 'Hapus realisasi creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Realisasi berhasil dihapus.');
     }
 
@@ -314,6 +319,7 @@ class EventCreativeCtrl extends BaseController
             'created_by'       => $this->currentUser()['id'],
         ]);
 
+        ActivityLog::write('update', 'creative', (string) $eventId, 'Simpan insight creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Insight berhasil disimpan.');
     }
 
@@ -329,6 +335,7 @@ class EventCreativeCtrl extends BaseController
         }
         $model->delete($iid);
 
+        ActivityLog::write('delete', 'creative', (string) $eventId, 'Hapus insight creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Insight berhasil dihapus.');
     }
 }

@@ -331,6 +331,9 @@ class Users extends BaseController
 
         (new UserModel())->update($id, $data);
         session()->set('user_name', $post['name']);
+
+        $changed = isset($data['password']) ? 'nama & password' : 'nama';
+        ActivityLog::write('update', 'profile', (string) $id, 'Ubah profil sendiri (' . $changed . ')');
         return redirect()->to('/profile')->with('success', 'Profil berhasil diperbarui.');
     }
 

@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\LegalReviewModel;
 use App\Models\LegalReviewVersionModel;
 use App\Models\LegalReviewCommentModel;
+use App\Libraries\ActivityLog;
 
 class LegalReviewExtController extends BaseController
 {
@@ -58,6 +59,7 @@ class LegalReviewExtController extends BaseController
         ]);
 
         $model->update($review['id'], ['updated_at' => date('Y-m-d H:i:s')]);
+        ActivityLog::write('legal_review', 'ext_comment', (string) $review['id'], $review['judul'] . ' — oleh ' . $name);
         return redirect()->to('/legal/ext/' . $token)->with('success', 'Komentar berhasil dikirim.');
     }
 }
