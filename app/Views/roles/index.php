@@ -88,11 +88,10 @@ $globalPerms = [
             <i class="bi bi-pencil"></i>
         </button>
         <?php if ($r['user_count'] == 0): ?>
-        <a href="<?= base_url('roles/'.$r['id'].'/delete') ?>"
-           class="btn btn-sm btn-outline-danger"
-           onclick="return confirm('Hapus role <?= esc($r['name']) ?>?')">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('roles/'.$r['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus role <?= esc($r['name']) ?>?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
         <?php else: ?>
         <button class="btn btn-sm btn-outline-danger" disabled title="Role masih digunakan">
             <i class="bi bi-trash"></i>

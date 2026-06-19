@@ -51,11 +51,10 @@
             data-aktif="<?= $loc['aktif'] ?>">
             <i class="bi bi-pencil"></i>
         </button>
-        <a href="<?= base_url('event-locations/'.$loc['id'].'/delete') ?>"
-           class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.75rem"
-           onclick="return confirm('Hapus lokasi ini?')">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('event-locations/'.$loc['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus lokasi ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.75rem" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
     </div>
 </div>
 <?php endforeach; ?>

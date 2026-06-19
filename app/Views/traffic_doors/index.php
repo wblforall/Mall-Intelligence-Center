@@ -54,11 +54,10 @@
             data-aktif="<?= $door['aktif'] ?>">
             <i class="bi bi-pencil"></i>
         </button>
-        <a href="<?= base_url('traffic-doors/'.$door['id'].'/delete') ?>"
-           class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.75rem"
-           onclick="return confirm('Hapus pintu ini?')">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('traffic-doors/'.$door['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus pintu ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.75rem" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
     </div>
 </div>
 <?php endforeach; ?>

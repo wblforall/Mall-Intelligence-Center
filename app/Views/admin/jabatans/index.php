@@ -109,11 +109,10 @@ ksort($grouped);
                 data-parent_jabatan_id="<?= $j['parent_jabatan_id'] ?? '' ?>">
                 <i class="bi bi-pencil"></i>
             </button>
-            <a href="<?= base_url('jabatans/'.$j['id'].'/delete') ?>"
-               class="btn btn-sm btn-outline-danger"
-               onclick="return confirm('Hapus jabatan <?= esc($j['nama']) ?>?')">
-                <i class="bi bi-trash"></i>
-            </a>
+            <form method="POST" action="<?= base_url('jabatans/'.$j['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus jabatan <?= esc($j['nama']) ?>?')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+            </form>
         </td>
     </tr>
     <?php endforeach; ?>

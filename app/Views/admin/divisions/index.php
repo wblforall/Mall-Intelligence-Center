@@ -50,11 +50,10 @@
                     <i class="bi bi-pencil"></i>
                 </button>
                 <?php if ($div['dept_count'] == 0): ?>
-                <a href="<?= base_url('divisions/'.$div['id'].'/delete') ?>"
-                   class="btn btn-sm btn-outline-danger"
-                   onclick="return confirm('Hapus divisi <?= esc($div['nama']) ?>?')">
-                    <i class="bi bi-trash"></i>
-                </a>
+                <form method="POST" action="<?= base_url('divisions/'.$div['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus divisi <?= esc($div['nama']) ?>?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                </form>
                 <?php endif; ?>
             </div>
         </div>

@@ -36,10 +36,10 @@
                     <i class="bi bi-sliders2"></i>
                 </a>
                 <?php if ($d['user_count'] == 0): ?>
-                <a href="<?= base_url('departments/'.$d['id'].'/delete') ?>" class="btn btn-sm btn-outline-danger"
-                   onclick="return confirm('Hapus departemen <?= esc($d['name']) ?>?')">
-                    <i class="bi bi-trash"></i>
-                </a>
+                <form method="POST" action="<?= base_url('departments/'.$d['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus departemen <?= esc($d['name']) ?>?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                </form>
                 <?php endif; ?>
             </div>
         </div>

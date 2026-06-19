@@ -51,11 +51,10 @@
                         data-urutan="<?= $cl['urutan'] ?>">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <a href="<?= base_url('admin/clusters/'.$cl['id'].'/delete') ?>"
-                       class="btn btn-sm btn-outline-danger"
-                       onclick="return confirm('Hapus cluster \'<?= esc($cl['nama']) ?>\'? Kompetensi di dalamnya tidak ikut terhapus, hanya cluster assignment-nya yang hilang.')">
-                        <i class="bi bi-trash"></i>
-                    </a>
+                    <form method="POST" action="<?= base_url('admin/clusters/'.$cl['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus cluster \'<?= esc($cl['nama']) ?>\'? Kompetensi di dalamnya tidak ikut terhapus, hanya cluster assignment-nya yang hilang.')">
+                        <?= csrf_field() ?>
+                        <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                    </form>
                 </div>
             </div>
         </div>

@@ -312,13 +312,13 @@ $routes->post('traffic/vehicles/save',        'Traffic::saveVehicles',    ['filt
 $routes->get('event-locations', 'EventLocations::index', ['filter' => 'auth:admin']);
 $routes->post('event-locations/add', 'EventLocations::store', ['filter' => 'auth:admin']);
 $routes->post('event-locations/(:num)/edit', 'EventLocations::update/$1', ['filter' => 'auth:admin']);
-$routes->get('event-locations/(:num)/delete', 'EventLocations::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('event-locations/(:num)/delete', 'EventLocations::delete/$1', ['filter' => 'auth:admin']);
 
 // Traffic Doors master (admin only)
 $routes->get('traffic-doors', 'TrafficDoors::index', ['filter' => 'auth:admin']);
 $routes->post('traffic-doors/add', 'TrafficDoors::store', ['filter' => 'auth:admin']);
 $routes->post('traffic-doors/(:num)/edit', 'TrafficDoors::update/$1', ['filter' => 'auth:admin']);
-$routes->get('traffic-doors/(:num)/delete', 'TrafficDoors::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('traffic-doors/(:num)/delete', 'TrafficDoors::delete/$1', ['filter' => 'auth:admin']);
 $routes->post('traffic-doors/reorder', 'TrafficDoors::reorder', ['filter' => 'auth:admin']);
 
 // Activity Logs
@@ -328,20 +328,20 @@ $routes->get('logs', 'Logs::index', ['filter' => 'auth']);
 $routes->get('roles', 'Roles::index', ['filter' => 'auth:admin']);
 $routes->post('roles/add', 'Roles::store', ['filter' => 'auth:admin']);
 $routes->post('roles/(:num)/edit', 'Roles::update/$1', ['filter' => 'auth:admin']);
-$routes->get('roles/(:num)/delete', 'Roles::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('roles/(:num)/delete', 'Roles::delete/$1', ['filter' => 'auth:admin']);
 
 // Departments (admin only)
 $routes->get('departments', 'Departments::index', ['filter' => 'auth:admin']);
 $routes->post('departments/add', 'Departments::store', ['filter' => 'auth:admin']);
 $routes->get('departments/(:num)/edit', 'Departments::edit/$1', ['filter' => 'auth:admin']);
 $routes->post('departments/(:num)/edit', 'Departments::update/$1', ['filter' => 'auth:admin']);
-$routes->get('departments/(:num)/delete', 'Departments::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('departments/(:num)/delete', 'Departments::delete/$1', ['filter' => 'auth:admin']);
 
 // Divisions (admin only)
 $routes->get('admin/clusters',                  'AdminClusters::index',       ['filter' => 'auth:admin']);
 $routes->post('admin/clusters/store',           'AdminClusters::store',       ['filter' => 'auth:admin']);
 $routes->post('admin/clusters/(:num)/update',   'AdminClusters::update/$1',   ['filter' => 'auth:admin']);
-$routes->get('admin/clusters/(:num)/delete',    'AdminClusters::delete/$1',   ['filter' => 'auth:admin']);
+$routes->post('admin/clusters/(:num)/delete',    'AdminClusters::delete/$1',   ['filter' => 'auth:admin']);
 
 $routes->get('admin/settings',                  'AdminSettings::index',       ['filter' => 'auth:admin']);
 $routes->post('admin/settings/save',            'AdminSettings::save',        ['filter' => 'auth:admin']);
@@ -349,7 +349,7 @@ $routes->get('admin/settings/test-email',       'AdminSettings::testEmail',   ['
 $routes->get('divisions', 'Divisions::index', ['filter' => 'auth:admin']);
 $routes->post('divisions/store', 'Divisions::store', ['filter' => 'auth:admin']);
 $routes->post('divisions/(:num)/update', 'Divisions::update/$1', ['filter' => 'auth:admin']);
-$routes->get('divisions/(:num)/delete', 'Divisions::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('divisions/(:num)/delete', 'Divisions::delete/$1', ['filter' => 'auth:admin']);
 $routes->post('divisions/assign-dept', 'Divisions::assignDept', ['filter' => 'auth:admin']);
 
 // Theme Periods (admin CRUD + shared JSON endpoint)
@@ -374,7 +374,7 @@ $routes->post('admin/holidays/bulk',       'AdminHolidays::bulkStore', ['filter'
 $routes->get('jabatans', 'Jabatans::index', ['filter' => 'auth:admin']);
 $routes->post('jabatans/store', 'Jabatans::store', ['filter' => 'auth:admin']);
 $routes->post('jabatans/(:num)/update', 'Jabatans::update/$1', ['filter' => 'auth:admin']);
-$routes->get('jabatans/(:num)/delete', 'Jabatans::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('jabatans/(:num)/delete', 'Jabatans::delete/$1', ['filter' => 'auth:admin']);
 
 // Users (admin only)
 $routes->get('users', 'Users::index', ['filter' => 'auth:admin']);
