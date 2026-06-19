@@ -340,13 +340,17 @@ $eco = $economicData;
 function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); }
 ?>
 <div class="card mb-4 fade-up" style="animation-delay:.52s">
-<div class="card-header d-flex align-items-center justify-content-between py-2">
-    <div class="fw-semibold small">
-        <i class="bi bi-graph-up-arrow me-2 text-primary"></i>Kondisi Ekonomi
-    </div>
-    <span class="text-muted small" id="ecoRefreshedAt"></span>
+<div class="card-header p-0 pt-1">
+    <ul class="nav nav-tabs card-header-tabs px-2" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#mi-kondisi" type="button"><i class="bi bi-graph-up me-1"></i>Kondisi Ekonomi <span class="text-muted ms-1" id="ecoRefreshedAt" style="font-size:.6rem"></span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mi-insight" type="button"><i class="bi bi-lightbulb me-1"></i>Insight</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mi-dayabeli" type="button"><i class="bi bi-cash-stack me-1"></i>Daya Beli &amp; Segmen</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mi-segmen" type="button"><i class="bi bi-bullseye me-1"></i>Segmen Prospektif</button></li>
+    </ul>
 </div>
 <div class="card-body">
+<div class="tab-content">
+<div class="tab-pane fade show active" id="mi-kondisi" role="tabpanel">
 <div class="row g-4">
 
 <!-- Col 1: Kurs Valuta (live) + Indikator Makro -->
@@ -608,6 +612,8 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
 
 </div><!-- /row -->
 
+</div><!-- /mi-kondisi -->
+<div class="tab-pane fade" id="mi-insight" role="tabpanel">
 <!-- ── Insight Ekonomi ──────────────────────────────────────────────────── -->
 <?php
 $bi   = $eco['bi_rate'];
@@ -749,6 +755,8 @@ $flatSectors = array_filter($sectors, fn($s) => $s['trend'] === 'flat');
     </div>
 </div>
 
+</div><!-- /mi-insight -->
+<div class="tab-pane fade" id="mi-dayabeli" role="tabpanel">
 <!-- ── Daya Beli & Segmen ───────────────────────────────────────────────── -->
 <?php
 // Tentukan status tiap segmen berdasarkan indikator
@@ -871,6 +879,8 @@ $segments = [
     </div>
 </div>
 
+</div><!-- /mi-dayabeli -->
+<div class="tab-pane fade" id="mi-segmen" role="tabpanel">
 <!-- ── Segmen Prospektif ─────────────────────────────────────────────────── -->
 <?php
 // Proxy kondisi keuangan orang tua untuk segmen dependen (Gen Z, Mahasiswa)
@@ -1024,6 +1034,8 @@ $prospekLabel = [
     </div>
 </div>
 
+</div><!-- /mi-segmen -->
+</div><!-- /tab-content -->
 </div><!-- /card-body -->
 </div>
 <!-- ══ /Economic Snapshot ══════════════════════════════════════════════════ -->
