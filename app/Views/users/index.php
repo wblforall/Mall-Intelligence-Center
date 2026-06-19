@@ -126,20 +126,20 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
                     <i class="bi bi-pencil"></i>
                 </button>
                 <?php if ($isLocked): ?>
-                <a href="<?= base_url('users/'.$u['id'].'/unlock') ?>" class="btn btn-sm btn-warning me-1"
-                   title="Buka kunci akun" onclick="return confirm('Buka kunci akun ini?')">
-                    <i class="bi bi-unlock-fill"></i>
-                </a>
+                <form method="POST" action="<?= base_url('users/'.$u['id'].'/unlock') ?>" class="d-inline" onsubmit="return confirm('Buka kunci akun ini?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-warning me-1" title="Buka kunci akun"><i class="bi bi-unlock-fill"></i></button>
+                </form>
                 <?php endif; ?>
-                <a href="<?= base_url('users/'.$u['id'].'/toggle') ?>" class="btn btn-sm btn-outline-warning me-1"
-                   title="<?= $u['is_active'] ? 'Nonaktifkan' : 'Aktifkan' ?>">
-                    <i class="bi bi-<?= $u['is_active'] ? 'pause' : 'play' ?>-fill"></i>
-                </a>
+                <form method="POST" action="<?= base_url('users/'.$u['id'].'/toggle') ?>" class="d-inline">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-warning me-1" title="<?= $u['is_active'] ? 'Nonaktifkan' : 'Aktifkan' ?>"><i class="bi bi-<?= $u['is_active'] ? 'pause' : 'play' ?>-fill"></i></button>
+                </form>
                 <?php if ($u['id'] !== $user['id']): ?>
-                <a href="<?= base_url('users/'.$u['id'].'/delete') ?>" class="btn btn-sm btn-outline-danger"
-                   onclick="return confirm('Hapus user ini?')">
-                    <i class="bi bi-trash"></i>
-                </a>
+                <form method="POST" action="<?= base_url('users/'.$u['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus user ini?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                </form>
                 <?php endif; ?>
             </td>
         </tr>

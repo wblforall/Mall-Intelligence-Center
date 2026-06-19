@@ -380,9 +380,9 @@ $routes->get('jabatans/(:num)/delete', 'Jabatans::delete/$1', ['filter' => 'auth
 $routes->get('users', 'Users::index', ['filter' => 'auth:admin']);
 $routes->post('users/add', 'Users::store', ['filter' => 'auth:admin']);
 $routes->post('users/(:num)/edit', 'Users::update/$1', ['filter' => 'auth:admin']);
-$routes->get('users/(:num)/toggle', 'Users::toggle/$1', ['filter' => 'auth:admin']);
-$routes->get('users/(:num)/unlock', 'Users::unlock/$1', ['filter' => 'auth:admin']);
-$routes->get('users/(:num)/delete', 'Users::delete/$1', ['filter' => 'auth:admin']);
+$routes->post('users/(:num)/toggle', 'Users::toggle/$1', ['filter' => 'auth:admin']);
+$routes->post('users/(:num)/unlock', 'Users::unlock/$1', ['filter' => 'auth:admin']);
+$routes->post('users/(:num)/delete', 'Users::delete/$1', ['filter' => 'auth:admin']);
 
 // People Development — Dashboard
 $routes->get('people/dashboard', 'PeopleDashboard::index', ['filter' => 'auth']);
