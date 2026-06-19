@@ -107,6 +107,7 @@ class Auth extends Controller
             'dept_id'        => $user['department_id'],
             'dept_menus'     => $deptMenus,
             'user_theme'     => $user['theme'] ?? 'dark',
+            'must_change_password' => ! empty($user['must_change_password']),
         ]);
 
         (new LoginLogModel())->record((int)$user['id']);
@@ -153,6 +154,7 @@ class Auth extends Controller
             'must_change_password' => 0,
         ]);
         ActivityLog::write('update', 'user', (string)$userId, 'change_password_on_first_login');
+        session()->set('must_change_password', false); // buka kunci setelah ganti
 
         return redirect()->to('/')->with('show_greeting', true);
     }
