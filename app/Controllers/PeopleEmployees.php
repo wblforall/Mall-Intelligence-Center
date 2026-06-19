@@ -151,6 +151,31 @@ class PeopleEmployees extends BaseController
         ]);
     }
 
+    // Serve file sertifikat karyawan lewat auth (HR/People Dev atau karyawan pemilik).
+    public function viewCertificate(int $id)
+    {
+        $cert = (new EmployeeCertificateModel())->find($id);
+        if (! $cert || empty($cert['file_name'])) return $this->response->setStatusCode(404)->setBody('Tidak ditemukan.');
+
+        $allowed = $this->canManageRequests();
+        if (! $allowed) {
+            $emp = (new EmployeeModel())->find($cert['employee_id']);
+            $allowed = $emp && ! empty($emp['user_id']) && (int) $emp['user_id'] === (int) session()->get('user_id');
+        }
+        if (! $allowed) return $this->response->setStatusCode(403)->setBody('Akses ditolak.');
+
+        $path = WRITEPATH . 'uploads/certificates/' . basename($cert['file_name']);
+        if (! is_file($path)) return $this->response->setStatusCode(404)->setBody('File tidak ditemukan.');
+
+        $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = ['pdf' => 'application/pdf', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg'][$ext] ?? 'application/octet-stream';
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'inline; filename="' . basename($cert['file_name']) . '"')
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setBody(file_get_contents($path));
+    }
+
     // Serve foto karyawan lewat auth (tidak publik). Akses cukup login (foto wajah, sensitivitas rendah).
     public function viewPhoto(string $name)
     {
@@ -538,12 +563,11 @@ class PeopleEmployees extends BaseController
         $db->transComplete();
 
         if ($db->transStatus()) {
-            $uploadPath = FCPATH . 'uploads/people/';
-            if ($employee['foto'] && file_exists($uploadPath . 'photos/' . $employee['foto']))
-                unlink($uploadPath . 'photos/' . $employee['foto']);
+            if ($employee['foto'] && is_file(WRITEPATH . 'uploads/photos/' . $employee['foto']))
+                unlink(WRITEPATH . 'uploads/photos/' . $employee['foto']);
             foreach ($certs as $c) {
-                if ($c['file_name'] && file_exists($uploadPath . 'certificates/' . $c['file_name']))
-                    unlink($uploadPath . 'certificates/' . $c['file_name']);
+                if ($c['file_name'] && is_file(WRITEPATH . 'uploads/certificates/' . $c['file_name']))
+                    unlink(WRITEPATH . 'uploads/certificates/' . $c['file_name']);
             }
         }
 
@@ -602,7 +626,7 @@ class PeopleEmployees extends BaseController
             if ($err = $this->validateUpload($file, self::MIME_DOC, 10)) {
                 return redirect()->back()->with('error', $err);
             }
-            $uploadPath = FCPATH . 'uploads/people/certificates/';
+            $uploadPath = WRITEPATH . 'uploads/certificates/';
             if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
             $fileName = 'cert_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $fileOrig = $file->getClientName();
@@ -632,7 +656,7 @@ class PeopleEmployees extends BaseController
         (new EmployeeCertificateModel())->delete($cid);
 
         if ($cert && $cert['file_name']) {
-            $path = FCPATH . 'uploads/people/certificates/' . $cert['file_name'];
+            $path = WRITEPATH . 'uploads/certificates/' . $cert['file_name'];
             if (file_exists($path)) unlink($path);
         }
 

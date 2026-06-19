@@ -219,7 +219,7 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
     </td>
     <td class="text-center">
         <?php if ($c['file_name']): ?>
-        <a href="<?= base_url('uploads/people/certificates/'.$c['file_name']) ?>" target="_blank"
+        <a href="<?= base_url('people/certificates/'.$c['id'].'/view') ?>" target="_blank"
            class="btn btn-sm btn-outline-secondary" title="<?= esc($c['file_original']) ?>">
             <i class="bi bi-file-earmark"></i>
         </a>

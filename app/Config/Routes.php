@@ -473,6 +473,7 @@ $routes->get('people/change-requests',                 'PeopleEmployees::changeR
 $routes->post('people/change-requests/(:num)/approve', 'PeopleEmployees::approveChange/$1', ['filter' => 'auth']);
 $routes->post('people/change-requests/(:num)/reject',  'PeopleEmployees::rejectChange/$1',  ['filter' => 'auth']);
 $routes->get('people/photo/(:segment)',                     'PeopleEmployees::viewPhoto/$1',      ['filter' => 'auth']);
+$routes->get('people/certificates/(:num)/view',             'PeopleEmployees::viewCertificate/$1', ['filter' => 'auth']);
 $routes->get('people/documents/(:num)/view',                'PeopleEmployees::viewDocument/$1',   ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/documents/upload',   'PeopleEmployees::uploadDocument/$1', ['filter' => 'auth']);
 $routes->post('people/documents/(:num)/approve',            'PeopleEmployees::approveDocument/$1', ['filter' => 'auth']);
