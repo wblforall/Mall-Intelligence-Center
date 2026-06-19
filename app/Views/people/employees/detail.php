@@ -173,10 +173,10 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
     <td class="small text-nowrap"><?= $p['tanggal_selesai'] ? date('d M Y', strtotime($p['tanggal_selesai'])) : '—' ?></td>
     <td class="small text-muted"><?= esc($p['keterangan'] ?? '—') ?></td>
     <td>
-        <a href="<?= base_url('people/employees/'.$employee['id'].'/positions/'.$p['id'].'/delete') ?>"
-           class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Hapus riwayat jabatan ini?')">
-            <i class="bi bi-x-circle"></i>
-        </a>
+        <form method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/positions/'.$p['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus riwayat jabatan ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-link text-danger p-0" title="Hapus"><i class="bi bi-x-circle"></i></button>
+        </form>
     </td>
 </tr>
 <?php endforeach; ?>
@@ -228,10 +228,10 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
         <?php endif; ?>
     </td>
     <td>
-        <a href="<?= base_url('people/employees/'.$employee['id'].'/certificates/'.$c['id'].'/delete') ?>"
-           class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Hapus sertifikat ini?')">
-            <i class="bi bi-x-circle"></i>
-        </a>
+        <form method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/certificates/'.$c['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus sertifikat ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-link text-danger p-0" title="Hapus"><i class="bi bi-x-circle"></i></button>
+        </form>
     </td>
 </tr>
 <?php endforeach; ?>
@@ -477,16 +477,16 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
     </div>
 </div>
 <div class="modal-footer">
-    <a href="<?= base_url('people/employees/'.$employee['id'].'/delete') ?>"
-       class="btn btn-outline-danger me-auto"
+    <button type="submit" form="deleteEmpForm" class="btn btn-outline-danger me-auto"
        onclick="return confirm('Hapus karyawan <?= esc($employee['nama']) ?>? Semua data terkait akan dihapus.')">
         <i class="bi bi-trash me-1"></i> Hapus
-    </a>
+    </button>
     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
     <button type="submit" class="btn btn-primary">Simpan</button>
 </div>
 </form>
 </div></div></div>
+<form id="deleteEmpForm" method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/delete') ?>"><?= csrf_field() ?></form>
 
 <!-- Add Position Modal -->
 <div class="modal fade" id="addPositionModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">

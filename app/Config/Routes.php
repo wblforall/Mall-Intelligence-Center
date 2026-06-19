@@ -547,11 +547,11 @@ $routes->post('people/employees/add',                                     'Peopl
 $routes->get('people/employees/(:num)',                                   'PeopleEmployees::show/$1',           ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/edit',                             'PeopleEmployees::update/$1',         ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/create-account',                   'PeopleEmployees::createAccount/$1',  ['filter' => 'auth']);
-$routes->get('people/employees/(:num)/delete',                            'PeopleEmployees::delete/$1',         ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/delete',                            'PeopleEmployees::delete/$1',         ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/positions/add',                    'PeopleEmployees::storePosition/$1',  ['filter' => 'auth']);
-$routes->get('people/employees/(:num)/positions/(:num)/delete',           'PeopleEmployees::deletePosition/$1/$2', ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/positions/(:num)/delete',           'PeopleEmployees::deletePosition/$1/$2', ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/certificates/add',                 'PeopleEmployees::storeCertificate/$1',  ['filter' => 'auth']);
-$routes->get('people/employees/(:num)/certificates/(:num)/delete',        'PeopleEmployees::deleteCertificate/$1/$2', ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/certificates/(:num)/delete',        'PeopleEmployees::deleteCertificate/$1/$2', ['filter' => 'auth']);
 
 // Profile
 $routes->get('profile', 'Users::profile', ['filter' => 'auth']);
