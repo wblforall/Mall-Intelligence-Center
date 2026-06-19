@@ -49,6 +49,27 @@ class Dashboard extends BaseController
             ],
         ];
 
+        // ── Lintas-dept: event hari ini & minggu ini + hari libur terdekat ──
+        $weekEnd = date('Y-m-d', strtotime('+7 days'));
+        $todayEvents = $upcomingEvents = [];
+        foreach ($events as $e) {
+            if (empty($e['start_date'])) continue;
+            $start = $e['start_date'];
+            $days  = max(1, (int) ($e['event_days'] ?? 1));
+            $end   = date('Y-m-d', strtotime($start . ' +' . ($days - 1) . ' days'));
+            if ($start <= $today && $end >= $today) {
+                $e['day_now'] = (int) ((strtotime($today) - strtotime($start)) / 86400) + 1;
+                $e['day_total'] = $days;
+                $todayEvents[] = $e;
+            } elseif ($start > $today && $start <= $weekEnd) {
+                $upcomingEvents[] = $e;
+            }
+        }
+        usort($upcomingEvents, fn($a, $b) => strcmp($a['start_date'], $b['start_date']));
+
+        $upcomingHolidays = (new \App\Models\PublicHolidayModel())
+            ->where('tanggal >=', $today)->orderBy('tanggal')->findAll(4);
+
         $bbmNews = [];
 
         // BI Rate, Inflasi, IHSG: pakai cache jika ada, fallback ke loading state (async JS fetch)
@@ -78,6 +99,9 @@ class Dashboard extends BaseController
             'counts'       => $counts,
             'traffic'      => $traffic,
             'today'        => $today,
+            'todayEvents'      => $todayEvents,
+            'upcomingEvents'   => $upcomingEvents,
+            'upcomingHolidays' => $upcomingHolidays,
             'economicData' => $economicData,
             'bbmNews'      => $bbmNews,
             'themePeriods' => $themePeriods,

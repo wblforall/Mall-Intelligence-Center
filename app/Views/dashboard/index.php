@@ -84,6 +84,62 @@ function daysLabel(int $d): string {
     </div>
 </div>
 
+<!-- ══ Hari Ini di Mall + Hari Libur (lintas-dept) ═════════════════════════ -->
+<?php $mallLabel = ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity']; ?>
+<div class="row g-3 mb-4 fade-up" style="animation-delay:.08s">
+    <div class="col-lg-8">
+        <div class="card h-100">
+        <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-calendar-event me-2"></i>Hari Ini di Mall</span></div>
+        <div class="card-body py-2">
+            <?php if (empty($todayEvents)): ?>
+            <p class="text-muted small mb-0 py-2"><i class="bi bi-calendar-x me-1"></i>Tidak ada event berjalan hari ini.</p>
+            <?php else: ?>
+            <?php foreach ($todayEvents as $e): ?>
+            <a href="<?= base_url('events/'.$e['id']) ?>" class="d-flex align-items-center gap-2 text-decoration-none text-body py-1 border-bottom">
+                <span class="badge bg-<?= $e['mall']==='ewalk'?'primary':'info' ?>-subtle text-<?= $e['mall']==='ewalk'?'primary':'info' ?>"><?= $mallLabel[$e['mall']] ?? esc($e['mall']) ?></span>
+                <span class="fw-semibold small flex-grow-1"><?= esc($e['name']) ?></span>
+                <span class="badge bg-success-subtle text-success" style="font-size:.65rem">Hari ke-<?= $e['day_now'] ?>/<?= $e['day_total'] ?></span>
+            </a>
+            <?php endforeach; ?>
+            <?php endif; ?>
+
+            <?php if (! empty($upcomingEvents)): ?>
+            <div class="small text-muted mt-2 mb-1"><i class="bi bi-arrow-right-short"></i>Minggu ini:</div>
+            <?php foreach (array_slice($upcomingEvents, 0, 4) as $e): ?>
+            <a href="<?= base_url('events/'.$e['id']) ?>" class="d-flex align-items-center gap-2 text-decoration-none text-muted py-1" style="font-size:.8rem">
+                <span class="text-nowrap" style="min-width:54px"><?= date('d M', strtotime($e['start_date'])) ?></span>
+                <span class="badge bg-secondary-subtle text-secondary"><?= $mallLabel[$e['mall']] ?? esc($e['mall']) ?></span>
+                <span class="flex-grow-1"><?= esc($e['name']) ?></span>
+            </a>
+            <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+        <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-calendar2-heart me-2"></i>Hari Libur Terdekat</span></div>
+        <div class="card-body py-2">
+            <?php if (empty($upcomingHolidays)): ?>
+            <p class="text-muted small mb-0 py-2">Tidak ada data.</p>
+            <?php else: foreach ($upcomingHolidays as $h):
+                $dleft = (int) ceil((strtotime($h['tanggal']) - strtotime($today)) / 86400); ?>
+            <div class="d-flex align-items-center gap-2 py-1">
+                <div class="text-center flex-shrink-0" style="min-width:42px">
+                    <div class="fw-bold text-danger" style="line-height:1"><?= date('d', strtotime($h['tanggal'])) ?></div>
+                    <div class="text-muted" style="font-size:.6rem"><?= date('M', strtotime($h['tanggal'])) ?></div>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="small fw-medium" style="line-height:1.2"><?= esc($h['nama']) ?></div>
+                    <div class="text-muted" style="font-size:.62rem"><?= $dleft === 0 ? 'Hari ini' : ($dleft.' hari lagi') ?> · <?= ucfirst($h['jenis']) ?></div>
+                </div>
+            </div>
+            <?php endforeach; endif; ?>
+        </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-3 mb-4">
 
 <!-- KPI Events -->
@@ -268,6 +324,14 @@ foreach ($trafficMalls as $mall => $cfg):
         </div>
     </div>
 </div>
+</div>
+
+<!-- ══ MARKET INTELLIGENCE (segment terpisah) ═════════════════════════════ -->
+<div class="d-flex align-items-center gap-2 mt-5 mb-3 fade-up">
+    <i class="bi bi-graph-up-arrow fs-5" style="color:var(--bs-primary)"></i>
+    <h5 class="fw-bold mb-0">Market Intelligence</h5>
+    <span class="badge bg-secondary-subtle text-secondary">Konteks Ekonomi & Pasar</span>
+    <hr class="flex-grow-1 my-0">
 </div>
 
 <!-- ══ Economic Snapshot ═══════════════════════════════════════════════════ -->
