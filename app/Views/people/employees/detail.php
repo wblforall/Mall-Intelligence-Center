@@ -138,6 +138,24 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             <button type="submit" class="btn btn-sm btn-primary w-100" onclick="return confirm('Buatkan akun login untuk karyawan ini?')"><i class="bi bi-person-plus me-1"></i>Buatkan Akun</button>
         </div>
     </form>
+    <?php if (! empty($unlinkedUsers)): ?>
+    <div class="d-flex align-items-center my-3"><hr class="flex-grow-1"><span class="small text-muted px-2">atau tautkan ke akun yang sudah ada</span><hr class="flex-grow-1"></div>
+    <form method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/link-account') ?>" class="row g-2 align-items-end">
+        <?= csrf_field() ?>
+        <div class="col-md-9">
+            <label class="form-label small mb-1">Pilih akun user (belum tertaut ke karyawan)</label>
+            <select name="user_id" class="form-select form-select-sm" required>
+                <option value="">— Pilih akun —</option>
+                <?php foreach ($unlinkedUsers as $u): ?>
+                    <option value="<?= $u['id'] ?>"><?= esc($u['name']) ?> · <?= esc($u['email']) ?> (<?= esc(ucfirst($u['role'] ?? '-')) ?>)</option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100" onclick="return confirm('Tautkan karyawan ini ke akun yang dipilih?')"><i class="bi bi-link-45deg me-1"></i>Tautkan</button>
+        </div>
+    </form>
+    <?php endif; ?>
 <?php endif; ?>
 </div>
 </div>

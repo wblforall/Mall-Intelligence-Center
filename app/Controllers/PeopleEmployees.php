@@ -132,6 +132,27 @@ class PeopleEmployees extends BaseController
         }
     }
 
+    // Tautkan karyawan ke akun user yang SUDAH ADA (bukan buat baru)
+    public function linkAccount(int $id)
+    {
+        if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $emp = (new EmployeeModel())->find($id);
+        if (! $emp) return redirect()->to('/people/employees')->with('error', 'Karyawan tidak ditemukan.');
+        if (! empty($emp['user_id'])) return redirect()->to('/people/employees/' . $id)->with('error', 'Karyawan ini sudah punya akun.');
+
+        $userId = (int) $this->request->getPost('user_id');
+        $user = $userId ? (new UserModel())->find($userId) : null;
+        if (! $user) return redirect()->to('/people/employees/' . $id)->with('error', 'Akun tidak valid.');
+        // Pastikan akun belum tertaut ke karyawan lain
+        if ((new EmployeeModel())->where('user_id', $userId)->where('id !=', $id)->first()) {
+            return redirect()->to('/people/employees/' . $id)->with('error', 'Akun ini sudah tertaut ke karyawan lain.');
+        }
+
+        (new EmployeeModel())->update($id, ['user_id' => $userId]);
+        ActivityLog::write('update', 'employee', (string) $id, $emp['nama'], ['tautkan_akun' => $user['email']]);
+        return redirect()->to('/people/employees/' . $id . '#account')->with('success', 'Karyawan ditautkan ke akun ' . esc($user['email']) . '.');
+    }
+
     // ── Pengajuan Perubahan Data (approval HR) ──────────────────────────
     private function canManageRequests(): bool
     {
@@ -432,6 +453,11 @@ class PeopleEmployees extends BaseController
             'currentDivisionId' => $currentDivisionId,
             'roles'             => (new RoleModel())->where('slug !=', 'admin')->orderBy('name')->findAll(),
             'linkedUser'        => $employee['user_id'] ? (new UserModel())->find($employee['user_id']) : null,
+            'unlinkedUsers'     => $employee['user_id'] ? [] : (new UserModel())
+                ->select('users.id, users.name, users.email, users.role')
+                ->where('users.is_active', 1)
+                ->where("users.id NOT IN (SELECT user_id FROM employees WHERE user_id IS NOT NULL)", null, false)
+                ->orderBy('users.name')->findAll(),
             'documents'         => (new EmployeeDocumentModel())->forEmployee($id),
             'jenisDok'          => EmployeeDocumentModel::JENIS,
         ]);
