@@ -105,6 +105,7 @@ class EventContent extends BaseController
         (new EventModel())->update($eventId, [
             'content' => $this->request->getPost('content'),
         ]);
+        ActivityLog::write('update', 'content', (string) $eventId, 'Deskripsi content — ' . ($event['name'] ?? ''));
 
         return redirect()->to("/events/{$eventId}/content")->with('success', 'Deskripsi berhasil disimpan.');
     }
@@ -307,6 +308,7 @@ class EventContent extends BaseController
             ]);
         }
 
+        ActivityLog::write('update', 'content', (string) $eventId, 'Simpan rundown event');
         return redirect()->to("/events/{$eventId}/rundown")->with('success', 'Rundown berhasil disimpan.');
     }
 }

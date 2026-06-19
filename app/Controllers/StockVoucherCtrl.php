@@ -157,6 +157,7 @@ class StockVoucherCtrl extends BaseController
 
         // kode available yang dihapus mengurangi stok tersedia
         (new StockVoucherLogModel())->record($batchId, 'keluar', 1, $sisaSebelum, 'delete', $kodeId, $this->currentUser()['id'], "Hapus kode {$kode['kode']}");
+        ActivityLog::write('delete', 'stock_voucher', (string) $batchId, 'Hapus kode ' . $kode['kode']);
 
         return redirect()->to('/stock/voucher')->with('success', 'Kode dihapus.');
     }

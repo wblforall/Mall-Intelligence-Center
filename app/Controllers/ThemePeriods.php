@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\ThemePeriodModel;
+use App\Libraries\ActivityLog;
 
 class ThemePeriods extends BaseController
 {
@@ -42,7 +43,8 @@ class ThemePeriods extends BaseController
             return redirect()->back()->with('error', 'Nama, tanggal mulai, dan tanggal selesai wajib diisi.');
         }
 
-        $this->model->insert($data);
+        $newId = $this->model->insert($data);
+        ActivityLog::write('create', 'theme_period', (string) $newId, $data['nama']);
         return redirect()->to('theme-periods')->with('success', 'Periode berhasil ditambahkan.');
     }
 
@@ -61,7 +63,10 @@ class ThemePeriods extends BaseController
             'is_active'  => (int) $this->request->getPost('is_active'),
         ];
 
+        ActivityLog::captureBefore($this->model->find($id));
         $this->model->update($id, $data);
+        ActivityLog::captureAfter($data);
+        ActivityLog::write('update', 'theme_period', (string) $id, $data['nama']);
         return redirect()->to('theme-periods')->with('success', 'Periode berhasil diperbarui.');
     }
 
@@ -69,7 +74,9 @@ class ThemePeriods extends BaseController
     {
         if (! $this->isAdmin()) return redirect()->to('/');
 
+        $p = $this->model->find($id);
         $this->model->delete($id);
+        ActivityLog::write('delete', 'theme_period', (string) $id, $p['nama'] ?? '');
         return redirect()->to('theme-periods')->with('success', 'Periode dihapus.');
     }
 
@@ -79,7 +86,9 @@ class ThemePeriods extends BaseController
 
         $period = $this->model->find($id);
         if ($period) {
-            $this->model->update($id, ['is_active' => $period['is_active'] ? 0 : 1]);
+            $newActive = $period['is_active'] ? 0 : 1;
+            $this->model->update($id, ['is_active' => $newActive]);
+            ActivityLog::write('update', 'theme_period', (string) $id, $period['nama'] ?? '', ['is_active' => $newActive ? 'Aktif' : 'Nonaktif']);
         }
         return redirect()->to('theme-periods');
     }
