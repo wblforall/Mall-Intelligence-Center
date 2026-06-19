@@ -248,6 +248,66 @@ class Dashboard extends BaseController
         return $this->response->setJSON(['ihsg' => $this->fetchIhsg()]);
     }
 
+    // Prakiraan cuaca 7 hari (Balikpapan) via Open-Meteo — gratis, tanpa API key. Cache 2 jam.
+    public function weatherForecast()
+    {
+        $cached = cache('weather_bpn');
+        if ($cached !== null) return $this->response->setJSON(['ok' => true, 'days' => $cached]);
+
+        $url = 'https://api.open-meteo.com/v1/forecast?latitude=-1.2675&longitude=116.8289'
+            . '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
+            . '&timezone=Asia%2FMakassar&forecast_days=7';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 12,
+            CURLOPT_CONNECTTIMEOUT => 6,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_USERAGENT      => 'MallIC/1.0',
+        ]);
+        $raw = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $json = $raw ? json_decode($raw, true) : null;
+        if ($code !== 200 || empty($json['daily']['time'])) {
+            return $this->response->setJSON(['ok' => false, 'msg' => 'Gagal mengambil data cuaca.']);
+        }
+
+        $d = $json['daily'];
+        $days = [];
+        $hari = ['Sun'=>'Min','Mon'=>'Sen','Tue'=>'Sel','Wed'=>'Rab','Thu'=>'Kam','Fri'=>'Jum','Sat'=>'Sab'];
+        foreach ($d['time'] as $i => $tgl) {
+            $info = $this->weatherCodeInfo((int) ($d['weather_code'][$i] ?? 0));
+            $days[] = [
+                'tanggal'  => $tgl,
+                'hari'     => $hari[date('D', strtotime($tgl))] ?? date('D', strtotime($tgl)),
+                'tgl_label'=> date('d/m', strtotime($tgl)),
+                'tmax'     => isset($d['temperature_2m_max'][$i]) ? round($d['temperature_2m_max'][$i]) : null,
+                'tmin'     => isset($d['temperature_2m_min'][$i]) ? round($d['temperature_2m_min'][$i]) : null,
+                'hujan'    => $d['precipitation_probability_max'][$i] ?? null,
+                'icon'     => $info['icon'],
+                'label'    => $info['label'],
+            ];
+        }
+        cache()->save('weather_bpn', $days, 7200); // 2 jam
+        return $this->response->setJSON(['ok' => true, 'days' => $days]);
+    }
+
+    // WMO weather code -> ikon Bootstrap + label Indonesia
+    private function weatherCodeInfo(int $c): array
+    {
+        if ($c === 0) return ['icon' => 'bi-sun-fill', 'label' => 'Cerah'];
+        if (in_array($c, [1, 2])) return ['icon' => 'bi-cloud-sun-fill', 'label' => 'Cerah Berawan'];
+        if ($c === 3) return ['icon' => 'bi-clouds-fill', 'label' => 'Berawan'];
+        if (in_array($c, [45, 48])) return ['icon' => 'bi-cloud-fog2-fill', 'label' => 'Berkabut'];
+        if (in_array($c, [51, 53, 55, 56, 57])) return ['icon' => 'bi-cloud-drizzle-fill', 'label' => 'Gerimis'];
+        if (in_array($c, [61, 63, 66, 80, 81])) return ['icon' => 'bi-cloud-rain-fill', 'label' => 'Hujan'];
+        if (in_array($c, [65, 67, 82])) return ['icon' => 'bi-cloud-rain-heavy-fill', 'label' => 'Hujan Lebat'];
+        if (in_array($c, [95, 96, 99])) return ['icon' => 'bi-cloud-lightning-rain-fill', 'label' => 'Badai Petir'];
+        return ['icon' => 'bi-cloud-fill', 'label' => 'Berawan'];
+    }
+
     private function fetchIhsg(): array
     {
         $fallback = ['pct' => '—', 'per' => 'IDX', 'live' => false, 'chg' => null, 'chg_dir' => 'flat'];

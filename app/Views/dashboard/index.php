@@ -248,6 +248,21 @@ foreach ($trafficMalls as $mall => $cfg):
 
 </div>
 
+<!-- ══ Prakiraan Cuaca 7 Hari (Balikpapan) ════════════════════════════════ -->
+<div class="card mb-4 fade-up" style="animation-delay:.5s">
+<div class="card-header d-flex align-items-center justify-content-between py-2">
+    <span class="fw-semibold small"><i class="bi bi-cloud-sun me-2"></i>Prakiraan Cuaca 7 Hari — Balikpapan</span>
+    <span class="small text-muted" id="weatherStatus"><i class="bi bi-hourglass-split me-1"></i>memuat…</span>
+</div>
+<div class="card-body">
+    <div class="row g-2 text-center" id="weatherDays">
+        <?php for ($i=0;$i<7;$i++): ?>
+        <div class="col"><div class="card h-100 py-3"><div class="placeholder-glow"><span class="placeholder col-8"></span></div></div></div>
+        <?php endfor; ?>
+    </div>
+</div>
+</div>
+
 <!-- ══ Economic Snapshot ═══════════════════════════════════════════════════ -->
 <?php
 $eco = $economicData;
@@ -1663,5 +1678,31 @@ foreach ($sections as $sec):
     }, 400);
 })();
 <?php endif; ?>
+
+/* ── Prakiraan cuaca 7 hari ──────────────────────────────────────────── */
+(async function loadWeather() {
+    const box = document.getElementById('weatherDays');
+    const st  = document.getElementById('weatherStatus');
+    try {
+        const res  = await fetch('<?= base_url('dashboard/weather') ?>');
+        const data = await res.json();
+        if (! data.ok || ! data.days) throw new Error('no data');
+        box.innerHTML = data.days.map((d, i) => `
+            <div class="col">
+                <div class="card h-100 py-2 px-1" style="${i===0?'border:1px solid var(--bs-primary);':''}">
+                    <div class="small fw-semibold">${d.hari}</div>
+                    <div class="text-muted" style="font-size:.68rem">${d.tgl_label}</div>
+                    <i class="bi ${d.icon} my-1" style="font-size:1.5rem;color:#f59e0b"></i>
+                    <div class="small fw-bold">${d.tmax}°<span class="text-muted fw-normal">/${d.tmin}°</span></div>
+                    <div class="text-muted" style="font-size:.62rem;line-height:1.1">${d.label}</div>
+                    ${d.hujan != null ? `<div style="font-size:.6rem;color:#3b82f6"><i class="bi bi-droplet-fill"></i> ${d.hujan}%</div>` : ''}
+                </div>
+            </div>`).join('');
+        if (st) st.innerHTML = '<i class="bi bi-check-circle me-1 text-success"></i>Open-Meteo';
+    } catch (e) {
+        box.innerHTML = '<div class="col-12 text-center text-muted small py-2"><i class="bi bi-wifi-off me-1"></i>Tidak dapat memuat prakiraan cuaca.</div>';
+        if (st) st.innerHTML = '<i class="bi bi-x-circle me-1 text-danger"></i>gagal';
+    }
+})();
 </script>
 <?= $this->endSection() ?>
