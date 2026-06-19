@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.9.4** (Juni 2026)
+> Versi saat ini: **v2.10.0** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,48 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.10.0
+
+**Tanggal Rilis:** 20 Juni 2026
+
+Rilis besar — modul HR/ESS, appraisal, org chart, dashboard utama lintas-dept, sinkronisasi hari libur otomatis, dan hardening keamanan menyeluruh.
+
+### Human Resources & Employee Self-Service
+- **ESS di halaman Profil** (kanan atas): karyawan lihat data pribadi & riwayat penilaian, **ajukan perubahan data** (approval HR), dan **upload dokumen** KTP/NPWP/KK/Ijazah (approval HR).
+- **Buatkan Akun Login** dari data karyawan: password awal acak + **email onboarding** (logo MIC, kredensial, link login); bisa juga **tautkan ke akun user yang sudah ada**.
+- **Dashboard Karyawan (HR)** khusus: grafik dengan **drill-down klik-grafik** ke daftar, chart per-project, panel **kontrak mendekati habis**, dan masa kerja >15 tahun.
+- Navbar **dipisah** Human Resources vs People Development.
+- Data karyawan: field profil baru (status kontrak, project/payroll, NIK KTP, pendidikan dropdown), **export CSV**, deteksi diskrepansi dokumen.
+
+### Appraisal (Penilaian Kinerja)
+- KPI + kompetensi **per jabatan**; penyusun template per dept head & deputy divisi.
+- **Salin template**, **periode khusus per-orang**, **rilis** ke karyawan, catatan wajib saat kembalikan template.
+
+### Org Chart
+- **Export PNG & PDF** per divisi/dept, resolusi adaptif per browser, nama lengkap, pan/zoom.
+
+### Dashboard Utama (lintas-dept)
+- **Prakiraan cuaca 7 hari** Balikpapan (Open-Meteo) + **feels-like**, highlight **merah ≥38°**, dan breakdown **per jam hari ini** (auto-scroll ke jam sekarang).
+- Disusun ulang jadi papan info bersama: **"Hari Ini di Mall"**, **"Hari Libur Terdekat"**, dan **Market Intelligence** sebagai segment tersendiri (tab Kondisi/Insight/Daya Beli/Segmen) + **strip angka kunci** ekonomi yang selalu terlihat lintas tab.
+
+### Hari Libur Nasional
+- **Sinkronisasi otomatis** dari feed kalender Google: tombol **"Tarik dari API"** di Admin + command cron **`mic:holidays-sync`** (jalan tiap awal bulan, sync tahun ini + tahun depan, dedup otomatis).
+
+### Keamanan (hardening menyeluruh)
+- **Paksa ganti password awal** di semua halaman; password awal **acak**.
+- **File PII** (dokumen/foto/sertifikat karyawan, file legal & sponsorship) dipindah ke folder writable + **serve ber-auth**; akses publik langsung ditutup.
+- **Akses menu per-user (override)** di atas akses departemen; **force-logout** otomatis saat akses user diubah atau akun dinonaktifkan.
+- **GET→POST + CSRF** untuk seluruh aksi hapus/toggle (master admin, user, karyawan, event/ops, dll).
+- Cookie **auto-Secure** saat HTTPS; gate rilis appraisal.
+
+### Audit
+- **ActivityLog menyeluruh**: Loyalty/Creative/Content event, Tema Periode, Stock Voucher, Legal review, Dashboard makro/BBM, dan ubah profil.
+
+### Mobile
+- **Scaffolding API mobile** (token auth + endpoint dashboard/events/approval).
 
 ---
 
