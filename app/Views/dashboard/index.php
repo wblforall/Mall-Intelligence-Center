@@ -334,6 +334,15 @@ foreach ($trafficMalls as $mall => $cfg):
     <hr class="flex-grow-1 my-0">
 </div>
 
+<ul class="nav nav-tabs mb-3 fade-up" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#mi-kondisi" type="button"><i class="bi bi-graph-up me-1"></i>Kondisi Ekonomi</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mi-insight" type="button"><i class="bi bi-lightbulb me-1"></i>Insight</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mi-dayabeli" type="button"><i class="bi bi-cash-stack me-1"></i>Daya Beli &amp; Segmen</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mi-segmen" type="button"><i class="bi bi-bullseye me-1"></i>Segmen Prospektif</button></li>
+</ul>
+<div class="tab-content">
+<div class="tab-pane fade show active" id="mi-kondisi" role="tabpanel">
+
 <!-- ══ Economic Snapshot ═══════════════════════════════════════════════════ -->
 <?php
 $eco = $economicData;
@@ -608,6 +617,9 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
 
 </div><!-- /row -->
 
+</div><!-- /mi-kondisi -->
+<div class="tab-pane fade" id="mi-insight" role="tabpanel">
+
 <!-- ── Insight Ekonomi ──────────────────────────────────────────────────── -->
 <?php
 $bi   = $eco['bi_rate'];
@@ -749,6 +761,9 @@ $flatSectors = array_filter($sectors, fn($s) => $s['trend'] === 'flat');
     </div>
 </div>
 
+</div><!-- /mi-insight -->
+<div class="tab-pane fade" id="mi-dayabeli" role="tabpanel">
+
 <!-- ── Daya Beli & Segmen ───────────────────────────────────────────────── -->
 <?php
 // Tentukan status tiap segmen berdasarkan indikator
@@ -870,6 +885,9 @@ $segments = [
     <?php endforeach; ?>
     </div>
 </div>
+
+</div><!-- /mi-dayabeli -->
+<div class="tab-pane fade" id="mi-segmen" role="tabpanel">
 
 <!-- ── Segmen Prospektif ─────────────────────────────────────────────────── -->
 <?php
@@ -1026,6 +1044,9 @@ $prospekLabel = [
 
 </div><!-- /card-body -->
 </div>
+</div><!-- /mi-segmen -->
+</div><!-- /tab-content -->
+
 <!-- ══ /Economic Snapshot ══════════════════════════════════════════════════ -->
 
 <!-- Events -->
