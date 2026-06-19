@@ -22,11 +22,10 @@ $typeLabels = ['self' => 'Self', 'atasan' => 'Atasan', 'rekan' => 'Rekan'];
     </div>
     <span class="badge <?= $isClosed ? 'bg-secondary' : 'bg-success' ?> ms-1"><?= $isClosed ? 'Closed' : 'Open' ?></span>
     <div class="ms-auto d-flex gap-2">
-        <a href="<?= base_url('people/tna/periods/' . $period['id'] . '/toggle-close') ?>"
-           class="btn btn-sm btn-<?= $isClosed ? 'success' : 'warning' ?>"
-           onclick="return confirm('<?= $isClosed ? 'Buka kembali periode ini?' : 'Tutup periode ini?' ?>')">
-            <i class="bi bi-<?= $isClosed ? 'unlock' : 'lock' ?> me-1"></i><?= $isClosed ? 'Buka Kembali' : 'Tutup Periode' ?>
-        </a>
+        <form method="POST" action="<?= base_url('people/tna/periods/' . $period['id'] . '/toggle-close') ?>" class="d-inline" onsubmit="return confirm('<?= $isClosed ? 'Buka kembali periode ini?' : 'Tutup periode ini?' ?>')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-<?= $isClosed ? 'success' : 'warning' ?>"><i class="bi bi-<?= $isClosed ? 'unlock' : 'lock' ?> me-1"></i><?= $isClosed ? 'Buka Kembali' : 'Tutup Periode' ?></button>
+        </form>
         <?php if (! $isClosed): ?>
         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addEmpModal">
             <i class="bi bi-person-plus me-1"></i>Tambah Karyawan

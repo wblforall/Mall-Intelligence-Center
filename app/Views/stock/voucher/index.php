@@ -101,9 +101,10 @@
             <button class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus"><i class="bi bi-x"></i></button>
         </form>
         <?php elseif (($canDeassign ?? false) && $kode['status'] === 'assigned' && $kode['program_type'] === 'manual'): ?>
-        <a href="<?= base_url('stock/voucher/'.$batch['id'].'/kode/'.$kode['id'].'/deassign') ?>"
-           onclick="return confirm('Batalkan distribusi manual kode ini? Kode kembali ke stok tersedia agar bisa dialokasikan via program.')"
-           class="btn btn-xs btn-outline-warning py-0 px-1" title="Batalkan distribusi manual"><i class="bi bi-arrow-counterclockwise me-1"></i>Batalkan</a>
+        <form method="POST" action="<?= base_url('stock/voucher/'.$batch['id'].'/kode/'.$kode['id'].'/deassign') ?>" class="d-inline" onsubmit="return confirm('Batalkan distribusi manual kode ini? Kode kembali ke stok tersedia agar bisa dialokasikan via program.')">
+            <?= csrf_field() ?>
+            <button class="btn btn-xs btn-outline-warning py-0 px-1" title="Batalkan distribusi manual"><i class="bi bi-arrow-counterclockwise me-1"></i>Batalkan</button>
+        </form>
         <?php endif; ?>
     </td>
 </tr>

@@ -67,11 +67,10 @@
                         data-bs-toggle="modal" data-bs-target="#editModal">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <a href="<?= base_url('people/pip/aspek/' . $item['id'] . '/toggle') ?>"
-                       class="btn btn-sm btn-outline-<?= $item['aktif'] ? 'warning' : 'success' ?>"
-                       onclick="return confirm('Ubah status aspek ini?')">
-                        <i class="bi bi-<?= $item['aktif'] ? 'pause' : 'play' ?>"></i>
-                    </a>
+                    <form method="POST" action="<?= base_url('people/pip/aspek/' . $item['id'] . '/toggle') ?>" class="d-inline" onsubmit="return confirm('Ubah status aspek ini?')">
+                        <?= csrf_field() ?>
+                        <button class="btn btn-sm btn-outline-<?= $item['aktif'] ? 'warning' : 'success' ?>" title="Ubah status"><i class="bi bi-<?= $item['aktif'] ? 'pause' : 'play' ?>"></i></button>
+                    </form>
                     <form method="POST" action="<?= base_url('people/pip/aspek/' . $item['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus aspek ini?')">
                         <?= csrf_field() ?>
                         <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>

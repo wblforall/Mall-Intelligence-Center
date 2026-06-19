@@ -258,7 +258,7 @@ $routes->post('stock/voucher/(:num)/update', 'StockVoucherCtrl::update/$1', ['fi
 $routes->post('stock/voucher/(:num)/import-kode', 'StockVoucherCtrl::importKode/$1', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/kode/(:num)/delete', 'StockVoucherCtrl::deleteKode/$1/$2', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/kode/(:num)/distribute', 'StockVoucherCtrl::distributeKode/$1/$2', ['filter' => 'auth']);
-$routes->get('stock/voucher/(:num)/kode/(:num)/deassign', 'StockVoucherCtrl::deassignKode/$1/$2', ['filter' => 'auth']);
+$routes->post('stock/voucher/(:num)/kode/(:num)/deassign', 'StockVoucherCtrl::deassignKode/$1/$2', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/delete', 'StockVoucherCtrl::deleteBatch/$1', ['filter' => 'auth']);
 $routes->get('stock/voucher/(:num)/available-kodes', 'StockVoucherCtrl::getAvailableKodes/$1', ['filter' => 'auth']);
 
@@ -405,7 +405,7 @@ $routes->get('people/tna',                                               'People
 $routes->post('people/tna/periods/add',                                  'PeopleTna::storePeriod',     ['filter' => 'auth']);
 $routes->post('people/tna/periods/(:num)/edit',                          'PeopleTna::updatePeriod/$1', ['filter' => 'auth']);
 $routes->post('people/tna/periods/(:num)/delete',                         'PeopleTna::deletePeriod/$1', ['filter' => 'auth']);
-$routes->get('people/tna/periods/(:num)/toggle-close',                   'PeopleTna::toggleClose/$1',  ['filter' => 'auth']);
+$routes->post('people/tna/periods/(:num)/toggle-close',                   'PeopleTna::toggleClose/$1',  ['filter' => 'auth']);
 $routes->get('people/tna/period/(:num)',                                  'PeopleTna::period/$1',       ['filter' => 'auth']);
 $routes->post('people/tna/period/(:num)/employees/add',                  'PeopleTna::addEmployee/$1',  ['filter' => 'auth']);
 $routes->post('people/tna/period/(:num)/employees/(:num)/remove',         'PeopleTna::removeEmployee/$1/$2',  ['filter' => 'auth']);
@@ -496,7 +496,7 @@ $routes->get('people/pip/aspek',                              'PipAspekMasterCtr
 $routes->post('people/pip/aspek/store',                       'PipAspekMasterCtrl::store',       ['filter' => 'auth']);
 $routes->post('people/pip/aspek/(:num)/update',               'PipAspekMasterCtrl::update/$1',   ['filter' => 'auth']);
 $routes->post('people/pip/aspek/(:num)/delete',                'PipAspekMasterCtrl::delete/$1',   ['filter' => 'auth']);
-$routes->get('people/pip/aspek/(:num)/toggle',                'PipAspekMasterCtrl::toggle/$1',   ['filter' => 'auth']);
+$routes->post('people/pip/aspek/(:num)/toggle',                'PipAspekMasterCtrl::toggle/$1',   ['filter' => 'auth']);
 
 // PIP Approval — public token-based (no auth)
 $routes->get('pip/approval/(:alpha)/(:segment)',               'PipApproval::show/$1/$2');

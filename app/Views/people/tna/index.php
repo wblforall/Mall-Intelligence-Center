@@ -53,9 +53,12 @@
                                data-wr="<?= (int)($p['weight_rekan']  ?? 30) ?>"
                                data-bs-toggle="modal" data-bs-target="#editModal">
                                <i class="bi bi-pencil me-2"></i>Edit</a></li>
-                        <li><a class="dropdown-item" href="<?= base_url('people/tna/periods/' . $p['id'] . '/toggle-close') ?>"
-                               onclick="return confirm('Ubah status periode ini?')">
-                               <i class="bi bi-<?= $isOpen ? 'lock' : 'unlock' ?> me-2"></i><?= $isOpen ? 'Tutup Periode' : 'Buka Kembali' ?></a></li>
+                        <li>
+                            <form method="POST" action="<?= base_url('people/tna/periods/' . $p['id'] . '/toggle-close') ?>" onsubmit="return confirm('Ubah status periode ini?')">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item"><i class="bi bi-<?= $isOpen ? 'lock' : 'unlock' ?> me-2"></i><?= $isOpen ? 'Tutup Periode' : 'Buka Kembali' ?></button>
+                            </form>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form method="POST" action="<?= base_url('people/tna/periods/' . $p['id'] . '/delete') ?>" onsubmit="return confirm('Hapus periode ini beserta semua data assessment di dalamnya?')">
