@@ -114,7 +114,7 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
     data-dept="<?= esc($e['dept_name'] ?? '') ?>" data-status="<?= esc($e['status']) ?>">
     <td class="ps-3">
         <?php if ($e['foto']): ?>
-        <img src="<?= base_url('uploads/people/photos/'.$e['foto']) ?>" class="emp-avatar">
+        <img src="<?= base_url('people/photo/' . $e['foto']) ?>" class="emp-avatar">
         <?php else: ?>
         <div class="emp-avatar-placeholder"><?= strtoupper(substr($e['nama'], 0, 1)) ?></div>
         <?php endif; ?>

@@ -70,6 +70,9 @@ class PeopleEmployees extends BaseController
         if ((new UserModel())->where('email', $email)->first()) return redirect()->to('/people/employees/' . $id)->with('error', 'Email sudah dipakai akun lain.');
         $role = (new RoleModel())->find($roleId);
         if (! $role) return redirect()->to('/people/employees/' . $id)->with('error', 'Role wajib dipilih.');
+        if (($role['slug'] ?? '') === 'admin') {
+            return redirect()->to('/people/employees/' . $id)->with('error', 'Role Admin tidak dapat diberikan dari sini. Buat akun Admin lewat menu Users.');
+        }
 
         $pass = '123456';
         $userId = (new UserModel())->insert([
@@ -85,8 +88,48 @@ class PeopleEmployees extends BaseController
         (new EmployeeModel())->update($id, ['user_id' => $userId]);
         ActivityLog::write('create', 'user', (string) $userId, $emp['nama'], ['dari_karyawan' => $id, 'email' => $email, 'role' => $role['slug']]);
 
+        // Kirim email pemberitahuan akun + kredensial awal ke karyawan (gagal kirim tak membatalkan pembuatan akun).
+        $mailOk = $this->sendAccountEmail($email, $emp['nama'], $pass);
+        $mailNote = $mailOk ? ' Email pemberitahuan terkirim ke karyawan.' : ' ⚠️ Email gagal dikirim — sampaikan kredensial secara manual.';
+
         return redirect()->to('/people/employees/' . $id)
-            ->with('success', "Akun login dibuat — Email: {$email} · Password awal: {$pass} (wajib diganti saat login pertama).");
+            ->with('success', "Akun login dibuat — Email: {$email} · Password awal: {$pass} (wajib diganti saat login pertama)." . $mailNote);
+    }
+
+    // Kirim email onboarding akun (kredensial awal + link login). Return true jika terkirim.
+    private function sendAccountEmail(string $to, string $nama, string $pass): bool
+    {
+        try {
+            $loginUrl = base_url('login');
+            $logoUrl  = base_url('img/mic-logo.png');
+            $html = '<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#1e293b;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">'
+                . '<div style="background:#0b1220;text-align:center;padding:22px 0">'
+                . '<img src="' . $logoUrl . '" alt="Mall Intelligence Center" style="height:60px;object-fit:contain">'
+                . '</div>'
+                . '<div style="padding:24px">'
+                . '<h2 style="color:#0f172a;margin-top:0">Akun Login Anda</h2>'
+                . '<p>Halo <strong>' . esc($nama) . '</strong>,</p>'
+                . '<p>Akun login Anda untuk sistem <strong>Mall Intelligence Center</strong> telah dibuat oleh HR. Berikut kredensial awal Anda:</p>'
+                . '<table style="border-collapse:collapse;margin:12px 0">'
+                . '<tr><td style="padding:6px 12px;background:#f1f5f9"><strong>Email</strong></td><td style="padding:6px 12px;background:#f8fafc">' . esc($to) . '</td></tr>'
+                . '<tr><td style="padding:6px 12px;background:#f1f5f9"><strong>Password awal</strong></td><td style="padding:6px 12px;background:#f8fafc"><code>' . esc($pass) . '</code></td></tr>'
+                . '</table>'
+                . '<p style="color:#b45309"><strong>Penting:</strong> demi keamanan, Anda akan diminta <strong>mengganti password</strong> saat login pertama.</p>'
+                . '<p style="margin:20px 0"><a href="' . $loginUrl . '" style="background:#6366f1;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none">Masuk ke Sistem</a></p>'
+                . '<p style="font-size:12px;color:#64748b">Atau buka: ' . $loginUrl . '<br>Jika Anda merasa tidak seharusnya menerima email ini, abaikan saja.</p>'
+                . '</div>'   // tutup padding content
+                . '</div>';  // tutup kartu luar
+
+            $emailer = \Config\Services::email();
+            $emailer->setTo($to);
+            $emailer->setSubject('Akun Login Anda — Mall Intelligence Center');
+            $emailer->setMailType('html');
+            $emailer->setMessage($html);
+            return (bool) $emailer->send();
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal kirim email akun: ' . $e->getMessage());
+            return false;
+        }
     }
 
     // ── Pengajuan Perubahan Data (approval HR) ──────────────────────────
@@ -108,6 +151,52 @@ class PeopleEmployees extends BaseController
         ]);
     }
 
+    // Serve foto karyawan lewat auth (tidak publik). Akses cukup login (foto wajah, sensitivitas rendah).
+    public function viewPhoto(string $name)
+    {
+        $name = basename($name); // cegah path traversal
+        $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+            return $this->response->setStatusCode(404)->setBody('Not found.');
+        }
+        $path = WRITEPATH . 'uploads/photos/' . $name;
+        if (! is_file($path)) return $this->response->setStatusCode(404)->setBody('Not found.');
+
+        $mime = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'webp' => 'image/webp', 'gif' => 'image/gif'][$ext] ?? 'application/octet-stream';
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Cache-Control', 'private, max-age=86400')
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setBody(file_get_contents($path));
+    }
+
+    // Serve file dokumen lewat auth (PII — tidak boleh diakses publik langsung).
+    public function viewDocument(int $id)
+    {
+        $doc = (new EmployeeDocumentModel())->find($id);
+        if (! $doc) return $this->response->setStatusCode(404)->setBody('Dokumen tidak ditemukan.');
+
+        // Akses: HR/People Dev (boleh semua) atau karyawan pemilik dokumen.
+        $allowed = $this->canManageRequests();
+        if (! $allowed) {
+            $emp = (new EmployeeModel())->find($doc['employee_id']);
+            $allowed = $emp && ! empty($emp['user_id']) && (int) $emp['user_id'] === (int) session()->get('user_id');
+        }
+        if (! $allowed) return $this->response->setStatusCode(403)->setBody('Akses ditolak.');
+
+        $path = WRITEPATH . 'uploads/docs/' . basename($doc['file_name']);
+        if (! is_file($path)) return $this->response->setStatusCode(404)->setBody('File tidak ditemukan.');
+
+        $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = ['pdf' => 'application/pdf', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg'][$ext] ?? 'application/octet-stream';
+
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'inline; filename="' . basename($doc['file_name']) . '"')
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setBody(file_get_contents($path));
+    }
+
     // ── Dokumen Karyawan (upload HR langsung + verifikasi) ───────────────
     public function uploadDocument(int $employeeId)
     {
@@ -125,7 +214,7 @@ class PeopleEmployees extends BaseController
         if (! in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'], true)) return redirect()->to('/people/employees/' . $employeeId)->with('error', 'Hanya file JPG, PNG, atau PDF.');
         if ($file->getSize() > 5 * 1024 * 1024) return redirect()->to('/people/employees/' . $employeeId)->with('error', 'Ukuran file maksimal 5 MB.');
 
-        $dir = FCPATH . 'uploads/people/docs/';
+        $dir = WRITEPATH . 'uploads/docs/';
         if (! is_dir($dir)) mkdir($dir, 0775, true);
         $newName = 'doc_' . $employeeId . '_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
         $file->move($dir, $newName);
@@ -160,7 +249,7 @@ class PeopleEmployees extends BaseController
         $doc = $m->find($id);
         if (! $doc || $doc['status'] !== 'pending') return redirect()->to('/people/change-requests')->with('error', 'Dokumen tidak valid.');
         // Hapus file yang ditolak
-        $path = FCPATH . 'uploads/people/docs/' . $doc['file_name'];
+        $path = WRITEPATH . 'uploads/docs/' . $doc['file_name'];
         if (is_file($path)) @unlink($path);
         $m->update($id, ['status' => 'rejected', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s'), 'catatan' => $catatan]);
         ActivityLog::write('update', 'employee_document', (string) $doc['employee_id'], EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']), ['status' => 'rejected']);
@@ -173,7 +262,7 @@ class PeopleEmployees extends BaseController
         $m = new EmployeeDocumentModel();
         $doc = $m->find($id);
         if (! $doc) return redirect()->to('/people/employees')->with('error', 'Dokumen tidak ditemukan.');
-        $path = FCPATH . 'uploads/people/docs/' . $doc['file_name'];
+        $path = WRITEPATH . 'uploads/docs/' . $doc['file_name'];
         if (is_file($path)) @unlink($path);
         $m->delete($id);
         ActivityLog::write('delete', 'employee_document', (string) $doc['employee_id'], EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']));
@@ -186,6 +275,10 @@ class PeopleEmployees extends BaseController
         $model = new EmployeeChangeRequestModel();
         $req = $model->find($id);
         if (! $req || $req['status'] !== 'pending') return redirect()->to('/people/change-requests')->with('error', 'Pengajuan tidak valid.');
+        // Defense-in-depth: hanya field whitelist yang boleh ditulis ke employees.
+        if (! array_key_exists($req['field'], EmployeeChangeRequestModel::EDITABLE)) {
+            return redirect()->to('/people/change-requests')->with('error', 'Field tidak diizinkan.');
+        }
 
         $empModel = new EmployeeModel();
         $emp = $empModel->find($req['employee_id']);
@@ -193,7 +286,7 @@ class PeopleEmployees extends BaseController
 
         // Foto: bersihkan file lama setelah commit nilai baru
         if ($req['field'] === 'foto') {
-            $dir = FCPATH . 'uploads/people/photos/';
+            $dir = WRITEPATH . 'uploads/photos/';
             if (! empty($emp['foto']) && file_exists($dir . $emp['foto'])) @unlink($dir . $emp['foto']);
         }
 
@@ -225,7 +318,7 @@ class PeopleEmployees extends BaseController
 
         // Foto ditolak → hapus file yang sudah terupload
         if ($req['field'] === 'foto') {
-            $dir = FCPATH . 'uploads/people/photos/';
+            $dir = WRITEPATH . 'uploads/photos/';
             if (! empty($req['value_new']) && file_exists($dir . $req['value_new'])) @unlink($dir . $req['value_new']);
         }
 
@@ -312,7 +405,7 @@ class PeopleEmployees extends BaseController
             'jabatanMap'        => (new JabatanModel())->getAllAsMap(),
             'allEmployees'      => $allEmployees,
             'currentDivisionId' => $currentDivisionId,
-            'roles'             => (new RoleModel())->orderBy('name')->findAll(),
+            'roles'             => (new RoleModel())->where('slug !=', 'admin')->orderBy('name')->findAll(),
             'linkedUser'        => $employee['user_id'] ? (new UserModel())->find($employee['user_id']) : null,
             'documents'         => (new EmployeeDocumentModel())->forEmployee($id),
             'jenisDok'          => EmployeeDocumentModel::JENIS,
@@ -331,7 +424,7 @@ class PeopleEmployees extends BaseController
             if ($err = $this->validateUpload($file, self::MIME_IMAGE, 5)) {
                 return redirect()->back()->with('error', $err);
             }
-            $uploadPath = FCPATH . 'uploads/people/photos/';
+            $uploadPath = WRITEPATH . 'uploads/photos/';
             if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
             $fotoName = 'emp_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $file->move($uploadPath, $fotoName);
@@ -390,7 +483,7 @@ class PeopleEmployees extends BaseController
             if ($err = $this->validateUpload($file, self::MIME_IMAGE, 5)) {
                 return redirect()->back()->with('error', $err);
             }
-            $uploadPath = FCPATH . 'uploads/people/photos/';
+            $uploadPath = WRITEPATH . 'uploads/photos/';
             if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
             if ($fotoName && file_exists($uploadPath . $fotoName)) unlink($uploadPath . $fotoName);
             $fotoName = 'emp_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);

@@ -144,7 +144,8 @@ abstract class BaseController extends Controller
     {
         if ($this->isAdmin()) return true;
         $menus = session()->get('dept_menus');
-        if ($menus === null) return true; // no dept assigned = unrestricted
+        // Non-admin tanpa departemen = TIDAK punya akses (hanya admin/superadmin yang full).
+        if ($menus === null) return false;
         return isset($menus[$menuKey]) && $menus[$menuKey]['can_view'];
     }
 
@@ -153,7 +154,7 @@ abstract class BaseController extends Controller
     {
         if ($this->isAdmin()) return true;
         $menus = session()->get('dept_menus');
-        if ($menus === null) return true;
+        if ($menus === null) return false; // non-admin tanpa dept = tidak boleh edit
         return isset($menus[$menuKey]) && $menus[$menuKey]['can_edit'];
     }
 

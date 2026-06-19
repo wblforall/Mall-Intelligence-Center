@@ -27,14 +27,14 @@
     <td class="small fw-semibold"><?= esc($r['label']) ?></td>
     <td class="small text-muted">
         <?php if ($r['field'] === 'foto'): ?>
-            <?php if (! empty($r['value_old'])): ?><img src="<?= base_url('uploads/people/photos/'.$r['value_old']) ?>" style="width:40px;height:40px;border-radius:6px;object-fit:cover"><?php else: ?>—<?php endif; ?>
+            <?php if (! empty($r['value_old'])): ?><img src="<?= base_url('people/photo/' . $r['value_old']) ?>" style="width:40px;height:40px;border-radius:6px;object-fit:cover"><?php else: ?>—<?php endif; ?>
         <?php else: ?>
             <?= esc($r['value_old']) ?: '—' ?>
         <?php endif; ?>
     </td>
     <td class="small">
         <?php if ($r['field'] === 'foto'): ?>
-            <img src="<?= base_url('uploads/people/photos/'.$r['value_new']) ?>" style="width:40px;height:40px;border-radius:6px;object-fit:cover">
+            <img src="<?= base_url('people/photo/' . $r['value_new']) ?>" style="width:40px;height:40px;border-radius:6px;object-fit:cover">
         <?php else: ?>
             <span class="fw-semibold text-success"><?= esc($r['value_new']) ?></span>
         <?php endif; ?>
@@ -93,7 +93,7 @@
         <div class="text-muted" style="font-size:.72rem"><?= esc($d['dept_name'] ?? '—') ?></div>
     </td>
     <td class="small fw-semibold"><?= esc(\App\Models\EmployeeDocumentModel::jenisLabel($d['jenis'], $d['nama_dokumen'])) ?></td>
-    <td class="small"><a href="<?= base_url('uploads/people/docs/'.$d['file_name']) ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
+    <td class="small"><a href="<?= base_url('people/documents/'.$d['id'].'/view') ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
     <td class="small text-nowrap text-muted"><?= date('d M Y H:i', strtotime($d['created_at'])) ?></td>
     <td class="text-end pe-3 text-nowrap">
         <form method="POST" action="<?= base_url('people/documents/'.$d['id'].'/approve') ?>" class="d-inline">

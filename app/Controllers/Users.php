@@ -203,7 +203,7 @@ class Users extends BaseController
         if (! in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'], true)) return ['ok' => false, 'msg' => 'Hanya file JPG, PNG, atau PDF.'];
         if ($file->getSize() > 5 * 1024 * 1024) return ['ok' => false, 'msg' => 'Ukuran file maksimal 5 MB.'];
 
-        $dir = FCPATH . 'uploads/people/docs/';
+        $dir = WRITEPATH . 'uploads/docs/';
         if (! is_dir($dir)) mkdir($dir, 0775, true);
         $newName = 'doc_' . $employeeId . '_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
         $file->move($dir, $newName);
@@ -252,7 +252,7 @@ class Users extends BaseController
             $file = $this->request->getFile('foto');
             if ($file && $file->isValid() && ! $file->hasMoved() && str_starts_with((string) $file->getMimeType(), 'image/')
                 && ! $reqModel->where('employee_id', $emp['id'])->where('field', 'foto')->where('status', 'pending')->countAllResults()) {
-                $dir = FCPATH . 'uploads/people/photos/';
+                $dir = WRITEPATH . 'uploads/photos/';
                 if (! is_dir($dir)) mkdir($dir, 0775, true);
                 $name = 'req_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $file->getExtension();
                 $file->move($dir, $name);

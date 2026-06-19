@@ -31,7 +31,7 @@ $infoFields = [
     <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
         <?php if ($employee['foto']): ?>
-        <img src="<?= base_url('uploads/people/photos/'.$employee['foto']) ?>" style="width:40px;height:40px;border-radius:50%;object-fit:cover">
+        <img src="<?= base_url('people/photo/' . $employee['foto']) ?>" style="width:40px;height:40px;border-radius:50%;object-fit:cover">
         <?php endif; ?>
         <div>
             <h6 class="mb-0 fw-semibold"><?= esc($employee['nama']) ?></h6>
@@ -182,7 +182,7 @@ $infoFields = [
     <?php foreach ($documents as $d): ?>
     <tr>
         <td class="ps-3 fw-semibold small"><?= esc(\App\Models\EmployeeDocumentModel::jenisLabel($d['jenis'], $d['nama_dokumen'])) ?></td>
-        <td class="small"><a href="<?= base_url('uploads/people/docs/'.$d['file_name']) ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
+        <td class="small"><a href="<?= base_url('people/documents/'.$d['id'].'/view') ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
         <td><span class="badge bg-<?= $sb[$d['status']] ?? 'secondary' ?>"><?= ucfirst($d['status']) ?></span></td>
         <td class="small text-muted"><?= esc($d['catatan'] ?? '') ?: '—' ?></td>
         <td class="small text-nowrap text-muted"><?= date('d M Y', strtotime($d['created_at'])) ?></td>

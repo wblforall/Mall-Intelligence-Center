@@ -19,7 +19,7 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
 <div class="d-flex align-items-center gap-3 mb-4 anim-fade-up" style="animation-delay:.05s">
     <a href="<?= base_url('people/employees') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
     <?php if ($employee['foto']): ?>
-    <img src="<?= base_url('uploads/people/photos/'.$employee['foto']) ?>" class="emp-photo">
+    <img src="<?= base_url('people/photo/' . $employee['foto']) ?>" class="emp-photo">
     <?php else: ?>
     <div class="emp-photo-placeholder"><?= strtoupper(substr($employee['nama'], 0, 1)) ?></div>
     <?php endif; ?>
@@ -260,10 +260,15 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
 <?php foreach ($documents as $d): ?>
 <tr>
     <td class="ps-3 fw-semibold small"><?= esc(\App\Models\EmployeeDocumentModel::jenisLabel($d['jenis'], $d['nama_dokumen'])) ?></td>
-    <td class="small"><a href="<?= base_url('uploads/people/docs/'.$d['file_name']) ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
+    <td class="small"><a href="<?= base_url('people/documents/'.$d['id'].'/view') ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
     <td><span class="badge bg-<?= $dsb[$d['status']] ?? 'secondary' ?>"><?= ucfirst($d['status']) ?></span><?php if ($d['status']==='rejected' && $d['catatan']): ?><div class="text-muted" style="font-size:.68rem"><?= esc($d['catatan']) ?></div><?php endif; ?></td>
     <td class="small text-nowrap text-muted"><?= date('d M Y', strtotime($d['created_at'])) ?></td>
-    <td><a href="<?= base_url('people/documents/'.$d['id'].'/delete') ?>" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Hapus dokumen ini?')"><i class="bi bi-x-circle"></i></a></td>
+    <td>
+        <form method="POST" action="<?= base_url('people/documents/'.$d['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus dokumen ini?')">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-x-circle"></i></button>
+        </form>
+    </td>
 </tr>
 <?php endforeach; ?>
 </tbody>

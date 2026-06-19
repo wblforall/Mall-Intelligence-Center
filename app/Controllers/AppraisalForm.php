@@ -91,7 +91,12 @@ class AppraisalForm extends BaseController
     {
         if ($this->isHr()) return true;
         if ((int) $form['current_user_id'] === $this->uid()) return true;
-        if (isset($form['employee_user_id']) && (int) $form['employee_user_id'] === $this->uid()) return true;
+        // Karyawan ybs: hanya boleh melihat hasilnya sendiri bila SUDAH final & dirilis HR.
+        // (kalau belum dirilis, jangan kabulkan lewat jalur ini — biar gate "Rilis" tak bisa di-bypass URL)
+        if (isset($form['employee_user_id']) && (int) $form['employee_user_id'] === $this->uid()
+            && $form['status'] === 'finalized' && ! empty($form['released_at'])) {
+            return true;
+        }
         if ((int) ($form['penilai_id'] ?? 0) && $this->myEmployeeId() === (int) $form['penilai_id']) return true;
         // dalam rantai atasan karyawan?
         foreach ((new AppraisalChain())->atasanChain((int) $form['employee_id']) as $a) {
