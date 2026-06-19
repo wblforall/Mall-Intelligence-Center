@@ -74,7 +74,7 @@ class PeopleEmployees extends BaseController
             return redirect()->to('/people/employees/' . $id)->with('error', 'Role Admin tidak dapat diberikan dari sini. Buat akun Admin lewat menu Users.');
         }
 
-        $pass = '123456';
+        $pass = bin2hex(random_bytes(4)); // password awal acak (8 char), wajib diganti saat login pertama
         $userId = (new UserModel())->insert([
             'name'                 => $emp['nama'],
             'email'                => $email,

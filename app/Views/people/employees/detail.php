@@ -118,7 +118,7 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
         <span class="small text-muted">Email login: <strong><?= esc($linkedUser['email']) ?></strong> · Role: <strong><?= esc(ucfirst($linkedUser['role'] ?? '-')) ?></strong><?= empty($linkedUser['is_active']) ? ' · <span class="text-danger">nonaktif</span>' : '' ?></span>
     </div>
 <?php else: ?>
-    <p class="small text-muted mb-3">Karyawan ini belum punya akun untuk login ke sistem. Buatkan akun di bawah — password awal <code>123456</code> dan wajib diganti saat login pertama.</p>
+    <p class="small text-muted mb-3">Karyawan ini belum punya akun untuk login ke sistem. Buatkan akun di bawah — password awal <strong>acak</strong> akan dikirim ke email karyawan & ditampilkan ke Anda, dan wajib diganti saat login pertama.</p>
     <form method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/create-account') ?>" class="row g-2 align-items-end">
         <?= csrf_field() ?>
         <div class="col-md-5">

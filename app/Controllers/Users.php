@@ -48,11 +48,12 @@ class Users extends BaseController
         $role   = (new RoleModel())->find($roleId);
         $deptId = $this->request->getPost('department_id');
 
+        $pass  = bin2hex(random_bytes(4)); // password awal acak, wajib diganti saat login pertama
         $model = new UserModel();
         $newId = $model->insert([
             'name'                 => $this->request->getPost('name'),
             'email'                => $this->request->getPost('email'),
-            'password'             => password_hash('123456', PASSWORD_BCRYPT),
+            'password'             => password_hash($pass, PASSWORD_BCRYPT),
             'role'                 => $role ? $role['slug'] : 'operator',
             'role_id'              => $roleId,
             'department_id'        => $deptId ?: null,
@@ -63,7 +64,7 @@ class Users extends BaseController
             'email' => $this->request->getPost('email'),
             'role'  => $role ? $role['slug'] : 'operator',
         ]);
-        return redirect()->to('/users')->with('success', 'User berhasil ditambahkan.');
+        return redirect()->to('/users')->with('success', 'User ditambahkan — Password awal: ' . $pass . ' (wajib diganti saat login pertama).');
     }
 
     public function update(int $id)
