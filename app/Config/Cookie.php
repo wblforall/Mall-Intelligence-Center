@@ -7,6 +7,17 @@ use DateTimeInterface;
 
 class Cookie extends BaseConfig
 {
+    public function __construct()
+    {
+        parent::__construct();
+        // Otomatis aktifkan Secure cookie saat diakses lewat HTTPS (produksi),
+        // tetap nonaktif di HTTP lokal supaya login dev tidak putus.
+        if ((! empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')) {
+            $this->secure = true;
+        }
+    }
+
     /**
      * --------------------------------------------------------------------------
      * Cookie Prefix
