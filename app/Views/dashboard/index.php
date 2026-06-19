@@ -260,6 +260,13 @@ foreach ($trafficMalls as $mall => $cfg):
         <div class="col"><div class="card h-100 py-3"><div class="placeholder-glow"><span class="placeholder col-8"></span></div></div></div>
         <?php endfor; ?>
     </div>
+    <!-- Per jam hari ini -->
+    <div class="mt-3 pt-2 border-top">
+        <div class="small text-muted mb-2"><i class="bi bi-clock-history me-1"></i>Hari ini per jam</div>
+        <div class="d-flex gap-2 overflow-auto pb-1" id="weatherHours" style="scrollbar-width:thin">
+            <div class="text-muted small py-2 px-2"><i class="bi bi-hourglass-split me-1"></i>memuat…</div>
+        </div>
+    </div>
 </div>
 </div>
 
@@ -1687,18 +1694,45 @@ foreach ($sections as $sec):
         const res  = await fetch('<?= base_url('dashboard/weather') ?>');
         const data = await res.json();
         if (! data.ok || ! data.days) throw new Error('no data');
-        box.innerHTML = data.days.map((d, i) => `
+        box.innerHTML = data.days.map((d, i) => {
+            const hot = d.feels_max != null && d.feels_max >= 38; // panas ekstrem -> tandai merah
+            const cardStyle = hot
+                ? 'border:1px solid #ef4444;background:rgba(239,68,68,.08);'
+                : (i===0 ? 'border:1px solid var(--bs-primary);' : '');
+            return `
             <div class="col">
-                <div class="card h-100 py-2 px-1" style="${i===0?'border:1px solid var(--bs-primary);':''}">
-                    <div class="small fw-semibold">${d.hari}</div>
+                <div class="card h-100 py-2 px-1" style="${cardStyle}">
+                    <div class="small fw-semibold ${hot?'text-danger':''}">${d.hari}</div>
                     <div class="text-muted" style="font-size:.68rem">${d.tgl_label}</div>
-                    <i class="bi ${d.icon} my-1" style="font-size:1.5rem;color:#f59e0b"></i>
+                    <i class="bi ${d.icon} my-1" style="font-size:1.5rem;color:${hot?'#ef4444':'#f59e0b'}"></i>
                     <div class="small fw-bold">${d.tmax}°<span class="text-muted fw-normal">/${d.tmin}°</span></div>
-                    <div class="text-muted" style="font-size:.62rem;line-height:1.1">${d.label}</div>
+                    ${d.feels_max != null ? `<div class="${hot?'text-danger fw-semibold':'text-muted'}" style="font-size:.6rem;line-height:1.1">terasa ${d.feels_max}°</div>` : ''}
+                    <div class="text-muted" style="font-size:.62rem;line-height:1.1;margin-top:.1rem">${d.label}</div>
                     ${d.hujan != null ? `<div style="font-size:.6rem;color:#3b82f6"><i class="bi bi-droplet-fill"></i> ${d.hujan}%</div>` : ''}
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
         if (st) st.innerHTML = '<i class="bi bi-check-circle me-1 text-success"></i>Open-Meteo';
+
+        // Cuaca hari ini per jam
+        const hbox = document.getElementById('weatherHours');
+        if (hbox && data.hours && data.hours.length) {
+            const nowH = new Date().getHours();
+            hbox.innerHTML = data.hours.map(h => {
+                const isNow = parseInt(h.jam) === nowH;
+                const hot = h.feels != null && h.feels >= 38;
+                return `
+                <div class="text-center px-2 py-2 flex-shrink-0" style="min-width:70px;border-radius:.6rem;${isNow?'background:rgba(99,102,241,.12);border:1px solid var(--bs-primary);':''}${hot?'background:rgba(239,68,68,.1);':''}">
+                    <div class="small fw-semibold ${isNow?'text-primary':''}">${h.jam}</div>
+                    <i class="bi ${h.icon} my-1" style="font-size:1.2rem;color:${hot?'#ef4444':'#f59e0b'}"></i>
+                    <div class="small fw-bold">${h.temp}°</div>
+                    ${h.feels != null ? `<div class="${hot?'text-danger':'text-muted'}" style="font-size:.58rem">terasa ${h.feels}°</div>` : ''}
+                    ${h.hujan != null ? `<div style="font-size:.58rem;color:#3b82f6"><i class="bi bi-droplet-fill"></i> ${h.hujan}%</div>` : ''}
+                </div>`;
+            }).join('');
+        } else if (hbox) {
+            hbox.innerHTML = '<div class="text-muted small py-2 px-2">Data per jam tidak tersedia.</div>';
+        }
     } catch (e) {
         box.innerHTML = '<div class="col-12 text-center text-muted small py-2"><i class="bi bi-wifi-off me-1"></i>Tidak dapat memuat prakiraan cuaca.</div>';
         if (st) st.innerHTML = '<i class="bi bi-x-circle me-1 text-danger"></i>gagal';

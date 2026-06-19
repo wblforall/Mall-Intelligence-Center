@@ -251,11 +251,12 @@ class Dashboard extends BaseController
     // Prakiraan cuaca 7 hari (Balikpapan) via Open-Meteo — gratis, tanpa API key. Cache 2 jam.
     public function weatherForecast()
     {
-        $cached = cache('weather_bpn');
-        if ($cached !== null) return $this->response->setJSON(['ok' => true, 'days' => $cached]);
+        $cached = cache('weather_bpn_v3');
+        if ($cached !== null) return $this->response->setJSON(['ok' => true] + $cached);
 
         $url = 'https://api.open-meteo.com/v1/forecast?latitude=-1.2675&longitude=116.8289'
-            . '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
+            . '&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_probability_max'
+            . '&hourly=weather_code,temperature_2m,apparent_temperature,precipitation_probability'
             . '&timezone=Asia%2FMakassar&forecast_days=7';
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -285,13 +286,34 @@ class Dashboard extends BaseController
                 'tgl_label'=> date('d/m', strtotime($tgl)),
                 'tmax'     => isset($d['temperature_2m_max'][$i]) ? round($d['temperature_2m_max'][$i]) : null,
                 'tmin'     => isset($d['temperature_2m_min'][$i]) ? round($d['temperature_2m_min'][$i]) : null,
+                'feels_max'=> isset($d['apparent_temperature_max'][$i]) ? round($d['apparent_temperature_max'][$i]) : null,
+                'feels_min'=> isset($d['apparent_temperature_min'][$i]) ? round($d['apparent_temperature_min'][$i]) : null,
                 'hujan'    => $d['precipitation_probability_max'][$i] ?? null,
                 'icon'     => $info['icon'],
                 'label'    => $info['label'],
             ];
         }
-        cache()->save('weather_bpn', $days, 7200); // 2 jam
-        return $this->response->setJSON(['ok' => true, 'days' => $days]);
+
+        // Hourly hari ini saja (per jam)
+        $hours = [];
+        $today = date('Y-m-d');
+        $h = $json['hourly'] ?? [];
+        foreach (($h['time'] ?? []) as $i => $t) {
+            if (strpos($t, $today) !== 0) continue; // hanya hari ini
+            $info = $this->weatherCodeInfo((int) ($h['weather_code'][$i] ?? 0));
+            $hours[] = [
+                'jam'   => date('H:i', strtotime($t)),
+                'temp'  => isset($h['temperature_2m'][$i]) ? round($h['temperature_2m'][$i]) : null,
+                'feels' => isset($h['apparent_temperature'][$i]) ? round($h['apparent_temperature'][$i]) : null,
+                'hujan' => $h['precipitation_probability'][$i] ?? null,
+                'icon'  => $info['icon'],
+                'label' => $info['label'],
+            ];
+        }
+
+        $payload = ['days' => $days, 'hours' => $hours];
+        cache()->save('weather_bpn_v3', $payload, 3600); // 1 jam (hourly perlu lebih segar)
+        return $this->response->setJSON(['ok' => true] + $payload);
     }
 
     // WMO weather code -> ikon Bootstrap + label Indonesia
