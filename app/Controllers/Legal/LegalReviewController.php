@@ -319,4 +319,20 @@ class LegalReviewController extends BaseController
             ]);
         }
     }
+
+    // Serve file dokumen review legal lewat auth (tidak boleh diakses publik langsung).
+    public function viewFile(string $name)
+    {
+        if (! $this->canViewMenu('legal')) return $this->response->setStatusCode(403)->setBody('Akses ditolak.');
+        $name = basename($name);
+        $path = FCPATH . 'uploads/legal_reviews/' . $name;
+        if (! is_file($path)) return $this->response->setStatusCode(404)->setBody('File tidak ditemukan.');
+        $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = ['pdf' => 'application/pdf', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'doc' => 'application/msword', 'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'][$ext] ?? 'application/octet-stream';
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'inline; filename="' . $name . '"')
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setBody(file_get_contents($path));
+    }
 }

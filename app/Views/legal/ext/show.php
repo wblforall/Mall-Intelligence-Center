@@ -58,7 +58,7 @@
                         <i class="bi bi-file-earmark-pdf text-danger" style="font-size:3rem"></i>
                         <div class="fw-medium mt-2">Versi <?= $latest['versi_ke'] ?></div>
                         <div class="text-muted small mb-3"><?= date('d M Y', strtotime($latest['uploaded_at'])) ?></div>
-                        <a href="<?= base_url('uploads/legal_reviews/' . basename($latest['file_path'])) ?>"
+                        <a href="<?= base_url('legal/review-file/' . basename($latest['file_path'])) ?>"
                            target="_blank" class="btn btn-primary btn-sm w-100">
                             <i class="bi bi-download me-1"></i>Download Dokumen
                         </a>

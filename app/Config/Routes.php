@@ -264,6 +264,7 @@ $routes->get('stock/voucher/(:num)/available-kodes', 'StockVoucherCtrl::getAvail
 
 // Sponsorship Standalone
 $routes->get('sponsorship', 'SponsorshipCtrl::index', ['filter' => 'auth']);
+$routes->get('sponsorship/(:num)/file/(:segment)', 'SponsorshipCtrl::viewFile/$1/$2', ['filter' => 'auth']);
 $routes->get('sponsorship/summary', 'SponsorshipCtrl::summary', ['filter' => 'auth']);
 $routes->post('sponsorship/add', 'SponsorshipCtrl::storeProgram', ['filter' => 'auth']);
 $routes->post('sponsorship/(:num)/edit', 'SponsorshipCtrl::updateProgram/$1', ['filter' => 'auth']);
@@ -593,6 +594,7 @@ $routes->post('legal/leases/(:num)/delete',               'Legal\LegalLeaseContr
 $routes->post('legal/documents/upload',                   'Legal\LegalController::uploadDocument',          ['filter' => 'auth']);
 $routes->post('legal/documents/(:num)/delete',            'Legal\LegalController::deleteDocument/$1',       ['filter' => 'auth']);
 $routes->get ('legal/documents/(:num)/download',          'Legal\LegalController::downloadDocument/$1',     ['filter' => 'auth']);
+$routes->get ('legal/review-file/(:segment)',             'Legal\LegalReviewController::viewFile/$1',       ['filter' => 'auth']);
 
 // Review Kontrak
 $routes->get ('legal/reviews',                            'Legal\LegalReviewController::index',             ['filter' => 'auth']);

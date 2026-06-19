@@ -119,7 +119,7 @@ function renderComment(array $c, bool $canAct, int $reviewId): void {
                             <?php if ($latest['catatan_perubahan']): ?><div class="text-muted small fst-italic"><?= esc($latest['catatan_perubahan']) ?></div><?php endif; ?>
                         </div>
                     </div>
-                    <a href="<?= base_url('uploads/legal_reviews/' . basename($latest['file_path'])) ?>"
+                    <a href="<?= base_url('legal/review-file/' . basename($latest['file_path'])) ?>"
                        target="_blank" class="btn btn-sm btn-outline-primary w-100">
                         <i class="bi bi-download me-1"></i>Download PDF
                     </a>
@@ -153,7 +153,7 @@ function renderComment(array $c, bool $canAct, int $reviewId): void {
                     <li class="list-group-item d-flex align-items-center gap-2 py-2">
                         <span class="version-pill">v<?= $v['versi_ke'] ?></span>
                         <span class="text-muted small flex-grow-1"><?= date('d M Y', strtotime($v['uploaded_at'])) ?> — <?= esc($v['uploader_name'] ?? '—') ?></span>
-                        <a href="<?= base_url('uploads/legal_reviews/' . basename($v['file_path'])) ?>" target="_blank" class="btn btn-sm btn-outline-secondary py-0 px-2"><i class="bi bi-download"></i></a>
+                        <a href="<?= base_url('legal/review-file/' . basename($v['file_path'])) ?>" target="_blank" class="btn btn-sm btn-outline-secondary py-0 px-2"><i class="bi bi-download"></i></a>
                     </li>
                     <?php endforeach; ?>
                 </ul>

@@ -360,7 +360,7 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                                 <span class="text-muted"><?= date('d/m/Y', strtotime($r['tanggal'])) ?></span>
                                 <span class="fw-semibold text-info"><?= spFmt((int)$r['nilai']) ?></span>
                                 <?php if ($r['file_bukti']): ?>
-                                <a href="<?= base_url('uploads/sponsorship/' . $pid . '/' . $r['file_bukti']) ?>" target="_blank" class="text-primary"><i class="bi bi-paperclip"></i></a>
+                                <a href="<?= base_url('sponsorship/' . $pid . '/file/' . $r['file_bukti']) ?>" target="_blank" class="text-primary"><i class="bi bi-paperclip"></i></a>
                                 <?php endif; ?>
                                 <span class="text-muted" title="PIC pengisi realisasi"><i class="bi bi-person"></i> <?= esc($r['pengisi'] ?? '—') ?></span>
                                 <form method="post" action="<?= base_url('sponsorship/' . $pid . '/sponsor/' . $sp['id'] . '/realisasi/' . $r['id'] . '/delete') ?>"
