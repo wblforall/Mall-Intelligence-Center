@@ -15,6 +15,14 @@
                 <?php endfor; ?>
             </select>
         </form>
+        <form method="post" action="<?= base_url('admin/holidays/sync') ?>"
+              onsubmit="return confirm('Tarik hari libur nasional <?= $year ?> dari API kalender Indonesia? Data yang sudah ada tidak akan diduplikasi.')">
+            <?= csrf_field() ?>
+            <input type="hidden" name="year" value="<?= $year ?>">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="bi bi-cloud-download"></i> Tarik dari API <?= $year ?>
+            </button>
+        </form>
         <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#bulkModal">
             <i class="bi bi-upload"></i> Import Massal
         </button>

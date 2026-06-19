@@ -370,6 +370,7 @@ $routes->get ('admin/holidays',            'AdminHolidays::index',     ['filter'
 $routes->post('admin/holidays/store',      'AdminHolidays::store',     ['filter' => 'auth:admin']);
 $routes->post('admin/holidays/delete/(:num)', 'AdminHolidays::delete/$1', ['filter' => 'auth:admin']);
 $routes->post('admin/holidays/bulk',       'AdminHolidays::bulkStore', ['filter' => 'auth:admin']);
+$routes->post('admin/holidays/sync',       'AdminHolidays::syncApi',   ['filter' => 'auth:admin']);
 
 // Jabatans (admin only)
 $routes->get('jabatans', 'Jabatans::index', ['filter' => 'auth:admin']);
