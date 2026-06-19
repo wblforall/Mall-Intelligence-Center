@@ -338,7 +338,32 @@ foreach ($trafficMalls as $mall => $cfg):
 <?php
 $eco = $economicData;
 function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); }
+
+// Strip angka kunci — selalu terlihat lintas tab MI
+$pctOrDash = fn($d) => empty($d['loading']) ? $d['pct'] . '%' : '—';
+$stripItems = [
+    ['id' => 'bi_rate',   'label' => 'BI Rate',         'icon' => 'bi-bank',            'cls' => 'text-primary', 'val' => $pctOrDash($eco['bi_rate'])],
+    ['id' => 'inflation', 'label' => 'Inflasi YoY',     'icon' => 'bi-graph-up-arrow',  'cls' => 'text-info',    'val' => $pctOrDash($eco['inflation'])],
+    ['id' => 'gdp',       'label' => 'Ekonomi RI',      'icon' => 'bi-flag',            'cls' => 'text-success', 'val' => $eco['gdp']['pct'] . '%'],
+    ['id' => 'gdp_bpn',   'label' => 'PDRB Balikpapan', 'icon' => 'bi-building',        'cls' => 'text-success', 'val' => $eco['gdp_bpn']['pct'] . '%'],
+    ['id' => 'ihsg',      'label' => 'IHSG',            'icon' => 'bi-graph-up',        'cls' => 'text-warning', 'val' => empty($eco['ihsg']['loading']) ? $eco['ihsg']['pct'] : '—'],
+    ['id' => 'usd',       'label' => 'USD/IDR',         'icon' => 'bi-currency-dollar', 'cls' => 'text-body',    'val' => '—'],
+];
 ?>
+<div class="card mb-3 fade-up" style="animation-delay:.5s">
+<div class="card-body py-2 px-2">
+    <div class="d-flex flex-wrap align-items-stretch text-center">
+        <?php foreach ($stripItems as $i => $s): ?>
+        <div class="px-3 py-1 flex-fill <?= $i > 0 ? 'border-start' : '' ?>" style="min-width:118px">
+            <div class="text-muted text-uppercase d-flex align-items-center justify-content-center gap-1" style="font-size:.6rem;letter-spacing:.04em">
+                <i class="bi <?= $s['icon'] ?>"></i><?= $s['label'] ?>
+            </div>
+            <div class="fw-bold <?= $s['cls'] ?>" style="font-size:1.05rem" id="strip-<?= $s['id'] ?>"><?= esc($s['val']) ?></div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+</div>
 <div class="card mb-4 fade-up" style="animation-delay:.52s">
 <div class="card-header p-0 pt-1">
     <ul class="nav nav-tabs card-header-tabs px-2" role="tablist">
@@ -1398,6 +1423,10 @@ foreach ($sections as $sec):
                 const elC = document.getElementById('k-' + p.id + '-chg');
                 if (elV) elV.textContent = fmt(p.idr_t) + (p.note ?? '');
                 if (elC) elC.innerHTML  = chg(p.idr_t, p.idr_y);
+                if (p.id === 'usd') {
+                    const su = document.getElementById('strip-usd');
+                    if (su) su.textContent = fmt(p.idr_t);
+                }
             });
 
             document.getElementById('kursLoading').style.display = 'none';
@@ -1489,6 +1518,8 @@ foreach ($sections as $sec):
                     valEl.style.fontSize = '1.1rem';
                     valEl.textContent    = d.pct + '%';
                 }
+                const stripEl = document.getElementById('strip-' + key);
+                if (stripEl) stripEl.textContent = d.pct + '%';
                 if (perEl) {
                     perEl.innerHTML = '<i class="bi bi-calendar3 me-1"></i>' + (d.per || '')
                         + (d.fetched_at ? '<br><i class="bi bi-arrow-clockwise me-1"></i>Diambil ' + d.fetched_at : '');
@@ -1541,6 +1572,8 @@ foreach ($sections as $sec):
                     <div class="fw-bold text-warning" style="font-size:1.1rem" id="ihsg-val">${d.pct}</div>
                     ${chgHtml}</div>`;
             }
+            const stripIh = document.getElementById('strip-ihsg');
+            if (stripIh) stripIh.textContent = d.pct;
             if (perEl) {
                 perEl.innerHTML = '<i class="bi bi-calendar3 me-1"></i>' + d.per;
             }
