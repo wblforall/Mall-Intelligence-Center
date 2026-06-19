@@ -43,10 +43,10 @@ $frekLabel = ['mingguan'=>'Mingguan','2mingguan'=>'2 Mingguan','bulanan'=>'Bulan
         <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal">
             <i class="bi bi-pencil me-1"></i>Edit
         </button>
-        <a href="<?= base_url('people/pip/' . $plan['id'] . '/delete') ?>" class="btn btn-sm btn-outline-danger"
-           onclick="return confirm('Hapus PIP ini beserta semua data review?')">
-            <i class="bi bi-trash me-1"></i>Hapus
-        </a>
+        <form method="POST" action="<?= base_url('people/pip/' . $plan['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus PIP ini beserta semua data review?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Hapus</button>
+        </form>
         <?php endif; ?>
     </div>
 </div>
@@ -320,11 +320,10 @@ $frekLabel = ['mingguan'=>'Mingguan','2mingguan'=>'2 Mingguan','bulanan'=>'Bulan
                     <span class="text-muted small ms-2">oleh <?= esc($r['reviewer_name']) ?></span>
                 </div>
                 <?php if ($canEdit): ?>
-                <a href="<?= base_url('people/pip/' . $plan['id'] . '/reviews/' . $r['id'] . '/delete') ?>"
-                   class="btn btn-sm btn-link text-danger p-0"
-                   onclick="return confirm('Hapus review ini?')">
-                    <i class="bi bi-trash"></i>
-                </a>
+                <form method="POST" action="<?= base_url('people/pip/' . $plan['id'] . '/reviews/' . $r['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus review ini?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-link text-danger p-0" title="Hapus"><i class="bi bi-trash"></i></button>
+                </form>
                 <?php endif; ?>
             </div>
             <?php if ($r['catatan']): ?>

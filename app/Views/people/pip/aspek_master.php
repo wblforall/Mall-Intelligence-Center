@@ -72,11 +72,10 @@
                        onclick="return confirm('Ubah status aspek ini?')">
                         <i class="bi bi-<?= $item['aktif'] ? 'pause' : 'play' ?>"></i>
                     </a>
-                    <a href="<?= base_url('people/pip/aspek/' . $item['id'] . '/delete') ?>"
-                       class="btn btn-sm btn-outline-danger"
-                       onclick="return confirm('Hapus aspek ini?')">
-                        <i class="bi bi-trash"></i>
-                    </a>
+                    <form method="POST" action="<?= base_url('people/pip/aspek/' . $item['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus aspek ini?')">
+                        <?= csrf_field() ?>
+                        <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                    </form>
                 </td>
                 <?php endif; ?>
             </tr>

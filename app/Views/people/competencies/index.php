@@ -462,8 +462,14 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
         document.getElementById('eLevel4').value     = d.level4;
         document.getElementById('eLevel5').value     = d.level5;
         document.getElementById('deleteBtn').onclick = () => {
-            if (confirm('Hapus kompetensi ini? Semua target terkait juga akan dihapus.'))
-                location.href = '<?= base_url('people/competencies/') ?>' + d.id + '/delete';
+            if (confirm('Hapus kompetensi ini? Semua target terkait juga akan dihapus.')) {
+                const f = document.createElement('form');
+                f.method = 'POST';
+                f.action = '<?= base_url('people/competencies/') ?>' + d.id + '/delete';
+                f.innerHTML = '<input type="hidden" name="<?= csrf_token() ?>" value="<?= csrf_hash() ?>">';
+                document.body.appendChild(f);
+                f.submit();
+            }
         };
         new bootstrap.Modal(document.getElementById('editModal')).show();
     });

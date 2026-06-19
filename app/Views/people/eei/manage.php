@@ -62,11 +62,10 @@
                 data-deskripsi="<?= esc($dim['deskripsi'] ?? '') ?>">
             <i class="bi bi-pencil"></i>
         </button>
-        <a href="<?= base_url('people/eei/dimension/' . $dim['id'] . '/delete') ?>"
-           class="btn btn-sm btn-outline-danger ms-1"
-           onclick="return confirm('Hapus dimensi beserta semua pertanyaannya?')">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('people/eei/dimension/' . $dim['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus dimensi beserta semua pertanyaannya?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-outline-danger ms-1" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
     </div>
     <div class="card-body p-0">
         <?php if (! empty($dim['questions'])): ?>
@@ -81,11 +80,10 @@
                 <?php endif; ?>
             </td>
             <td class="pe-2 text-end" style="width:60px">
-                <a href="<?= base_url('people/eei/question/' . $q['id'] . '/delete') ?>"
-                   class="btn btn-sm btn-outline-danger"
-                   onclick="return confirm('Hapus pertanyaan ini?')">
-                    <i class="bi bi-trash"></i>
-                </a>
+                <form method="POST" action="<?= base_url('people/eei/question/' . $q['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus pertanyaan ini?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                </form>
             </td>
         </tr>
         <?php endforeach; ?>
@@ -155,11 +153,10 @@
                     data-end="<?= $p['end_date'] ?>">
                 <i class="bi bi-pencil"></i>
             </button>
-            <a href="<?= base_url('people/eei/period/' . $p['id'] . '/delete') ?>"
-               class="btn btn-sm btn-outline-danger"
-               onclick="return confirm('Hapus periode ini? Semua respons akan ikut terhapus.')">
-                <i class="bi bi-trash"></i>
-            </a>
+            <form method="POST" action="<?= base_url('people/eei/period/' . $p['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus periode ini? Semua respons akan ikut terhapus.')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+            </form>
         </div>
     </div>
     <?php if (! empty($p['survey_token'])): ?>

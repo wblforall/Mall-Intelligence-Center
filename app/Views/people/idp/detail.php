@@ -45,9 +45,10 @@ $recsByComp = $trainingRecs;
         <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal">
             <i class="bi bi-pencil me-1"></i>Edit
         </button>
-        <a href="<?= base_url('people/idp/' . $plan['id'] . '/delete') ?>"
-           onclick="return confirm('Hapus IDP ini beserta semua goalnya?')"
-           class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+        <form method="POST" action="<?= base_url('people/idp/' . $plan['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus IDP ini beserta semua goalnya?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
         <?php endif; ?>
     </div>
 </div>
@@ -167,9 +168,10 @@ $recsByComp = $trainingRecs;
                                 data-bs-toggle="modal" data-bs-target="#editItemModal<?= $item['id'] ?>">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <a href="<?= base_url('people/idp/' . $plan['id'] . '/items/' . $item['id'] . '/delete') ?>"
-                           onclick="return confirm('Hapus goal ini?')"
-                           class="btn btn-sm btn-outline-danger py-0 px-1"><i class="bi bi-trash"></i></a>
+                        <form method="POST" action="<?= base_url('people/idp/' . $plan['id'] . '/items/' . $item['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus goal ini?')">
+                            <?= csrf_field() ?>
+                            <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Hapus"><i class="bi bi-trash"></i></button>
+                        </form>
                         <?php endif; ?>
                     </div>
                 </div>

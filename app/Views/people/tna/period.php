@@ -118,11 +118,10 @@ $typeLabels = ['self' => 'Self', 'atasan' => 'Atasan', 'rekan' => 'Rekan'];
                     <i class="bi bi-envelope"></i>
                 </a>
                 <?php if (! $isClosed): ?>
-                <a href="<?= base_url('people/tna/period/' . $period['id'] . '/employees/' . $emp['employee_id'] . '/remove') ?>"
-                   class="btn btn-xs btn-sm btn-outline-danger py-0 px-2" style="font-size:.75rem"
-                   onclick="return confirm('Hapus <?= esc($emp['emp_nama']) ?> beserta semua data assessment-nya?')">
-                    <i class="bi bi-trash"></i>
-                </a>
+                <form method="POST" action="<?= base_url('people/tna/period/' . $period['id'] . '/employees/' . $emp['employee_id'] . '/remove') ?>" class="d-inline" onsubmit="return confirm('Hapus <?= esc($emp['emp_nama']) ?> beserta semua data assessment-nya?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-xs btn-sm btn-outline-danger py-0 px-2" style="font-size:.75rem" title="Hapus"><i class="bi bi-trash"></i></button>
+                </form>
                 <?php endif; ?>
             </div>
         </div>
@@ -174,10 +173,10 @@ $typeLabels = ['self' => 'Self', 'atasan' => 'Atasan', 'rekan' => 'Rekan'];
                 <?php endif; ?>
                 <?php endif; ?>
                 <?php if (! $isClosed): ?>
-                <a href="<?= base_url('people/tna/period/' . $period['id'] . '/assessors/' . $a['id'] . '/remove') ?>"
-                   class="text-danger ms-1" style="font-size:.8rem" onclick="return confirm('Hapus assessor ini?')" title="Hapus">
-                   <i class="bi bi-x-circle"></i>
-                </a>
+                <form method="POST" action="<?= base_url('people/tna/period/' . $period['id'] . '/assessors/' . $a['id'] . '/remove') ?>" class="d-inline" onsubmit="return confirm('Hapus assessor ini?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-link text-danger ms-1 p-0" style="font-size:.8rem" title="Hapus"><i class="bi bi-x-circle"></i></button>
+                </form>
                 <?php endif; ?>
             </div>
             <?php endforeach; ?>

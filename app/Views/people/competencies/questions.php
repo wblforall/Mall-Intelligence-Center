@@ -81,11 +81,10 @@ $levelLabels = [1=>'Tidak pernah',2=>'Jarang',3=>'Kadang-kadang',4=>'Sering',5=>
                                     title="Set deskripsi level">
                                 <i class="bi bi-sliders"></i>
                             </button>
-                            <a href="<?= base_url('people/competencies/questions/' . $q['id'] . '/delete') ?>"
-                               class="btn btn-sm btn-outline-danger"
-                               onclick="return confirm('Hapus pertanyaan ini?')">
-                                <i class="bi bi-trash"></i>
-                            </a>
+                            <form method="POST" action="<?= base_url('people/competencies/questions/' . $q['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus pertanyaan ini?')">
+                                <?= csrf_field() ?>
+                                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                            </form>
                         </div>
                     </div>
                 </li>

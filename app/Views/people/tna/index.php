@@ -57,9 +57,12 @@
                                onclick="return confirm('Ubah status periode ini?')">
                                <i class="bi bi-<?= $isOpen ? 'lock' : 'unlock' ?> me-2"></i><?= $isOpen ? 'Tutup Periode' : 'Buka Kembali' ?></a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="<?= base_url('people/tna/periods/' . $p['id'] . '/delete') ?>"
-                               onclick="return confirm('Hapus periode ini beserta semua data assessment di dalamnya?')">
-                               <i class="bi bi-trash me-2"></i>Hapus</a></li>
+                        <li>
+                            <form method="POST" action="<?= base_url('people/tna/periods/' . $p['id'] . '/delete') ?>" onsubmit="return confirm('Hapus periode ini beserta semua data assessment di dalamnya?')">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Hapus</button>
+                            </form>
+                        </li>
                     </ul>
                 </div>
             </div>

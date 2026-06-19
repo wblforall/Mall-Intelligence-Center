@@ -395,22 +395,22 @@ $routes->get('people/training/budget-detail/(:num)',                         'Pe
 $routes->post('people/training/add',                                         'PeopleTraining::store',             ['filter' => 'auth']);
 $routes->get('people/training/(:num)',                                        'PeopleTraining::show/$1',           ['filter' => 'auth']);
 $routes->post('people/training/(:num)/edit',                                 'PeopleTraining::update/$1',         ['filter' => 'auth']);
-$routes->get('people/training/(:num)/delete',                                'PeopleTraining::delete/$1',         ['filter' => 'auth']);
+$routes->post('people/training/(:num)/delete',                                'PeopleTraining::delete/$1',         ['filter' => 'auth']);
 $routes->post('people/training/(:num)/participants/add',                     'PeopleTraining::addParticipant/$1', ['filter' => 'auth']);
-$routes->get('people/training/(:num)/participants/(:num)/remove',            'PeopleTraining::removeParticipant/$1/$2', ['filter' => 'auth']);
+$routes->post('people/training/(:num)/participants/(:num)/remove',            'PeopleTraining::removeParticipant/$1/$2', ['filter' => 'auth']);
 $routes->post('people/training/(:num)/participants/(:num)/update',           'PeopleTraining::updateParticipant/$1/$2', ['filter' => 'auth']);
 
 // People Development — TNA Assessment 360°
 $routes->get('people/tna',                                               'PeopleTna::index',           ['filter' => 'auth']);
 $routes->post('people/tna/periods/add',                                  'PeopleTna::storePeriod',     ['filter' => 'auth']);
 $routes->post('people/tna/periods/(:num)/edit',                          'PeopleTna::updatePeriod/$1', ['filter' => 'auth']);
-$routes->get('people/tna/periods/(:num)/delete',                         'PeopleTna::deletePeriod/$1', ['filter' => 'auth']);
+$routes->post('people/tna/periods/(:num)/delete',                         'PeopleTna::deletePeriod/$1', ['filter' => 'auth']);
 $routes->get('people/tna/periods/(:num)/toggle-close',                   'PeopleTna::toggleClose/$1',  ['filter' => 'auth']);
 $routes->get('people/tna/period/(:num)',                                  'PeopleTna::period/$1',       ['filter' => 'auth']);
 $routes->post('people/tna/period/(:num)/employees/add',                  'PeopleTna::addEmployee/$1',  ['filter' => 'auth']);
-$routes->get('people/tna/period/(:num)/employees/(:num)/remove',         'PeopleTna::removeEmployee/$1/$2',  ['filter' => 'auth']);
+$routes->post('people/tna/period/(:num)/employees/(:num)/remove',         'PeopleTna::removeEmployee/$1/$2',  ['filter' => 'auth']);
 $routes->post('people/tna/period/(:num)/employees/(:num)/assessors/add', 'PeopleTna::addAssessor/$1/$2',     ['filter' => 'auth']);
-$routes->get('people/tna/period/(:num)/assessors/(:num)/remove',         'PeopleTna::removeAssessor/$1/$2',  ['filter' => 'auth']);
+$routes->post('people/tna/period/(:num)/assessors/(:num)/remove',         'PeopleTna::removeAssessor/$1/$2',  ['filter' => 'auth']);
 $routes->get('people/tna/assess/(:num)',                                  'PeopleTna::assess/$1',             ['filter' => 'auth']);
 $routes->post('people/tna/assess/(:num)/submit',                         'PeopleTna::submitAssessment/$1',   ['filter' => 'auth']);
 $routes->get('people/tna/period/(:num)/result/(:num)',                   'PeopleTna::result/$1/$2',                ['filter' => 'auth']);
@@ -429,12 +429,12 @@ $routes->get('people/eei/survey',                                   'PeopleEei::
 $routes->post('people/eei/submit',                                  'PeopleEei::submit',                   ['filter' => 'auth']);
 $routes->post('people/eei/dimension/add',                           'PeopleEei::storeDimension',           ['filter' => 'auth:admin']);
 $routes->post('people/eei/dimension/(:num)/edit',                   'PeopleEei::updateDimension/$1',       ['filter' => 'auth:admin']);
-$routes->get('people/eei/dimension/(:num)/delete',                  'PeopleEei::deleteDimension/$1',       ['filter' => 'auth:admin']);
+$routes->post('people/eei/dimension/(:num)/delete',                  'PeopleEei::deleteDimension/$1',       ['filter' => 'auth:admin']);
 $routes->post('people/eei/dimension/(:num)/questions/add',          'PeopleEei::storeQuestion/$1',         ['filter' => 'auth:admin']);
-$routes->get('people/eei/question/(:num)/delete',                   'PeopleEei::deleteQuestion/$1',        ['filter' => 'auth:admin']);
+$routes->post('people/eei/question/(:num)/delete',                   'PeopleEei::deleteQuestion/$1',        ['filter' => 'auth:admin']);
 $routes->post('people/eei/period/add',                              'PeopleEei::storePeriod',              ['filter' => 'auth:admin']);
 $routes->post('people/eei/period/(:num)/edit',                      'PeopleEei::updatePeriod/$1',          ['filter' => 'auth:admin']);
-$routes->get('people/eei/period/(:num)/delete',                     'PeopleEei::deletePeriod/$1',          ['filter' => 'auth:admin']);
+$routes->post('people/eei/period/(:num)/delete',                     'PeopleEei::deletePeriod/$1',          ['filter' => 'auth:admin']);
 $routes->get('people/eei/period/(:num)/activate',                   'PeopleEei::activatePeriod/$1',        ['filter' => 'auth:admin']);
 
 // People Development — Org Chart
@@ -486,16 +486,16 @@ $routes->get('people/pip',                                    'PeoplePip::index'
 $routes->post('people/pip/store',                             'PeoplePip::store',            ['filter' => 'auth']);
 $routes->get('people/pip/(:num)',                             'PeoplePip::show/$1',          ['filter' => 'auth']);
 $routes->post('people/pip/(:num)/update',                     'PeoplePip::update/$1',        ['filter' => 'auth']);
-$routes->get('people/pip/(:num)/delete',                      'PeoplePip::delete/$1',        ['filter' => 'auth']);
+$routes->post('people/pip/(:num)/delete',                      'PeoplePip::delete/$1',        ['filter' => 'auth']);
 $routes->post('people/pip/(:num)/reviews/add',                'PeoplePip::storeReview/$1',   ['filter' => 'auth']);
-$routes->get('people/pip/(:num)/reviews/(:num)/delete',       'PeoplePip::deleteReview/$1/$2', ['filter' => 'auth']);
+$routes->post('people/pip/(:num)/reviews/(:num)/delete',       'PeoplePip::deleteReview/$1/$2', ['filter' => 'auth']);
 $routes->get('people/pip/(:num)/print',                       'PeoplePip::printPip/$1',      ['filter' => 'auth']);
 $routes->get('people/pip/(:num)/token/(:alpha)',               'PeoplePip::generateToken/$1/$2', ['filter' => 'auth']);
 $routes->get('people/pip/(:num)/approve',                      'PeoplePip::approve/$1',          ['filter' => 'auth']);
 $routes->get('people/pip/aspek',                              'PipAspekMasterCtrl::index',       ['filter' => 'auth']);
 $routes->post('people/pip/aspek/store',                       'PipAspekMasterCtrl::store',       ['filter' => 'auth']);
 $routes->post('people/pip/aspek/(:num)/update',               'PipAspekMasterCtrl::update/$1',   ['filter' => 'auth']);
-$routes->get('people/pip/aspek/(:num)/delete',                'PipAspekMasterCtrl::delete/$1',   ['filter' => 'auth']);
+$routes->post('people/pip/aspek/(:num)/delete',                'PipAspekMasterCtrl::delete/$1',   ['filter' => 'auth']);
 $routes->get('people/pip/aspek/(:num)/toggle',                'PipAspekMasterCtrl::toggle/$1',   ['filter' => 'auth']);
 
 // PIP Approval — public token-based (no auth)
@@ -508,12 +508,12 @@ $routes->post('people/idp/store',                              'PeopleIdp::store
 $routes->get('people/idp/import-tna/(:num)/(:num)',            'PeopleIdp::importFromTna/$1/$2',  ['filter' => 'auth']);
 $routes->get('people/idp/(:num)',                              'PeopleIdp::show/$1',              ['filter' => 'auth']);
 $routes->post('people/idp/(:num)/update',                      'PeopleIdp::update/$1',            ['filter' => 'auth']);
-$routes->get('people/idp/(:num)/delete',                       'PeopleIdp::delete/$1',            ['filter' => 'auth']);
+$routes->post('people/idp/(:num)/delete',                       'PeopleIdp::delete/$1',            ['filter' => 'auth']);
 $routes->get('people/idp/(:num)/print',                        'PeopleIdp::printIdp/$1',          ['filter' => 'auth']);
 $routes->get('people/idp/(:num)/token',                        'PeopleIdp::generateToken/$1',     ['filter' => 'auth']);
 $routes->post('people/idp/(:num)/items/store',                 'PeopleIdp::storeItem/$1',         ['filter' => 'auth']);
 $routes->post('people/idp/(:num)/items/(:num)/update',         'PeopleIdp::updateItem/$1/$2',     ['filter' => 'auth']);
-$routes->get('people/idp/(:num)/items/(:num)/delete',          'PeopleIdp::deleteItem/$1/$2',     ['filter' => 'auth']);
+$routes->post('people/idp/(:num)/items/(:num)/delete',          'PeopleIdp::deleteItem/$1/$2',     ['filter' => 'auth']);
 
 // IDP Approval — public token-based (no auth)
 $routes->get('idp/approval/(:segment)',                        'IdpApproval::show/$1');
@@ -523,11 +523,11 @@ $routes->post('idp/approval/(:segment)/submit',                'IdpApproval::sub
 $routes->get('people/competencies',                               'PeopleCompetencies::index',           ['filter' => 'auth']);
 $routes->post('people/competencies/add',                          'PeopleCompetencies::store',           ['filter' => 'auth']);
 $routes->post('people/competencies/(:num)/edit',                  'PeopleCompetencies::update/$1',       ['filter' => 'auth']);
-$routes->get('people/competencies/(:num)/delete',                 'PeopleCompetencies::delete/$1',       ['filter' => 'auth']);
+$routes->post('people/competencies/(:num)/delete',                 'PeopleCompetencies::delete/$1',       ['filter' => 'auth']);
 $routes->post('people/competencies/targets/save',                 'PeopleCompetencies::saveTargets',     ['filter' => 'auth']);
 $routes->get('people/competencies/(:num)/questions',              'PeopleCompetencies::questions/$1',    ['filter' => 'auth']);
 $routes->post('people/competencies/(:num)/questions/add',         'PeopleCompetencies::storeQuestion/$1',   ['filter' => 'auth']);
-$routes->get('people/competencies/questions/(:num)/delete',       'PeopleCompetencies::deleteQuestion/$1',  ['filter' => 'auth']);
+$routes->post('people/competencies/questions/(:num)/delete',       'PeopleCompetencies::deleteQuestion/$1',  ['filter' => 'auth']);
 $routes->post('people/competencies/questions/(:num)/levels',      'PeopleCompetencies::updateQuestionLevels/$1', ['filter' => 'auth']);
 $routes->get('people/competencies/dept/(:num)/assign',            'PeopleCompetencies::manageAssignments/$1',        ['filter' => 'auth']);
 $routes->post('people/competencies/dept/(:num)/assign',           'PeopleCompetencies::saveAssignments/$1',          ['filter' => 'auth']);

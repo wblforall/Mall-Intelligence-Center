@@ -37,11 +37,10 @@ $improvement     = ($avgPost !== null && $avgPre !== null) ? round($avgPost - $a
     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal">
         <i class="bi bi-pencil me-1"></i>Edit
     </button>
-    <a href="<?= base_url('people/training/' . $program['id'] . '/delete') ?>"
-       class="btn btn-sm btn-outline-danger"
-       onclick="return confirm('Hapus program ini beserta semua data peserta?')">
-        <i class="bi bi-trash"></i>
-    </a>
+    <form method="POST" action="<?= base_url('people/training/' . $program['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus program ini beserta semua data peserta?')">
+        <?= csrf_field() ?>
+        <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+    </form>
 </div>
 
 <!-- Program Info -->
@@ -201,11 +200,10 @@ $improvement     = ($avgPost !== null && $avgPre !== null) ? round($avgPost - $a
                                 data-catatan="<?= esc($pt['catatan'] ?? '') ?>">
                             Edit
                         </button>
-                        <a href="<?= base_url('people/training/' . $program['id'] . '/participants/' . $pt['id'] . '/remove') ?>"
-                           class="btn btn-xs btn-sm btn-outline-danger py-0 px-2" style="font-size:.72rem"
-                           onclick="return confirm('Hapus peserta ini?')">
-                            <i class="bi bi-trash"></i>
-                        </a>
+                        <form method="POST" action="<?= base_url('people/training/' . $program['id'] . '/participants/' . $pt['id'] . '/remove') ?>" class="d-inline" onsubmit="return confirm('Hapus peserta ini?')">
+                            <?= csrf_field() ?>
+                            <button class="btn btn-xs btn-sm btn-outline-danger py-0 px-2" style="font-size:.72rem" title="Hapus"><i class="bi bi-trash"></i></button>
+                        </form>
                     </div>
                 </td>
             </tr>
