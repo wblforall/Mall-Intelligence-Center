@@ -111,6 +111,7 @@ class Auth extends Controller
             'user_menus'     => $userMenus,
             'user_theme'     => $user['theme'] ?? 'dark',
             'must_change_password' => ! empty($user['must_change_password']),
+            'login_time'     => time(), // untuk deteksi force-logout saat akses diubah
         ]);
 
         (new LoginLogModel())->record((int)$user['id']);

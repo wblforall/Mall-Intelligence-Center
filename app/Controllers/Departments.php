@@ -84,6 +84,8 @@ class Departments extends BaseController
         }
 
         $menuModel->saveMenuAccess($id, $menuData);
+        // Akses menu dept berubah → paksa semua user di dept ini login ulang.
+        db_connect()->table('users')->where('department_id', $id)->update(['perms_changed_at' => date('Y-m-d H:i:s')]);
         ActivityLog::write('update', 'department', (string)$id, $name);
 
         return redirect()->to('/departments')->with('success', 'Departemen berhasil diperbarui.');

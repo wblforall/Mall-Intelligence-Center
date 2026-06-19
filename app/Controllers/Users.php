@@ -85,6 +85,10 @@ class Users extends BaseController
             $data['password'] = password_hash($post['password'], PASSWORD_BCRYPT);
         }
 
+        // Role/departemen berubah → paksa user login ulang agar akses baru berlaku.
+        if (($before['role_id'] ?? null) != $data['role_id'] || ($before['department_id'] ?? null) != $data['department_id']) {
+            $data['perms_changed_at'] = date('Y-m-d H:i:s');
+        }
         ActivityLog::captureBefore($before);
         $userModel->update($id, $data);
         ActivityLog::captureAfter($data);
@@ -161,8 +165,9 @@ class Users extends BaseController
             ];
         }
         (new \App\Models\UserMenuModel())->saveMenuAccess($id, $menuData);
+        db_connect()->table('users')->where('id', $id)->update(['perms_changed_at' => date('Y-m-d H:i:s')]); // paksa login ulang
         ActivityLog::write('update', 'user', (string) $id, $user['name'], ['akses_menu_override' => true]);
-        return redirect()->to('/users')->with('success', 'Akses menu tambahan untuk ' . esc($user['name']) . ' disimpan. (User perlu login ulang agar berlaku.)');
+        return redirect()->to('/users')->with('success', 'Akses menu tambahan untuk ' . esc($user['name']) . ' disimpan. User akan diminta login ulang.');
     }
 
     public function profile()
