@@ -51,10 +51,23 @@
             <input type="date" name="tanggal_selesai" class="form-control form-control-sm">
         </div>
         <div class="col-auto">
-            <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Buka & Generate Form</button>
+            <label class="form-label small fw-semibold mb-1">Tipe</label>
+            <select name="tipe" id="periodTipe" class="form-select form-select-sm">
+                <option value="reguler">Reguler (semua karyawan)</option>
+                <option value="khusus">Khusus (per karyawan)</option>
+            </select>
         </div>
-        <div class="col-12"><small class="text-muted">Saat dibuka, sistem membuat form penilaian untuk semua karyawan yang jabatannya punya template <b>disetujui</b>.</small></div>
+        <div class="col-auto">
+            <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i><span id="periodBtnLabel">Buka & Generate Form</span></button>
+        </div>
+        <div class="col-12"><small class="text-muted" id="periodHint"><b>Reguler:</b> sistem membuat form penilaian untuk semua karyawan yang jabatannya punya template <b>disetujui</b>. <b>Khusus:</b> periode dibuka kosong, lalu Anda menambahkan karyawan satu per satu (mis. evaluasi kontrak).</small></div>
     </form>
+    <script>
+    (function(){
+        var t=document.getElementById('periodTipe'), b=document.getElementById('periodBtnLabel');
+        if(t) t.addEventListener('change',function(){ b.textContent = this.value==='khusus' ? 'Buka Periode Khusus' : 'Buka & Generate Form'; });
+    })();
+    </script>
 </div>
 </div>
 <div class="card-body p-0">
@@ -66,7 +79,9 @@
 <tr><td colspan="4" class="text-center text-muted py-4">Belum ada periode.</td></tr>
 <?php else: foreach ($periods as $p): ?>
 <tr>
-    <td class="ps-3 fw-medium"><?= esc($p['nama']) ?></td>
+    <td class="ps-3 fw-medium"><?= esc($p['nama']) ?>
+        <?php if (($p['tipe'] ?? 'reguler') === 'khusus'): ?><span class="badge bg-info-subtle text-info ms-1" style="font-size:.62rem">Khusus</span><?php endif; ?>
+    </td>
     <td class="small text-muted"><?= $p['tanggal_mulai'] ? date('d M Y', strtotime($p['tanggal_mulai'])) : '—' ?> s/d <?= $p['tanggal_selesai'] ? date('d M Y', strtotime($p['tanggal_selesai'])) : '—' ?></td>
     <td><span class="badge bg-<?= $p['status']==='open'?'success':'secondary' ?>"><?= $p['status']==='open'?'Terbuka':'Ditutup' ?></span></td>
     <td class="text-end pe-3"><a href="<?= base_url('appraisal/periods/' . $p['id']) ?>" class="btn btn-sm btn-outline-primary">Lihat</a></td>

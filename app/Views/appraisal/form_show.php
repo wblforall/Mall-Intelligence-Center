@@ -15,6 +15,16 @@ foreach ($kpis as $k) $grouped[$k['area']][] = $k;
         <h4 class="fw-bold mb-0"><?= esc($form['employee_nama']) ?> <span class="badge bg-<?= $bc ?> align-middle ms-1"><?= $bl ?></span></h4>
         <small class="text-muted"><?= esc($form['jabatan_nama']??'-') ?> · <?= esc($form['dept_name']??'-') ?> · <?= esc($form['periode_nama']??'-') ?></small>
     </div>
+    <?php if ($isHr && $form['status'] === 'finalized'): ?>
+    <form method="POST" action="<?= base_url('appraisal/forms/'.$form['id'].'/release') ?>" class="d-inline" onsubmit="return confirm('<?= empty($form['released_at']) ? 'Rilis hasil ini agar bisa dilihat karyawan di Profil Saya?' : 'Batalkan rilis? Karyawan tidak lagi bisa melihat hasil ini.' ?>')">
+        <?= csrf_field() ?>
+        <?php if (empty($form['released_at'])): ?>
+        <button class="btn btn-sm btn-primary"><i class="bi bi-send me-1"></i>Rilis ke Karyawan</button>
+        <?php else: ?>
+        <button class="btn btn-sm btn-outline-success" title="Dirilis <?= date('d M Y', strtotime($form['released_at'])) ?>"><i class="bi bi-check2-circle me-1"></i>Sudah Dirilis</button>
+        <?php endif; ?>
+    </form>
+    <?php endif; ?>
     <a href="<?= base_url('appraisal/forms/'.$form['id'].'/print') ?>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-printer me-1"></i>Cetak</a>
 </div>
 

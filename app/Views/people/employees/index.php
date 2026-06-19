@@ -227,12 +227,16 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
             <label class="form-label small fw-semibold">Foto</label>
             <input type="file" name="foto" class="form-control" accept="image/*">
         </div>
-        <div class="col-md-6">
+        <div class="col-md-3">
             <label class="form-label small fw-semibold">Status Kontrak</label>
             <select name="status_kontrak" class="form-select">
                 <option value="">—</option>
                 <option>PERMANENT</option><option>KONTRAK</option><option>KONTRAK I</option><option>PROBATION</option>
             </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Akhir Kontrak</label>
+            <input type="date" name="tanggal_akhir_kontrak" class="form-control">
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Project (Sumber Gaji)</label>
@@ -246,7 +250,10 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Pendidikan Terakhir</label>
-            <input type="text" name="pendidikan" class="form-control">
+            <select name="pendidikan" class="form-select">
+                <option value="">—</option>
+                <?php foreach (['SD','SMP','SMA','SMK','D1','D2','D3','D4','S1','S2','S3'] as $o): ?><option><?= $o ?></option><?php endforeach; ?>
+            </select>
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Jurusan</label>

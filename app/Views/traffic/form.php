@@ -154,7 +154,7 @@ $grandTotal = array_sum($hourTotals);
     <div class="col-auto">
         <label class="form-label small fw-semibold mb-1">Tanggal</label>
         <div class="d-flex gap-1">
-            <input type="date" id="datePicker" class="form-control form-control-sm" value="<?= $tanggal ?>">
+            <input type="date" id="datePicker" class="form-control form-control-sm" value="<?= $tanggal ?>"<?= ! empty($dateMin) ? ' min="'.esc($dateMin).'"' : '' ?><?= ! empty($dateMax) ? ' max="'.esc($dateMax).'"' : '' ?>>
             <button type="button" class="btn btn-sm btn-outline-secondary" id="changeDate">Ganti</button>
         </div>
     </div>

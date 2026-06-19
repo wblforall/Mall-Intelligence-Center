@@ -446,6 +446,7 @@ $routes->post('appraisal/authors/save',                'Appraisal::saveAuthors',
 // Template KPI per jabatan (dept head/deputy susun → HR approve)
 $routes->get('appraisal/templates',                    'AppraisalTemplate::index',        ['filter' => 'auth']);
 $routes->post('appraisal/templates/create',            'AppraisalTemplate::create',       ['filter' => 'auth']);
+$routes->post('appraisal/templates/copy',              'AppraisalTemplate::copy',         ['filter' => 'auth']);
 $routes->get('appraisal/templates/(:num)',             'AppraisalTemplate::edit/$1',      ['filter' => 'auth']);
 $routes->post('appraisal/templates/(:num)/kpi/save',   'AppraisalTemplate::saveKpi/$1',    ['filter' => 'auth']);
 $routes->post('appraisal/templates/(:num)/competency/save', 'AppraisalTemplate::saveCompetency/$1', ['filter' => 'auth']);
@@ -457,13 +458,24 @@ $routes->post('appraisal/templates/(:num)/delete',     'AppraisalTemplate::delet
 $routes->post('appraisal/periods/create',              'AppraisalPeriod::create',          ['filter' => 'auth']);
 $routes->get('appraisal/periods/(:num)',               'AppraisalPeriod::show/$1',          ['filter' => 'auth']);
 $routes->post('appraisal/periods/(:num)/close',        'AppraisalPeriod::close/$1',         ['filter' => 'auth']);
+$routes->post('appraisal/periods/(:num)/add-employee', 'AppraisalPeriod::addEmployee/$1',    ['filter' => 'auth']);
 $routes->get('appraisal/forms/(:num)',                 'AppraisalForm::show/$1',            ['filter' => 'auth']);
 $routes->post('appraisal/forms/(:num)/score',          'AppraisalForm::saveScore/$1',       ['filter' => 'auth']);
 $routes->post('appraisal/forms/(:num)/forward',        'AppraisalForm::forward/$1',         ['filter' => 'auth']);
 $routes->post('appraisal/forms/(:num)/finalize',       'AppraisalForm::finalize/$1',        ['filter' => 'auth']);
 $routes->post('appraisal/forms/(:num)/pendapat',       'AppraisalForm::savePendapat/$1',    ['filter' => 'auth']);
 $routes->get('appraisal/forms/(:num)/print',           'AppraisalForm::printForm/$1',       ['filter' => 'auth']);
+$routes->post('appraisal/forms/(:num)/release',        'AppraisalForm::release/$1',         ['filter' => 'auth']);
 $routes->get('appraisal/saya',                         'AppraisalForm::saya',               ['filter' => 'auth']);
+
+// HR: approval pengajuan perubahan data
+$routes->get('people/change-requests',                 'PeopleEmployees::changeRequests',   ['filter' => 'auth']);
+$routes->post('people/change-requests/(:num)/approve', 'PeopleEmployees::approveChange/$1', ['filter' => 'auth']);
+$routes->post('people/change-requests/(:num)/reject',  'PeopleEmployees::rejectChange/$1',  ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/documents/upload',   'PeopleEmployees::uploadDocument/$1', ['filter' => 'auth']);
+$routes->post('people/documents/(:num)/approve',            'PeopleEmployees::approveDocument/$1', ['filter' => 'auth']);
+$routes->post('people/documents/(:num)/reject',             'PeopleEmployees::rejectDocument/$1', ['filter' => 'auth']);
+$routes->get('people/documents/(:num)/delete',              'PeopleEmployees::deleteDocument/$1', ['filter' => 'auth']);
 
 // People Development — Performance Improvement Plan
 $routes->get('people/pip',                                    'PeoplePip::index',           ['filter' => 'auth']);
@@ -524,11 +536,13 @@ $routes->get('people/competencies/import/preview',                'PeopleCompete
 $routes->post('people/competencies/import/confirm',               'PeopleCompetencies::importConfirm',   ['filter' => 'auth']);
 
 // People Development — Employees
+$routes->get('people/hr-dashboard',                                       'HrDashboard::index',                 ['filter' => 'auth']);
 $routes->get('people/employees',                                          'PeopleEmployees::index',             ['filter' => 'auth']);
 $routes->get('people/employees/export',                                   'PeopleEmployees::export',            ['filter' => 'auth']);
 $routes->post('people/employees/add',                                     'PeopleEmployees::store',             ['filter' => 'auth']);
 $routes->get('people/employees/(:num)',                                   'PeopleEmployees::show/$1',           ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/edit',                             'PeopleEmployees::update/$1',         ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/create-account',                   'PeopleEmployees::createAccount/$1',  ['filter' => 'auth']);
 $routes->get('people/employees/(:num)/delete',                            'PeopleEmployees::delete/$1',         ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/positions/add',                    'PeopleEmployees::storePosition/$1',  ['filter' => 'auth']);
 $routes->get('people/employees/(:num)/positions/(:num)/delete',           'PeopleEmployees::deletePosition/$1/$2', ['filter' => 'auth']);
@@ -539,6 +553,8 @@ $routes->get('people/employees/(:num)/certificates/(:num)/delete',        'Peopl
 $routes->get('profile', 'Users::profile', ['filter' => 'auth']);
 $routes->post('profile', 'Users::updateProfile', ['filter' => 'auth']);
 $routes->post('profile/theme', 'Users::updateTheme', ['filter' => 'auth']);
+$routes->post('profile/request-change', 'Users::submitChange', ['filter' => 'auth']);
+$routes->post('profile/upload-document', 'Users::uploadDocument', ['filter' => 'auth']);
 
 // ── Legal ────────────────────────────────────────────────────────────────
 $routes->get ('legal',                                    'Legal\LegalController::index',                   ['filter' => 'auth']);

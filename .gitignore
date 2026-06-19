@@ -69,3 +69,9 @@ my.cnf.template
 # .htaccess — berbeda per environment (lokal vs production)
 .htaccess
 public/.htaccess
+
+# Local artifacts & sensitive data (ditambahkan otomatis)
+*.xls
+/build/
+.phpunit.result.cache
+*.code-workspace

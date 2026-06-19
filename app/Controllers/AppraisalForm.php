@@ -13,6 +13,7 @@ class AppraisalForm extends BaseController
 {
     private function isHr(): bool { return $this->isAdmin() || $this->canViewMenu('hr_main'); }
     private function uid(): int { return (int) $this->currentUser()['id']; }
+    private function empName(int $employeeId): string { return (string) (db_connect()->table('employees')->select('nama')->where('id', $employeeId)->get()->getRowArray()['nama'] ?? ''); }
 
     // ── Penilaian Saya (inbox penilai/reviewer) ─────────────────────────
     public function saya()
@@ -167,7 +168,7 @@ class AppraisalForm extends BaseController
             ActivityLog::captureAfter($after);
         }
         $label = $mode === 'input' ? 'Input penilaian' : ($mode === 'hr' ? 'Override HR (kompetensi)' : 'Override reviewer');
-        ActivityLog::write('update', 'appraisal_form', (string) $id, $label, ['mode' => $mode, 'catatan' => $catatan ?: null]);
+        ActivityLog::write('update', 'appraisal_form', (string) $id, $label . ' — ' . $this->empName((int) $form['employee_id']), ['mode' => $mode, 'catatan' => $catatan ?: null]);
 
         return redirect()->to('appraisal/forms/' . $id)->with('success', 'Penilaian disimpan.');
     }
@@ -217,7 +218,7 @@ class AppraisalForm extends BaseController
             $formModel->update($id, ['status' => 'hr_review', 'current_user_id' => null]);
             $msg = 'Diteruskan ke HR untuk pengecekan akhir.';
         }
-        ActivityLog::write('update', 'appraisal_form', (string) $id, 'Teruskan penilaian', ['ke' => $next['nama'] ?? 'HR']);
+        ActivityLog::write('update', 'appraisal_form', (string) $id, 'Teruskan penilaian — ' . $this->empName((int) $form['employee_id']), ['ke' => $next['nama'] ?? 'HR']);
         return redirect()->to('appraisal/saya')->with('success', $msg);
     }
 
@@ -240,8 +241,25 @@ class AppraisalForm extends BaseController
             'finalized_by'  => $this->uid(),
             'finalized_at'  => date('Y-m-d H:i:s'),
         ]);
-        ActivityLog::write('update', 'appraisal_form', (string) $id, 'Finalisasi penilaian');
+        ActivityLog::write('update', 'appraisal_form', (string) $id, 'Finalisasi penilaian — ' . $this->empName((int) $form['employee_id']));
         return redirect()->to('appraisal/forms/' . $id)->with('success', 'Penilaian difinalisasi.');
+    }
+
+    // ── Rilis hasil ke karyawan (HR) ────────────────────────────────────
+    public function release(int $id)
+    {
+        if (! $this->isHr()) return redirect()->to('/')->with('error', 'Hanya HR yang dapat merilis hasil.');
+        $formModel = new AppraisalFormModel();
+        $form = $formModel->find($id);
+        if (! $form || $form['status'] !== 'finalized') return redirect()->to('appraisal/forms/' . $id)->with('error', 'Hanya penilaian final yang bisa dirilis.');
+
+        $isRelease = empty($form['released_at']);
+        $formModel->update($id, [
+            'released_at' => $isRelease ? date('Y-m-d H:i:s') : null,
+            'released_by' => $isRelease ? $this->uid() : null,
+        ]);
+        ActivityLog::write('update', 'appraisal_form', (string) $id, ($isRelease ? 'Rilis hasil — ' : 'Batal rilis — ') . $this->empName((int) $form['employee_id']));
+        return redirect()->to('appraisal/forms/' . $id)->with('success', $isRelease ? 'Hasil dirilis — karyawan kini bisa melihatnya di Profil Saya.' : 'Rilis dibatalkan.');
     }
 
     // ── Pendapat karyawan (acknowledgment) ──────────────────────────────
@@ -255,7 +273,7 @@ class AppraisalForm extends BaseController
         if (! $isEmployee && ! $this->isHr()) return redirect()->to('appraisal/forms/' . $id)->with('error', 'Akses ditolak.');
 
         $formModel->update($id, ['pendapat_karyawan' => trim($this->request->getPost('pendapat_karyawan') ?? '') ?: null]);
-        ActivityLog::write('update', 'appraisal_form', (string) $id, 'Pendapat karyawan');
+        ActivityLog::write('update', 'appraisal_form', (string) $id, 'Pendapat karyawan — ' . ($form['employee_nama'] ?? ''));
         return redirect()->to('appraisal/forms/' . $id)->with('success', 'Pendapat disimpan.');
     }
 

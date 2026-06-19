@@ -9,6 +9,10 @@ use App\Models\TrainingProgramModel;
 use App\Models\DepartmentModel;
 use App\Models\DivisionModel;
 use App\Models\JabatanModel;
+use App\Models\UserModel;
+use App\Models\RoleModel;
+use App\Models\EmployeeChangeRequestModel;
+use App\Models\EmployeeDocumentModel;
 use App\Libraries\ActivityLog;
 
 class PeopleEmployees extends BaseController
@@ -39,6 +43,7 @@ class PeopleEmployees extends BaseController
         return [
             'nik_ktp'            => $f('nik_ktp'),
             'status_kontrak'     => $f('status_kontrak'),
+            'tanggal_akhir_kontrak' => $f('tanggal_akhir_kontrak'),
             'project'            => $f('project'),
             'pendidikan'         => $f('pendidikan'),
             'jurusan'            => $f('jurusan'),
@@ -48,6 +53,185 @@ class PeopleEmployees extends BaseController
             'alamat'             => $f('alamat'),
             'alamat_non_bpn'     => $f('alamat_non_bpn'),
         ];
+    }
+
+    // Buatkan akun login untuk karyawan (link employees.user_id ke users)
+    public function createAccount(int $id)
+    {
+        if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $emp = (new EmployeeModel())->find($id);
+        if (! $emp) return redirect()->to('/people/employees')->with('error', 'Karyawan tidak ditemukan.');
+        if (! empty($emp['user_id'])) return redirect()->to('/people/employees/' . $id)->with('error', 'Karyawan ini sudah punya akun login.');
+
+        $email  = trim($this->request->getPost('email') ?? '') ?: trim($emp['email'] ?? '');
+        $roleId = (int) $this->request->getPost('role_id');
+        if ($email === '') return redirect()->to('/people/employees/' . $id)->with('error', 'Email wajib diisi untuk membuat akun.');
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) return redirect()->to('/people/employees/' . $id)->with('error', 'Format email tidak valid.');
+        if ((new UserModel())->where('email', $email)->first()) return redirect()->to('/people/employees/' . $id)->with('error', 'Email sudah dipakai akun lain.');
+        $role = (new RoleModel())->find($roleId);
+        if (! $role) return redirect()->to('/people/employees/' . $id)->with('error', 'Role wajib dipilih.');
+
+        $pass = '123456';
+        $userId = (new UserModel())->insert([
+            'name'                 => $emp['nama'],
+            'email'                => $email,
+            'password'             => password_hash($pass, PASSWORD_BCRYPT),
+            'role'                 => $role['slug'],
+            'role_id'              => $roleId,
+            'department_id'        => $emp['dept_id'] ?: null,
+            'is_active'            => 1,
+            'must_change_password' => 1,
+        ]);
+        (new EmployeeModel())->update($id, ['user_id' => $userId]);
+        ActivityLog::write('create', 'user', (string) $userId, $emp['nama'], ['dari_karyawan' => $id, 'email' => $email, 'role' => $role['slug']]);
+
+        return redirect()->to('/people/employees/' . $id)
+            ->with('success', "Akun login dibuat — Email: {$email} · Password awal: {$pass} (wajib diganti saat login pertama).");
+    }
+
+    // ── Pengajuan Perubahan Data (approval HR) ──────────────────────────
+    private function canManageRequests(): bool
+    {
+        return $this->canEditMenu('people_dev') || $this->canEditMenu('hr_main');
+    }
+
+    public function changeRequests()
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $model = new EmployeeChangeRequestModel();
+        return view('people/change_requests', [
+            'user'        => $this->currentUser(),
+            'pending'     => $model->inbox('pending'),
+            'processed'   => array_merge($model->inbox('approved'), $model->inbox('rejected')),
+            'pendingDocs' => (new EmployeeDocumentModel())->pendingInbox(),
+            'jenisDok'    => EmployeeDocumentModel::JENIS,
+        ]);
+    }
+
+    // ── Dokumen Karyawan (upload HR langsung + verifikasi) ───────────────
+    public function uploadDocument(int $employeeId)
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        if (! (new EmployeeModel())->find($employeeId)) return redirect()->to('/people/employees')->with('error', 'Karyawan tidak ditemukan.');
+
+        $jenis = $this->request->getPost('jenis');
+        if (! array_key_exists($jenis, EmployeeDocumentModel::JENIS)) return redirect()->to('/people/employees/' . $employeeId)->with('error', 'Jenis dokumen tidak valid.');
+        $nama = trim((string) $this->request->getPost('nama_dokumen')) ?: null;
+        if ($jenis === 'lainnya' && ! $nama) return redirect()->to('/people/employees/' . $employeeId)->with('error', 'Sebutkan nama dokumen untuk jenis "Lainnya".');
+
+        $file = $this->request->getFile('file');
+        if (! $file || ! $file->isValid() || $file->hasMoved()) return redirect()->to('/people/employees/' . $employeeId)->with('error', 'File tidak valid.');
+        $ext = strtolower($file->getExtension());
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'], true)) return redirect()->to('/people/employees/' . $employeeId)->with('error', 'Hanya file JPG, PNG, atau PDF.');
+        if ($file->getSize() > 5 * 1024 * 1024) return redirect()->to('/people/employees/' . $employeeId)->with('error', 'Ukuran file maksimal 5 MB.');
+
+        $dir = FCPATH . 'uploads/people/docs/';
+        if (! is_dir($dir)) mkdir($dir, 0775, true);
+        $newName = 'doc_' . $employeeId . '_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
+        $file->move($dir, $newName);
+
+        (new EmployeeDocumentModel())->insert([
+            'employee_id'  => $employeeId, 'jenis' => $jenis, 'nama_dokumen' => $nama,
+            'file_name'    => $newName, 'file_asli' => $file->getClientName(),
+            'status'       => 'approved', 'uploaded_by' => session()->get('user_id'),
+            'reviewed_by'  => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s'),
+        ]);
+        ActivityLog::write('create', 'employee_document', (string) $employeeId, EmployeeDocumentModel::jenisLabel($jenis, $nama), ['oleh' => 'HR']);
+        return redirect()->to('/people/employees/' . $employeeId . '#documents')->with('success', 'Dokumen diunggah.');
+    }
+
+    public function approveDocument(int $id)
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $m = new EmployeeDocumentModel();
+        $doc = $m->find($id);
+        if (! $doc || $doc['status'] !== 'pending') return redirect()->to('/people/change-requests')->with('error', 'Dokumen tidak valid.');
+        $m->update($id, ['status' => 'approved', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s')]);
+        ActivityLog::write('update', 'employee_document', (string) $doc['employee_id'], EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']), ['status' => 'approved']);
+        return redirect()->to('/people/change-requests')->with('success', 'Dokumen diverifikasi.');
+    }
+
+    public function rejectDocument(int $id)
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $catatan = trim((string) $this->request->getPost('catatan'));
+        if ($catatan === '') return redirect()->to('/people/change-requests')->with('error', 'Alasan penolakan wajib diisi.');
+        $m = new EmployeeDocumentModel();
+        $doc = $m->find($id);
+        if (! $doc || $doc['status'] !== 'pending') return redirect()->to('/people/change-requests')->with('error', 'Dokumen tidak valid.');
+        // Hapus file yang ditolak
+        $path = FCPATH . 'uploads/people/docs/' . $doc['file_name'];
+        if (is_file($path)) @unlink($path);
+        $m->update($id, ['status' => 'rejected', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s'), 'catatan' => $catatan]);
+        ActivityLog::write('update', 'employee_document', (string) $doc['employee_id'], EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']), ['status' => 'rejected']);
+        return redirect()->to('/people/change-requests')->with('success', 'Dokumen ditolak.');
+    }
+
+    public function deleteDocument(int $id)
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $m = new EmployeeDocumentModel();
+        $doc = $m->find($id);
+        if (! $doc) return redirect()->to('/people/employees')->with('error', 'Dokumen tidak ditemukan.');
+        $path = FCPATH . 'uploads/people/docs/' . $doc['file_name'];
+        if (is_file($path)) @unlink($path);
+        $m->delete($id);
+        ActivityLog::write('delete', 'employee_document', (string) $doc['employee_id'], EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']));
+        return redirect()->to('/people/employees/' . $doc['employee_id'] . '#documents')->with('success', 'Dokumen dihapus.');
+    }
+
+    public function approveChange(int $id)
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $model = new EmployeeChangeRequestModel();
+        $req = $model->find($id);
+        if (! $req || $req['status'] !== 'pending') return redirect()->to('/people/change-requests')->with('error', 'Pengajuan tidak valid.');
+
+        $empModel = new EmployeeModel();
+        $emp = $empModel->find($req['employee_id']);
+        if (! $emp) return redirect()->to('/people/change-requests')->with('error', 'Karyawan tidak ditemukan.');
+
+        // Foto: bersihkan file lama setelah commit nilai baru
+        if ($req['field'] === 'foto') {
+            $dir = FCPATH . 'uploads/people/photos/';
+            if (! empty($emp['foto']) && file_exists($dir . $emp['foto'])) @unlink($dir . $emp['foto']);
+        }
+
+        $empModel->update($req['employee_id'], [$req['field'] => $req['value_new']]);
+
+        // Jika email berubah & karyawan punya akun login → email login ikut berubah
+        if ($req['field'] === 'email' && ! empty($emp['user_id'])) {
+            $userModel = new UserModel();
+            $clash = $userModel->where('email', $req['value_new'])->where('id !=', $emp['user_id'])->first();
+            if (! $clash) {
+                $userModel->update($emp['user_id'], ['email' => $req['value_new']]);
+            }
+        }
+
+        $model->update($id, ['status' => 'approved', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s')]);
+        ActivityLog::write('update', 'employee', (string) $req['employee_id'], $emp['nama'], ['field' => $req['field'], 'dari' => $req['value_old'], 'jadi' => $req['value_new'], 'via' => 'pengajuan_karyawan']);
+        return redirect()->to('/people/change-requests')->with('success', 'Pengajuan disetujui & data diperbarui.');
+    }
+
+    public function rejectChange(int $id)
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $catatan = trim((string) $this->request->getPost('catatan'));
+        if ($catatan === '') return redirect()->to('/people/change-requests')->with('error', 'Alasan penolakan wajib diisi.');
+
+        $model = new EmployeeChangeRequestModel();
+        $req = $model->find($id);
+        if (! $req || $req['status'] !== 'pending') return redirect()->to('/people/change-requests')->with('error', 'Pengajuan tidak valid.');
+
+        // Foto ditolak → hapus file yang sudah terupload
+        if ($req['field'] === 'foto') {
+            $dir = FCPATH . 'uploads/people/photos/';
+            if (! empty($req['value_new']) && file_exists($dir . $req['value_new'])) @unlink($dir . $req['value_new']);
+        }
+
+        $model->update($id, ['status' => 'rejected', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s'), 'catatan' => $catatan]);
+        ActivityLog::write('update', 'employee_change_request', (string) $id, $req['label'], ['status' => 'rejected']);
+        return redirect()->to('/people/change-requests')->with('success', 'Pengajuan ditolak.');
     }
 
     // Export seluruh data karyawan ke CSV (buka di Excel)
@@ -128,6 +312,10 @@ class PeopleEmployees extends BaseController
             'jabatanMap'        => (new JabatanModel())->getAllAsMap(),
             'allEmployees'      => $allEmployees,
             'currentDivisionId' => $currentDivisionId,
+            'roles'             => (new RoleModel())->orderBy('name')->findAll(),
+            'linkedUser'        => $employee['user_id'] ? (new UserModel())->find($employee['user_id']) : null,
+            'documents'         => (new EmployeeDocumentModel())->forEmployee($id),
+            'jenisDok'          => EmployeeDocumentModel::JENIS,
         ]);
     }
 

@@ -11,7 +11,7 @@ class EmployeeModel extends Model
     protected $allowedFields = [
         'nik', 'nik_ktp', 'nama', 'jenis_kelamin', 'tanggal_lahir', 'tanggal_masuk',
         'dept_id', 'jabatan', 'jabatan_id', 'atasan_id',
-        'no_hp', 'email', 'status', 'status_kontrak', 'project', 'pendidikan', 'jurusan',
+        'no_hp', 'email', 'status', 'status_kontrak', 'tanggal_akhir_kontrak', 'project', 'pendidikan', 'jurusan',
         'status_pernikahan', 'agama', 'jabatan_sebelumnya', 'alamat', 'alamat_non_bpn',
         'foto', 'user_id', 'catatan',
     ];

@@ -72,6 +72,7 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
         <?php
         $infoRows = [
             'Status Kontrak'     => $employee['status_kontrak'] ?? '',
+            'Akhir Kontrak'      => ! empty($employee['tanggal_akhir_kontrak']) ? date('d M Y', strtotime($employee['tanggal_akhir_kontrak'])) : '',
             'Project (Sumber Gaji)' => $employee['project'] ?? '',
             'NIK KTP'            => $employee['nik_ktp'] ?? '',
             'Pendidikan'         => trim(($employee['pendidikan'] ?? '') . ' ' . ($employee['jurusan'] ?? '')),
@@ -104,6 +105,40 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
         </div>
         <?php endif; ?>
     </div>
+</div>
+</div>
+
+<!-- Akun Login -->
+<div class="card mb-4 anim-fade-up" id="account" style="animation-delay:.13s">
+<div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-key me-2"></i>Akun Login</h6></div>
+<div class="card-body">
+<?php if (! empty($linkedUser)): ?>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Terhubung</span>
+        <span class="small text-muted">Email login: <strong><?= esc($linkedUser['email']) ?></strong> · Role: <strong><?= esc(ucfirst($linkedUser['role'] ?? '-')) ?></strong><?= empty($linkedUser['is_active']) ? ' · <span class="text-danger">nonaktif</span>' : '' ?></span>
+    </div>
+<?php else: ?>
+    <p class="small text-muted mb-3">Karyawan ini belum punya akun untuk login ke sistem. Buatkan akun di bawah — password awal <code>123456</code> dan wajib diganti saat login pertama.</p>
+    <form method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/create-account') ?>" class="row g-2 align-items-end">
+        <?= csrf_field() ?>
+        <div class="col-md-5">
+            <label class="form-label small mb-1">Email login</label>
+            <input type="email" name="email" class="form-control form-control-sm" value="<?= esc($employee['email'] ?? '') ?>" placeholder="email@perusahaan.com" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small mb-1">Role</label>
+            <select name="role_id" class="form-select form-select-sm" required>
+                <option value="">— Pilih role —</option>
+                <?php foreach (($roles ?? []) as $r): ?>
+                    <option value="<?= $r['id'] ?>"><?= esc($r['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-sm btn-primary w-100" onclick="return confirm('Buatkan akun login untuk karyawan ini?')"><i class="bi bi-person-plus me-1"></i>Buatkan Akun</button>
+        </div>
+    </form>
+<?php endif; ?>
 </div>
 </div>
 
@@ -198,6 +233,37 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             <i class="bi bi-x-circle"></i>
         </a>
     </td>
+</tr>
+<?php endforeach; ?>
+</tbody>
+</table>
+</div>
+<?php endif; ?>
+</div>
+</div>
+
+<!-- Dokumen -->
+<div class="card mb-4 anim-fade-up" id="documents" style="animation-delay:.22s">
+<div class="card-header d-flex align-items-center justify-content-between">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-folder2-open me-2"></i>Dokumen</h6>
+    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addDocModal"><i class="bi bi-upload me-1"></i> Upload</button>
+</div>
+<div class="card-body p-0">
+<?php if (empty($documents)): ?>
+<p class="text-muted text-center py-4 small mb-0">Belum ada dokumen.</p>
+<?php else: ?>
+<?php $dsb = ['pending'=>'warning','approved'=>'success','rejected'=>'danger']; ?>
+<div class="table-responsive">
+<table class="table table-sm align-middle mb-0">
+<thead class="table-light"><tr><th class="ps-3">Dokumen</th><th>File</th><th>Status</th><th>Diunggah</th><th></th></tr></thead>
+<tbody>
+<?php foreach ($documents as $d): ?>
+<tr>
+    <td class="ps-3 fw-semibold small"><?= esc(\App\Models\EmployeeDocumentModel::jenisLabel($d['jenis'], $d['nama_dokumen'])) ?></td>
+    <td class="small"><a href="<?= base_url('uploads/people/docs/'.$d['file_name']) ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
+    <td><span class="badge bg-<?= $dsb[$d['status']] ?? 'secondary' ?>"><?= ucfirst($d['status']) ?></span><?php if ($d['status']==='rejected' && $d['catatan']): ?><div class="text-muted" style="font-size:.68rem"><?= esc($d['catatan']) ?></div><?php endif; ?></td>
+    <td class="small text-nowrap text-muted"><?= date('d M Y', strtotime($d['created_at'])) ?></td>
+    <td><a href="<?= base_url('people/documents/'.$d['id'].'/delete') ?>" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Hapus dokumen ini?')"><i class="bi bi-x-circle"></i></a></td>
 </tr>
 <?php endforeach; ?>
 </tbody>
@@ -330,7 +396,7 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             <?php endif; ?>
         </div>
         <?php $sel = fn($field, $val) => ($employee[$field] ?? '') === $val ? 'selected' : ''; ?>
-        <div class="col-md-6">
+        <div class="col-md-3">
             <label class="form-label small fw-semibold">Status Kontrak</label>
             <select name="status_kontrak" class="form-select">
                 <option value="">—</option>
@@ -338,6 +404,10 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
                 <option <?= $sel('status_kontrak',$o) ?>><?= $o ?></option>
                 <?php endforeach; ?>
             </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Akhir Kontrak</label>
+            <input type="date" name="tanggal_akhir_kontrak" class="form-control" value="<?= esc($employee['tanggal_akhir_kontrak'] ?? '') ?>">
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Project (Sumber Gaji)</label>
@@ -354,7 +424,12 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Pendidikan Terakhir</label>
-            <input type="text" name="pendidikan" class="form-control" value="<?= esc($employee['pendidikan'] ?? '') ?>">
+            <?php $pendOpts = ['SD','SMP','SMA','SMK','D1','D2','D3','D4','S1','S2','S3']; $curPend = $employee['pendidikan'] ?? ''; ?>
+            <select name="pendidikan" class="form-select">
+                <option value="">—</option>
+                <?php foreach ($pendOpts as $o): ?><option <?= $curPend === $o ? 'selected' : '' ?>><?= $o ?></option><?php endforeach; ?>
+                <?php if ($curPend !== '' && ! in_array($curPend, $pendOpts, true)): ?><option selected><?= esc($curPend) ?></option><?php endif; ?>
+            </select>
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Jurusan</label>
@@ -492,6 +567,33 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
     <button type="submit" class="btn btn-primary">Simpan</button>
 </div>
+</form>
+</div></div></div>
+
+<!-- Modal Upload Dokumen (HR) -->
+<div class="modal fade" id="addDocModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+<form method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/documents/upload') ?>" enctype="multipart/form-data">
+<?= csrf_field() ?>
+<div class="modal-header"><h5 class="modal-title fw-semibold">Upload Dokumen</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-body">
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Jenis Dokumen</label>
+        <select name="jenis" class="form-select" required onchange="document.getElementById('hrDocNamaWrap').classList.toggle('d-none', this.value!=='lainnya')">
+            <option value="">— pilih —</option>
+            <?php foreach ($jenisDok as $k => $lbl): ?><option value="<?= $k ?>"><?= esc($lbl) ?></option><?php endforeach; ?>
+        </select>
+    </div>
+    <div class="mb-3 d-none" id="hrDocNamaWrap">
+        <label class="form-label small fw-semibold">Nama Dokumen</label>
+        <input type="text" name="nama_dokumen" class="form-control" placeholder="mis. Kontrak Kerja 2026">
+    </div>
+    <div class="mb-2">
+        <label class="form-label small fw-semibold">File</label>
+        <input type="file" name="file" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required>
+        <div class="form-text">JPG, PNG, atau PDF · maks 5 MB.</div>
+    </div>
+</div>
+<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary">Upload</button></div>
 </form>
 </div></div></div>
 

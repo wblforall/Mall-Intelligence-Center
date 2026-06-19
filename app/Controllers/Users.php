@@ -137,7 +137,136 @@ class Users extends BaseController
     {
         $id   = session()->get('user_id');
         $user = (new UserModel())->find($id);
-        return view('users/profile', ['user' => $user]);
+
+        // Data karyawan yang tertaut ke akun ini (Employee Self-Service)
+        $employee = $positions = $certificates = $appraisals = $requests = null;
+        $db  = db_connect();
+        $emp = $db->table('employees')->select('id')->where('user_id', $id)->get()->getRowArray();
+        if ($emp) {
+            $employee = (new \App\Models\EmployeeModel())->findWithDept((int) $emp['id']);
+            $employee['masa_kerja'] = \App\Models\EmployeeModel::getMasaKerja($employee['tanggal_masuk']);
+            $positions    = (new \App\Models\EmployeePositionModel())->getByEmployee($employee['id']);
+            $certificates = (new \App\Models\EmployeeCertificateModel())->getByEmployee($employee['id']);
+            foreach ($certificates as &$c) {
+                $c['status'] = \App\Models\EmployeeCertificateModel::getCertStatus($c['tanggal_kadaluarsa']);
+            }
+            unset($c);
+            $appraisals = $db->table('appraisal_forms f')
+                ->select('f.id, f.nilai_akhir, f.skor_kpi, f.skor_kompetensi, f.finalized_at, p.nama AS periode_nama, p.tahun')
+                ->join('appraisal_periods p', 'p.id = f.period_id', 'left')
+                ->where('f.employee_id', $employee['id'])
+                ->where('f.status', 'finalized')
+                ->where('f.released_at IS NOT NULL', null, false)
+                ->orderBy('f.finalized_at', 'DESC')
+                ->get()->getResultArray();
+            $requests = (new \App\Models\EmployeeChangeRequestModel())->pendingForEmployee($employee['id']);
+            $documents = (new \App\Models\EmployeeDocumentModel())->forEmployee($employee['id']);
+        }
+
+        return view('users/profile', [
+            'user'         => $user,
+            'employee'     => $employee,
+            'positions'    => $positions,
+            'certificates' => $certificates,
+            'appraisals'   => $appraisals,
+            'requests'     => $requests,
+            'documents'    => $documents ?? null,
+            'jenisDok'     => \App\Models\EmployeeDocumentModel::JENIS,
+            'editable'     => \App\Models\EmployeeChangeRequestModel::EDITABLE,
+        ]);
+    }
+
+    // Upload dokumen pribadi (ESS) → menunggu verifikasi HR
+    public function uploadDocument()
+    {
+        $id  = session()->get('user_id');
+        $emp = (new \App\Models\EmployeeModel())->where('user_id', $id)->first();
+        if (! $emp) return redirect()->to('/profile')->with('error', 'Akun belum terhubung ke data karyawan.');
+
+        $res = $this->storeDocument((int) $emp['id'], $id, 'pending');
+        return redirect()->to('/profile')->with($res['ok'] ? 'success' : 'error', $res['msg']);
+    }
+
+    /** Simpan file dokumen + buat record. Dipakai ESS (pending) & HR (approved). */
+    private function storeDocument(int $employeeId, $uploaderId, string $status): array
+    {
+        $jenis = $this->request->getPost('jenis');
+        $valid = array_keys(\App\Models\EmployeeDocumentModel::JENIS);
+        if (! in_array($jenis, $valid, true)) return ['ok' => false, 'msg' => 'Jenis dokumen tidak valid.'];
+
+        $nama = trim((string) $this->request->getPost('nama_dokumen')) ?: null;
+        if ($jenis === 'lainnya' && ! $nama) return ['ok' => false, 'msg' => 'Sebutkan nama dokumen untuk jenis "Lainnya".'];
+
+        $file = $this->request->getFile('file');
+        if (! $file || ! $file->isValid() || $file->hasMoved()) return ['ok' => false, 'msg' => 'File tidak valid.'];
+        $ext = strtolower($file->getExtension());
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'], true)) return ['ok' => false, 'msg' => 'Hanya file JPG, PNG, atau PDF.'];
+        if ($file->getSize() > 5 * 1024 * 1024) return ['ok' => false, 'msg' => 'Ukuran file maksimal 5 MB.'];
+
+        $dir = FCPATH . 'uploads/people/docs/';
+        if (! is_dir($dir)) mkdir($dir, 0775, true);
+        $newName = 'doc_' . $employeeId . '_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
+        $file->move($dir, $newName);
+
+        (new \App\Models\EmployeeDocumentModel())->insert([
+            'employee_id'  => $employeeId,
+            'jenis'        => $jenis,
+            'nama_dokumen' => $nama,
+            'file_name'    => $newName,
+            'file_asli'    => $file->getClientName(),
+            'status'       => $status,
+            'uploaded_by'  => $uploaderId,
+            'reviewed_by'  => $status === 'approved' ? $uploaderId : null,
+            'reviewed_at'  => $status === 'approved' ? date('Y-m-d H:i:s') : null,
+        ]);
+        ActivityLog::write('create', 'employee_document', (string) $employeeId, \App\Models\EmployeeDocumentModel::jenisLabel($jenis, $nama), ['status' => $status]);
+        return ['ok' => true, 'msg' => $status === 'approved' ? 'Dokumen diunggah.' : 'Dokumen diunggah, menunggu verifikasi HR.'];
+    }
+
+    // Ajukan perubahan data pribadi (ESS) → approval HR
+    public function submitChange()
+    {
+        $id  = session()->get('user_id');
+        $emp = (new \App\Models\EmployeeModel())->where('user_id', $id)->first();
+        if (! $emp) return redirect()->to('/profile')->with('error', 'Akun belum terhubung ke data karyawan.');
+
+        $editable = \App\Models\EmployeeChangeRequestModel::EDITABLE;
+        $reqModel = new \App\Models\EmployeeChangeRequestModel();
+        $created  = 0;
+
+        foreach ($editable as $field => $label) {
+            if ($field === 'foto') continue;
+            if (! $this->request->getPost($field . '_chk')) continue;
+            $new = trim((string) $this->request->getPost($field));
+            $old = (string) ($emp[$field] ?? '');
+            if ($new === '' || $new === $old) continue;
+            if ($reqModel->where('employee_id', $emp['id'])->where('field', $field)->where('status', 'pending')->countAllResults()) continue;
+            $reqModel->insert([
+                'employee_id' => $emp['id'], 'requested_by' => $id, 'field' => $field,
+                'label' => $label, 'value_old' => $old, 'value_new' => $new, 'status' => 'pending',
+            ]);
+            $created++;
+        }
+
+        if ($this->request->getPost('foto_chk')) {
+            $file = $this->request->getFile('foto');
+            if ($file && $file->isValid() && ! $file->hasMoved() && str_starts_with((string) $file->getMimeType(), 'image/')
+                && ! $reqModel->where('employee_id', $emp['id'])->where('field', 'foto')->where('status', 'pending')->countAllResults()) {
+                $dir = FCPATH . 'uploads/people/photos/';
+                if (! is_dir($dir)) mkdir($dir, 0775, true);
+                $name = 'req_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $file->getExtension();
+                $file->move($dir, $name);
+                $reqModel->insert([
+                    'employee_id' => $emp['id'], 'requested_by' => $id, 'field' => 'foto',
+                    'label' => 'Foto Profil', 'value_old' => $emp['foto'] ?? '', 'value_new' => $name, 'status' => 'pending',
+                ]);
+                $created++;
+            }
+        }
+
+        if ($created === 0) return redirect()->to('/profile')->with('error', 'Tidak ada perubahan untuk diajukan (atau sudah ada pengajuan pending yang sama).');
+        ActivityLog::write('create', 'employee_change_request', (string) $emp['id'], $emp['nama'], ['jumlah_field' => $created]);
+        return redirect()->to('/profile')->with('success', "$created pengajuan perubahan dikirim. Menunggu persetujuan HR.");
     }
 
     public function updateProfile()
@@ -147,10 +276,20 @@ class Users extends BaseController
         $data = ['name' => $post['name']];
 
         if (! empty($post['password'])) {
-            if (strlen($post['password']) < 6) {
-                return redirect()->to('/profile')->with('error', 'Password minimal 6 karakter.');
+            $password = $post['password'];
+            if ($password !== ($post['password_confirm'] ?? '')) {
+                return redirect()->to('/profile')->with('error', 'Konfirmasi password tidak cocok.');
             }
-            $data['password'] = password_hash($post['password'], PASSWORD_BCRYPT);
+            $errors = [];
+            if (strlen($password) < 8)              $errors[] = 'Minimal 8 karakter.';
+            if (! preg_match('/[A-Z]/', $password)) $errors[] = 'Minimal 1 huruf kapital.';
+            if (! preg_match('/[a-z]/', $password)) $errors[] = 'Minimal 1 huruf kecil.';
+            if (! preg_match('/[0-9]/', $password)) $errors[] = 'Minimal 1 angka.';
+            if (! preg_match('/[\W_]/', $password)) $errors[] = 'Minimal 1 karakter simbol (!@#$% dll).';
+            if ($errors) {
+                return redirect()->to('/profile')->with('error', 'Password belum memenuhi syarat: ' . implode(' ', $errors));
+            }
+            $data['password'] = password_hash($password, PASSWORD_BCRYPT);
         }
 
         (new UserModel())->update($id, $data);

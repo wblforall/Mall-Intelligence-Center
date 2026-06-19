@@ -112,6 +112,45 @@ class AppraisalTemplate extends BaseController
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Template dibuat. Silakan susun item KPI.');
     }
 
+    // ── Salin template ke jabatan lain ───────────────────────────────────
+    public function copy()
+    {
+        if (! $this->canManage()) return redirect()->to('/')->with('error', 'Akses ditolak.');
+
+        $sourceId  = (int) $this->request->getPost('source_id');
+        $jabatanId = (int) $this->request->getPost('jabatan_id');
+        if (! $sourceId || ! $jabatanId) return redirect()->back()->with('error', 'Template sumber & jabatan tujuan wajib dipilih.');
+
+        $templateModel = new AppraisalTemplateModel();
+        $src = $templateModel->find($sourceId);
+        if (! $src) return redirect()->back()->with('error', 'Template sumber tidak ditemukan.');
+        if (! $this->canAuthorJab((int) $src['jabatan_id'])) return redirect()->back()->with('error', 'Anda tidak berwenang menyalin template sumber ini (di luar dept yang Anda kelola).');
+        if (! $this->canAuthorJab($jabatanId)) return redirect()->back()->with('error', 'Anda tidak berwenang menyusun template untuk jabatan tujuan.');
+        if ($templateModel->getForJabatan($jabatanId)) return redirect()->back()->with('error', 'Jabatan tujuan sudah punya template.');
+
+        $jab = (new JabatanModel())->find($jabatanId);
+        $newId = $templateModel->insert([
+            'jabatan_id'       => $jabatanId,
+            'nama'             => 'KPI ' . ($jab['nama'] ?? ''),
+            'status'           => 'draft',
+            'bobot_kpi'        => $src['bobot_kpi'],
+            'bobot_kompetensi' => $src['bobot_kompetensi'],
+            'created_by'       => $this->currentUser()['id'],
+        ]);
+
+        $kpiModel = new AppraisalTemplateKpiModel();
+        foreach ($kpiModel->getByTemplate($sourceId) as $k) {
+            $kpiModel->insert(['template_id' => $newId, 'area' => $k['area'], 'indikator' => $k['indikator'], 'unit' => $k['unit'], 'bobot' => $k['bobot'], 'target' => $k['target'], 'urutan' => $k['urutan']]);
+        }
+        $compModel = new AppraisalTemplateCompetencyModel();
+        foreach ($compModel->getByTemplate($sourceId) as $c) {
+            $compModel->insert(['template_id' => $newId, 'nama_aspek' => $c['nama_aspek'], 'deskripsi' => $c['deskripsi'], 'urutan' => $c['urutan']]);
+        }
+
+        ActivityLog::write('create', 'appraisal_template', (string) $newId, $jab['nama'] ?? '', ['disalin_dari' => $sourceId]);
+        return redirect()->to('appraisal/templates/' . $newId)->with('success', 'Template disalin sebagai draft. Silakan sesuaikan lalu ajukan.');
+    }
+
     // ── Edit ─────────────────────────────────────────────────────────────
     public function edit(int $id)
     {
@@ -179,7 +218,7 @@ class AppraisalTemplate extends BaseController
         }
         $db->transComplete();
 
-        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Item KPI', ['total_bobot' => $kpiModel->totalBobot($id)]);
+        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Item KPI — ' . ($tpl['nama'] ?? ''), ['total_bobot' => $kpiModel->totalBobot($id)]);
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Item KPI disimpan.');
     }
 
@@ -208,7 +247,7 @@ class AppraisalTemplate extends BaseController
         }
         $db->transComplete();
 
-        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Aspek Kompetensi');
+        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Aspek Kompetensi — ' . ($tpl['nama'] ?? ''));
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Aspek kompetensi disimpan.');
     }
 
@@ -228,7 +267,7 @@ class AppraisalTemplate extends BaseController
         }
 
         (new AppraisalTemplateModel())->update($id, ['status' => 'submitted', 'submitted_at' => date('Y-m-d H:i:s')]);
-        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Submit ke HR');
+        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Submit ke HR — ' . ($tpl['nama'] ?? ''));
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Template diajukan ke HR untuk persetujuan.');
     }
 
@@ -244,7 +283,7 @@ class AppraisalTemplate extends BaseController
         if (abs($total - 100) > 0.01) return redirect()->back()->with('error', "Total bobot KPI harus 100 (sekarang {$total}).");
 
         $m->update($id, ['status' => 'approved', 'approved_by' => $this->currentUser()['id'], 'approved_at' => date('Y-m-d H:i:s'), 'catatan_hr' => null]);
-        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Approve template');
+        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Approve — ' . ($tpl['nama'] ?? ''));
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Template disetujui.');
     }
 
@@ -258,7 +297,7 @@ class AppraisalTemplate extends BaseController
         $catatan = trim($this->request->getPost('catatan_hr') ?? '');
         if ($catatan === '') return redirect()->to('appraisal/templates/' . $id)->with('error', 'Catatan revisi wajib diisi saat mengembalikan template.');
         $m->update($id, ['status' => 'draft', 'catatan_hr' => $catatan]);
-        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Reject template', ['catatan' => $catatan]);
+        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Reject — ' . ($tpl['nama'] ?? ''), ['catatan' => $catatan]);
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Template dikembalikan ke penyusun.');
     }
 

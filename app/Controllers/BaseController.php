@@ -74,12 +74,24 @@ abstract class BaseController extends Controller
                         && $db->table('appraisal_division_deputies')->where('user_id', $uid)->countAllResults());
                 $apprShowMenu = $apprInbox > 0 || $isAtasan > 0;
             }
+            // Inbox HR: pengajuan perubahan data yang menunggu persetujuan
+            $changeReqCount = 0;
+            if ($this->isAdmin() || $this->canEditMenu('people_dev') || $this->canEditMenu('hr_main')) {
+                if ($db->tableExists('employee_change_requests')) {
+                    $changeReqCount += $db->table('employee_change_requests')->where('status', 'pending')->countAllResults();
+                }
+                if ($db->tableExists('employee_documents')) {
+                    $changeReqCount += $db->table('employee_documents')->where('status', 'pending')->countAllResults();
+                }
+            }
+
             \CodeIgniter\Config\Services::renderer()->setData([
                 '_waitingDataCount'   => $wc,
                 '_pendingApprovalCount' => $pc,
                 '_apprInboxCount'     => $apprInbox,
                 '_apprShowMenu'       => $apprShowMenu,
                 '_apprIsAuthor'       => $isAuthor ?? false,
+                '_changeReqCount'     => $changeReqCount,
             ], 'raw');
         }
     }

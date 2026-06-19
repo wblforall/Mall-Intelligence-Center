@@ -12,6 +12,9 @@ use App\Libraries\TrafficXlsxExporter;
 
 class Traffic extends BaseController
 {
+    // Jendela input/revisi untuk role input-only (Security): hari ini + (N-1) hari ke belakang.
+    private const INPUT_WINDOW_DAYS = 3;
+
     private function mergeDoors(array $doors): array
     {
         $merged = [];
@@ -907,10 +910,13 @@ class Traffic extends BaseController
 
         $tanggal = $tanggal ?: date('Y-m-d');
 
-        // Inputter (edit tanpa view, mis. Security) hanya boleh input tanggal hari ini.
-        if ($this->canEditMenu('traffic') && ! $this->canViewMenu('traffic') && $tanggal !== date('Y-m-d')) {
-            return redirect()->to('/traffic/input/' . $mall . '/' . date('Y-m-d'))
-                ->with('error', 'Anda hanya dapat menginput traffic untuk hari ini.');
+        // Inputter (edit tanpa view, mis. Security) boleh input/revisi 3 hari terakhir (hari ini + 2 hari ke belakang).
+        $canView = $this->canViewMenu('traffic');
+        $today   = date('Y-m-d');
+        $minDate = date('Y-m-d', strtotime('-' . (self::INPUT_WINDOW_DAYS - 1) . ' days'));
+        if (! $canView && ($tanggal > $today || $tanggal < $minDate)) {
+            return redirect()->to('/traffic/input/' . $mall . '/' . $today)
+                ->with('error', 'Anda hanya dapat menginput/merevisi traffic untuk ' . self::INPUT_WINDOW_DAYS . ' hari terakhir.');
         }
 
         $trafficModel  = new DailyTrafficModel();
@@ -923,9 +929,11 @@ class Traffic extends BaseController
             'tanggal'     => $tanggal,
             'trafficRows' => $trafficRows,
             'doors'       => $doors,
-            // Hanya yang bisa melihat (supervisor/admin) boleh mengubah sel yang sudah terisi.
-            // Inputter (mis. Security) hanya boleh mengisi sel yang masih kosong.
-            'canEditFilled' => $this->canViewMenu('traffic'),
+            // Semua yang punya akses edit (termasuk Security) boleh mengubah sel terisi via tombol "Ubah".
+            'canEditFilled' => true,
+            // Batas tanggal untuk inputter (Security); null = bebas (supervisor/admin).
+            'dateMin'     => $canView ? null : $minDate,
+            'dateMax'     => $canView ? null : $today,
         ]);
     }
 
@@ -954,9 +962,11 @@ class Traffic extends BaseController
 
         $canView = $this->canViewMenu('traffic');
 
-        // Inputter (edit tanpa view, mis. Security) hanya boleh input tanggal hari ini.
-        if (! $canView && $tanggal !== date('Y-m-d')) {
-            return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'msg' => 'Hanya dapat menginput untuk hari ini.', 'csrf' => $newHash]);
+        // Inputter (edit tanpa view, mis. Security) boleh input/revisi 3 hari terakhir.
+        $today   = date('Y-m-d');
+        $minDate = date('Y-m-d', strtotime('-' . (self::INPUT_WINDOW_DAYS - 1) . ' days'));
+        if (! $canView && ($tanggal > $today || $tanggal < $minDate)) {
+            return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'msg' => 'Hanya dapat menginput/merevisi ' . self::INPUT_WINDOW_DAYS . ' hari terakhir.', 'csrf' => $newHash]);
         }
 
         $door = (new TrafficDoorModel())->find($doorId);
@@ -966,17 +976,6 @@ class Traffic extends BaseController
         $pintu = $door['nama_pintu'];
 
         $trafficModel = new DailyTrafficModel();
-        $existing     = $trafficModel->getCell($tanggal, $mall, $jam, $pintu);
-
-        // Mengubah sel yang SUDAH terisi butuh izin lihat (supervisor/admin).
-        if ($existing !== null && ! $canView) {
-            return $this->response->setStatusCode(403)->setJSON([
-                'ok'   => false,
-                'msg'  => 'Sel ini sudah terisi. Hanya supervisor/admin yang dapat mengubahnya.',
-                'csrf' => $newHash,
-            ]);
-        }
-
         $res = $trafficModel->upsertCell($tanggal, $mall, $jam, $pintu, $jumlah, $userId);
 
         // Activity log per sel — hanya jika benar-benar berubah.
