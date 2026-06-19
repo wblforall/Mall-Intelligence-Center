@@ -38,12 +38,10 @@
         <button class="btn btn-sm btn-outline-success" onclick="openImportKode(<?= $batch['id'] ?>, '<?= esc($batch['nama_voucher']) ?>')" title="Import Kode">
             <i class="bi bi-upload"></i> Import Kode
         </button>
-        <a href="<?= base_url('stock/voucher/'.$batch['id'].'/delete') ?>"
-           class="btn btn-sm btn-outline-danger"
-           onclick="return confirm('Hapus batch ini dan semua kode-nya?')"
-           title="Hapus">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('stock/voucher/'.$batch['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus batch ini dan semua kode-nya?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
     </div>
 </div>
 <?php if (! empty($batch['kodes'])): ?>
@@ -98,9 +96,10 @@
         <button class="btn btn-xs btn-outline-success py-0 px-1 me-1"
             onclick="openDistribusi(<?= $batch['id'] ?>, <?= $kode['id'] ?>, '<?= esc($kode['kode']) ?>')"
             title="Distribusi Manual"><i class="bi bi-send"></i></button>
-        <a href="<?= base_url('stock/voucher/'.$batch['id'].'/kode/'.$kode['id'].'/delete') ?>"
-           onclick="return confirm('Hapus kode ini?')"
-           class="btn btn-xs btn-outline-danger py-0 px-1"><i class="bi bi-x"></i></a>
+        <form method="POST" action="<?= base_url('stock/voucher/'.$batch['id'].'/kode/'.$kode['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus kode ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus"><i class="bi bi-x"></i></button>
+        </form>
         <?php elseif (($canDeassign ?? false) && $kode['status'] === 'assigned' && $kode['program_type'] === 'manual'): ?>
         <a href="<?= base_url('stock/voucher/'.$batch['id'].'/kode/'.$kode['id'].'/deassign') ?>"
            onclick="return confirm('Batalkan distribusi manual kode ini? Kode kembali ke stok tersedia agar bisa dialokasikan via program.')"

@@ -126,10 +126,10 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
                         </a>
                         <?php endif; ?>
                         <?php if ($user['role'] === 'admin'): ?>
-                        <a href="<?= base_url('events/'.$e['id'].'/delete') ?>" class="btn btn-sm btn-outline-danger"
-                           onclick="return confirm('Hapus event ini beserta semua datanya?')">
-                            <i class="bi bi-trash"></i>
-                        </a>
+                        <form method="POST" action="<?= base_url('events/'.$e['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus event ini beserta semua datanya?')">
+                            <?= csrf_field() ?>
+                            <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                        </form>
                         <?php endif; ?>
                     </td>
                 </tr>

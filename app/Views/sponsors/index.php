@@ -99,10 +99,10 @@
             data-items="<?= esc(json_encode($items), 'attr') ?>">
             <i class="bi bi-pencil"></i>
         </button>
-        <a href="<?= base_url('events/'.$event['id'].'/sponsors/'.$sp['id'].'/delete') ?>"
-           class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus sponsor ini?')">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('events/'.$event['id'].'/sponsors/'.$sp['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus sponsor ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
     </div>
     <?php endif; ?>
 </div>
@@ -167,10 +167,10 @@
         </td>
         <?php if ($canEdit): ?>
         <td>
-            <a href="<?= base_url('events/'.$event['id'].'/sponsors/'.$sp['id'].'/realisasi/'.$r['id'].'/delete') ?>"
-               class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus realisasi ini?')">
-                <i class="bi bi-trash"></i>
-            </a>
+            <form method="POST" action="<?= base_url('events/'.$event['id'].'/sponsors/'.$sp['id'].'/realisasi/'.$r['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus realisasi ini?')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+            </form>
         </td>
         <?php endif; ?>
     </tr>

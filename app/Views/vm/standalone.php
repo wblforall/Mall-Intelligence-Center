@@ -88,10 +88,10 @@ $renderItem = function(array $it, array $realisasi, bool $canEdit) {
                 data-deadline="<?= esc($it['tanggal_deadline'] ?? '') ?>">
                 <i class="bi bi-pencil"></i>
             </button>
-            <a href="<?= base_url('vm/'.$it['id'].'/delete') ?>"
-               class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus item ini beserta semua realisasinya?')">
-                <i class="bi bi-trash"></i>
-            </a>
+            <form method="POST" action="<?= base_url('vm/'.$it['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus item ini beserta semua realisasinya?')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+            </form>
         </div>
         <?php elseif ($isEvent): ?>
         <div class="ms-3">
@@ -166,10 +166,10 @@ $renderItem = function(array $it, array $realisasi, bool $canEdit) {
             <td class="text-end small">Rp <?= number_format($re['jumlah'],0,',','.') ?></td>
             <?php if ($canEdit && ! $isEvent): ?>
             <td>
-                <a href="<?= base_url('vm/'.$it['id'].'/realisasi/'.$re['id'].'/delete') ?>"
-                   class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Hapus entri ini?')">
-                    <i class="bi bi-x-circle"></i>
-                </a>
+                <form method="POST" action="<?= base_url('vm/'.$it['id'].'/realisasi/'.$re['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus entri ini?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-link text-danger p-0" title="Hapus"><i class="bi bi-x-circle"></i></button>
+                </form>
             </td>
             <?php endif; ?>
         </tr>

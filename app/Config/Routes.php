@@ -75,7 +75,7 @@ $routes->post('events/create', 'Events::store', ['filter' => 'auth']);
 $routes->get('events/(:num)', 'Events::show/$1', ['filter' => 'auth']);
 $routes->get('events/(:num)/edit', 'Events::edit/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/edit', 'Events::update/$1', ['filter' => 'auth']);
-$routes->get('events/(:num)/delete',  'Events::delete/$1',  ['filter' => 'auth']);
+$routes->post('events/(:num)/delete',  'Events::delete/$1',  ['filter' => 'auth']);
 $routes->post('events/(:num)/approve', 'Events::approve/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/reject',  'Events::reject/$1',  ['filter' => 'auth']);
 
@@ -106,9 +106,9 @@ $routes->get('events/(:num)/content', 'EventContent::index/$1', ['filter' => 'au
 $routes->post('events/(:num)/content/save-content', 'EventContent::saveContent/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/content/add-item', 'EventContent::addItem/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/content/(:num)/edit-item', 'EventContent::editItem/$1/$2', ['filter' => 'auth']);
-$routes->get('events/(:num)/content/(:num)/delete-item', 'EventContent::deleteItem/$1/$2', ['filter' => 'auth']);
+$routes->post('events/(:num)/content/(:num)/delete-item', 'EventContent::deleteItem/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/content/(:num)/realisasi/add', 'EventContent::storeRealisasi/$1/$2', ['filter' => 'auth']);
-$routes->get('events/(:num)/content/(:num)/realisasi/(:num)/delete', 'EventContent::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
+$routes->post('events/(:num)/content/(:num)/realisasi/(:num)/delete', 'EventContent::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
 
 // Rundown
 $routes->get('events/(:num)/rundown', 'EventContent::rundown/$1', ['filter' => 'auth']);
@@ -119,9 +119,9 @@ $routes->post('events/(:num)/rundown/save', 'EventContent::saveRundown/$1', ['fi
 $routes->get('events/(:num)/loyalty', 'EventLoyaltyCtrl::index/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/add', 'EventLoyaltyCtrl::storeProgram/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/edit', 'EventLoyaltyCtrl::updateProgram/$1/$2', ['filter' => 'auth']);
-$routes->get('events/(:num)/loyalty/(:num)/delete', 'EventLoyaltyCtrl::deleteProgram/$1/$2', ['filter' => 'auth']);
+$routes->post('events/(:num)/loyalty/(:num)/delete', 'EventLoyaltyCtrl::deleteProgram/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/realisasi/add', 'EventLoyaltyCtrl::storeRealisasi/$1/$2', ['filter' => 'auth']);
-$routes->get('events/(:num)/loyalty/(:num)/realisasi/(:num)/delete', 'EventLoyaltyCtrl::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
+$routes->post('events/(:num)/loyalty/(:num)/realisasi/(:num)/delete', 'EventLoyaltyCtrl::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/hadiah/add', 'EventLoyaltyCtrl::storeHadiahItem/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/hadiah/(:num)/update', 'EventLoyaltyCtrl::updateHadiahItem/$1/$2/$3', ['filter' => 'auth']);
 $routes->post('events/(:num)/loyalty/(:num)/hadiah/(:num)/delete', 'EventLoyaltyCtrl::deleteHadiahItem/$1/$2/$3', ['filter' => 'auth']);
@@ -136,9 +136,9 @@ $routes->post('events/(:num)/loyalty/(:num)/voucher/(:num)/realisasi/(:num)/dele
 $routes->get('events/(:num)/vm', 'EventVM::index/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/vm/add', 'EventVM::store/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/vm/(:num)/edit', 'EventVM::update/$1/$2', ['filter' => 'auth']);
-$routes->get('events/(:num)/vm/(:num)/delete', 'EventVM::delete/$1/$2', ['filter' => 'auth']);
+$routes->post('events/(:num)/vm/(:num)/delete', 'EventVM::delete/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/vm/(:num)/realisasi/add', 'EventVM::storeRealisasi/$1/$2', ['filter' => 'auth']);
-$routes->get('events/(:num)/vm/(:num)/realisasi/(:num)/delete', 'EventVM::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
+$routes->post('events/(:num)/vm/(:num)/realisasi/(:num)/delete', 'EventVM::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
 
 // Creative, Concept & Design
 $routes->get('events/(:num)/creative', 'EventCreativeCtrl::index/$1', ['filter' => 'auth']);
@@ -178,7 +178,7 @@ $routes->get('creative/media-promo/print',                        'PromoMediaCtr
 $routes->get('creative/media-promo/print-summary',                'PromoMediaCtrl::printSummary',       ['filter' => 'auth']);
 $routes->post('creative/media-promo/spots/store',                 'PromoMediaCtrl::storeSpot',          ['filter' => 'auth']);
 $routes->post('creative/media-promo/spots/(:num)/update',         'PromoMediaCtrl::updateSpot/$1',      ['filter' => 'auth']);
-$routes->get('creative/media-promo/spots/(:num)/delete',          'PromoMediaCtrl::deleteSpot/$1',      ['filter' => 'auth']);
+$routes->post('creative/media-promo/spots/(:num)/delete',          'PromoMediaCtrl::deleteSpot/$1',      ['filter' => 'auth']);
 $routes->get('creative/media-promo/spots/check-cetak',            'PromoMediaCtrl::checkCetakAvailability',  ['filter' => 'auth']);
 $routes->get('creative/media-promo/spots/check-digital',          'PromoMediaCtrl::checkDigitalAvailability', ['filter' => 'auth']);
 $routes->get('creative/media-promo/spots/(:num)/slots',           'PromoMediaCtrl::getAvailableSlots/$1', ['filter' => 'auth']);
@@ -206,9 +206,9 @@ $routes->post('events/(:num)/exhibitors/(:num)/programs/(:num)/delete', 'EventEx
 $routes->get('events/(:num)/sponsors', 'EventSponsors::index/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/sponsors/add', 'EventSponsors::store/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/sponsors/(:num)/edit', 'EventSponsors::update/$1/$2', ['filter' => 'auth']);
-$routes->get('events/(:num)/sponsors/(:num)/delete', 'EventSponsors::delete/$1/$2', ['filter' => 'auth']);
+$routes->post('events/(:num)/sponsors/(:num)/delete', 'EventSponsors::delete/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/sponsors/(:num)/realisasi/add', 'EventSponsors::storeRealisasi/$1/$2', ['filter' => 'auth']);
-$routes->get('events/(:num)/sponsors/(:num)/realisasi/(:num)/delete', 'EventSponsors::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
+$routes->post('events/(:num)/sponsors/(:num)/realisasi/(:num)/delete', 'EventSponsors::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
 
 // Standalone Loyalty Programs
 $routes->get('loyalty', 'LoyaltyCtrl::index', ['filter' => 'auth']);
@@ -246,7 +246,7 @@ $routes->post('stock/barang/store', 'StockBarangCtrl::store', ['filter' => 'auth
 $routes->post('stock/barang/(:num)/update', 'StockBarangCtrl::update/$1', ['filter' => 'auth']);
 $routes->post('stock/barang/(:num)/tambah-stok', 'StockBarangCtrl::tambahStok/$1', ['filter' => 'auth']);
 $routes->post('stock/barang/(:num)/realisasi', 'StockBarangCtrl::storeRealisasi/$1', ['filter' => 'auth']);
-$routes->get('stock/barang/(:num)/delete', 'StockBarangCtrl::delete/$1', ['filter' => 'auth']);
+$routes->post('stock/barang/(:num)/delete', 'StockBarangCtrl::delete/$1', ['filter' => 'auth']);
 
 // Stock Voucher Fisik
 $routes->get('stock/summary', 'StockCtrl::summary', ['filter' => 'auth']);
@@ -256,10 +256,10 @@ $routes->get('stock/voucher', 'StockVoucherCtrl::index', ['filter' => 'auth']);
 $routes->post('stock/voucher/store', 'StockVoucherCtrl::store', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/update', 'StockVoucherCtrl::update/$1', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/import-kode', 'StockVoucherCtrl::importKode/$1', ['filter' => 'auth']);
-$routes->get('stock/voucher/(:num)/kode/(:num)/delete', 'StockVoucherCtrl::deleteKode/$1/$2', ['filter' => 'auth']);
+$routes->post('stock/voucher/(:num)/kode/(:num)/delete', 'StockVoucherCtrl::deleteKode/$1/$2', ['filter' => 'auth']);
 $routes->post('stock/voucher/(:num)/kode/(:num)/distribute', 'StockVoucherCtrl::distributeKode/$1/$2', ['filter' => 'auth']);
 $routes->get('stock/voucher/(:num)/kode/(:num)/deassign', 'StockVoucherCtrl::deassignKode/$1/$2', ['filter' => 'auth']);
-$routes->get('stock/voucher/(:num)/delete', 'StockVoucherCtrl::deleteBatch/$1', ['filter' => 'auth']);
+$routes->post('stock/voucher/(:num)/delete', 'StockVoucherCtrl::deleteBatch/$1', ['filter' => 'auth']);
 $routes->get('stock/voucher/(:num)/available-kodes', 'StockVoucherCtrl::getAvailableKodes/$1', ['filter' => 'auth']);
 
 // Sponsorship Standalone
@@ -283,9 +283,9 @@ $routes->get('vm/monthly-summary', 'VMStandalone::monthly', ['filter' => 'auth']
 $routes->get('vm', 'VMStandalone::index', ['filter' => 'auth']);
 $routes->post('vm/add', 'VMStandalone::store', ['filter' => 'auth']);
 $routes->post('vm/(:num)/edit', 'VMStandalone::update/$1', ['filter' => 'auth']);
-$routes->get('vm/(:num)/delete', 'VMStandalone::delete/$1', ['filter' => 'auth']);
+$routes->post('vm/(:num)/delete', 'VMStandalone::delete/$1', ['filter' => 'auth']);
 $routes->post('vm/(:num)/realisasi/add', 'VMStandalone::storeRealisasi/$1', ['filter' => 'auth']);
-$routes->get('vm/(:num)/realisasi/(:num)/delete', 'VMStandalone::deleteRealisasi/$1/$2', ['filter' => 'auth']);
+$routes->post('vm/(:num)/realisasi/(:num)/delete', 'VMStandalone::deleteRealisasi/$1/$2', ['filter' => 'auth']);
 
 // Daily Traffic (Operasional — standalone)
 $routes->get('traffic', 'Traffic::index', ['filter' => 'auth']);
@@ -303,7 +303,7 @@ $routes->get('traffic/input/(:alpha)/(:any)', 'Traffic::form/$1/$2', ['filter' =
 $routes->get('traffic/input/(:alpha)', 'Traffic::form/$1', ['filter' => 'auth']);
 $routes->post('traffic/save', 'Traffic::save', ['filter' => 'auth']);
 $routes->post('traffic/save-cell', 'Traffic::saveCell', ['filter' => 'auth']);
-$routes->get('traffic/delete/(:alpha)/(:any)', 'Traffic::delete/$1/$2', ['filter' => 'auth']);
+$routes->post('traffic/delete/(:alpha)/(:any)', 'Traffic::delete/$1/$2', ['filter' => 'auth']);
 $routes->get('traffic/vehicles/(:any)',       'Traffic::vehicles/$1',    ['filter' => 'auth']);
 $routes->get('traffic/vehicles',              'Traffic::vehicles',        ['filter' => 'auth']);
 $routes->post('traffic/vehicles/save',        'Traffic::saveVehicles',    ['filter' => 'auth']);

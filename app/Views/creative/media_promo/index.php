@@ -85,11 +85,10 @@ $tipeLabelMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'St
             onclick="openEditSpot(<?= htmlspecialchars(json_encode($spot)) ?>)" title="Edit">
             <i class="bi bi-pencil" style="font-size:.65rem"></i>
         </button>
-        <a href="<?= base_url('creative/media-promo/spots/'.$spot['id'].'/delete') ?>"
-           onclick="return confirm('Hapus titik ini?')"
-           class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus">
-            <i class="bi bi-trash" style="font-size:.65rem"></i>
-        </a>
+        <form method="POST" action="<?= base_url('creative/media-promo/spots/'.$spot['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus titik ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus"><i class="bi bi-trash" style="font-size:.65rem"></i></button>
+        </form>
     </div>
     <?php endif; ?>
 
@@ -151,11 +150,10 @@ $tipeLabelMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'St
             onclick="openEditSpot(<?= htmlspecialchars(json_encode($spot)) ?>)" title="Edit">
             <i class="bi bi-pencil" style="font-size:.65rem"></i>
         </button>
-        <a href="<?= base_url('creative/media-promo/spots/'.$spot['id'].'/delete') ?>"
-           onclick="return confirm('Hapus titik ini?')"
-           class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus">
-            <i class="bi bi-trash" style="font-size:.65rem"></i>
-        </a>
+        <form method="POST" action="<?= base_url('creative/media-promo/spots/'.$spot['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus titik ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus"><i class="bi bi-trash" style="font-size:.65rem"></i></button>
+        </form>
     </div>
     <?php endif; ?>
 

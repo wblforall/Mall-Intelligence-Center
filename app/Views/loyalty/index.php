@@ -126,11 +126,10 @@
                     data-catatan="<?= esc($p['catatan'] ?? '', 'attr') ?>">
                     <i class="bi bi-pencil"></i>
                 </button>
-                <a href="<?= base_url('events/'.$event['id'].'/loyalty/'.$p['id'].'/delete') ?>"
-                   class="btn btn-sm btn-outline-danger"
-                   onclick="return confirm('Hapus program beserta semua data realisasinya?')">
-                    <i class="bi bi-trash"></i>
-                </a>
+                <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$p['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus program beserta semua data realisasinya?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                </form>
             </div>
             <?php endif; ?>
         </div>
@@ -239,9 +238,10 @@
             </td>
             <?php if ($canEdit): ?>
             <td>
-                <a href="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/realisasi/'.$e['id'].'/delete') ?>"
-                   class="btn btn-xs btn-outline-danger" style="padding:.15rem .4rem;font-size:.7rem"
-                   onclick="return confirm('Hapus entri ini?')"><i class="bi bi-trash"></i></a>
+                <form method="POST" action="<?= base_url('events/'.$event['id'].'/loyalty/'.$pid.'/realisasi/'.$e['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus entri ini?')">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-xs btn-outline-danger" style="padding:.15rem .4rem;font-size:.7rem" title="Hapus"><i class="bi bi-trash"></i></button>
+                </form>
             </td>
             <?php endif; ?>
         </tr>

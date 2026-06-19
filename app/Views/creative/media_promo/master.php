@@ -57,11 +57,10 @@
             <button class="btn btn-sm btn-outline-primary" onclick="openEdit(<?= htmlspecialchars(json_encode($s)) ?>)">
                 <i class="bi bi-pencil"></i>
             </button>
-            <a href="<?= base_url('creative/media-promo/spots/'.$s['id'].'/delete') ?>"
-               onclick="return confirm('Hapus titik ini?')"
-               class="btn btn-sm btn-outline-danger">
-                <i class="bi bi-trash"></i>
-            </a>
+            <form method="POST" action="<?= base_url('creative/media-promo/spots/'.$s['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus titik ini?')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+            </form>
         </div>
     </td>
 </tr>
@@ -109,11 +108,10 @@
             <button class="btn btn-sm btn-outline-primary" onclick="openEdit(<?= htmlspecialchars(json_encode($s)) ?>)">
                 <i class="bi bi-pencil"></i>
             </button>
-            <a href="<?= base_url('creative/media-promo/spots/'.$s['id'].'/delete') ?>"
-               onclick="return confirm('Hapus titik ini?')"
-               class="btn btn-sm btn-outline-danger">
-                <i class="bi bi-trash"></i>
-            </a>
+            <form method="POST" action="<?= base_url('creative/media-promo/spots/'.$s['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus titik ini?')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+            </form>
         </div>
     </td>
 </tr>

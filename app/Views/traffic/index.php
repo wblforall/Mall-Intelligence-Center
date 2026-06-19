@@ -106,11 +106,10 @@
         <a href="<?= base_url('traffic/input/ewalk/'.$row['tanggal']) ?>" class="btn btn-xs btn-outline-primary" style="padding:.2rem .5rem;font-size:.75rem">
             <i class="bi bi-pencil"></i>
         </a>
-        <a href="<?= base_url('traffic/delete/ewalk/'.$row['tanggal']) ?>"
-           class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.75rem"
-           onclick="return confirm('Hapus data traffic eWalk <?= $row['tanggal'] ?>?')">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('traffic/delete/ewalk/'.$row['tanggal']) ?>" class="d-inline" onsubmit="return confirm('Hapus data traffic eWalk <?= $row['tanggal'] ?>?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.75rem" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
         <?php else: ?>
         <span class="badge bg-success-subtle text-success"><i class="bi bi-check2"></i> Tersimpan</span>
         <?php endif; ?>
@@ -148,11 +147,10 @@
         <a href="<?= base_url('traffic/input/pentacity/'.$row['tanggal']) ?>" class="btn btn-xs btn-outline-success" style="padding:.2rem .5rem;font-size:.75rem">
             <i class="bi bi-pencil"></i>
         </a>
-        <a href="<?= base_url('traffic/delete/pentacity/'.$row['tanggal']) ?>"
-           class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.75rem"
-           onclick="return confirm('Hapus data traffic Pentacity <?= $row['tanggal'] ?>?')">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('traffic/delete/pentacity/'.$row['tanggal']) ?>" class="d-inline" onsubmit="return confirm('Hapus data traffic Pentacity <?= $row['tanggal'] ?>?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.75rem" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
         <?php else: ?>
         <span class="badge bg-success-subtle text-success"><i class="bi bi-check2"></i> Tersimpan</span>
         <?php endif; ?>

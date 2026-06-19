@@ -132,10 +132,10 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
             data-keterangan="<?= esc($item['keterangan'] ?? '', 'attr') ?>">
             <i class="bi bi-pencil"></i>
         </button>
-        <a href="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/delete-item') ?>"
-           class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus item ini?')">
-            <i class="bi bi-trash"></i>
-        </a>
+        <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/delete-item') ?>" class="d-inline" onsubmit="return confirm('Hapus item ini?')">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+        </form>
     </div>
     <?php endif; ?>
 </div>
@@ -192,10 +192,10 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
         </td>
         <?php if ($canEdit): ?>
         <td>
-            <a href="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/realisasi/'.$r['id'].'/delete') ?>"
-               class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus realisasi ini?')">
-                <i class="bi bi-trash"></i>
-            </a>
+            <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/realisasi/'.$r['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus realisasi ini?')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+            </form>
         </td>
         <?php endif; ?>
     </tr>
