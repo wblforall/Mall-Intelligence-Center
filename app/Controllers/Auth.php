@@ -94,6 +94,8 @@ class Auth extends Controller
         if (! $rolePerms['is_admin'] && ! empty($user['department_id'])) {
             $deptMenus = (new DepartmentMenuModel())->getMenuMap((int)$user['department_id']);
         }
+        // Grant menu tambahan per-user (override) — additive di atas akses dept.
+        $userMenus = $rolePerms['is_admin'] ? [] : (new \App\Models\UserMenuModel())->getMenuMap((int)$user['id']);
 
         session()->regenerate(true);
         session()->set([
@@ -106,6 +108,7 @@ class Auth extends Controller
             'role_perms'     => $rolePerms,
             'dept_id'        => $user['department_id'],
             'dept_menus'     => $deptMenus,
+            'user_menus'     => $userMenus,
             'user_theme'     => $user['theme'] ?? 'dark',
             'must_change_password' => ! empty($user['must_change_password']),
         ]);

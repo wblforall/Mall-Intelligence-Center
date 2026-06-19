@@ -134,6 +134,37 @@ class Users extends BaseController
         return redirect()->to('/users')->with('success', 'User berhasil dihapus.');
     }
 
+    // Kelola akses menu tambahan (override) per user — additive di atas akses dept.
+    public function menuAccess(int $id)
+    {
+        $user = (new UserModel())->find($id);
+        if (! $user) return redirect()->to('/users')->with('error', 'User tidak ditemukan.');
+        return view('users/menu_access', [
+            'user'       => $this->currentUser(),
+            'target'     => $user,
+            'menuLabels' => \App\Libraries\SectionConfig::MENU_LABELS,
+            'access'     => (new \App\Models\UserMenuModel())->getMenuMap($id),
+        ]);
+    }
+
+    public function saveMenuAccess(int $id)
+    {
+        $user = (new UserModel())->find($id);
+        if (! $user) return redirect()->to('/users')->with('error', 'User tidak ditemukan.');
+
+        $postMenus = $this->request->getPost('menus') ?? [];
+        $menuData  = [];
+        foreach (array_keys(\App\Libraries\SectionConfig::MENU_LABELS) as $key) {
+            $menuData[$key] = [
+                'can_view' => isset($postMenus[$key]['can_view']) ? 1 : 0,
+                'can_edit' => isset($postMenus[$key]['can_edit']) ? 1 : 0,
+            ];
+        }
+        (new \App\Models\UserMenuModel())->saveMenuAccess($id, $menuData);
+        ActivityLog::write('update', 'user', (string) $id, $user['name'], ['akses_menu_override' => true]);
+        return redirect()->to('/users')->with('success', 'Akses menu tambahan untuk ' . esc($user['name']) . ' disimpan. (User perlu login ulang agar berlaku.)');
+    }
+
     public function profile()
     {
         $id   = session()->get('user_id');

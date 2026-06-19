@@ -143,16 +143,21 @@ abstract class BaseController extends Controller
     protected function canViewMenu(string $menuKey): bool
     {
         if ($this->isAdmin()) return true;
+        // Grant per-user (override) — additive di atas akses dept.
+        $um = session()->get('user_menus');
+        if (isset($um[$menuKey]) && $um[$menuKey]['can_view']) return true;
         $menus = session()->get('dept_menus');
         // Non-admin tanpa departemen = TIDAK punya akses (hanya admin/superadmin yang full).
         if ($menus === null) return false;
         return isset($menus[$menuKey]) && $menus[$menuKey]['can_view'];
     }
 
-    // Returns true if user can edit the menu — dept_menus is sole authority for non-admin
+    // Returns true if user can edit the menu — dept_menus + grant per-user (override)
     protected function canEditMenu(string $menuKey): bool
     {
         if ($this->isAdmin()) return true;
+        $um = session()->get('user_menus');
+        if (isset($um[$menuKey]) && $um[$menuKey]['can_edit']) return true;
         $menus = session()->get('dept_menus');
         if ($menus === null) return false; // non-admin tanpa dept = tidak boleh edit
         return isset($menus[$menuKey]) && $menus[$menuKey]['can_edit'];

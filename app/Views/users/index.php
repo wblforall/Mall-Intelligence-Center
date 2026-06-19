@@ -125,6 +125,7 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
                     data-dept="<?= $u['department_id'] ?? '' ?>">
                     <i class="bi bi-pencil"></i>
                 </button>
+                <a href="<?= base_url('users/'.$u['id'].'/menu-access') ?>" class="btn btn-sm btn-outline-secondary me-1" title="Akses Menu Tambahan"><i class="bi bi-list-check"></i></a>
                 <?php if ($isLocked): ?>
                 <form method="POST" action="<?= base_url('users/'.$u['id'].'/unlock') ?>" class="d-inline" onsubmit="return confirm('Buka kunci akun ini?')">
                     <?= csrf_field() ?>
