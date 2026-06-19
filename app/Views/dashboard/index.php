@@ -1722,7 +1722,7 @@ foreach ($sections as $sec):
                 const isNow = parseInt(h.jam) === nowH;
                 const hot = h.feels != null && h.feels >= 38;
                 return `
-                <div class="text-center px-2 py-2 flex-shrink-0" style="min-width:70px;border-radius:.6rem;${isNow?'background:rgba(99,102,241,.12);border:1px solid var(--bs-primary);':''}${hot?'background:rgba(239,68,68,.1);':''}">
+                <div class="text-center px-2 py-2 flex-shrink-0"${isNow?' data-now="1"':''} style="min-width:70px;border-radius:.6rem;${isNow?'background:rgba(99,102,241,.12);border:1px solid var(--bs-primary);':''}${hot?'background:rgba(239,68,68,.1);':''}">
                     <div class="small fw-semibold ${isNow?'text-primary':''}">${h.jam}</div>
                     <i class="bi ${h.icon} my-1" style="font-size:1.2rem;color:${hot?'#ef4444':'#f59e0b'}"></i>
                     <div class="small fw-bold">${h.temp}°</div>
@@ -1730,6 +1730,9 @@ foreach ($sections as $sec):
                     ${h.hujan != null ? `<div style="font-size:.58rem;color:#3b82f6"><i class="bi bi-droplet-fill"></i> ${h.hujan}%</div>` : ''}
                 </div>`;
             }).join('');
+            // Auto-scroll ke jam sekarang (di-tengahkan)
+            const nowEl = hbox.querySelector('[data-now]');
+            if (nowEl) hbox.scrollLeft = nowEl.offsetLeft - (hbox.clientWidth / 2) + (nowEl.clientWidth / 2);
         } else if (hbox) {
             hbox.innerHTML = '<div class="text-muted small py-2 px-2">Data per jam tidak tersedia.</div>';
         }
