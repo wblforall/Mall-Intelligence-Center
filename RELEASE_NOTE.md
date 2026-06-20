@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.10.0** (Juni 2026)
+> Versi saat ini: **v2.11.0** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,31 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.11.0
+
+**Tanggal Rilis:** 20 Juni 2026
+
+Perbaikan tampilan responsif — fokus tablet (iPad portrait) & mobile.
+
+### Perubahan dari v2.10.0
+
+#### Tabel (global)
+- **Semua tabel** otomatis dibungkus `table-responsive` (geser horizontal) lewat satu skrip di layout — menutup 30+ halaman bertabel (Stock, ROI, VM, Exhibitors, Competencies, EEI, Logs, dll) tanpa terpotong. Guard cetak agar laporan tidak ikut terpotong.
+
+#### Dashboard Utama
+- **Card "Shortcuts" dihapus**; **KPI Events** jadi full-width (2 kartu/baris di HP, 4/baris di tablet & desktop).
+- Kolom **Market Intelligence** (Kurs/Makro · BBM · Indeks-Berita) kini stack di iPad portrait (yang sidebar-nya masih tampil → area konten ~570px), 3-kolom hanya di ≥992px.
+- **Cuaca 7-hari**, **strip angka kunci ekonomi**, dan **tab Market Intelligence** jadi geser horizontal di layar ≤991px (tidak gepeng / tidak turun baris berantakan).
+
+#### Traffic
+- **Summary**: header & tombol preset filter membungkus rapi; panel Weekday/Weekend & per-pintu stack di HP dengan garis pemisah yang benar.
+- **Compare**: header membungkus rapi; tabel perbandingan lebar geser horizontal.
+
+#### Stock
+- **Stock Barang** & **Stock Voucher**: header tombol membungkus; **header tiap batch voucher** (badge stok + tombol Edit/Import/Hapus) tidak lagi jebol di layar sempit.
 
 ---
 
