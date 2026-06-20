@@ -55,7 +55,7 @@
 <tbody>
 <?php
 $firstEventKey = true;
-$standaloneKeys = ['events', 'loyalty_main', 'creative_main', 'vm_main', 'sponsorship_main', 'people_dev', 'hr_main', 'traffic', 'legal'];
+$standaloneKeys = ['events', 'loyalty_main', 'creative_main', 'vm_main', 'sponsorship_main', 'people_dev', 'hr_main', 'traffic', 'parking_vehicles', 'parking_revenue', 'legal'];
 echo '<tr><td colspan="4" class="py-1 px-3 bg-body-secondary" style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bs-secondary-color)">Standalone</td></tr>';
 foreach ($menuLabels as $key => $label):
     if ($firstEventKey && !in_array($key, $standaloneKeys)):

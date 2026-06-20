@@ -309,6 +309,17 @@ $routes->get('traffic/vehicles/(:any)',       'Traffic::vehicles/$1',    ['filte
 $routes->get('traffic/vehicles',              'Traffic::vehicles',        ['filter' => 'auth']);
 $routes->post('traffic/vehicles/save',        'Traffic::saveVehicles',    ['filter' => 'auth']);
 
+// Parkir — dashboard read-only dari SPI. Satu halaman Live gabungan (field digate),
+// Summary terpisah per domain, Compare periode.
+$routes->get('parking',                  'ParkingLive::index',       ['filter' => 'auth']);
+$routes->get('parking/live',             'ParkingLive::index',       ['filter' => 'auth']);
+$routes->get('parking/live-data',        'ParkingLive::data',        ['filter' => 'auth']);
+$routes->get('parking/vehicles',         'ParkingVehicles::index',   ['filter' => 'auth']);
+$routes->get('parking/vehicles/summary', 'ParkingVehicles::summary', ['filter' => 'auth']);
+$routes->get('parking/revenue',          'ParkingRevenue::index',    ['filter' => 'auth']);
+$routes->get('parking/revenue/summary',  'ParkingRevenue::summary',  ['filter' => 'auth']);
+$routes->get('parking/compare',          'ParkingCompare::index',    ['filter' => 'auth']);
+
 // Event Locations master (admin only)
 $routes->get('event-locations', 'EventLocations::index', ['filter' => 'auth:admin']);
 $routes->post('event-locations/add', 'EventLocations::store', ['filter' => 'auth:admin']);

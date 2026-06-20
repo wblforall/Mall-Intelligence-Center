@@ -75,3 +75,6 @@ public/.htaccess
 /build/
 .phpunit.result.cache
 *.code-workspace
+
+# SPI cookie jar (runtime)
+writable/spi/

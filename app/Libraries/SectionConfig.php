@@ -17,6 +17,8 @@ class SectionConfig
         'people_dev'         => 'People Development',
         'hr_main'            => 'HR (Karyawan, Org Chart, Appraisal)',
         'traffic'            => 'Daily Traffic',
+        'parking_vehicles'   => 'Parkir — Traffic Kendaraan',
+        'parking_revenue'    => 'Parkir — Revenue',
         'legal'              => 'Legal',
         // ── Per-Event (Event Sub-menu) ───────────────────────────
         'summary'       => 'Event Summary',

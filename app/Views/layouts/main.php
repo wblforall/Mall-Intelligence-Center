@@ -282,6 +282,31 @@ body { min-height: 100vh; }
         <?php endif; ?>
         <?php endif; ?>
 
+        <?php
+        $_isAdminPk    = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+        $canViewPkVeh  = $_isAdminPk || $deptMenusNav === null || ($deptMenusNav['parking_vehicles']['can_view'] ?? false);
+        $canViewPkRev  = $_isAdminPk || $deptMenusNav === null || ($deptMenusNav['parking_revenue']['can_view'] ?? false);
+        if ($canViewPkVeh || $canViewPkRev):
+        ?>
+        <div class="nav-label">Parkir</div>
+        <a href="<?= base_url('parking/live') ?>" class="nav-link <?= uri_string() === 'parking/live' || uri_string() === 'parking' ? 'active' : '' ?>">
+            <i class="bi bi-broadcast"></i> Live
+        </a>
+        <?php if ($canViewPkVeh): ?>
+        <a href="<?= base_url('parking/vehicles/summary') ?>" class="nav-link <?= uri_string() === 'parking/vehicles/summary' ? 'active' : '' ?>">
+            <i class="bi bi-car-front-fill"></i> Kendaraan — Summary
+        </a>
+        <?php endif; ?>
+        <?php if ($canViewPkRev): ?>
+        <a href="<?= base_url('parking/revenue/summary') ?>" class="nav-link <?= uri_string() === 'parking/revenue/summary' ? 'active' : '' ?>">
+            <i class="bi bi-graph-up-arrow"></i> Revenue — Summary
+        </a>
+        <?php endif; ?>
+        <a href="<?= base_url('parking/compare') ?>" class="nav-link <?= uri_string() === 'parking/compare' ? 'active' : '' ?>">
+            <i class="bi bi-arrow-left-right"></i> Compare Periode
+        </a>
+        <?php endif; ?>
+
         <?php if (isset($event)):
             $isAdmin    = ($currentRole === 'admin');
             $deptMenus  = session()->get('dept_menus');
