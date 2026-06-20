@@ -16,6 +16,8 @@
 @keyframes pkspin { to { transform:rotate(360deg) } }
 .pk-prog { height:8px; background:rgba(148,163,184,.25); border-radius:6px; overflow:hidden; margin-top:.85rem; }
 .pk-prog-bar { height:100%; width:0; background:linear-gradient(90deg,#16a34a,#22c55e); border-radius:6px; transition:width .5s ease; }
+.pk-slot-low { animation:pklow 1.4s ease-in-out infinite; }
+@keyframes pklow { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.55)} 50%{box-shadow:0 0 0 .6rem rgba(220,38,38,0)} }
 .pk-skel { color:transparent !important; background:linear-gradient(90deg,rgba(148,163,184,.18),rgba(148,163,184,.35),rgba(148,163,184,.18));
     background-size:200% 100%; border-radius:.4rem; animation:pkshim 1.3s infinite; }
 @keyframes pkshim { to { background-position:-200% 0 } }
@@ -60,6 +62,11 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
 </div>
 
 <?php if ($canVeh): ?>
+<!-- ALERT slot hampir penuh (sisa <= ambang) -->
+<div id="pk-slot-alert" class="alert alert-danger d-none align-items-center gap-2 mb-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+    <span id="pk-slot-alert-msg" class="fw-semibold"></span>
+</div>
 <!-- OKUPANSI -->
 <h6 class="text-secondary text-uppercase small fw-bold mb-2"><i class="bi bi-car-front-fill me-1"></i>Okupansi Kendaraan</h6>
 <div class="row g-3 mb-4">
@@ -71,7 +78,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
         </div></div>
     </div>
     <div class="col-6 col-lg-4">
-        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#1d4ed8,#22d3ee) !important"><div class="card-body" style="color:#fff">
+        <div id="card-slot-mobil" class="card pk-kpi h-100" style="background:linear-gradient(135deg,#1d4ed8,#22d3ee) !important"><div class="card-body" style="color:#fff">
             <div class="fw-semibold mb-1" style="color:#fff;opacity:.9"><i class="bi bi-p-square me-1"></i>Slot Mobil Tersedia</div>
             <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-car-front-fill" style="font-size:1.9rem;color:#fff"></i>
@@ -81,7 +88,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
         </div></div>
     </div>
     <div class="col-6 col-lg-4">
-        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#0891b2,#34d399) !important"><div class="card-body" style="color:#fff">
+        <div id="card-slot-motor" class="card pk-kpi h-100" style="background:linear-gradient(135deg,#0891b2,#34d399) !important"><div class="card-body" style="color:#fff">
             <div class="fw-semibold mb-1" style="color:#fff;opacity:.9"><i class="bi bi-p-square me-1"></i>Slot Motor Tersedia</div>
             <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-scooter" style="font-size:1.9rem;color:#fff"></i>
@@ -150,6 +157,31 @@ if (PK.canRev) {
 }
 const $ = id => document.getElementById(id);
 
+// Alert slot hampir penuh: sisa <= ambang (200). Ubah warna kartu + tampilkan banner.
+const PK_SLOT_TH = 200;
+const PK_GRAD = { mobil:'linear-gradient(135deg,#1d4ed8,#22d3ee)', motor:'linear-gradient(135deg,#0891b2,#34d399)' };
+function slotAlert(availMobil, availMotor) {
+    const set = (cardId, avail, grad) => {
+        const c = $(cardId); if (!c) return;
+        const low = avail <= PK_SLOT_TH;
+        c.style.setProperty('background', low ? 'linear-gradient(135deg,#dc2626,#f59e0b)' : grad, 'important');
+        c.classList.toggle('pk-slot-low', low);
+    };
+    set('card-slot-mobil', availMobil, PK_GRAD.mobil);
+    set('card-slot-motor', availMotor, PK_GRAD.motor);
+    const msgs = [];
+    if (availMobil <= PK_SLOT_TH) msgs.push('Mobil sisa ' + num(availMobil));
+    if (availMotor <= PK_SLOT_TH) msgs.push('Motor sisa ' + num(availMotor));
+    const al = $('pk-slot-alert');
+    if (!al) return;
+    if (msgs.length) {
+        $('pk-slot-alert-msg').textContent = 'Slot parkir hampir penuh — ' + msgs.join(' · ') + ' (ambang ' + PK_SLOT_TH + ').';
+        al.classList.remove('d-none'); al.classList.add('d-flex');
+    } else {
+        al.classList.add('d-none'); al.classList.remove('d-flex');
+    }
+}
+
 // ── Overlay loader: progress bertahap (simulasi) sampai data pertama tiba ──
 const PKL = {
     stages: [
@@ -195,6 +227,7 @@ async function refreshLive() {
             $('avail-motor').textContent = num(d.lot_motor_tersedia);
             $('slotsub-mobil').textContent = num(d.mobil) + ' / ' + num(d.lot_mobil);
             $('slotsub-motor').textContent = num(d.motor) + ' / ' + num(d.lot_motor);
+            slotAlert(d.lot_mobil_tersedia || 0, d.lot_motor_tersedia || 0);
         }
         if (PK.canRev) {
             $('live-income').textContent = rp(d.totalincome);
