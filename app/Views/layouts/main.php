@@ -623,6 +623,33 @@ if (typeof Chart !== 'undefined') {
     Chart.defaults.scale.ticks.color            = _dark ? 'rgba(180,210,255,.45)' : '#64748b';
 }
 </script>
+
+<style>
+/* Tabel responsif: jangan potong scroll-x saat dicetak dari halaman biasa */
+@media print { .table-responsive { overflow: visible !important; } }
+</style>
+<script>
+/* Auto-bungkus setiap tabel Bootstrap yang belum responsive agar bisa digeser
+   horizontal di layar sempit (mobile & iPad portrait). Berlaku global untuk
+   semua halaman yang memakai layout ini. */
+(function () {
+    function wrapTables(root) {
+        (root || document).querySelectorAll('table.table').forEach(function (t) {
+            if (t.closest('.table-responsive')) return;
+            var w = document.createElement('div');
+            w.className = 'table-responsive';
+            t.parentNode.insertBefore(w, t);
+            w.appendChild(t);
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { wrapTables(); });
+    } else {
+        wrapTables();
+    }
+    window.wrapResponsiveTables = wrapTables; // bisa dipanggil ulang setelah render tabel via JS
+})();
+</script>
 <?= $this->renderSection('scripts') ?>
 
 <style>

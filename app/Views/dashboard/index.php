@@ -46,6 +46,40 @@
     animation: shimmer 1.4s ease-in-out infinite;
     border-radius: 4px;
 }
+
+/* ── Tablet portrait & bawah (≤991px): konten sempit (sidebar masih tampil di iPad
+      portrait) → geser horizontal, jangan gepeng/membungkus berantakan ── */
+@media (max-width: 991.98px) {
+    /* Prakiraan cuaca 7 hari → geser horizontal, kartu tetap terbaca */
+    #weatherDays {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+    #weatherDays > .col {
+        flex: 0 0 auto;
+        width: 30%;
+        min-width: 92px;
+        max-width: 130px;
+    }
+    /* Strip angka kunci ekonomi → satu baris geser, garis pemisah rapi */
+    .eco-strip {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+    .eco-strip > div { flex: 0 0 auto; }
+    /* Tab Market Intelligence → scroll horizontal, jangan turun baris */
+    .card-header-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .card-header-tabs::-webkit-scrollbar { display: none; }
+    .card-header-tabs .nav-link { white-space: nowrap; }
+}
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -352,7 +386,7 @@ $stripItems = [
 ?>
 <div class="card mb-3 fade-up" style="animation-delay:.5s">
 <div class="card-body py-2 px-2">
-    <div class="d-flex flex-wrap align-items-stretch text-center">
+    <div class="d-flex flex-wrap align-items-stretch text-center eco-strip">
         <?php foreach ($stripItems as $i => $s): ?>
         <div class="px-3 py-1 flex-fill <?= $i > 0 ? 'border-start' : '' ?>" style="min-width:118px">
             <div class="text-muted text-uppercase d-flex align-items-center justify-content-center gap-1" style="font-size:.6rem;letter-spacing:.04em">
@@ -379,7 +413,7 @@ $stripItems = [
 <div class="row g-4">
 
 <!-- Col 1: Kurs Valuta (live) + Indikator Makro -->
-<div class="col-12 col-md-4">
+<div class="col-12 col-lg-4">
 
     <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
         <i class="bi bi-currency-exchange me-1"></i>Kurs Valuta
@@ -510,7 +544,7 @@ $stripItems = [
 </div>
 
 <!-- Col 2: Harga BBM -->
-<div class="col-12 col-md-3">
+<div class="col-12 col-lg-3">
     <div class="small fw-semibold text-muted text-uppercase mb-2 d-flex align-items-center justify-content-between" style="letter-spacing:.05em">
         <span><i class="bi bi-fuel-pump me-1"></i>Harga BBM Pertamina</span>
         <?php if ($user['role'] === 'admin'): ?>
@@ -593,7 +627,7 @@ $stripItems = [
 </div>
 
 <!-- Col 3: Berita (tabbed) -->
-<div class="col-12 col-md-5">
+<div class="col-12 col-lg-5">
     <ul class="nav nav-tabs nav-tabs-sm border-bottom mb-2" style="font-size:.78rem" role="tablist">
         <li class="nav-item">
             <button class="nav-link active px-2 py-1" data-bs-toggle="tab" data-bs-target="#tabEkoNas">

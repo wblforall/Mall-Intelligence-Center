@@ -11,11 +11,15 @@
 }
 .anim-fade-up  { opacity: 0; animation: fadeUp .5s cubic-bezier(.22,.68,0,1.15) forwards; }
 .anim-fade-in  { opacity: 0; animation: fadeIn .45s ease forwards; }
+/* Panel kembar (weekday/weekend, per-pintu): saat stack di HP, ganti garis kanan jadi garis bawah */
+@media (max-width: 575.98px) {
+    .split-col { border-right: 0 !important; border-bottom: 1px solid var(--bs-border-color) !important; }
+}
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-bar-chart-line me-2"></i>Summary Daily Traffic</h4>
         <small class="text-muted"><?= date('d M Y', strtotime($from)) ?> — <?= date('d M Y', strtotime($to)) ?></small>
@@ -49,7 +53,7 @@
     <div class="col-auto">
         <button type="submit" class="btn btn-sm btn-primary">Tampilkan</button>
     </div>
-    <div class="col-auto ms-2 d-flex gap-1">
+    <div class="col-auto ms-sm-2 d-flex gap-1 flex-wrap">
         <?php
         $presets = [
             'Hari ini'  => ['from' => date('Y-m-d'), 'to' => date('Y-m-d')],
@@ -129,7 +133,7 @@
 <div class="row g-0">
 
     <!-- Weekdays -->
-    <div class="col-6 border-end px-4 py-3">
+    <div class="col-12 col-sm-6 border-end split-col px-4 py-3">
         <div class="d-flex align-items-center gap-2 mb-2">
             <span class="badge bg-primary-subtle text-primary border" style="font-size:.75rem">Weekdays</span>
             <span class="text-muted small">Senin – Kamis</span>
@@ -154,7 +158,7 @@
     </div>
 
     <!-- Weekend -->
-    <div class="col-6 px-4 py-3">
+    <div class="col-12 col-sm-6 px-4 py-3">
         <div class="d-flex align-items-center gap-2 mb-2">
             <span class="badge bg-warning-subtle text-warning-emphasis border" style="font-size:.75rem">Weekend</span>
             <span class="text-muted small">Jumat – Minggu</span>
@@ -303,7 +307,7 @@
 <div class="row g-0">
 
 <!-- eWalk -->
-<div class="col-6 border-end">
+<div class="col-12 col-sm-6 border-end split-col">
 <div class="px-3 py-2 border-bottom bg-light">
     <span class="small fw-semibold text-primary"><i class="bi bi-building me-1"></i>eWalk</span>
 </div>
@@ -326,7 +330,7 @@
 </div>
 
 <!-- Pentacity -->
-<div class="col-6">
+<div class="col-12 col-sm-6">
 <div class="px-3 py-2 border-bottom bg-light">
     <span class="small fw-semibold text-success"><i class="bi bi-building me-1"></i>Pentacity</span>
 </div>
