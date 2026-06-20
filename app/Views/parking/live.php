@@ -77,7 +77,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
             <div class="small mt-1" style="color:#fff;opacity:.85">total kendaraan saat ini</div>
         </div></div>
     </div>
-    <div class="col-6 col-lg-4">
+    <div class="col-12 col-sm-6 col-lg-4">
         <div id="card-slot-mobil" class="card pk-kpi h-100" style="background:linear-gradient(135deg,#1d4ed8,#22d3ee) !important"><div class="card-body" style="color:#fff">
             <div class="fw-semibold mb-1" style="color:#fff;opacity:.9"><i class="bi bi-p-square me-1"></i>Slot Mobil Tersedia</div>
             <div class="d-flex align-items-center gap-2">
@@ -87,7 +87,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
             <div class="small mt-1" style="color:#fff;opacity:.85">Terisi <span id="slotsub-mobil"><?= number_format($live['mobil']) ?> / <?= number_format($capMobil) ?></span></div>
         </div></div>
     </div>
-    <div class="col-6 col-lg-4">
+    <div class="col-12 col-sm-6 col-lg-4">
         <div id="card-slot-motor" class="card pk-kpi h-100" style="background:linear-gradient(135deg,#0891b2,#34d399) !important"><div class="card-body" style="color:#fff">
             <div class="fw-semibold mb-1" style="color:#fff;opacity:.9"><i class="bi bi-p-square me-1"></i>Slot Motor Tersedia</div>
             <div class="d-flex align-items-center gap-2">

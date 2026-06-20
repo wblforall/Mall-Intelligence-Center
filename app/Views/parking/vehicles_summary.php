@@ -39,28 +39,28 @@ $wkTot = max(1, ($stats['weekday'] ?? 0) + ($stats['weekend'] ?? 0));
 $grTot = max(1, $grandTotal);
 ?>
 <div class="row g-3 mb-1">
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-lg-3">
         <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#1d4ed8,#1e40af) !important"><div class="card-body" style="color:#fff">
             <div class="small" style="color:#fff;opacity:.8">Total Kendaraan</div>
             <div style="font-size:1.4rem;font-weight:700;color:#fff"><?= $num($grandTotal) ?></div>
             <div class="small" style="color:#fff;opacity:.8"><?= (int) ($stats['days'] ?? 0) ?> hari berdata</div>
         </div></div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-lg-3">
         <div class="card pk-kpi h-100"><div class="card-body">
             <div class="small text-secondary">Rata-rata / hari</div>
             <div style="font-size:1.4rem;font-weight:700"><?= $num($stats['avg'] ?? 0) ?></div>
             <div class="small text-secondary">kendaraan/hari</div>
         </div></div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-lg-3">
         <div class="card pk-kpi h-100"><div class="card-body">
             <div class="small text-secondary">Hari Puncak</div>
             <div style="font-size:1.4rem;font-weight:700"><?= $num($stats['peakVal'] ?? 0) ?></div>
             <div class="small text-secondary"><?= ! empty($stats['peakDay']) ? $fmtDate($stats['peakDay']) : '—' ?></div>
         </div></div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-lg-3">
         <div class="card pk-kpi h-100"><div class="card-body">
             <div class="small text-secondary">Weekday vs Weekend</div>
             <div style="font-size:1.05rem;font-weight:700"><?= round(($stats['weekday'] ?? 0)/$wkTot*100) ?>% <span class="text-secondary fw-normal">/ <?= round(($stats['weekend'] ?? 0)/$wkTot*100) ?>%</span></div>
