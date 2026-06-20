@@ -6,6 +6,7 @@
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
+<?= $this->include('parking/_databanner') ?>
 
 <?php
 $rp = fn($n) => 'Rp ' . number_format((float)$n, 0, ',', '.');
@@ -17,10 +18,7 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
         <h4 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Revenue Parkir — <span class="text-success">Summary</span></h4>
         <div class="text-secondary small">Balikpapan Superblock · historis · sumber: SPI (read-only)</div>
     </div>
-    <div class="btn-group btn-group-sm" role="group">
-        <a href="<?= base_url('parking/revenue/live') ?>" class="btn btn-outline-success">Live</a>
-        <a href="<?= base_url('parking/revenue/summary') ?>" class="btn btn-success">Summary</a>
-    </div>
+    <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-left-right"></i> Compare</a>
 </div>
 
 <form class="row g-2 align-items-end mb-3" method="get">
@@ -36,29 +34,31 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
     <div class="col-auto text-secondary small">Data tersedia sejak Jan 2023</div>
 </form>
 
-<!-- KPI semua kategori (akumulasi sejak Jan 2023) -->
+<!-- KPI periode terpilih (Casual/Member basis bulanan) -->
 <div class="row g-3 mb-1">
     <div class="col-12 col-md-4">
-        <div class="card pk-kpi text-white h-100" style="background:linear-gradient(135deg,#15803d,#166534)"><div class="card-body">
-            <div class="small opacity-75">Total (Casual + Member)</div>
-            <div style="font-size:1.5rem;font-weight:700"><?= $rp($sumTotal) ?></div>
+        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#15803d,#166534) !important"><div class="card-body" style="color:#fff">
+            <div class="small" style="color:#fff;opacity:.8">Total (Casual + Member) · periode</div>
+            <div style="font-size:1.5rem;font-weight:700;color:#fff"><?= $rp($perTotal) ?></div>
+            <div class="small" style="color:#fff;opacity:.8"><?= $fmtDate($start) ?> – <?= $fmtDate($end) ?></div>
         </div></div>
     </div>
     <div class="col-6 col-md-4">
         <div class="card pk-kpi h-100"><div class="card-body">
             <div class="small text-secondary">Casual</div>
-            <div style="font-size:1.4rem;font-weight:700"><?= $rp($sumCasual) ?></div>
-            <div class="small text-secondary"><?= $sumTotal>0?round($sumCasual/$sumTotal*100):0 ?>%</div>
+            <div style="font-size:1.4rem;font-weight:700"><?= $rp($perCasual) ?></div>
+            <div class="small text-secondary"><?= $perTotal>0?round($perCasual/$perTotal*100):0 ?>%</div>
         </div></div>
     </div>
     <div class="col-6 col-md-4">
         <div class="card pk-kpi h-100"><div class="card-body">
             <div class="small text-secondary">Member</div>
-            <div style="font-size:1.4rem;font-weight:700"><?= $rp($sumMember) ?></div>
-            <div class="small text-secondary"><?= $sumTotal>0?round($sumMember/$sumTotal*100):0 ?>%</div>
+            <div style="font-size:1.4rem;font-weight:700"><?= $rp($perMember) ?></div>
+            <div class="small text-secondary"><?= $perTotal>0?round($perMember/$perTotal*100):0 ?>%</div>
         </div></div>
     </div>
 </div>
+<div class="text-secondary small mb-3"><i class="bi bi-info-circle"></i> Casual &amp; Member dihitung per <strong>bulan</strong> yang termasuk periode (sumber SPI hanya menyediakan split bulanan). Untuk income casual harian presisi, lihat <em>Income per Hari</em> &amp; <em>Income per Jenis</em> di bawah.</div>
 
 <div class="row g-3">
     <div class="col-12">
@@ -110,13 +110,13 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
     </div>
     <div class="col-12 col-lg-4">
         <div class="card h-100"><div class="card-body">
-            <h6 class="card-title">Per Metode Pembayaran</h6>
-            <?php if (! empty($payRows)): ?>
-            <div class="text-secondary small mb-2"><?= (int)$payDays ?> hari terekam</div>
-            <div class="table-responsive" style="max-height:200px;overflow:auto">
+            <h6 class="card-title">Per Metode Pembayaran <span class="text-secondary small fw-normal">(periode terpilih)</span></h6>
+            <?php if (! empty($payRows)): $pTot = array_sum(array_column($payRows, 'total')); ?>
+            <div class="text-secondary small mb-2">Total: <strong><?= $rp($pTot) ?></strong></div>
+            <div class="table-responsive" style="max-height:220px;overflow:auto">
                 <table class="table table-sm align-middle mb-0">
                     <tbody>
-                    <?php $pTot = array_sum(array_column($payRows, 'total')); foreach ($payRows as $pr): ?>
+                    <?php foreach ($payRows as $pr): ?>
                         <tr><td><?= esc($pr['method']) ?></td><td class="text-end"><?= $rp($pr['total']) ?></td>
                             <td class="text-end text-secondary small"><?= $pTot>0?round($pr['total']/$pTot*100):0 ?>%</td></tr>
                     <?php endforeach; ?>
@@ -124,11 +124,7 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
                 </table>
             </div>
             <?php else: ?>
-            <div class="text-secondary small">
-                <i class="bi bi-info-circle"></i> Belum ada arsip metode pembayaran untuk periode ini.
-                SPI hanya mengekspos rincian metode untuk <strong>hari ini</strong> (lihat halaman Live);
-                jalankan <code>mic:spi-sync</code> harian agar terkumpul jadi riwayat ke depan.
-            </div>
+            <div class="text-secondary small"><i class="bi bi-info-circle"></i> Belum ada arsip metode pembayaran untuk periode ini. Jalankan <code>php spark mic:spi-sync --from 2023-01-01</code> untuk mengisi arsip dari SPI.</div>
             <?php endif; ?>
         </div></div>
     </div>

@@ -20,15 +20,19 @@ class ParkingLive extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
-        $spi  = new SpiReportingService();
-        $live = $spi->fetchLive();
+        // TIDAK menarik SPI di sini (lambat) — halaman render instan dgn nilai 0,
+        // lalu diisi via AJAX /parking/live-data + overlay progress. latestDataDate dari DB (cepat).
+        $zero = ['ok' => true, 'mobil' => 0, 'motor' => 0, 'total' => 0,
+            'lot_mobil' => 0, 'lot_motor' => 0, 'lot_mobil_tersedia' => 0, 'lot_motor_tersedia' => 0,
+            'tunai' => 0, 'nontunai' => 0, 'totalincome' => 0];
 
         return view('parking/live', [
-            'title'    => 'Live — Parkir',
-            'canVeh'   => $canVeh,
-            'canRev'   => $canRev,
-            'live'     => $live,
-            'payments' => $canRev ? $spi->fetchPaymentBreakdown() : [],
+            'title'     => 'Live — Parkir',
+            'canVeh'    => $canVeh,
+            'canRev'    => $canRev,
+            'live'      => $zero,
+            'payments'  => [],
+            'dataUntil' => (new SpiReportingService())->latestDataDate(),
         ]);
     }
 

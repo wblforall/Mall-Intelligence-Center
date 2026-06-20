@@ -11,13 +11,14 @@ use App\Libraries\ActivityLog;
 /**
  * Sinkronkan salinan lokal data parkir SPI (Hybrid sync) + opsional isi daily_vehicles.
  *
- *   php spark mic:spi-sync                       # 7 hari terakhir
- *   php spark mic:spi-sync --from=2023-01-01     # backfill sejak 2023 s/d hari ini
- *   php spark mic:spi-sync --from=2026-06-01 --to=2026-06-17
- *   php spark mic:spi-sync --fill-vehicles       # ikut isi daily_vehicles (tanggal kosong)
- *   php spark mic:spi-sync --fill-vehicles --force  # timpa daily_vehicles yang sudah ada
+ *   php spark mic:spi-sync                        # 7 hari terakhir
+ *   php spark mic:spi-sync --from 2023-01-01      # backfill sejak 2023 s/d hari ini
+ *   php spark mic:spi-sync --from 2026-06-01 --to 2026-06-17
+ *   php spark mic:spi-sync --fill-vehicles        # ikut isi daily_vehicles (tanggal kosong)
+ *   php spark mic:spi-sync --fill-vehicles --force   # timpa daily_vehicles yang sudah ada
  *
- * Cron harian disarankan: 0 2 * * *  (tarik data final H-3 otomatis).
+ * Catatan opsi: gunakan SPASI (--from 2023-01-01), bukan tanda sama dengan.
+ * Cron harian: 0 8 * * *  (SPI update jam 7 pagi → kita tarik jam 8 pagi).
  */
 class SpiSync extends BaseCommand
 {
@@ -124,19 +125,41 @@ class SpiSync extends BaseCommand
             $totMon++;
         }
 
-        // Rincian payment HARI INI (SPI hanya ekspos hari ini) → arsip maju ke depan
+        // Rincian payment HISTORIS per tanggal×metode (table-casual-income — patchy, hanya yg ada).
         $totPay = 0;
-        if ($to >= date('Y-m-d')) {
-            foreach ($spi->fetchPaymentBreakdown() as $p) {
+        foreach ($spi->fetchCasualTableChunked($from, $to) as $row) {
+            $tgl = $row['tanggal']; if (! $tgl) { continue; }
+            foreach ($row['payments'] as $method => $amt) {
                 $db->table('spi_payment_daily')->replace([
-                    'tanggal' => date('Y-m-d'), 'method' => $p['method'],
-                    'amount' => $p['amount'], 'updated_at' => $now,
+                    'tanggal' => $tgl, 'method' => $method, 'amount' => $amt, 'updated_at' => $now,
                 ]);
                 $totPay++;
             }
         }
 
-        CLI::write("Selesai. qty={$totQty} income={$totInc} bulanan={$totMon} daily_vehicles={$totVeh} payment={$totPay}.", 'green');
+        // Statistik harian dari statistik.php (sumber lengkap): durasi (spi_duration_daily)
+        // + langganan/free per jenis → lengkapi spi_vehicle_daily.
+        $totDur = 0; $totFree = 0;
+        foreach ($spi->fetchStatistikDaily($from, $to) as $tgl => $d) {
+            $b = $d['dur'];
+            $db->table('spi_duration_daily')->replace([
+                'tanggal' => $tgl,
+                'le1' => $b['le1'], 'h1_2' => $b['h1_2'], 'h2_3' => $b['h2_3'], 'h3_4' => $b['h3_4'],
+                'h4_5' => $b['h4_5'], 'h5_6' => $b['h5_6'], 'h6_7' => $b['h6_7'], 'gt7' => $b['gt7'],
+                'updated_at' => $now,
+            ]);
+            $totDur++;
+            $f = $d['free'];
+            $upd = $db->table('spi_vehicle_daily')->where('tanggal', $tgl)->update([
+                'mobil_free' => (int) $f['mobil'], 'motor_free' => (int) $f['motor'],
+                'box_free'   => (int) $f['box'],   'truck_free' => (int) $f['truck'],
+                'taxi_free'  => (int) $f['taxi'],  'bus_free'   => (int) $f['bus'],
+                'updated_at' => $now,
+            ]);
+            if ($upd) { $totFree++; }
+        }
+
+        CLI::write("Selesai. qty={$totQty} income={$totInc} bulanan={$totMon} daily_vehicles={$totVeh} payment={$totPay} free={$totFree} durasi={$totDur}.", 'green');
         try {
             ActivityLog::write('update', 'spi_parking', null,
                 "sync SPI {$from}..{$to}: qty={$totQty}, income={$totInc}, bulanan={$totMon}, daily_vehicles={$totVeh}");

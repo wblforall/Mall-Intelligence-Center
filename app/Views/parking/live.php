@@ -6,6 +6,19 @@
 .pk-live-dot { width:.6rem; height:.6rem; border-radius:50%; background:#22c55e; display:inline-block; animation:pkpulse 1.6s infinite; }
 @keyframes pkpulse { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)} 70%{box-shadow:0 0 0 .5rem rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
 .pk-chart-sm { position:relative; height:220px; }
+.pk-loader { position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
+    background:rgba(15,23,42,.55); backdrop-filter:blur(3px); border-radius:1rem; transition:opacity .4s ease; }
+.pk-loader.hide { opacity:0; pointer-events:none; }
+.pk-loader-card { background:#1e293b; color:#e2e8f0; border:1px solid rgba(148,163,184,.25);
+    border-radius:1rem; padding:1.5rem 1.75rem; width:min(92%,360px); text-align:center; box-shadow:0 10px 40px rgba(0,0,0,.35); }
+.pk-spin { width:2.5rem; height:2.5rem; border:3px solid rgba(148,163,184,.3); border-top-color:#22c55e;
+    border-radius:50%; margin:0 auto .9rem; animation:pkspin .8s linear infinite; }
+@keyframes pkspin { to { transform:rotate(360deg) } }
+.pk-prog { height:8px; background:rgba(148,163,184,.25); border-radius:6px; overflow:hidden; margin-top:.85rem; }
+.pk-prog-bar { height:100%; width:0; background:linear-gradient(90deg,#16a34a,#22c55e); border-radius:6px; transition:width .5s ease; }
+.pk-skel { color:transparent !important; background:linear-gradient(90deg,rgba(148,163,184,.18),rgba(148,163,184,.35),rgba(148,163,184,.18));
+    background-size:200% 100%; border-radius:.4rem; animation:pkshim 1.3s infinite; }
+@keyframes pkshim { to { background-position:-200% 0 } }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -21,7 +34,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
     <div>
         <h4 class="mb-0"><i class="bi bi-broadcast me-2"></i>Parkir — <span class="text-success">Live</span></h4>
-        <div class="text-secondary small">Balikpapan Superblock · real-time · sumber: SPI (read-only)</div>
+        <div class="text-secondary small">Balikpapan Superblock · real-time · <?= date('d M Y') ?> · sumber: SPI (read-only)</div>
     </div>
     <div class="btn-group btn-group-sm" role="group">
         <a href="<?= base_url('parking/live') ?>" class="btn btn-success">Live</a>
@@ -35,47 +48,46 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
     <span class="pk-live-dot"></span> diperbarui otomatis tiap 30 detik <span id="pk-live-time" class="ms-1"></span>
 </div>
 
+<div id="pk-live-wrap" style="position:relative">
+<div id="pk-loader" class="pk-loader">
+    <div class="pk-loader-card">
+        <div class="pk-spin"></div>
+        <div class="fw-semibold mb-1"><i class="bi bi-broadcast text-success me-1"></i>Mengambil data live</div>
+        <div id="pk-loader-status" class="small text-secondary">Menyambung ke server SPI…</div>
+        <div class="pk-prog"><div id="pk-prog-bar" class="pk-prog-bar"></div></div>
+        <div class="small text-secondary mt-2" style="font-size:.72rem">Data real-time ditarik langsung dari SPI — butuh beberapa detik.</div>
+    </div>
+</div>
+
 <?php if ($canVeh): ?>
 <!-- OKUPANSI -->
 <h6 class="text-secondary text-uppercase small fw-bold mb-2"><i class="bi bi-car-front-fill me-1"></i>Okupansi Kendaraan</h6>
 <div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
-        <div class="card pk-kpi bg-primary text-white h-100"><div class="card-body">
-            <div class="small opacity-75">Sedang Parkir</div>
-            <div class="big" id="live-total"><?= number_format($live['total']) ?></div>
-            <div class="small opacity-75 mt-1">kendaraan saat ini</div>
+    <div class="col-12 col-lg-4">
+        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#6366f1,#4f46e5) !important"><div class="card-body d-flex flex-column justify-content-center" style="color:#fff">
+            <div class="small" style="color:#fff;opacity:.85"><i class="bi bi-broadcast me-1"></i>Sedang Parkir</div>
+            <div class="big" id="live-total" style="color:#fff"><?= number_format($live['total']) ?></div>
+            <div class="small mt-1" style="color:#fff;opacity:.85">total kendaraan saat ini</div>
         </div></div>
     </div>
-    <div class="col-6 col-lg-3">
-        <div class="card pk-kpi h-100"><div class="card-body">
-            <div class="small text-secondary"><i class="bi bi-car-front text-info"></i> Mobil</div>
-            <div class="big" id="live-mobil"><?= number_format($live['mobil']) ?></div>
-            <div class="progress mt-2" style="height:7px"><div id="bar-mobil" class="progress-bar bg-info" style="width:<?= $occMobil ?>%"></div></div>
-            <div class="small text-secondary mt-1"><span id="occ-mobil"><?= $occMobil ?></span>% dari <?= number_format($capMobil) ?></div>
-        </div></div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="card pk-kpi h-100"><div class="card-body">
-            <div class="small text-secondary"><i class="bi bi-bicycle text-warning"></i> Motor</div>
-            <div class="big" id="live-motor"><?= number_format($live['motor']) ?></div>
-            <div class="progress mt-2" style="height:7px"><div id="bar-motor" class="progress-bar bg-warning" style="width:<?= $occMotor ?>%"></div></div>
-            <div class="small text-secondary mt-1"><span id="occ-motor"><?= $occMotor ?></span>% dari <?= number_format($capMotor) ?></div>
-        </div></div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="card pk-kpi h-100"><div class="card-body">
-            <div class="small text-secondary mb-1"><i class="bi bi-p-square text-success"></i> Slot Tersedia</div>
-            <div class="d-flex justify-content-between align-items-end">
-                <div>
-                    <div class="small text-secondary"><i class="bi bi-car-front text-info"></i> Mobil</div>
-                    <div style="font-size:1.5rem;font-weight:700" class="text-info" id="avail-mobil"><?= number_format($live['lot_mobil_tersedia']) ?></div>
-                </div>
-                <div class="text-end">
-                    <div class="small text-secondary"><i class="bi bi-bicycle text-warning"></i> Motor</div>
-                    <div style="font-size:1.5rem;font-weight:700" class="text-warning" id="avail-motor"><?= number_format($live['lot_motor_tersedia']) ?></div>
-                </div>
+    <div class="col-6 col-lg-4">
+        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#1d4ed8,#22d3ee) !important"><div class="card-body" style="color:#fff">
+            <div class="fw-semibold mb-1" style="color:#fff;opacity:.9"><i class="bi bi-p-square me-1"></i>Slot Mobil Tersedia</div>
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-car-front-fill" style="font-size:1.9rem;color:#fff"></i>
+                <span class="big" id="avail-mobil" style="color:#fff"><?= number_format($live['lot_mobil_tersedia']) ?></span>
             </div>
-            <div class="small text-secondary mt-1 text-center">Total <span id="live-avail" class="fw-semibold text-success"><?= number_format($live['lot_mobil_tersedia'] + $live['lot_motor_tersedia']) ?></span> slot</div>
+            <div class="small mt-1" style="color:#fff;opacity:.85">Terisi <span id="slotsub-mobil"><?= number_format($live['mobil']) ?> / <?= number_format($capMobil) ?></span></div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-4">
+        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#0891b2,#34d399) !important"><div class="card-body" style="color:#fff">
+            <div class="fw-semibold mb-1" style="color:#fff;opacity:.9"><i class="bi bi-p-square me-1"></i>Slot Motor Tersedia</div>
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-scooter" style="font-size:1.9rem;color:#fff"></i>
+                <span class="big" id="avail-motor" style="color:#fff"><?= number_format($live['lot_motor_tersedia']) ?></span>
+            </div>
+            <div class="small mt-1" style="color:#fff;opacity:.85">Terisi <span id="slotsub-motor"><?= number_format($live['motor']) ?> / <?= number_format($capMotor) ?></span></div>
         </div></div>
     </div>
 </div>
@@ -86,7 +98,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
 <h6 class="text-secondary text-uppercase small fw-bold mb-2"><i class="bi bi-cash-coin me-1"></i>Income Hari Ini <span class="fw-normal text-secondary">(estimasi berjalan)</span></h6>
 <div class="row g-3">
     <div class="col-12 col-lg-4">
-        <div class="card pk-kpi text-white h-100" style="background:linear-gradient(135deg,#16a34a,#15803d)"><div class="card-body d-flex flex-column justify-content-center">
+        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#16a34a,#15803d) !important"><div class="card-body d-flex flex-column justify-content-center" style="color:#fff">
             <div class="small opacity-75">Total Income</div>
             <div class="big" id="live-income" style="font-size:2.4rem"><?= $rp($live['totalincome']) ?></div>
             <div class="small opacity-75 mt-1">Tunai <span id="live-tunai"><?= $rp($live['tunai']) ?></span> · Non-Tunai <span id="live-nontunai"><?= $rp($live['nontunai']) ?></span></div>
@@ -117,6 +129,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
     </div>
 </div>
 <?php endif; ?>
+</div><!-- /pk-live-wrap -->
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
@@ -136,21 +149,54 @@ if (PK.canRev) {
     });
 }
 const $ = id => document.getElementById(id);
+
+// ── Overlay loader: progress bertahap (simulasi) sampai data pertama tiba ──
+const PKL = {
+    stages: [
+        { p:15, t:'Menyambung ke server SPI…' },
+        <?php if ($canVeh): ?>{ p:45, t:'Menarik okupansi kendaraan…' },<?php endif; ?>
+        <?php if ($canRev): ?>{ p:70, t:'Menghitung income hari ini…' },
+        { p:90, t:'Mengambil rincian metode pembayaran…' },<?php endif; ?>
+    ],
+    i:0, timer:null, done:false,
+    tick() {
+        if (this.done || this.i >= this.stages.length) return;
+        const s = this.stages[this.i++];
+        const bar = $('pk-prog-bar'), st = $('pk-loader-status');
+        if (bar) bar.style.width = s.p + '%';
+        if (st)  st.textContent = s.t;
+        this.timer = setTimeout(() => this.tick(), 650);
+    },
+    start() { this.tick(); },
+    finish(ok) {
+        clearTimeout(this.timer);
+        const bar = $('pk-prog-bar'), st = $('pk-loader-status'), ld = $('pk-loader');
+        if (!ok) { // jangan kunci: retry cepat, overlay tetap bisa selesai saat sukses
+            if (st) st.innerHTML = '<span class="text-warning">Server SPI lambat merespons. Mencoba lagi…</span>';
+            setTimeout(() => refreshLive(), 3000);
+            return;
+        }
+        this.done = true;
+        if (bar) bar.style.width = '100%';
+        if (st)  st.textContent = 'Selesai';
+        setTimeout(() => { if (ld) ld.classList.add('hide'); }, 350);
+    }
+};
+
 async function refreshLive() {
     try {
         const r = await fetch(PK.url, { headers:{ 'X-Requested-With':'XMLHttpRequest' } });
-        if (!r.ok) return; const d = await r.json(); if (!d.ok) return;
+        if (!r.ok) { if (!PKL.done) PKL.finish(false); return; }
+        const d = await r.json();
+        if (!d.ok) { if (!PKL.done) PKL.finish(false); return; }
         if (PK.canVeh) {
             $('live-total').textContent = num(d.total);
             $('live-mobil').textContent = num(d.mobil);
             $('live-motor').textContent = num(d.motor);
-            $('live-avail').textContent = num((d.lot_mobil_tersedia||0)+(d.lot_motor_tersedia||0));
             $('avail-mobil').textContent = num(d.lot_mobil_tersedia);
             $('avail-motor').textContent = num(d.lot_motor_tersedia);
-            const om = Math.min(100, Math.round((d.mobil/Math.max(1,d.lot_mobil))*100));
-            const ot = Math.min(100, Math.round((d.motor/Math.max(1,d.lot_motor))*100));
-            $('occ-mobil').textContent = om; $('occ-motor').textContent = ot;
-            $('bar-mobil').style.width = om+'%'; $('bar-motor').style.width = ot+'%';
+            $('slotsub-mobil').textContent = num(d.mobil) + ' / ' + num(d.lot_mobil);
+            $('slotsub-motor').textContent = num(d.motor) + ' / ' + num(d.lot_motor);
         }
         if (PK.canRev) {
             $('live-income').textContent = rp(d.totalincome);
@@ -167,8 +213,10 @@ async function refreshLive() {
             }
         }
         $('pk-live-time').textContent = '· ' + new Date().toLocaleTimeString('id-ID');
-    } catch (e) {}
+        if (!PKL.done) PKL.finish(true);
+    } catch (e) { if (!PKL.done) PKL.finish(false); }
 }
+PKL.start();
 refreshLive();
 setInterval(refreshLive, 30000);
 </script>

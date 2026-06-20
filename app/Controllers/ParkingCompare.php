@@ -31,12 +31,13 @@ class ParkingCompare extends BaseController
         $Cur  = $this->aggregate($spi, $cur,  $canVeh, $canRev);
 
         return view('parking/compare', [
-            'title'  => 'Compare Periode — Parkir',
-            'mode'   => $mode,
-            'canVeh' => $canVeh,
-            'canRev' => $canRev,
-            'prev'   => $Prev, // lalu
-            'cur'    => $Cur,  // kini
+            'title'     => 'Compare Periode — Parkir',
+            'mode'      => $mode,
+            'canVeh'    => $canVeh,
+            'canRev'    => $canRev,
+            'prev'      => $Prev, // lalu
+            'cur'       => $Cur,  // kini
+            'dataUntil' => $spi->latestDataDate(),
         ]);
     }
 
@@ -45,24 +46,100 @@ class ParkingCompare extends BaseController
     {
         $types = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
         $out = ['label' => $p['label'], 'start' => $p['start'], 'end' => $p['end'],
-            'traffic' => null, 'revenue' => null];
+            'calDays' => (int) floor((strtotime($p['end']) - strtotime($p['start'])) / 86400) + 1,
+            'traffic' => null, 'revenue' => null, 'payments' => []];
 
         if ($canVeh) {
-            $byType = array_fill_keys($types, 0); $tot = 0;
-            foreach ($spi->fetchDailyQty($p['start'], $p['end']) as $r) {
-                foreach ($types as $t) { $byType[$t] += $r[$t]; }
-                $tot += $r['total'];
+            $rows = $this->dailyRows('spi_vehicle_daily', $p['start'], $p['end']); // DB-only (cepat)
+            $byType = array_fill_keys($types, 0); $tot = 0; $free = 0;
+            foreach ($rows as $r) {
+                foreach ($types as $t) { $byType[$t] += (int) ($r[$t] ?? 0); }
+                $tot  += (int) ($r['total'] ?? 0);
+                $free += (int) ($r['mobil_free'] ?? 0) + (int) ($r['motor_free'] ?? 0);
             }
-            $out['traffic'] = ['total' => $tot, 'byType' => $byType];
+            $out['traffic'] = ['total' => $tot, 'byType' => $byType,
+                'free' => $free, 'paid' => max(0, $tot - $free)] + $this->dayStats($rows);
         }
         if ($canRev) {
+            $rows = $this->dailyRows('spi_income_daily', $p['start'], $p['end'])
+                ?: $spi->fetchDailyIncome($p['start'], $p['end']); // fallback LIVE bila DB kosong
             $byType = array_fill_keys($types, 0); $tot = 0;
-            foreach ($spi->fetchDailyIncome($p['start'], $p['end']) as $r) {
-                foreach ($types as $t) { $byType[$t] += $r[$t]; }
-                $tot += $r['total'];
+            foreach ($rows as $r) {
+                foreach ($types as $t) { $byType[$t] += (int) ($r[$t] ?? 0); }
+                $tot += (int) ($r['total'] ?? 0);
             }
-            $out['revenue'] = ['total' => $tot, 'byType' => $byType];
+            $split = $this->monthlySplit($p['start'], $p['end']);
+            $out['revenue'] = ['total' => $tot, 'byType' => $byType,
+                'casual' => $split['casual'], 'member' => $split['member']] + $this->dayStats($rows);
+            $out['payments'] = $this->paymentMix($p['start'], $p['end']);
         }
+        return $out;
+    }
+
+    /** Ambil baris harian dari salinan lokal SPI; [] bila tabel/baris kosong (→ trigger fallback LIVE). */
+    private function dailyRows(string $table, string $start, string $end): array
+    {
+        $db = \Config\Database::connect();
+        if (! $db->tableExists($table)) { return []; }
+        return $db->table($table)
+            ->where('tanggal >=', $start)->where('tanggal <=', $end)
+            ->orderBy('tanggal', 'ASC')->get()->getResultArray();
+    }
+
+    /**
+     * Statistik harian dari kolom 'total': rata2/hari (hari berdata), hari puncak/terendah,
+     * dan split weekday (Sen–Kam) vs weekend (Jum–Min).
+     */
+    private function dayStats(array $rows): array
+    {
+        $vals = []; $wd = 0; $we = 0;
+        $peakDay = null; $peakVal = 0; $lowDay = null; $lowVal = 0;
+        foreach ($rows as $r) {
+            $v   = (int) ($r['total'] ?? 0);
+            $tgl = $r['tanggal'] ?? '';
+            $n   = $tgl ? (int) date('N', strtotime($tgl)) : 0; // 1=Sen .. 7=Min
+            if ($n >= 1 && $n <= 4)      { $wd += $v; }
+            elseif ($n >= 5 && $n <= 7)  { $we += $v; }
+            if ($v > 0) {
+                $vals[] = $v;
+                if ($v > $peakVal)                    { $peakVal = $v; $peakDay = $tgl; }
+                if ($lowVal === 0 || $v < $lowVal)    { $lowVal  = $v; $lowDay  = $tgl; }
+            }
+        }
+        $days = count($vals);
+        return [
+            'avg'     => $days ? (int) round(array_sum($vals) / $days) : 0,
+            'days'    => $days,
+            'peakDay' => $peakDay, 'peakVal' => $peakVal,
+            'lowDay'  => $lowDay,  'lowVal'  => $lowVal,
+            'weekday' => $wd, 'weekend' => $we,
+        ];
+    }
+
+    /** Casual & Member (rupiah) untuk periode — basis bulanan (SPI hanya sediakan split bulanan). */
+    private function monthlySplit(string $start, string $end): array
+    {
+        $db = \Config\Database::connect();
+        if (! $db->tableExists('spi_income_monthly')) { return ['casual' => 0, 'member' => 0]; }
+        $rows = $db->table('spi_income_monthly')
+            ->where('bulan >=', substr($start, 0, 7))->where('bulan <=', substr($end, 0, 7))
+            ->get()->getResultArray();
+        $c = 0; $m = 0;
+        foreach ($rows as $r) { $c += (int) $r['casual']; $m += (int) $r['member']; }
+        return ['casual' => $c, 'member' => $m];
+    }
+
+    /** Mix metode pembayaran (rupiah) untuk periode. method => total, urut desc. */
+    private function paymentMix(string $start, string $end): array
+    {
+        $db = \Config\Database::connect();
+        if (! $db->tableExists('spi_payment_daily')) { return []; }
+        $rows = $db->table('spi_payment_daily')->select('method, SUM(amount) AS total')
+            ->where('tanggal >=', $start)->where('tanggal <=', $end)
+            ->groupBy('method')->having('total >', 0)->orderBy('total', 'DESC')
+            ->get()->getResultArray();
+        $out = [];
+        foreach ($rows as $r) { $out[$r['method']] = (int) $r['total']; }
         return $out;
     }
 

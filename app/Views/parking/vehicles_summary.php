@@ -6,6 +6,7 @@
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
+<?= $this->include('parking/_databanner') ?>
 
 <?php $fmtDate = fn($d) => date('d M Y', strtotime($d)); ?>
 
@@ -14,10 +15,7 @@
         <h4 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i>Traffic Kendaraan — <span class="text-primary">Summary</span></h4>
         <div class="text-secondary small">Balikpapan Superblock · historis · sumber: SPI (read-only)</div>
     </div>
-    <div class="btn-group btn-group-sm" role="group">
-        <a href="<?= base_url('parking/vehicles/live') ?>" class="btn btn-outline-primary">Live</a>
-        <a href="<?= base_url('parking/vehicles/summary') ?>" class="btn btn-primary">Summary</a>
-    </div>
+    <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left-right"></i> Compare</a>
 </div>
 
 <form class="row g-2 align-items-end mb-3" method="get">
@@ -34,6 +32,42 @@
     </div>
     <div class="col-auto text-secondary small">Data tersedia sejak Jan 2023</div>
 </form>
+
+<?php
+$num = fn($n) => number_format((float) $n);
+$wkTot = max(1, ($stats['weekday'] ?? 0) + ($stats['weekend'] ?? 0));
+$grTot = max(1, $grandTotal);
+?>
+<div class="row g-3 mb-1">
+    <div class="col-6 col-md-3">
+        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#1d4ed8,#1e40af) !important"><div class="card-body" style="color:#fff">
+            <div class="small" style="color:#fff;opacity:.8">Total Kendaraan</div>
+            <div style="font-size:1.4rem;font-weight:700;color:#fff"><?= $num($grandTotal) ?></div>
+            <div class="small" style="color:#fff;opacity:.8"><?= (int) ($stats['days'] ?? 0) ?> hari berdata</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card pk-kpi h-100"><div class="card-body">
+            <div class="small text-secondary">Rata-rata / hari</div>
+            <div style="font-size:1.4rem;font-weight:700"><?= $num($stats['avg'] ?? 0) ?></div>
+            <div class="small text-secondary">kendaraan/hari</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card pk-kpi h-100"><div class="card-body">
+            <div class="small text-secondary">Hari Puncak</div>
+            <div style="font-size:1.4rem;font-weight:700"><?= $num($stats['peakVal'] ?? 0) ?></div>
+            <div class="small text-secondary"><?= ! empty($stats['peakDay']) ? $fmtDate($stats['peakDay']) : '—' ?></div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card pk-kpi h-100"><div class="card-body">
+            <div class="small text-secondary">Weekday vs Weekend</div>
+            <div style="font-size:1.05rem;font-weight:700"><?= round(($stats['weekday'] ?? 0)/$wkTot*100) ?>% <span class="text-secondary fw-normal">/ <?= round(($stats['weekend'] ?? 0)/$wkTot*100) ?>%</span></div>
+            <div class="small text-secondary">Sen–Kam / Jum–Min</div>
+        </div></div>
+    </div>
+</div>
 
 <div class="row g-3">
     <div class="col-lg-8">
@@ -75,7 +109,13 @@
         <div class="card h-100">
             <div class="card-body">
                 <h6 class="card-title">Distribusi Lama Parkir</h6>
+                <?php if (empty($durationOk)): ?>
+                <div class="text-secondary small d-flex align-items-center" style="height:240px">
+                    <span><i class="bi bi-info-circle"></i> Distribusi durasi untuk periode ini belum tersedia di arsip lokal. Jalankan <code>php spark mic:spi-sync --from 2023-01-01</code> untuk mengisinya.</span>
+                </div>
+                <?php else: ?>
                 <div class="pk-chart-sm"><canvas id="chartDuration"></canvas></div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -105,7 +145,8 @@ const PK_TL = { mobil:'Mobil', motor:'Motor', box:'Box', truck:'Truck', taxi:'Ta
     });
     const dL = ['≤1 jam','1–2 jam','2–3 jam','3–4 jam','4–5 jam','5–6 jam','6–7 jam','>7 jam'];
     const dK = ['le1','h1_2','h2_3','h3_4','h4_5','h5_6','h6_7','gt7'];
-    new Chart(document.getElementById('chartDuration'), {
+    const durEl = document.getElementById('chartDuration');
+    if (durEl) new Chart(durEl, {
         type:'bar',
         data:{ labels:dL, datasets:[{ label:'Kendaraan', data:dK.map(k=>PK.duration[k]||0), backgroundColor:'#6366f1', borderWidth:0 }] },
         options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } }

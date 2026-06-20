@@ -284,8 +284,17 @@ body { min-height: 100vh; }
 
         <?php
         $_isAdminPk    = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
-        $canViewPkVeh  = $_isAdminPk || $deptMenusNav === null || ($deptMenusNav['parking_vehicles']['can_view'] ?? false);
-        $canViewPkRev  = $_isAdminPk || $deptMenusNav === null || ($deptMenusNav['parking_revenue']['can_view'] ?? false);
+        $_userMenusPk  = session()->get('user_menus');
+        // Mirror persis canViewMenu(): admin → grant per-user (user_menus) → dept_menus.
+        // Non-admin tanpa dept = tidak punya akses (kecuali grant per-user).
+        $pkCanView = function (string $key) use ($_isAdminPk, $_userMenusPk, $deptMenusNav) {
+            if ($_isAdminPk) return true;
+            if (isset($_userMenusPk[$key]) && $_userMenusPk[$key]['can_view']) return true;
+            if ($deptMenusNav === null) return false;
+            return isset($deptMenusNav[$key]) && $deptMenusNav[$key]['can_view'];
+        };
+        $canViewPkVeh  = $pkCanView('parking_vehicles');
+        $canViewPkRev  = $pkCanView('parking_revenue');
         if ($canViewPkVeh || $canViewPkRev):
         ?>
         <div class="nav-label">Parkir</div>

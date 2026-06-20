@@ -7,6 +7,7 @@
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
+<?= $this->include('parking/_databanner') ?>
 
 <?php
 $rp  = fn($n) => 'Rp ' . number_format((float)$n, 0, ',', '.');
@@ -104,6 +105,99 @@ $TL = ['mobil'=>'Mobil','motor'=>'Motor','box'=>'Box','truck'=>'Truck','taxi'=>'
         </div>
     </div>
 </div>
+<?php endif; ?>
+
+<?php
+// ── Metrik lanjutan (avg/hari, weekday/weekend, free/paid, casual/member, ARPU, puncak) ──
+$fmtDay = fn($d) => $d ? date('d M', strtotime($d)) : '—';
+$metric = function ($label, $pv, $cv, $fmt) use ($delta) {
+    $d = $delta($cv, $pv);
+    return '<tr><td>' . $label . '</td>'
+        . '<td class="text-end text-secondary">' . $fmt($pv) . '</td>'
+        . '<td class="text-end">' . $fmt($cv) . '</td>'
+        . '<td class="text-end ' . $d['cls'] . '">'
+        . ($d['pct'] === null ? '—' : $d['arrow'] . ' ' . number_format(abs($d['pct']), 1) . '%')
+        . '</td></tr>';
+};
+$arpuPrev = ($canVeh && $canRev && $prev['traffic']['total'] > 0) ? round($prev['revenue']['total'] / $prev['traffic']['total']) : 0;
+$arpuCur  = ($canVeh && $canRev && $cur['traffic']['total']  > 0) ? round($cur['revenue']['total']  / $cur['traffic']['total'])  : 0;
+?>
+<div class="row g-3 mb-3">
+<?php if ($canVeh): $pf=$prev['traffic']; $cf=$cur['traffic'];
+    $pGratis = $pf['total']>0 ? round($pf['free']/$pf['total']*100,1) : 0;
+    $cGratis = $cf['total']>0 ? round($cf['free']/$cf['total']*100,1) : 0; ?>
+    <div class="col-lg-6"><div class="card h-100"><div class="card-body">
+        <h6 class="card-title"><i class="bi bi-car-front me-1"></i>Metrik Traffic</h6>
+        <table class="table table-sm align-middle mb-1">
+            <thead><tr><th>Metrik</th><th class="text-end">lalu</th><th class="text-end">kini</th><th class="text-end">Δ</th></tr></thead>
+            <tbody>
+                <?= $metric('Rata-rata / hari', $pf['avg'], $cf['avg'], $num) ?>
+                <?= $metric('Weekday (Sen–Kam)', $pf['weekday'], $cf['weekday'], $num) ?>
+                <?= $metric('Weekend (Jum–Min)', $pf['weekend'], $cf['weekend'], $num) ?>
+                <?= $metric('Bayar (casual)', $pf['paid'], $cf['paid'], $num) ?>
+                <?= $metric('Gratis (mbl+mtr)', $pf['free'], $cf['free'], $num) ?>
+                <?= $metric('Puncak harian', $pf['peakVal'], $cf['peakVal'], $num) ?>
+            </tbody>
+        </table>
+        <div class="small text-secondary">Hari berdata: <?= $pf['days'] ?> → <?= $cf['days'] ?> ·
+            % gratis: <?= $pGratis ?>% → <?= $cGratis ?>% ·
+            puncak: <?= $fmtDay($pf['peakDay']) ?> → <?= $fmtDay($cf['peakDay']) ?></div>
+    </div></div></div>
+<?php endif; ?>
+<?php if ($canRev): $pr=$prev['revenue']; $cr=$cur['revenue']; ?>
+    <div class="col-lg-6"><div class="card h-100"><div class="card-body">
+        <h6 class="card-title"><i class="bi bi-cash-stack me-1"></i>Metrik Revenue</h6>
+        <table class="table table-sm align-middle mb-1">
+            <thead><tr><th>Metrik</th><th class="text-end">lalu</th><th class="text-end">kini</th><th class="text-end">Δ</th></tr></thead>
+            <tbody>
+                <?= $metric('Rata-rata / hari', $pr['avg'], $cr['avg'], $rp) ?>
+                <?= $metric('Casual (bulanan)', $pr['casual'], $cr['casual'], $rp) ?>
+                <?= $metric('Member (bulanan)', $pr['member'], $cr['member'], $rp) ?>
+                <?= $metric('Weekday (Sen–Kam)', $pr['weekday'], $cr['weekday'], $rp) ?>
+                <?= $metric('Weekend (Jum–Min)', $pr['weekend'], $cr['weekend'], $rp) ?>
+                <?php if ($canVeh): ?><?= $metric('ARPU (Rp/kendaraan)', $arpuPrev, $arpuCur, $rp) ?><?php endif; ?>
+                <?= $metric('Puncak harian', $pr['peakVal'], $cr['peakVal'], $rp) ?>
+            </tbody>
+        </table>
+        <div class="small text-secondary">Casual/Member basis bulan dalam rentang ·
+            puncak: <?= $fmtDay($pr['peakDay']) ?> → <?= $fmtDay($cr['peakDay']) ?></div>
+    </div></div></div>
+<?php endif; ?>
+</div>
+
+<?php if ($canRev):
+    $methods = array_values(array_unique(array_merge(array_keys($prev['payments']), array_keys($cur['payments']))));
+    usort($methods, fn($a, $b) => ($cur['payments'][$b] ?? 0) <=> ($cur['payments'][$a] ?? 0));
+    $pTotPrev = array_sum($prev['payments']); $pTotCur = array_sum($cur['payments']); ?>
+<!-- Mix metode pembayaran -->
+<div class="card mb-3"><div class="card-body">
+    <h6 class="card-title"><i class="bi bi-credit-card me-1"></i>Mix Metode Pembayaran</h6>
+    <?php if ($methods): ?>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Metode</th>
+            <th class="text-end"><?= esc($prev['label']) ?></th><th class="text-end">%</th>
+            <th class="text-end"><?= esc($cur['label']) ?></th><th class="text-end">%</th>
+            <th class="text-end">Δ share</th></tr></thead>
+        <tbody>
+        <?php foreach ($methods as $mn):
+            $pv = $prev['payments'][$mn] ?? 0; $cv = $cur['payments'][$mn] ?? 0;
+            $ps = $pTotPrev>0 ? $pv/$pTotPrev*100 : 0; $cs = $pTotCur>0 ? $cv/$pTotCur*100 : 0;
+            $pp = $cs - $ps; ?>
+            <tr><td><?= esc($mn) ?></td>
+                <td class="text-end text-secondary"><?= $rp($pv) ?></td><td class="text-end text-secondary small"><?= round($ps) ?>%</td>
+                <td class="text-end"><?= $rp($cv) ?></td><td class="text-end small"><?= round($cs) ?>%</td>
+                <td class="text-end <?= $pp>=0?'delta-up':'delta-down' ?>"><?= ($pp>=0?'+':'').number_format($pp,1) ?>pp</td></tr>
+        <?php endforeach; ?>
+        </tbody>
+        <tfoot><tr class="fw-semibold"><td>Total</td>
+            <td class="text-end"><?= $rp($pTotPrev) ?></td><td></td>
+            <td class="text-end"><?= $rp($pTotCur) ?></td><td></td><td></td></tr></tfoot>
+    </table></div>
+    <div class="small text-secondary mt-1">Δ share = pergeseran kontribusi metode (poin persen) kini vs lalu.</div>
+    <?php else: ?>
+    <div class="text-secondary small"><i class="bi bi-info-circle"></i> Arsip metode pembayaran belum terisi untuk periode ini. Jalankan <code>php spark mic:spi-sync --from 2023-01-01</code>.</div>
+    <?php endif; ?>
+</div></div>
 <?php endif; ?>
 
 <!-- Tabel per jenis -->

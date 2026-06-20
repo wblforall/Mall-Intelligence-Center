@@ -36,20 +36,63 @@ class ParkingRevenue extends BaseController
 
         [$start, $end] = $this->range();
         $spi = new SpiReportingService();
-
+        $db  = \Config\Database::connect();
+        $types = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
         $monStart = env('SPI_DATA_START', '2023-01-01');
-        $monEnd   = date('Y-m-t');
-        $casual   = $spi->fetchMonthlyIncome($monStart, $monEnd, 0); // income=0
-        $member   = $spi->fetchMonthlyIncome($monStart, $monEnd, 1); // income=1
-        $total    = $spi->fetchMonthlyIncome($monStart, $monEnd, 2); // income=2 (casual+member)
 
-        // Total periode terpilih per kategori (semua kemungkinan)
-        $sumCasual = array_sum(array_column($casual, 'value'));
+        // ── Tren bulanan: dari DB (spi_income_monthly), fallback LIVE bila kosong ──
+        // Sekaligus akumulasi KPI untuk PERIODE terpilih (bulan yang masuk rentang start..end).
+        $casual = $member = $total = [];
+        $pStartMon = substr($start, 0, 7);
+        $pEndMon   = substr($end, 0, 7);
+        $perCasual = $perMember = 0;
+        $monRows = $db->tableExists('spi_income_monthly')
+            ? $db->table('spi_income_monthly')->where('bulan >=', substr($monStart, 0, 7))
+                ->orderBy('bulan', 'ASC')->get()->getResultArray()
+            : [];
+        if ($monRows) {
+            foreach ($monRows as $r) {
+                $label = date('M Y', strtotime($r['bulan'] . '-01'));
+                $c = (int) $r['casual']; $m = (int) $r['member'];
+                $casual[] = ['label' => $label, 'value' => $c];
+                $member[] = ['label' => $label, 'value' => $m];
+                $total[]  = ['label' => $label, 'value' => $c + $m];
+                if ($r['bulan'] >= $pStartMon && $r['bulan'] <= $pEndMon) {
+                    $perCasual += $c; $perMember += $m;
+                }
+            }
+        } else { // fallback live (lambat, ter-cache)
+            $casual = $spi->fetchMonthlyIncome($monStart, date('Y-m-t'), 0);
+            $member = $spi->fetchMonthlyIncome($monStart, date('Y-m-t'), 1);
+            foreach ($casual as $i => $c) {
+                $mv = $member[$i]['value'] ?? 0;
+                $total[] = ['label' => $c['label'], 'value' => $c['value'] + $mv];
+                $ym = date('Y-m', strtotime('1 ' . $c['label']));
+                if ($ym >= $pStartMon && $ym <= $pEndMon) {
+                    $perCasual += $c['value']; $perMember += $mv;
+                }
+            }
+        }
+        $perTotal  = $perCasual + $perMember;            // KPI periode terpilih
+        $sumCasual = array_sum(array_column($casual, 'value')); // akumulasi all-time (utk tahunan)
         $sumMember = array_sum(array_column($member, 'value'));
         $sumTotal  = array_sum(array_column($total,  'value'));
 
-        $daily  = $spi->fetchDailyIncome($start, $end);
-        $types  = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
+        // ── Income harian + per jenis: dari DB (spi_income_daily), fallback LIVE ──
+        $dayRows = $db->tableExists('spi_income_daily')
+            ? $db->table('spi_income_daily')->where('tanggal >=', $start)->where('tanggal <=', $end)
+                ->orderBy('tanggal', 'ASC')->get()->getResultArray()
+            : [];
+        if ($dayRows) {
+            $daily = array_map(fn($r) => [
+                'tanggal' => $r['tanggal'],
+                'mobil' => (int) $r['mobil'], 'motor' => (int) $r['motor'], 'box' => (int) $r['box'],
+                'truck' => (int) $r['truck'], 'taxi' => (int) $r['taxi'], 'bus' => (int) $r['bus'],
+                'total' => (int) $r['total'],
+            ], $dayRows);
+        } else {
+            $daily = $spi->fetchDailyIncome($start, $end);
+        }
         $byType = array_fill_keys($types, 0);
         $sum    = 0;
         foreach ($daily as $row) {
@@ -80,22 +123,13 @@ class ParkingRevenue extends BaseController
             }
         }
 
-        // Payment method history (arsip lokal, diisi maju oleh mic:spi-sync) untuk rentang
-        $db = \Config\Database::connect();
-        $payRows = [];
-        if ($db->tableExists('spi_payment_daily')) {
-            $payRows = $db->table('spi_payment_daily')
-                ->select('method, SUM(amount) AS total')
+        // Rincian metode pembayaran HISTORIS dari DB (spi_payment_daily, diisi mic:spi-sync)
+        $payRows = $db->tableExists('spi_payment_daily')
+            ? $db->table('spi_payment_daily')->select('method, SUM(amount) AS total')
                 ->where('tanggal >=', $start)->where('tanggal <=', $end)
-                ->groupBy('method')->orderBy('total', 'DESC')
-                ->get()->getResultArray();
-        }
-        $payDays = 0;
-        if ($db->tableExists('spi_payment_daily')) {
-            $payDays = (int) $db->table('spi_payment_daily')
-                ->where('tanggal >=', $start)->where('tanggal <=', $end)
-                ->select('tanggal')->distinct()->countAllResults();
-        }
+                ->groupBy('method')->having('total >', 0)->orderBy('total', 'DESC')
+                ->get()->getResultArray()
+            : [];
 
         return view('parking/revenue_summary', [
             'title'     => 'Summary — Revenue Parkir',
@@ -107,13 +141,16 @@ class ParkingRevenue extends BaseController
             'sumCasual' => $sumCasual,
             'sumMember' => $sumMember,
             'sumTotal'  => $sumTotal,
+            'perCasual' => $perCasual,
+            'perMember' => $perMember,
+            'perTotal'  => $perTotal,
             'daily'     => $daily,
             'byType'    => $byType,
             'sumPeriod' => $sum,
             'payRows'   => $payRows,
-            'payDays'   => $payDays,
             'yearly'    => $yearly,
             'stats'     => $stats,
+            'dataUntil' => $spi->latestDataDate(),
         ]);
     }
 

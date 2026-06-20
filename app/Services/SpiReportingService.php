@@ -178,7 +178,7 @@ class SpiReportingService
         if (($hit = cache($cacheKey)) !== null) { return $hit; }
 
         $url = $this->apiHost . '/reporting2_api/statistik.php?site=' . rawurlencode($this->site)
-            . '&tgl1=' . $startDate . '&tgl2=' . date('Y-m-d', strtotime($endDate . ' +1 day')); // end eksklusif → +1 hari
+            . '&tgl1=' . rawurlencode($startDate) . '&tgl2=' . rawurlencode(date('Y-m-d', strtotime($endDate . ' +1 day'))); // end eksklusif → +1 hari
         $html = $this->httpGet($url, false);
         $keys = ['le1', 'h1_2', 'h2_3', 'h3_4', 'h4_5', 'h5_6', 'h6_7', 'gt7'];
         $out  = array_fill_keys($keys, 0);
@@ -280,7 +280,7 @@ class SpiReportingService
         ];
 
         $url  = $this->apiHost . '/reporting2_api/statistik.php?site=' . rawurlencode($this->site)
-            . '&tgl1=' . $startDate . '&tgl2=' . date('Y-m-d', strtotime($endDate . ' +1 day')); // end eksklusif → +1 hari
+            . '&tgl1=' . rawurlencode($startDate) . '&tgl2=' . rawurlencode(date('Y-m-d', strtotime($endDate . ' +1 day'))); // end eksklusif → +1 hari
         $html = $this->httpGet($url, false);
         if ($html && preg_match_all('/<tr[^>]*>(.*?)<\/tr>/s', $html, $rows)) {
             foreach ($rows[1] as $row) {
@@ -329,7 +329,7 @@ class SpiReportingService
         $veh  = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
         $out  = [];
         $url  = $this->apiHost . '/reporting2_api/statistik.php?site=' . rawurlencode($this->site)
-            . '&tgl1=' . $startDate . '&tgl2=' . date('Y-m-d', strtotime($endDate . ' +1 day')); // end eksklusif → +1 hari
+            . '&tgl1=' . rawurlencode($startDate) . '&tgl2=' . rawurlencode(date('Y-m-d', strtotime($endDate . ' +1 day'))); // end eksklusif → +1 hari
         $html = $this->httpGet($url, false);
         $cur  = null;
         if ($html && preg_match_all('/<tr[^>]*>(.*?)<\/tr>/s', $html, $rows)) {
@@ -360,6 +360,200 @@ class SpiReportingService
         $m = ['Jan'=>'01','Feb'=>'02','Mar'=>'03','Apr'=>'04','May'=>'05','Jun'=>'06',
             'Jul'=>'07','Aug'=>'08','Sep'=>'09','Oct'=>'10','Nov'=>'11','Dec'=>'12'];
         return $y . '-' . ($m[$mon] ?? '01') . '-' . $d;
+    }
+
+    /** Peta field payment table-casual-income → nama tampil. */
+    private const PAY_MAP = [
+        'flazz' => 'Flazz', 'emoney' => 'e-Money', 'tapcash' => 'BNI TapCash', 'brizzi' => 'BRI Brizzi',
+        'dana' => 'DANA', 'gopay' => 'GoPay', 'lt' => 'Lost Ticket', 'helm' => 'Helm', 'inap' => 'Inap',
+        'mega' => 'Mega/Allo QR', 'vocher' => 'Voucher', 'valet1' => 'Valet 1', 'valet2' => 'Valet 2',
+        'bnimobile' => 'BNI Mobile', 'vip' => 'VIP', 'ovo' => 'OVO', 'lnk' => 'LinkAja', 'domo' => 'Doomo',
+        'sbt' => 'Sobatku', 'shp' => 'ShopeePay', 'valet3' => 'Valet 3', 'lbs' => 'Lebih Setor', 'on' => 'ON',
+        'qrisnisp' => 'QRIS NISP', 'other' => 'Other', 'allo' => 'Allobank', 'brimo' => 'BRIMO',
+        'mp' => 'QRIS Merah Putih', 'jd' => 'JakCard', 'vallet' => 'Vallet', 'vallet2' => 'Vallet 2',
+        'voucher' => 'Voucher 2', 'penalty' => 'Penalty', 'others' => 'Others', 'others2' => 'Others 2',
+    ];
+
+    /**
+     * Tarik tabel detail casual income (table-casual-income) per tanggal — HISTORIS.
+     * Mengandung income, per-kendaraan (casual/pass/qty), dan SEMUA metode pembayaran.
+     * Kunci: dt format 'd M Y'. Cache 1 jam.
+     * @return array<int,array{tanggal:string, income:int, qty:array, paid:array, free:array, payments:array}>
+     */
+    public function fetchCasualTable(string $startDate, string $endDate): array
+    {
+        $cacheKey = 'spi_ctab_' . md5($this->site . $startDate . $endDate);
+        if (($hit = cache($cacheKey)) !== null) { return $hit; }
+
+        $veh  = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
+        // DataTables params (kolom 0..100 cukup)
+        $cols = '';
+        for ($i = 0; $i < 101; $i++) {
+            $cols .= "&columns[$i][data]=$i&columns[$i][name]=&columns[$i][orderable]=false&columns[$i][searchable]=false";
+        }
+        $body = 'draw=1&start=0&length=400&order[0][column]=0&order[0][dir]=asc' . $cols
+            . '&kdsite=' . rawurlencode($this->site)
+            . '&dt1=' . rawurlencode($this->fmtDM($startDate))
+            . '&dt2=' . rawurlencode($this->fmtDM($endDate));
+
+        $raw = $this->postRaw('/table-casual-income', $body, 'application/x-www-form-urlencoded');
+        $j   = $raw ? json_decode($raw, true) : null;
+        $out = [];
+        foreach (($j['data'] ?? []) as $r) {
+            $payments = [];
+            foreach (self::PAY_MAP as $key => $label) {
+                $amt = (int) ($r['amount_' . $key] ?? 0);
+                if ($amt !== 0) {
+                    $payments[$label] = ($payments[$label] ?? 0) + $amt;
+                }
+            }
+            $qty = $paid = $free = [];
+            foreach ($veh as $v) {
+                $qty[$v]  = (int) ($r['total_qty_' . $v] ?? 0);
+                $paid[$v] = (int) ($r['to' . $v . 'casualout'] ?? 0);
+                $free[$v] = (int) ($r['to' . $v . 'passout'] ?? 0);
+            }
+            $out[] = [
+                'tanggal'  => substr((string) ($r['tglticket'] ?? ''), 0, 10),
+                'income'   => (int) ($r['casualincome'] ?? 0),
+                'qty'      => $qty,
+                'paid'     => $paid,
+                'free'     => $free,
+                'payments' => $payments,
+            ];
+        }
+        if (! empty($out)) { cache()->save($cacheKey, $out, 3600); }
+        return $out;
+    }
+
+    /** Agregat metode pembayaran (rupiah) untuk rentang — HISTORIS. method=>amount, urut desc. */
+    public function fetchPaymentHistory(string $startDate, string $endDate): array
+    {
+        $agg = [];
+        foreach ($this->fetchCasualTable($startDate, $endDate) as $row) {
+            foreach ($row['payments'] as $m => $amt) { $agg[$m] = ($agg[$m] ?? 0) + $amt; }
+        }
+        arsort($agg);
+        return $agg;
+    }
+
+    /**
+     * table-casual-income per potongan ≤7 hari (endpoint error utk range besar) lalu gabung.
+     * Dipakai SYNC (lambat ~8dtk/potongan) — JANGAN dipakai di page-load.
+     * @return array<int,array> sama bentuk dgn fetchCasualTable
+     */
+    public function fetchCasualTableChunked(string $startDate, string $endDate, int $chunkDays = 7): array
+    {
+        $out = [];
+        try { $cur = new \DateTime($startDate); $end = new \DateTime($endDate); }
+        catch (\Throwable $t) { return $this->fetchCasualTable($startDate, $endDate); }
+        $guard = 0;
+        while ($cur <= $end && $guard < 400) {
+            $cs = clone $cur;
+            $ce = clone $cur; $ce->modify('+' . ($chunkDays - 1) . ' days');
+            if ($ce > $end) { $ce = clone $end; }
+            foreach ($this->fetchCasualTable($cs->format('Y-m-d'), $ce->format('Y-m-d')) as $r) { $out[] = $r; }
+            $cur->modify('+' . $chunkDays . ' days');
+            $guard++;
+        }
+        return $out;
+    }
+
+    /**
+     * Tanggal terakhir yang SUDAH ada datanya (qty>0). Untuk banner "data masuk s/d ...".
+     * Diambil dari salinan lokal (spi_vehicle_daily, MAX tanggal) — TIDAK menyentuh SPI live.
+     * Fallback LIVE 14 hari hanya bila tabel lokal belum ada/masih kosong. Cache 1 jam.
+     */
+    public function latestDataDate(): ?string
+    {
+        $cacheKey = 'spi_latest_' . $this->site;
+        if (($hit = cache($cacheKey)) !== null) { return $hit ?: null; }
+
+        $latest = '';
+        $db = \Config\Database::connect();
+        if ($db->tableExists('spi_vehicle_daily')) {
+            $row = $db->table('spi_vehicle_daily')->selectMax('tanggal', 'mx')
+                ->where('total >', 0)->get()->getRowArray();
+            $latest = (string) ($row['mx'] ?? '');
+        }
+        if ($latest === '') { // fallback LIVE (DB belum terisi)
+            $start = date('Y-m-d', strtotime('-14 days'));
+            foreach ($this->fetchDailyQty($start, date('Y-m-d')) as $r) {
+                if (($r['total'] ?? 0) > 0 && $r['tanggal'] > $latest) { $latest = $r['tanggal']; }
+            }
+        }
+        if ($latest !== '') { cache()->save($cacheKey, $latest, 3600); }
+        return $latest ?: null;
+    }
+
+    /** Bucket durasi (urut) — dipakai parser & penyimpanan. */
+    private const DUR_KEYS = ['le1', 'h1_2', 'h2_3', 'h3_4', 'h4_5', 'h5_6', 'h6_7', 'gt7'];
+
+    /**
+     * Statistik PER HARI dari statistik.php: distribusi durasi (8 bucket) + jumlah Casual (paid)
+     * & Pass (free) per jenis. Endpoint balik kosong utk rentang besar → di-chunk ≤ $chunkDays.
+     * Sumber LENGKAP (≠ table-casual-income yg patchy). Dipakai SYNC (lambat, JANGAN di page-load).
+     * @return array<string,array{dur:array<string,int>, paid:array<string,int>, free:array<string,int>}>
+     */
+    public function fetchStatistikDaily(string $startDate, string $endDate, int $chunkDays = 45): array
+    {
+        $out = [];
+        try { $cur = new \DateTime($startDate); $end = new \DateTime($endDate); }
+        catch (\Throwable $t) { return $out; }
+        $guard = 0;
+        while ($cur <= $end && $guard < 200) {
+            $cs = clone $cur;
+            $ce = clone $cur; $ce->modify('+' . ($chunkDays - 1) . ' days');
+            if ($ce > $end) { $ce = clone $end; }
+            $this->parseStatistikChunk($cs->format('Y-m-d'), $ce->format('Y-m-d'), $out);
+            $cur->modify('+' . $chunkDays . ' days');
+            $guard++;
+        }
+        return $out;
+    }
+
+    /** Parse satu potongan statistik.php → akumulasi durasi + paid/free per jenis per tanggal. */
+    private function parseStatistikChunk(string $start, string $end, array &$out): void
+    {
+        $veh = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
+        $url = $this->apiHost . '/reporting2_api/statistik.php?site=' . rawurlencode($this->site)
+            . '&tgl1=' . rawurlencode($start)
+            . '&tgl2=' . rawurlencode(date('Y-m-d', strtotime($end . ' +1 day'))); // end eksklusif
+        $html = $this->httpGet($url, false);
+        if (! $html || ! preg_match_all('/<tr[^>]*>(.*?)<\/tr>/s', $html, $rows)) { return; }
+        $curDate = null;
+        foreach ($rows[1] as $row) {
+            preg_match_all('/<t[dh][^>]*>(.*?)<\/t[dh]>/s', $row, $cells);
+            $txt = array_values(array_filter(
+                array_map(fn($c) => trim(strip_tags($c)), $cells[1] ?? []),
+                fn($c) => $c !== ''
+            ));
+            if (! $txt) { continue; }
+            $idx = 0;
+            if (preg_match('/^(\d{2}-[A-Za-z]{3}-\d{4})/', $txt[0], $dm)) {
+                $ts = strtotime($dm[1]);
+                if ($ts) { $curDate = date('Y-m-d', $ts); }
+                $idx = 1; // label kendaraan di kolom berikutnya
+            }
+            $label = $txt[$idx] ?? '';
+            if (! $curDate || ! preg_match('/^(Mobil|Motor|Box|Truck|Taxi|Bus)\s+(Casual|Pass)/i', $label, $lm)) { continue; }
+            $v    = strtolower($lm[1]);
+            $type = strtolower($lm[2]);
+            $nums = array_values(array_map(
+                fn($c) => (int) str_replace(',', '', $c),
+                array_filter($txt, fn($c) => preg_match('/^[\d,]+$/', $c))
+            ));
+            if (count($nums) < 9) { continue; }
+            $buckets = array_slice($nums, -9, 8);   // 8 bucket sebelum TOTAL
+            $total   = $nums[count($nums) - 1];      // TOTAL baris (= jumlah kendaraan jenis×tipe hari itu)
+            if (! isset($out[$curDate])) {
+                $out[$curDate] = ['dur' => array_fill_keys(self::DUR_KEYS, 0),
+                    'paid' => array_fill_keys($veh, 0), 'free' => array_fill_keys($veh, 0)];
+            }
+            foreach (self::DUR_KEYS as $i => $k) { $out[$curDate]['dur'][$k] += $buckets[$i] ?? 0; }
+            if ($type === 'pass') { $out[$curDate]['free'][$v] += $total; }
+            else                  { $out[$curDate]['paid'][$v] += $total; }
+        }
     }
 
     /** Cek kredensial & konektivitas (untuk diagnostik). */
