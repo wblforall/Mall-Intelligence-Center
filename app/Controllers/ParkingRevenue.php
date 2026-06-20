@@ -57,6 +57,46 @@ class ParkingRevenue extends BaseController
             $sum += $row['total'];
         }
 
+        // Income tahunan (agregasi dari tren bulanan Total)
+        $yearly = [];
+        foreach ($total as $p) {
+            $ts = strtotime('1 ' . $p['label']);
+            if (! $ts) { continue; }
+            $y = date('Y', $ts);
+            $yearly[$y] = ($yearly[$y] ?? 0) + $p['value'];
+        }
+
+        // Statistik harian untuk rentang terpilih
+        $stats = ['avg' => 0, 'maxDay' => null, 'maxVal' => 0, 'minDay' => null, 'minVal' => 0, 'days' => 0];
+        $vals = array_values(array_filter(array_map(fn($r) => $r['total'], $daily), fn($v) => $v > 0));
+        if ($vals) {
+            $stats['days']   = count($vals);
+            $stats['avg']    = (int) round(array_sum($vals) / count($vals));
+            $stats['maxVal'] = max($vals);
+            $stats['minVal'] = min($vals);
+            foreach ($daily as $r) {
+                if ($r['total'] === $stats['maxVal'] && ! $stats['maxDay']) { $stats['maxDay'] = $r['tanggal']; }
+                if ($r['total'] === $stats['minVal'] && $r['total'] > 0 && ! $stats['minDay']) { $stats['minDay'] = $r['tanggal']; }
+            }
+        }
+
+        // Payment method history (arsip lokal, diisi maju oleh mic:spi-sync) untuk rentang
+        $db = \Config\Database::connect();
+        $payRows = [];
+        if ($db->tableExists('spi_payment_daily')) {
+            $payRows = $db->table('spi_payment_daily')
+                ->select('method, SUM(amount) AS total')
+                ->where('tanggal >=', $start)->where('tanggal <=', $end)
+                ->groupBy('method')->orderBy('total', 'DESC')
+                ->get()->getResultArray();
+        }
+        $payDays = 0;
+        if ($db->tableExists('spi_payment_daily')) {
+            $payDays = (int) $db->table('spi_payment_daily')
+                ->where('tanggal >=', $start)->where('tanggal <=', $end)
+                ->select('tanggal')->distinct()->countAllResults();
+        }
+
         return view('parking/revenue_summary', [
             'title'     => 'Summary — Revenue Parkir',
             'start'     => $start,
@@ -70,6 +110,10 @@ class ParkingRevenue extends BaseController
             'daily'     => $daily,
             'byType'    => $byType,
             'sumPeriod' => $sum,
+            'payRows'   => $payRows,
+            'payDays'   => $payDays,
+            'yearly'    => $yearly,
+            'stats'     => $stats,
         ]);
     }
 

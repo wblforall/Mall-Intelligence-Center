@@ -64,9 +64,18 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
     </div>
     <div class="col-6 col-lg-3">
         <div class="card pk-kpi h-100"><div class="card-body">
-            <div class="small text-secondary"><i class="bi bi-p-square text-success"></i> Slot Tersedia</div>
-            <div class="big text-success" id="live-avail"><?= number_format($live['lot_mobil_tersedia'] + $live['lot_motor_tersedia']) ?></div>
-            <div class="small text-secondary mt-1">Mobil <span id="avail-mobil"><?= number_format($live['lot_mobil_tersedia']) ?></span> · Motor <span id="avail-motor"><?= number_format($live['lot_motor_tersedia']) ?></span></div>
+            <div class="small text-secondary mb-1"><i class="bi bi-p-square text-success"></i> Slot Tersedia</div>
+            <div class="d-flex justify-content-between align-items-end">
+                <div>
+                    <div class="small text-secondary"><i class="bi bi-car-front text-info"></i> Mobil</div>
+                    <div style="font-size:1.5rem;font-weight:700" class="text-info" id="avail-mobil"><?= number_format($live['lot_mobil_tersedia']) ?></div>
+                </div>
+                <div class="text-end">
+                    <div class="small text-secondary"><i class="bi bi-bicycle text-warning"></i> Motor</div>
+                    <div style="font-size:1.5rem;font-weight:700" class="text-warning" id="avail-motor"><?= number_format($live['lot_motor_tersedia']) ?></div>
+                </div>
+            </div>
+            <div class="small text-secondary mt-1 text-center">Total <span id="live-avail" class="fw-semibold text-success"><?= number_format($live['lot_mobil_tersedia'] + $live['lot_motor_tersedia']) ?></span> slot</div>
         </div></div>
     </div>
 </div>

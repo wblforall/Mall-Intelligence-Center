@@ -91,6 +91,49 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
     </div>
 </div>
 
+<!-- Statistik harian + Income tahunan + Payment history -->
+<div class="row g-3 mt-1">
+    <div class="col-12 col-lg-4">
+        <div class="card h-100"><div class="card-body">
+            <h6 class="card-title">Statistik Harian <span class="text-secondary small fw-normal">(periode terpilih)</span></h6>
+            <div class="d-flex justify-content-between py-1 border-bottom"><span class="text-secondary small">Rata-rata / hari</span><strong><?= $rp($stats['avg']) ?></strong></div>
+            <div class="d-flex justify-content-between py-1 border-bottom"><span class="text-secondary small">Tertinggi <?= $stats['maxDay'] ? '('.date('d M', strtotime($stats['maxDay'])).')' : '' ?></span><strong class="text-success"><?= $rp($stats['maxVal']) ?></strong></div>
+            <div class="d-flex justify-content-between py-1 border-bottom"><span class="text-secondary small">Terendah <?= $stats['minDay'] ? '('.date('d M', strtotime($stats['minDay'])).')' : '' ?></span><strong class="text-danger"><?= $rp($stats['minVal']) ?></strong></div>
+            <div class="d-flex justify-content-between py-1"><span class="text-secondary small">Jumlah hari berdata</span><strong><?= (int)$stats['days'] ?></strong></div>
+        </div></div>
+    </div>
+    <div class="col-12 col-lg-4">
+        <div class="card h-100"><div class="card-body">
+            <h6 class="card-title">Income Tahunan <span class="text-secondary small fw-normal">(Casual+Member)</span></h6>
+            <div class="pk-chart-sm"><canvas id="chartYearly"></canvas></div>
+        </div></div>
+    </div>
+    <div class="col-12 col-lg-4">
+        <div class="card h-100"><div class="card-body">
+            <h6 class="card-title">Per Metode Pembayaran</h6>
+            <?php if (! empty($payRows)): ?>
+            <div class="text-secondary small mb-2"><?= (int)$payDays ?> hari terekam</div>
+            <div class="table-responsive" style="max-height:200px;overflow:auto">
+                <table class="table table-sm align-middle mb-0">
+                    <tbody>
+                    <?php $pTot = array_sum(array_column($payRows, 'total')); foreach ($payRows as $pr): ?>
+                        <tr><td><?= esc($pr['method']) ?></td><td class="text-end"><?= $rp($pr['total']) ?></td>
+                            <td class="text-end text-secondary small"><?= $pTot>0?round($pr['total']/$pTot*100):0 ?>%</td></tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else: ?>
+            <div class="text-secondary small">
+                <i class="bi bi-info-circle"></i> Belum ada arsip metode pembayaran untuk periode ini.
+                SPI hanya mengekspos rincian metode untuk <strong>hari ini</strong> (lihat halaman Live);
+                jalankan <code>mic:spi-sync</code> harian agar terkumpul jadi riwayat ke depan.
+            </div>
+            <?php endif; ?>
+        </div></div>
+    </div>
+</div>
+
 <div class="alert alert-secondary small mt-3 mb-0">
     <i class="bi bi-info-circle me-1"></i>
     Angka <strong>bulanan</strong> = laporan resmi <em>income-summary</em> (basis tanggal bayar). Angka <strong>harian per jenis</strong> = basis tanggal tiket — bisa beda di hari tertentu untuk transaksi non-tunai yang settle beda tanggal.
@@ -100,7 +143,7 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
 <?= $this->section('scripts') ?>
 <script>
 const PK = { casual: <?= json_encode($casual) ?>, member: <?= json_encode($member) ?>, total: <?= json_encode($total) ?>,
-    daily: <?= json_encode($daily) ?>, byType: <?= json_encode($byType) ?> };
+    daily: <?= json_encode($daily) ?>, byType: <?= json_encode($byType) ?>, yearly: <?= json_encode($yearly) ?> };
 const PK_COLORS = { mobil:'#0ea5e9', motor:'#f59e0b', box:'#10b981', truck:'#8b5cf6', taxi:'#ec4899', bus:'#ef4444' };
 const PK_TL = { mobil:'Mobil', motor:'Motor', box:'Box', truck:'Truck', taxi:'Taxi', bus:'Bus' };
 const rpShort = v => { v=Number(v||0); if(v>=1e9) return (v/1e9).toFixed(2)+' M'; if(v>=1e6) return (v/1e6).toFixed(1)+' jt'; return v.toLocaleString('id-ID'); };
@@ -124,6 +167,16 @@ const rpShort = v => { v=Number(v||0); if(v>=1e9) return (v/1e9).toFixed(2)+' M'
         options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'right' },
             tooltip:{ callbacks:{ label: c => c.label+': Rp '+Number(c.parsed).toLocaleString('id-ID') } } } }
     });
+    // Income tahunan
+    const yKeys = Object.keys(PK.yearly);
+    if (yKeys.length) new Chart(document.getElementById('chartYearly'), {
+        type:'bar',
+        data:{ labels:yKeys, datasets:[{ label:'Total', data:yKeys.map(k=>PK.yearly[k]), backgroundColor:'#15803d', borderWidth:0 }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false },
+            tooltip:{ callbacks:{ label: c => 'Rp '+Number(c.parsed.y).toLocaleString('id-ID') } } },
+            scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>rpShort(v) } } } }
+    });
+
     const dL = PK.daily.map(d => { const p=(d.tanggal||'').split('-'); return p.length===3 ? p[2]+'/'+p[1] : d.tanggal; });
     new Chart(document.getElementById('chartDaily'), {
         type:'bar',

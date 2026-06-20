@@ -124,7 +124,19 @@ class SpiSync extends BaseCommand
             $totMon++;
         }
 
-        CLI::write("Selesai. qty={$totQty} income={$totInc} bulanan={$totMon} daily_vehicles={$totVeh}.", 'green');
+        // Rincian payment HARI INI (SPI hanya ekspos hari ini) → arsip maju ke depan
+        $totPay = 0;
+        if ($to >= date('Y-m-d')) {
+            foreach ($spi->fetchPaymentBreakdown() as $p) {
+                $db->table('spi_payment_daily')->replace([
+                    'tanggal' => date('Y-m-d'), 'method' => $p['method'],
+                    'amount' => $p['amount'], 'updated_at' => $now,
+                ]);
+                $totPay++;
+            }
+        }
+
+        CLI::write("Selesai. qty={$totQty} income={$totInc} bulanan={$totMon} daily_vehicles={$totVeh} payment={$totPay}.", 'green');
         try {
             ActivityLog::write('update', 'spi_parking', null,
                 "sync SPI {$from}..{$to}: qty={$totQty}, income={$totInc}, bulanan={$totMon}, daily_vehicles={$totVeh}");

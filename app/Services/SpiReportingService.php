@@ -211,12 +211,15 @@ class SpiReportingService
         $cacheKey = 'spi_pay_' . $this->site;
         if (($hit = cache($cacheKey)) !== null) { return $hit; }
 
-        $out = [];
-        // Tunai dari feed live (no-auth)
-        $live = $this->fetchLive();
-        if ($live['ok']) { $out[] = ['method' => 'Tunai', 'amount' => $live['tunai']]; }
+        // Kumpulkan per metode ter-normalisasi (hindari duplikat, mis. "TUNAI" vs "Tunai")
+        $byMethod = []; // method => amount (urut sesuai kemunculan)
+        $add = function (string $method, int $amount) use (&$byMethod) {
+            $m = $this->normMethod($method);
+            if (! array_key_exists($m, $byMethod)) { $byMethod[$m] = 0; }
+            $byMethod[$m] += $amount;
+        };
 
-        // e-money per metode dari home (login)
+        // e-money + (kadang) tunai per metode dari home (login)
         if ($this->ensureLogin()) {
             $home = $this->httpGet($this->base . '/home', true);
             if ($home && preg_match_all(
@@ -231,12 +234,20 @@ class SpiReportingService
                         array_filter(explode(',', $blk[2]), fn($v) => trim($v) !== '')
                     ));
                     foreach (($xs[1] ?? []) as $i => $label) {
-                        $out[] = ['method' => $this->normMethod($label), 'amount' => $ys[$i] ?? 0];
+                        $add($label, $ys[$i] ?? 0);
                     }
                     break;
                 }
             }
         }
+        // Tunai dari feed live HANYA jika home tidak menyertakannya
+        $live = $this->fetchLive();
+        if ($live['ok'] && ! array_key_exists('Tunai', $byMethod)) {
+            $byMethod = ['Tunai' => $live['tunai']] + $byMethod;
+        }
+
+        $out = [];
+        foreach ($byMethod as $method => $amount) { $out[] = ['method' => $method, 'amount' => $amount]; }
         if (count($out) > 1) { cache()->save($cacheKey, $out, 60); }
         return $out;
     }
@@ -244,7 +255,7 @@ class SpiReportingService
     private function normMethod(string $m): string
     {
         $map = ['emoney' => 'e-Money', 'tapcash' => 'TapCash', 'doomo' => 'Doomo',
-            'brizzi' => 'Brizzi', 'flazz' => 'Flazz'];
+            'brizzi' => 'Brizzi', 'flazz' => 'Flazz', 'tunai' => 'Tunai'];
         return $map[strtolower(trim($m))] ?? trim($m);
     }
 
