@@ -191,8 +191,6 @@ async function refreshLive() {
         if (!d.ok) { if (!PKL.done) PKL.finish(false); return; }
         if (PK.canVeh) {
             $('live-total').textContent = num(d.total);
-            $('live-mobil').textContent = num(d.mobil);
-            $('live-motor').textContent = num(d.motor);
             $('avail-mobil').textContent = num(d.lot_mobil_tersedia);
             $('avail-motor').textContent = num(d.lot_motor_tersedia);
             $('slotsub-mobil').textContent = num(d.mobil) + ' / ' + num(d.lot_mobil);
