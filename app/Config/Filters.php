@@ -25,6 +25,7 @@ class Filters extends BaseConfig
         'invalidchars'  => InvalidChars::class,
         'secureheaders' => SecureHeaders::class,
         'auth'          => \App\Filters\AuthFilter::class,
+        'sechead'       => \App\Filters\SecurityHeaders::class,
     ];
 
     /**
@@ -43,6 +44,7 @@ class Filters extends BaseConfig
             'toolbar',
             // 'honeypot',
             'secureheaders',
+            'sechead',
         ],
     ];
 
