@@ -177,7 +177,7 @@ function daysLabel(int $d): string {
 <div class="row g-3 mb-4">
 
 <!-- KPI Events -->
-<div class="col-12 col-lg-7">
+<div class="col-12">
 <div class="row g-3 h-100">
     <div class="col-6 col-sm-3 fade-up" style="animation-delay:.1s">
         <div class="card text-center h-100 py-3">
@@ -203,34 +203,6 @@ function daysLabel(int $d): string {
             <div class="small text-muted">Selesai</div>
         </div>
     </div>
-</div>
-</div>
-
-<!-- Quick Actions -->
-<div class="col-12 col-lg-5 fade-up" style="animation-delay:.2s">
-<div class="card h-100">
-<div class="card-body py-2 px-3">
-    <div class="small fw-semibold text-muted mb-2 text-uppercase" style="letter-spacing:.05em">Shortcuts</div>
-    <div class="d-flex flex-wrap gap-2">
-        <a href="<?= base_url('traffic/input/ewalk/' . $today) ?>" class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-pencil me-1"></i>Input Traffic eWalk
-        </a>
-        <a href="<?= base_url('traffic/input/pentacity/' . $today) ?>" class="btn btn-sm btn-outline-success">
-            <i class="bi bi-pencil me-1"></i>Input Traffic Pentacity
-        </a>
-        <a href="<?= base_url('traffic/import') ?>" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-file-earmark-arrow-up me-1"></i>Import Excel
-        </a>
-        <a href="<?= base_url('traffic/summary') ?>" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-bar-chart-line me-1"></i>Traffic Summary
-        </a>
-        <?php if (in_array($user['role'], ['admin', 'manager'])): ?>
-        <a href="<?= base_url('events') ?>" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-calendar-event me-1"></i>Semua Event
-        </a>
-        <?php endif; ?>
-    </div>
-</div>
 </div>
 </div>
 
