@@ -768,48 +768,63 @@ class SpiReportingService
         return rtrim($proxy, '/') . '/' . rtrim(strtr(base64_encode($url), '+/', '-_'), '=');
     }
 
+    /** Retry untuk kegagalan transien (5xx / koneksi / timeout) — penting saat lewat proxy. */
+    private const HTTP_TRIES = 3;
+
     private function httpGet(string $url, bool $withCookies): ?string
     {
-        $ch = curl_init($this->viaProxy($url));
-        $opt = [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 25,
-            CURLOPT_CONNECTTIMEOUT => 8,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_USERAGENT      => 'MallIC/1.0 (+parking-sync)',
-        ];
-        if ($withCookies) {
-            $opt[CURLOPT_COOKIEJAR]  = $this->cookieFile;
-            $opt[CURLOPT_COOKIEFILE] = $this->cookieFile;
+        $target = $this->viaProxy($url);
+        for ($try = 1; $try <= self::HTTP_TRIES; $try++) {
+            $ch  = curl_init($target);
+            $opt = [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_USERAGENT      => 'MallIC/1.0 (+parking-sync)',
+            ];
+            if ($withCookies) {
+                $opt[CURLOPT_COOKIEJAR]  = $this->cookieFile;
+                $opt[CURLOPT_COOKIEFILE] = $this->cookieFile;
+            }
+            curl_setopt_array($ch, $opt);
+            $raw  = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($raw !== false && $code >= 200 && $code < 400) { return $raw; }
+            if ($code >= 400 && $code < 500) { return null; }       // client error → jangan ulang
+            if ($try < self::HTTP_TRIES) { usleep(1500000); }       // transien → jeda 1.5s, ulang
         }
-        curl_setopt_array($ch, $opt);
-        $raw  = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        return ($raw !== false && $code >= 200 && $code < 400) ? $raw : null;
+        return null;
     }
 
     private function httpPost(string $url, string $body, string $ctype, array $headers): ?string
     {
-        $ch = curl_init($this->viaProxy($url));
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 30,
-            CURLOPT_CONNECTTIMEOUT => 8,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $body,
-            CURLOPT_COOKIEJAR      => $this->cookieFile,
-            CURLOPT_COOKIEFILE     => $this->cookieFile,
-            CURLOPT_USERAGENT      => 'MallIC/1.0 (+parking-sync)',
-            CURLOPT_HTTPHEADER     => array_merge(['Content-Type: ' . $ctype], $headers),
-        ]);
-        $raw  = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        return ($raw !== false && $code >= 200 && $code < 400) ? $raw : null;
+        $target = $this->viaProxy($url);
+        for ($try = 1; $try <= self::HTTP_TRIES; $try++) {
+            $ch = curl_init($target);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 35,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $body,
+                CURLOPT_COOKIEJAR      => $this->cookieFile,
+                CURLOPT_COOKIEFILE     => $this->cookieFile,
+                CURLOPT_USERAGENT      => 'MallIC/1.0 (+parking-sync)',
+                CURLOPT_HTTPHEADER     => array_merge(['Content-Type: ' . $ctype], $headers),
+            ]);
+            $raw  = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($raw !== false && $code >= 200 && $code < 400) { return $raw; }
+            if ($code >= 400 && $code < 500) { return null; }
+            if ($try < self::HTTP_TRIES) { usleep(1500000); }
+        }
+        return null;
     }
 
     // ── INTERNAL: util tanggal ──────────────────────────────────
