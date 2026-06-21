@@ -14,11 +14,12 @@ class ParkingLive extends BaseController
 {
     public function index()
     {
-        $canVeh = $this->canViewMenu('parking_vehicles');
-        $canRev = $this->canViewMenu('parking_revenue');
-        if (! $canVeh && ! $canRev) {
+        // Akses Live diatur sendiri lewat menu key 'parking_live' (independen dari veh/rev).
+        if (! $this->canViewMenu('parking_live')) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
+        $canVeh = $this->canViewMenu('parking_vehicles'); // hanya untuk link silang Kendaraan
+        $canRev = $this->canViewMenu('parking_revenue');  // hanya untuk link silang Revenue
 
         // TIDAK menarik SPI di sini (lambat) — okupansi render instan dgn nilai 0, diisi via AJAX.
         $zero = ['ok' => true, 'mobil' => 0, 'motor' => 0, 'total' => 0,
@@ -27,7 +28,7 @@ class ParkingLive extends BaseController
         // Aktivitas per pintu hari ini (kumulatif, dari DB — diisi cron --flows ~30 mnt)
         $gates = ['masuk' => [], 'keluar' => []];
         $db = \Config\Database::connect();
-        if ($canVeh && $db->tableExists('spi_gate_daily')) {
+        if ($db->tableExists('spi_gate_daily')) {
             foreach ($db->table('spi_gate_daily')->where('tanggal', date('Y-m-d'))
                 ->orderBy('jumlah', 'DESC')->get()->getResultArray() as $r) {
                 $gates[$r['arah']][] = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
@@ -44,31 +45,22 @@ class ParkingLive extends BaseController
         ]);
     }
 
-    /** JSON live — field disesuaikan hak akses. */
+    /** JSON live — okupansi real-time (income/payment tidak lagi di Live). */
     public function data()
     {
-        $canVeh = $this->canViewMenu('parking_vehicles');
-        $canRev = $this->canViewMenu('parking_revenue');
-        if (! $canVeh && ! $canRev) {
+        if (! $this->canViewMenu('parking_live')) {
             return $this->response->setStatusCode(403)->setJSON(['ok' => false]);
         }
-
-        $spi  = new SpiReportingService();
-        $live = $spi->fetchLive();
-        $out  = ['ok' => $live['ok']];
-
-        if ($canVeh) {
-            $out += [
-                'mobil'              => $live['mobil'],
-                'motor'              => $live['motor'],
-                'total'              => $live['total'],
-                'lot_mobil'          => $live['lot_mobil'],
-                'lot_motor'          => $live['lot_motor'],
-                'lot_mobil_tersedia' => $live['lot_mobil_tersedia'],
-                'lot_motor_tersedia' => $live['lot_motor_tersedia'],
-            ];
-        }
-        // Income/payment TIDAK lagi ditampilkan di Live (pindah ke Okupansi Intraday).
-        return $this->response->setJSON($out);
+        $live = (new SpiReportingService())->fetchLive();
+        return $this->response->setJSON([
+            'ok'                 => $live['ok'],
+            'mobil'              => $live['mobil'],
+            'motor'              => $live['motor'],
+            'total'              => $live['total'],
+            'lot_mobil'          => $live['lot_mobil'],
+            'lot_motor'          => $live['lot_motor'],
+            'lot_mobil_tersedia' => $live['lot_mobil_tersedia'],
+            'lot_motor_tersedia' => $live['lot_motor_tersedia'],
+        ]);
     }
 }

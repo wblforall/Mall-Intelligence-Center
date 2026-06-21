@@ -17,6 +17,7 @@ class SectionConfig
         'people_dev'         => 'People Development',
         'hr_main'            => 'HR (Karyawan, Org Chart, Appraisal)',
         'traffic'            => 'Daily Traffic',
+        'parking_live'       => 'Parkir — Live (real-time)',
         'parking_vehicles'   => 'Parkir — Traffic Kendaraan',
         'parking_revenue'    => 'Parkir — Revenue',
         'legal'              => 'Legal',

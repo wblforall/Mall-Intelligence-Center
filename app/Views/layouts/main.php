@@ -293,14 +293,18 @@ body { min-height: 100vh; }
             if ($deptMenusNav === null) return false;
             return isset($deptMenusNav[$key]) && $deptMenusNav[$key]['can_view'];
         };
+        $canViewPkLive = $pkCanView('parking_live');
         $canViewPkVeh  = $pkCanView('parking_vehicles');
         $canViewPkRev  = $pkCanView('parking_revenue');
-        if ($canViewPkVeh || $canViewPkRev):
+        $canViewPkData = $canViewPkVeh || $canViewPkRev; // analisa butuh traffic/revenue
+        if ($canViewPkLive || $canViewPkData):
         ?>
         <div class="nav-label">Parkir</div>
+        <?php if ($canViewPkLive): ?>
         <a href="<?= base_url('parking/live') ?>" class="nav-link <?= uri_string() === 'parking/live' || uri_string() === 'parking' ? 'active' : '' ?>">
             <i class="bi bi-broadcast"></i> Live
         </a>
+        <?php endif; ?>
         <?php if ($canViewPkVeh): ?>
         <a href="<?= base_url('parking/vehicles/summary') ?>" class="nav-link <?= uri_string() === 'parking/vehicles/summary' ? 'active' : '' ?>">
             <i class="bi bi-car-front-fill"></i> Kendaraan — Summary
@@ -311,6 +315,7 @@ body { min-height: 100vh; }
             <i class="bi bi-graph-up-arrow"></i> Revenue — Summary
         </a>
         <?php endif; ?>
+        <?php if ($canViewPkData): ?>
         <a href="<?= base_url('parking/compare') ?>" class="nav-link <?= uri_string() === 'parking/compare' ? 'active' : '' ?>">
             <i class="bi bi-arrow-left-right"></i> Compare Periode
         </a>
@@ -320,6 +325,7 @@ body { min-height: 100vh; }
         <a href="<?= base_url('parking/recon') ?>" class="nav-link <?= uri_string() === 'parking/recon' ? 'active' : '' ?>">
             <i class="bi bi-clipboard2-data"></i> Rekaman vs SPI
         </a>
+        <?php endif; ?>
         <?php endif; ?>
 
         <?php if (isset($event)):

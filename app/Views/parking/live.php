@@ -61,7 +61,6 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
     </div>
 </div>
 
-<?php if ($canVeh): ?>
 <!-- ALERT slot hampir penuh (sisa <= ambang) -->
 <div id="pk-slot-alert" class="alert alert-danger d-none align-items-center gap-2 mb-3" role="alert">
     <i class="bi bi-exclamation-triangle-fill fs-5"></i>
@@ -98,9 +97,8 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
         </div></div>
     </div>
 </div>
-<?php endif; ?>
 
-<?php if ($canVeh && (! empty($gates['masuk']) || ! empty($gates['keluar']))):
+<?php if (! empty($gates['masuk']) || ! empty($gates['keluar'])):
 $gbar = function ($list, $color) {
     if (! $list) { echo '<div class="text-secondary small">—</div>'; return; }
     $max = max(array_column($list, 'jumlah')) ?: 1;
@@ -197,14 +195,12 @@ async function refreshLive() {
         if (!r.ok) { if (!PKL.done) PKL.finish(false); return; }
         const d = await r.json();
         if (!d.ok) { if (!PKL.done) PKL.finish(false); return; }
-        if (PK.canVeh) {
-            $('live-total').textContent = num(d.total);
-            $('avail-mobil').textContent = num(d.lot_mobil_tersedia);
-            $('avail-motor').textContent = num(d.lot_motor_tersedia);
-            $('slotsub-mobil').textContent = num(d.mobil) + ' / ' + num(d.lot_mobil);
-            $('slotsub-motor').textContent = num(d.motor) + ' / ' + num(d.lot_motor);
-            slotAlert(d.lot_mobil_tersedia || 0, d.lot_motor_tersedia || 0);
-        }
+        $('live-total').textContent = num(d.total);
+        $('avail-mobil').textContent = num(d.lot_mobil_tersedia);
+        $('avail-motor').textContent = num(d.lot_motor_tersedia);
+        $('slotsub-mobil').textContent = num(d.mobil) + ' / ' + num(d.lot_mobil);
+        $('slotsub-motor').textContent = num(d.motor) + ' / ' + num(d.lot_motor);
+        slotAlert(d.lot_mobil_tersedia || 0, d.lot_motor_tersedia || 0);
         $('pk-live-time').textContent = '· ' + new Date().toLocaleTimeString('id-ID');
         if (!PKL.done) PKL.finish(true);
     } catch (e) { if (!PKL.done) PKL.finish(false); }
