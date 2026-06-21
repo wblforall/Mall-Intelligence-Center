@@ -892,5 +892,60 @@ if (typeof Chart !== 'undefined') {
     }
 })();
 </script>
+
+<?php if (session()->get('logged_in')): ?>
+<!-- Idle auto-logout (60 menit tanpa aktivitas user; abaikan polling/background) -->
+<div id="idle-modal" style="position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.6);backdrop-filter:blur(3px)">
+    <div style="background:#1e293b;color:#e2e8f0;border:1px solid rgba(148,163,184,.25);border-radius:1rem;padding:1.6rem 1.8rem;width:min(94%,400px);text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.45)">
+        <div style="font-size:2.4rem;line-height:1;margin-bottom:.5rem"><i class="bi bi-clock-history text-warning"></i></div>
+        <div class="fw-semibold mb-1">Sesi akan berakhir</div>
+        <div class="small text-secondary mb-3">Anda tidak aktif. Otomatis keluar dalam <strong id="idle-count">60</strong> detik.</div>
+        <div class="d-flex justify-content-center gap-2">
+            <button id="idle-stay" type="button" class="btn btn-sm btn-success"><i class="bi bi-shield-check"></i> Tetap masuk</button>
+            <a href="<?= base_url('logout') ?>" class="btn btn-sm btn-outline-secondary">Keluar sekarang</a>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    const IDLE_MS = 60 * 60 * 1000;  // 60 menit
+    const WARN_MS = 60 * 1000;       // peringatan 1 menit sebelum
+    const LOGOUT = '<?= base_url('logout') ?>';
+    const modal = document.getElementById('idle-modal');
+    const countEl = document.getElementById('idle-count');
+    let last = Date.now(), warning = false, cdTimer = null;
+
+    function bump() { if (!warning) last = Date.now(); }
+    ['mousemove','mousedown','keydown','scroll','touchstart','click','wheel'].forEach(ev =>
+        window.addEventListener(ev, bump, { passive: true }));
+    // Aktivitas di tab lain (login sama) ikut reset + batalkan peringatan via localStorage
+    window.addEventListener('storage', e => {
+        if (e.key !== 'mic_activity') return;
+        last = Date.now();
+        if (warning) { warning = false; clearInterval(cdTimer); modal.style.display = 'none'; }
+    });
+    setInterval(() => { if (!warning) try { localStorage.setItem('mic_activity', String(last)); } catch (e) {} }, 15000);
+
+    function showWarning() {
+        warning = true; let left = Math.ceil(WARN_MS / 1000);
+        countEl.textContent = left; modal.style.display = 'flex';
+        cdTimer = setInterval(() => {
+            left--; countEl.textContent = left;
+            if (left <= 0) { clearInterval(cdTimer); window.location.href = LOGOUT; }
+        }, 1000);
+    }
+    document.getElementById('idle-stay').addEventListener('click', () => {
+        warning = false; clearInterval(cdTimer); modal.style.display = 'none'; last = Date.now();
+        fetch(location.href, { method: 'HEAD', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(() => {}); // refresh session
+    });
+    setInterval(() => {
+        if (warning) return;
+        const idle = Date.now() - last;
+        if (idle >= IDLE_MS) { window.location.href = LOGOUT; }
+        else if (idle >= IDLE_MS - WARN_MS) { showWarning(); }
+    }, 5000);
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>
