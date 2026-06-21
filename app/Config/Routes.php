@@ -320,6 +320,7 @@ $routes->get('parking/revenue',          'ParkingRevenue::index',    ['filter' =
 $routes->get('parking/revenue/summary',  'ParkingRevenue::summary',  ['filter' => 'auth']);
 $routes->get('parking/compare',          'ParkingCompare::index',    ['filter' => 'auth']);
 $routes->get('parking/occupancy',        'ParkingOccupancy::index',  ['filter' => 'auth']); // okupansi intraday + rekonsiliasi
+$routes->get('parking/recon',            'ParkingRecon::index',      ['filter' => 'auth']); // analisa: rekaman vs SPI final
 $routes->post('parking/sync',            'ParkingSync::run',         ['filter' => 'auth']); // tarik data SPI manual
 
 // Event Locations master (admin only)

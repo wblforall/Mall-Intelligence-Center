@@ -317,6 +317,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('parking/occupancy') ?>" class="nav-link <?= uri_string() === 'parking/occupancy' ? 'active' : '' ?>">
             <i class="bi bi-activity"></i> Okupansi Intraday
         </a>
+        <a href="<?= base_url('parking/recon') ?>" class="nav-link <?= uri_string() === 'parking/recon' ? 'active' : '' ?>">
+            <i class="bi bi-clipboard2-data"></i> Rekaman vs SPI
+        </a>
         <?php endif; ?>
 
         <?php if (isset($event)):
