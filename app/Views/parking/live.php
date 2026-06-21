@@ -91,7 +91,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
         <div id="card-slot-motor" class="card pk-kpi h-100" style="background:linear-gradient(135deg,#0891b2,#34d399) !important"><div class="card-body" style="color:#fff">
             <div class="fw-semibold mb-1" style="color:#fff;opacity:.9"><i class="bi bi-p-square me-1"></i>Slot Motor Tersedia</div>
             <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-scooter" style="font-size:1.9rem;color:#fff"></i>
+                <svg viewBox="0 0 24 24" fill="#fff" style="width:1.9rem;height:1.9rem;flex-shrink:0" aria-label="motor"><path d="M19.44 9.03L15.41 5H11v2h3.59l2 2H5c-2.8 0-5 2.2-5 5s2.2 5 5 5c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77 0 2.8 2.2 5 5 5s5-2.2 5-5c0-2.79-2.2-4.97-4.56-4.97zM7.82 15C7.4 16.15 6.28 17 5 17c-1.63 0-3-1.37-3-3s1.37-3 3-3c1.28 0 2.4.85 2.82 2H5v2h2.82zM19 17c-1.63 0-3-1.37-3-3s1.37-3 3-3 3 1.37 3 3-1.37 3-3 3z"/></svg>
                 <span class="big" id="avail-motor" style="color:#fff"><?= number_format($live['lot_motor_tersedia']) ?></span>
             </div>
             <div class="small mt-1" style="color:#fff;opacity:.85">Terisi <span id="slotsub-motor"><?= number_format($live['motor']) ?> / <?= number_format($capMotor) ?></span></div>
