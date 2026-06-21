@@ -75,6 +75,10 @@ class ParkingRecon extends BaseController
         $payDays = array_values(array_filter(array_keys($eod), fn($t) => ! empty($eod[$t]['payments'])));
         rsort($payDays);
         $payDate = $this->request->getGet('paydate') ?: ($payDays[0] ?? null);
+        // SPI "final" sebenarnya hanya s/d tanggal final terakhir (vehicle_daily, ±H-3).
+        // spi_payment_daily kadang punya data hari berjalan tapi PARSIAL → jangan dianggap final.
+        $latestFinal = $vehFinal ? max(array_keys($vehFinal)) : null;
+        $payIsFinal = $payDate && $latestFinal && $payDate <= $latestFinal;
         $payCompare = [];
         if ($canRev && $payDate) {
             $cap = [];
@@ -82,7 +86,7 @@ class ParkingRecon extends BaseController
                 $cap[$this->normKey($p['method'] ?? '')] = ['label' => $p['method'] ?? '', 'amt' => (int) ($p['amount'] ?? 0)];
             }
             $fin = [];
-            if ($has('spi_payment_daily')) {
+            if ($payIsFinal && $has('spi_payment_daily')) {
                 foreach ($db->table('spi_payment_daily')->select('method, SUM(amount) total')->where('tanggal', $payDate)->groupBy('method')->get()->getResultArray() as $r) {
                     $fin[$this->normKey($r['method'])] = ['label' => $r['method'], 'amt' => (int) $r['total']];
                 }
@@ -129,7 +133,8 @@ class ParkingRecon extends BaseController
             'payDays'    => $payDays,
             'payDate'    => $payDate,
             'payCompare' => $payCompare,
-            'latestFinal' => $vehFinal ? max(array_keys($vehFinal)) : null,
+            'payIsFinal' => $payIsFinal,
+            'latestFinal' => $latestFinal,
         ]);
     }
 

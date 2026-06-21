@@ -117,7 +117,11 @@ $delta = function ($cap, $fin) {
         <?php endif; ?>
     </div>
     <?php if ($payCompare): ?>
+    <?php if (! $payIsFinal): ?>
+    <div class="alert alert-warning py-2 px-3 small mb-2"><i class="bi bi-exclamation-triangle"></i> <strong><?= $fmtDate($payDate) ?> belum final di SPI</strong> (final terakhir <?= $fmtDate($latestFinal) ?>, ±H-3). Kolom SPI sengaja dikosongkan — data <code>spi_payment_daily</code> hari berjalan masih <em>parsial</em>, jadi tak dibandingkan agar tak menyesatkan. Terisi otomatis setelah SPI finalkan tanggal ini.</div>
+    <?php else: ?>
     <div class="text-secondary small mb-2"><i class="bi bi-info-circle"></i> Rekaman = snapshot EOD (hari itu); SPI = arsip <code>spi_payment_daily</code> (sering bolong — rekaman bisa menambal).</div>
+    <?php endif; ?>
     <div class="table-responsive"><table class="table table-sm align-middle mb-0">
         <thead><tr><th>Metode</th><th class="text-end">Rekaman</th><th class="text-end">SPI Final</th><th class="text-end">Selisih</th></tr></thead>
         <tbody>
@@ -126,7 +130,7 @@ $delta = function ($cap, $fin) {
             <tr>
                 <td><?= esc($p['method']) ?></td>
                 <td class="text-end"><?= $rp($p['cap']) ?></td>
-                <td class="text-end"><?= $p['fin'] === null ? '<span class="text-secondary">— (kosong di SPI)</span>' : $rp($p['fin']) ?></td>
+                <td class="text-end"><?= $p['fin'] === null ? ($payIsFinal ? '<span class="text-secondary">— (kosong di SPI)</span>' : '<span class="text-secondary">menunggu</span>') : $rp($p['fin']) ?></td>
                 <td class="text-end <?= $dd['c'] ?>"><?= $dd['t'] ?></td>
             </tr>
         <?php endforeach; ?>
