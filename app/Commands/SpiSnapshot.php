@@ -10,10 +10,13 @@ use App\Services\SpiReportingService;
  * Rekam 1 snapshot LIVE parkir SPI ke spi_live_snapshot. Dijalankan cron tiap ~15 menit.
  * Independen dari sesi login MIC — pakai kredensial SPI sendiri.
  *
- *   php spark mic:spi-snapshot                 # rekam 1 snapshot sekarang
- *   php spark mic:spi-snapshot --prune-days 90 # + hapus snapshot > 90 hari (rollup nanti)
+ *   php spark mic:spi-snapshot                 # okupansi saja (cepat ~1dtk)
+ *   php spark mic:spi-snapshot --flows         # + dashboard /home (arus/gate/jenis/payment, ~24dtk)
+ *   php spark mic:spi-snapshot --prune-days 120
  *
- * Cron disarankan: setiap 10 menit  ->  0,10,20,30,40,50 * * * *
+ * Cron disarankan (pisah beban — home SPI berat):
+ *   10,20,40,50 * * * *  mic:spi-snapshot --prune-days 120   # okupansi tiap 10 mnt
+ *   0,30 * * * *         mic:spi-snapshot --flows             # + home tiap 30 mnt
  */
 class SpiSnapshot extends BaseCommand
 {
@@ -21,10 +24,15 @@ class SpiSnapshot extends BaseCommand
     protected $name        = 'mic:spi-snapshot';
     protected $description  = 'Rekam snapshot live parkir SPI (okupansi + income + payment).';
     protected $usage        = 'mic:spi-snapshot [--prune-days N]';
-    protected $options      = ['--prune-days' => 'Hapus snapshot lebih tua dari N hari (default: tidak)'];
+    protected $options      = [
+        '--prune-days' => 'Hapus snapshot lebih tua dari N hari (default: tidak)',
+        '--flows'      => 'Ikut tarik dashboard /home (arus jam/gate/jenis/payment) — lambat ~24dtk',
+    ];
 
     public function run(array $params)
     {
+        $withFlows = (bool) CLI::getOption('flows');
+
         $spi  = new SpiReportingService();
         $live = $spi->fetchLive();
         if (empty($live['ok'])) {
@@ -37,10 +45,12 @@ class SpiSnapshot extends BaseCommand
         $now = date('Y-m-d H:i:s');
         $today = date('Y-m-d');
 
-        // Satu kali fetch dashboard /home → arus + gate + per-jenis + payment (hemat: tak fetch home 2×)
+        // /home (arus + gate + per-jenis + payment) hanya saat --flows (home ~24dtk; jangan tiap run).
         $flows = ['hourly' => [], 'gates' => ['masuk' => [], 'keluar' => []], 'types' => [], 'payments' => []];
-        try { $flows = $spi->fetchDashboardFlows(); } catch (\Throwable $e) {
-            log_message('warning', '[spi-snapshot] flows: ' . $e->getMessage());
+        if ($withFlows) {
+            try { $flows = $spi->fetchDashboardFlows(); } catch (\Throwable $e) {
+                log_message('warning', '[spi-snapshot] flows: ' . $e->getMessage());
+            }
         }
         // payments_json dari dashboard (Jenis Pembayaran) → format [{method,amount}]
         $payments = [];
@@ -65,8 +75,8 @@ class SpiSnapshot extends BaseCommand
         CLI::write("Snapshot tersimpan {$now} — di dalam: {$live['total']} (mobil {$live['mobil']}/motor {$live['motor']}), "
             . 'income: ' . number_format($live['totalincome']) . '.', 'green');
 
-        // Arus per jam & per pintu + per-jenis (kumulatif hari ini → ganti penuh tiap rekaman)
-        try {
+        // Arus per jam & per pintu + per-jenis (hanya saat --flows; kumulatif hari ini → ganti penuh)
+        if ($withFlows) try {
             if (! empty($flows['hourly'])) {
                 $db->table('spi_hourly_flow')->where('tanggal', $today)->delete();
                 $rows = [];

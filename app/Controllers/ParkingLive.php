@@ -65,9 +65,23 @@ class ParkingLive extends BaseController
                 'tunai'       => $live['tunai'],
                 'nontunai'    => $live['nontunai'],
                 'totalincome' => $live['totalincome'],
-                'payments'    => $spi->fetchPaymentBreakdown(),
+                // Rincian metode dari snapshot terbaru (DB) — bukan scrape home (yg ~24dtk).
+                // Diperbarui berkala oleh cron mic:spi-snapshot.
+                'payments'    => $this->latestPayments(),
             ];
         }
         return $this->response->setJSON($out);
+    }
+
+    /** Rincian metode pembayaran dari snapshot terbaru yang punya data (DB, instan). */
+    private function latestPayments(): array
+    {
+        $db = \Config\Database::connect();
+        if (! $db->tableExists('spi_live_snapshot')) { return []; }
+        $row = $db->table('spi_live_snapshot')
+            ->select('payments_json')->where('payments_json IS NOT NULL', null, false)
+            ->orderBy('captured_at', 'DESC')->limit(1)->get()->getRowArray();
+        $arr = $row ? json_decode($row['payments_json'] ?: '[]', true) : [];
+        return is_array($arr) ? $arr : [];
     }
 }
