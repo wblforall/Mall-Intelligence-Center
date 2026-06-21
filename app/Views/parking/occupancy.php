@@ -140,8 +140,8 @@ $renderHeat = function (array $data, string $rgb) use ($dows, $num) {
         </div>
     </div>
     <div id="heat-occ"><?php $renderHeat($heat, '14,165,233'); ?></div>
-    <div id="heat-in" style="display:none"><?php $renderHeat($heatM, '34,197,94'); ?></div>
-    <div id="heat-out" style="display:none"><?php $renderHeat($heatK, '245,158,11'); ?></div>
+    <div id="heat-in" style="display:none"></div><!-- di-build lazy via JS -->
+    <div id="heat-out" style="display:none"></div>
     <div class="text-secondary small mt-2"><b>Okupansi</b> = kepadatan (kendaraan di dalam). <b>Masuk/Keluar</b> = arus per jam. Makin pekat makin ramai; terisi seiring rekaman bertambah.</div>
 </div></div>
 
@@ -247,11 +247,38 @@ if (flEl && FLOW.length) new Chart(flEl, {
         scales:{ x:{ ticks:{ font:{ size:9 } } }, y:{ beginAtZero:true } } }
 });
 
-// Toggle heatmap Okupansi / Masuk / Keluar
+// Heatmap Masuk/Keluar: data ringkas (JSON) + build lazy saat di-toggle (DOM awal ringan)
+const HEATD = { in: <?= json_encode($heatM) ?>, out: <?= json_encode($heatK) ?> };
+const HEAT_RGB = { in:'34,197,94', out:'245,158,11' };
+const HEAT_DOWS = [[2,'Sen'],[3,'Sel'],[4,'Rab'],[5,'Kam'],[6,'Jum'],[7,'Sab'],[1,'Min']];
+const fmtN = n => Number(n).toLocaleString('id-ID');
+function buildHeat(key) {
+    const el = document.getElementById('heat-'+key);
+    if (!el || el.dataset.built) return;
+    const data = HEATD[key] || {}, rgb = HEAT_RGB[key];
+    let max = 1;
+    for (const d in data) for (const h in data[d]) if (data[d][h] > max) max = data[d][h];
+    let html = '<div class="table-responsive"><table class="hm-table mb-0"><thead><tr><th></th>';
+    for (let h=0; h<24; h++) html += '<th class="hm-lbl">'+h+'</th>';
+    html += '</tr></thead><tbody>';
+    for (const [dw,lbl] of HEAT_DOWS) {
+        html += '<tr><td class="hm-lbl text-end fw-semibold">'+lbl+'</td>';
+        for (let h=0; h<24; h++) {
+            const v = (data[dw]||{})[h];
+            if (v === undefined) html += '<td><div class="hm-cell" style="background:rgba(148,163,184,.12)"></div></td>';
+            else { const a = (0.12+0.88*(v/max)).toFixed(2); html += '<td><div class="hm-cell" style="background:rgba('+rgb+','+a+')" title="'+lbl+' '+h+':00 — '+fmtN(v)+'">'+(v>=max*0.6?fmtN(v):'')+'</div></td>'; }
+        }
+        html += '</tr>';
+    }
+    el.innerHTML = html + '</tbody></table></div>';
+    el.dataset.built = '1';
+}
 document.querySelectorAll('#heat-toggle [data-heat]').forEach(b => b.addEventListener('click', () => {
     document.querySelectorAll('#heat-toggle [data-heat]').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    ['occ','in','out'].forEach(k => { const el = document.getElementById('heat-'+k); if (el) el.style.display = (k === b.dataset.heat) ? '' : 'none'; });
+    const key = b.dataset.heat;
+    if (key === 'in' || key === 'out') buildHeat(key);
+    ['occ','in','out'].forEach(k => { const el = document.getElementById('heat-'+k); if (el) el.style.display = (k === key) ? '' : 'none'; });
 }));
 </script>
 <?php endif; ?>
