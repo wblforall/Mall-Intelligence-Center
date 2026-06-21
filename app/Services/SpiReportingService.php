@@ -756,9 +756,21 @@ class SpiReportingService
 
     // ── INTERNAL: low-level HTTP ────────────────────────────────
 
+    /**
+     * Bila SPI_PROXY diset (mis. hosting tak bisa outbound ke port SPI), bungkus URL target
+     * ke proxy sebagai base64url di path (hindari ".php" di path — diblok sebagian proxy).
+     * Transparan: tanpa SPI_PROXY → URL apa adanya (dev lokal tak terpengaruh).
+     */
+    private function viaProxy(string $url): string
+    {
+        $proxy = env('SPI_PROXY', '');
+        if ($proxy === '' || ! str_starts_with($url, 'http://103.119.142.252')) { return $url; }
+        return rtrim($proxy, '/') . '/' . rtrim(strtr(base64_encode($url), '+/', '-_'), '=');
+    }
+
     private function httpGet(string $url, bool $withCookies): ?string
     {
-        $ch = curl_init($url);
+        $ch = curl_init($this->viaProxy($url));
         $opt = [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 25,
@@ -780,7 +792,7 @@ class SpiReportingService
 
     private function httpPost(string $url, string $body, string $ctype, array $headers): ?string
     {
-        $ch = curl_init($url);
+        $ch = curl_init($this->viaProxy($url));
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 30,
