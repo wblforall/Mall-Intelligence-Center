@@ -6,8 +6,8 @@
 .pk-live-dot { width:.6rem; height:.6rem; border-radius:50%; background:#22c55e; display:inline-block; animation:pkpulse 1.6s infinite; }
 @keyframes pkpulse { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)} 70%{box-shadow:0 0 0 .5rem rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
 .pk-chart-sm { position:relative; height:220px; }
-.pk-loader { position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
-    background:rgba(15,23,42,.55); backdrop-filter:blur(3px); border-radius:1rem; transition:opacity .4s ease; }
+.pk-loader { position:fixed; inset:0; z-index:1080; display:flex; align-items:center; justify-content:center;
+    background:rgba(15,23,42,.55); backdrop-filter:blur(3px); transition:opacity .4s ease; }
 .pk-loader.hide { opacity:0; pointer-events:none; }
 .pk-loader-card { background:#1e293b; color:#e2e8f0; border:1px solid rgba(148,163,184,.25);
     border-radius:1rem; padding:1.5rem 1.75rem; width:min(92%,360px); text-align:center; box-shadow:0 10px 40px rgba(0,0,0,.35); }
