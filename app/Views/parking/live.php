@@ -38,14 +38,11 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
         <h4 class="mb-0"><i class="bi bi-broadcast me-2"></i>Parkir — <span class="text-success">Live</span></h4>
         <div class="text-secondary small">Balikpapan Superblock · real-time · <?= date('d M Y') ?> · sumber: SPI (read-only)</div>
     </div>
-    <div class="d-flex flex-wrap align-items-center gap-2">
-        <?= $this->include('parking/_syncbtn') ?>
-        <div class="btn-group btn-group-sm" role="group">
-            <a href="<?= base_url('parking/live') ?>" class="btn btn-success">Live</a>
-            <?php if ($canVeh): ?><a href="<?= base_url('parking/vehicles/summary') ?>" class="btn btn-outline-primary">Kendaraan</a><?php endif; ?>
-            <?php if ($canRev): ?><a href="<?= base_url('parking/revenue/summary') ?>" class="btn btn-outline-primary">Revenue</a><?php endif; ?>
-            <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-primary">Compare</a>
-        </div>
+    <div class="btn-group btn-group-sm" role="group">
+        <a href="<?= base_url('parking/live') ?>" class="btn btn-success">Live</a>
+        <?php if ($canVeh): ?><a href="<?= base_url('parking/vehicles/summary') ?>" class="btn btn-outline-primary">Kendaraan</a><?php endif; ?>
+        <?php if ($canRev): ?><a href="<?= base_url('parking/revenue/summary') ?>" class="btn btn-outline-primary">Revenue</a><?php endif; ?>
+        <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-primary">Compare</a>
     </div>
 </div>
 
