@@ -27,10 +27,13 @@ $TL = ['mobil'=>'Mobil','motor'=>'Motor','box'=>'Box','truck'=>'Truck','taxi'=>'
         <h4 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Compare Periode — Parkir</h4>
         <div class="text-secondary small">Balikpapan Superblock · <?= esc($prev['label']) ?> <i class="bi bi-arrow-right"></i> <?= esc($cur['label']) ?></div>
     </div>
-    <div class="btn-group btn-group-sm" role="group">
-        <a href="?mode=mom" class="btn btn-<?= $mode==='mom'?'primary':'outline-primary' ?>">Bulan lalu vs ini</a>
-        <a href="?mode=yoy" class="btn btn-<?= $mode==='yoy'?'primary':'outline-primary' ?>">YoY (vs tahun lalu)</a>
-        <a href="?mode=custom" class="btn btn-<?= $mode==='custom'?'primary':'outline-primary' ?>">Custom</a>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <?= $this->include('parking/_syncbtn') ?>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="?mode=mom" class="btn btn-<?= $mode==='mom'?'primary':'outline-primary' ?>">Bulan lalu vs ini</a>
+            <a href="?mode=yoy" class="btn btn-<?= $mode==='yoy'?'primary':'outline-primary' ?>">YoY (vs tahun lalu)</a>
+            <a href="?mode=custom" class="btn btn-<?= $mode==='custom'?'primary':'outline-primary' ?>">Custom</a>
+        </div>
     </div>
 </div>
 

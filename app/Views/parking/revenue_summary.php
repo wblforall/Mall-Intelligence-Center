@@ -18,7 +18,10 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
         <h4 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Revenue Parkir — <span class="text-success">Summary</span></h4>
         <div class="text-secondary small">Balikpapan Superblock · historis · sumber: SPI (read-only)</div>
     </div>
-    <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-left-right"></i> Compare</a>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <?= $this->include('parking/_syncbtn') ?>
+        <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-left-right"></i> Compare</a>
+    </div>
 </div>
 
 <form class="row g-2 align-items-end mb-3" method="get">

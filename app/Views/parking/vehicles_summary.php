@@ -15,7 +15,10 @@
         <h4 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i>Traffic Kendaraan — <span class="text-primary">Summary</span></h4>
         <div class="text-secondary small">Balikpapan Superblock · historis · sumber: SPI (read-only)</div>
     </div>
-    <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left-right"></i> Compare</a>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <?= $this->include('parking/_syncbtn') ?>
+        <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left-right"></i> Compare</a>
+    </div>
 </div>
 
 <form class="row g-2 align-items-end mb-3" method="get">

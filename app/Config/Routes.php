@@ -319,6 +319,7 @@ $routes->get('parking/vehicles/summary', 'ParkingVehicles::summary', ['filter' =
 $routes->get('parking/revenue',          'ParkingRevenue::index',    ['filter' => 'auth']);
 $routes->get('parking/revenue/summary',  'ParkingRevenue::summary',  ['filter' => 'auth']);
 $routes->get('parking/compare',          'ParkingCompare::index',    ['filter' => 'auth']);
+$routes->post('parking/sync',            'ParkingSync::run',         ['filter' => 'auth']); // tarik data SPI manual
 
 // Event Locations master (admin only)
 $routes->get('event-locations', 'EventLocations::index', ['filter' => 'auth:admin']);
