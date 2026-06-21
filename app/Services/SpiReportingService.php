@@ -67,7 +67,7 @@ class SpiReportingService
         $raw = $this->httpGet($this->liveHost . '/parking3/load2.php?siteid=' . rawurlencode($this->site), false);
         $j   = $raw ? json_decode($raw, true) : null;
         if (! is_array($j)) {
-            return ['ok' => false, 'mobil' => 0, 'motor' => 0, 'total' => 0,
+            return ['ok' => false, 'mobil' => 0, 'motor' => 0, 'other' => 0, 'total' => 0,
                 'lot_mobil' => 0, 'lot_motor' => 0, 'lot_mobil_tersedia' => 0,
                 'lot_motor_tersedia' => 0, 'tunai' => 0, 'nontunai' => 0, 'totalincome' => 0];
         }
@@ -76,6 +76,7 @@ class SpiReportingService
             'ok'                 => true,
             'mobil'              => $num($j['mobil'] ?? 0),
             'motor'              => $num($j['motor'] ?? 0),
+            'other'              => $num($j['other'] ?? 0),
             'total'              => $num($j['total'] ?? 0),
             'lot_mobil'          => $num($j['lot_mobil'] ?? 0),
             'lot_motor'          => $num($j['lot_motor'] ?? 0),
@@ -554,6 +555,77 @@ class SpiReportingService
             if ($type === 'pass') { $out[$curDate]['free'][$v] += $total; }
             else                  { $out[$curDate]['paid'][$v] += $total; }
         }
+    }
+
+    /**
+     * Arus masuk/keluar HARI INI dari dashboard SPI /home (server-rendered, kumulatif berjalan):
+     *  - hourly: per jam, jumlah SEMUA jenis kendaraan (sum datasets).
+     *  - gates:  per pintu (gate), masuk & keluar.
+     * @return array{hourly:array<int,array{masuk:int,keluar:int}>, gates:array{masuk:array<string,int>,keluar:array<string,int>}}
+     */
+    public function fetchDashboardFlows(): array
+    {
+        $out = ['hourly' => [], 'gates' => ['masuk' => [], 'keluar' => []]];
+        if (! $this->ensureLogin()) { return $out; }
+        $html = $this->httpGet($this->base . '/home', true);
+        if (! $html) { return $out; }
+
+        $out['gates']['masuk']  = $this->parseGateChart($html, 'myChartAksesMasuk');
+        $out['gates']['keluar'] = $this->parseGateChart($html, 'myChartAksesKeluar');
+
+        $masuk  = $this->parseHourChart($html, 'myChartMasukStatistik');
+        $keluar = $this->parseHourChart($html, 'statistics');
+        foreach ($masuk as $h => $v)  { $out['hourly'][$h]['masuk']  = $v; $out['hourly'][$h]['keluar'] ??= 0; }
+        foreach ($keluar as $h => $v) { $out['hourly'][$h]['keluar'] = $v; $out['hourly'][$h]['masuk']  ??= 0; }
+        ksort($out['hourly']);
+        return $out;
+    }
+
+    /** Chart per-pintu: ambil var xValues/yValues terakhir sebelum new Chart("$canvas"). */
+    private function parseGateChart(string $html, string $canvas): array
+    {
+        $p = strpos($html, 'new Chart("' . $canvas);
+        if ($p === false) { $p = strpos($html, "new Chart('" . $canvas); }
+        if ($p === false) { return []; }
+        $pre = substr($html, 0, $p);
+        if (! preg_match_all('/var\s+xValues\s*=\s*\[([^\]]*)\]/s', $pre, $xm)
+            || ! preg_match_all('/var\s+yValues\s*=\s*\[([^\]]*)\]/s', $pre, $ym)) { return []; }
+        $gates = array_map(fn($s) => trim($s, " \t\n\r\"'"), array_filter(explode(',', end($xm[1])), fn($s) => trim($s) !== ''));
+        $vals  = array_map(fn($s) => (int) trim($s), array_filter(explode(',', end($ym[1])), fn($s) => trim($s) !== ''));
+        $res = [];
+        foreach ($gates as $i => $g) { if ($g !== '') { $res[$g] = (int) ($vals[$i] ?? 0); } }
+        return $res;
+    }
+
+    /** Chart jam: jumlahkan semua dataset data:[...] per bucket, map label "H - H+1" → jam. */
+    private function parseHourChart(string $html, string $canvas): array
+    {
+        $p = strpos($html, 'new Chart("' . $canvas);
+        if ($p === false) { $p = strpos($html, "new Chart('" . $canvas); }
+        if ($p === false) { return []; }
+        $pre = substr($html, 0, $p);
+        if (! preg_match_all('/var\s+xValues\s*=\s*\[([^\]]*)\]/s', $pre, $xm)) { return []; }
+        $labels = array_values(array_filter(array_map('trim', explode(',', end($xm[1])))));
+        $labels = array_map(fn($s) => trim($s, " \t\n\r\"'"), $labels);
+
+        $nextP = strpos($html, 'new Chart(', $p + 10);
+        $block = substr($html, $p, $nextP !== false ? $nextP - $p : 5000);
+        preg_match_all('/data:\s*\[([^\]]*)\]/s', $block, $dm);
+        $sum = array_fill(0, count($labels), 0);
+        foreach ($dm[1] as $arr) {
+            $i = 0;
+            foreach (explode(',', $arr) as $tok) {
+                $tok = trim($tok);
+                if ($tok === '') { continue; }
+                if (isset($sum[$i])) { $sum[$i] += (int) $tok; }
+                $i++;
+            }
+        }
+        $res = [];
+        foreach ($labels as $i => $lab) {
+            if (preg_match('/^(\d+)\s*-\s*(\d+)/', $lab, $lm)) { $res[(int) $lm[1]] = $sum[$i] ?? 0; }
+        }
+        return $res;
     }
 
     /** Cek kredensial & konektivitas (untuk diagnostik). */

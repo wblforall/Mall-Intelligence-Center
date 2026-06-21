@@ -47,6 +47,7 @@ class SpiSnapshot extends BaseCommand
             'total_in'        => (int) $live['total'],
             'mobil_in'        => (int) $live['mobil'],
             'motor_in'        => (int) $live['motor'],
+            'other_in'        => (int) ($live['other'] ?? 0),
             'lot_mobil_avail' => (int) $live['lot_mobil_tersedia'],
             'lot_motor_avail' => (int) $live['lot_motor_tersedia'],
             'total_income'    => (int) $live['totalincome'],
@@ -58,6 +59,35 @@ class SpiSnapshot extends BaseCommand
 
         CLI::write("Snapshot tersimpan {$now} — di dalam: {$live['total']} (mobil {$live['mobil']}/motor {$live['motor']}), "
             . 'income: ' . number_format($live['totalincome']) . '.', 'green');
+
+        // Arus masuk/keluar per jam & per pintu (kumulatif hari ini → ganti penuh tiap rekaman)
+        try {
+            $flows = $spi->fetchDashboardFlows();
+            $today = date('Y-m-d');
+            if (! empty($flows['hourly'])) {
+                $db->table('spi_hourly_flow')->where('tanggal', $today)->delete();
+                $rows = [];
+                foreach ($flows['hourly'] as $h => $v) {
+                    $rows[] = ['tanggal' => $today, 'jam' => (int) $h,
+                        'masuk' => (int) ($v['masuk'] ?? 0), 'keluar' => (int) ($v['keluar'] ?? 0), 'updated_at' => $now];
+                }
+                $db->table('spi_hourly_flow')->insertBatch($rows);
+            }
+            $gateRows = [];
+            foreach (['masuk', 'keluar'] as $arah) {
+                foreach (($flows['gates'][$arah] ?? []) as $g => $n) {
+                    $gateRows[] = ['tanggal' => $today, 'gate' => $g, 'arah' => $arah, 'jumlah' => (int) $n, 'updated_at' => $now];
+                }
+            }
+            if ($gateRows) {
+                $db->table('spi_gate_daily')->where('tanggal', $today)->delete();
+                $db->table('spi_gate_daily')->insertBatch($gateRows);
+            }
+            CLI::write('Arus: jam=' . count($flows['hourly']) . ' gate_masuk=' . count($flows['gates']['masuk'])
+                . ' gate_keluar=' . count($flows['gates']['keluar']) . '.', 'green');
+        } catch (\Throwable $e) {
+            log_message('warning', '[spi-snapshot] flows: ' . $e->getMessage());
+        }
 
         $pd = (int) (CLI::getOption('prune-days') ?: 0);
         if ($pd > 0) {

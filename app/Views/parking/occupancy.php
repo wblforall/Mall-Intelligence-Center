@@ -100,36 +100,77 @@ $fmtDate = fn($d) => $d ? date('d M Y', strtotime($d)) : '—';
     <?php endif; ?>
 </div>
 
-<!-- Heatmap hari × jam -->
+<!-- Arus masuk vs keluar per jam (tanggal terpilih) -->
 <div class="card mt-3"><div class="card-body">
-    <h6 class="card-title">Heatmap Kepadatan <span class="text-secondary small fw-normal">(rata-rata okupansi · hari × jam, seluruh rekaman)</span></h6>
-    <?php
-    $dows = [2 => 'Sen', 3 => 'Sel', 4 => 'Rab', 5 => 'Kam', 6 => 'Jum', 7 => 'Sab', 1 => 'Min'];
-    $maxHeat = 1;
-    foreach ($heat as $hrs) { foreach ($hrs as $v) { if ($v > $maxHeat) { $maxHeat = $v; } } }
-    ?>
-    <div class="table-responsive">
-        <table class="hm-table mb-0">
-            <thead><tr><th></th><?php for ($h = 0; $h < 24; $h++): ?><th class="hm-lbl"><?= $h ?></th><?php endfor; ?></tr></thead>
-            <tbody>
-            <?php foreach ($dows as $dw => $lbl): ?>
-                <tr>
-                    <td class="hm-lbl text-end fw-semibold"><?= $lbl ?></td>
-                    <?php for ($h = 0; $h < 24; $h++):
-                        $v = $heat[$dw][$h] ?? null;
-                        if ($v === null) {
-                            echo '<td><div class="hm-cell" style="background:rgba(148,163,184,.12)"></div></td>';
-                        } else {
-                            $a = 0.12 + 0.88 * ($v / $maxHeat);
-                            echo '<td><div class="hm-cell" style="background:rgba(14,165,233,' . round($a, 2) . ')" title="' . $lbl . ' ' . $h . ':00 — ' . $num($v) . '">' . ($v >= $maxHeat * 0.6 ? $num($v) : '') . '</div></td>';
-                        }
-                    endfor; ?>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+    <h6 class="card-title">Arus Masuk vs Keluar per Jam <span class="text-secondary small fw-normal">(<?= $fmtDate($date) ?> · semua jenis kendaraan)</span></h6>
+    <?php if ($flowDay): ?>
+    <div class="pk-chart mt-2" style="height:280px"><canvas id="chartFlow"></canvas></div>
+    <?php else: ?>
+    <div class="text-secondary small"><i class="bi bi-info-circle"></i> Arus per jam belum terekam untuk tanggal ini (mulai terisi setelah perekam menyertakan data dashboard SPI).</div>
+    <?php endif; ?>
+</div></div>
+
+<?php
+$dows = [2 => 'Sen', 3 => 'Sel', 4 => 'Rab', 5 => 'Kam', 6 => 'Jum', 7 => 'Sab', 1 => 'Min'];
+$renderHeat = function (array $data, string $rgb) use ($dows, $num) {
+    $max = 1; foreach ($data as $hrs) { foreach ($hrs as $v) { if ($v > $max) { $max = $v; } } }
+    echo '<div class="table-responsive"><table class="hm-table mb-0"><thead><tr><th></th>';
+    for ($h = 0; $h < 24; $h++) { echo '<th class="hm-lbl">' . $h . '</th>'; }
+    echo '</tr></thead><tbody>';
+    foreach ($dows as $dw => $lbl) {
+        echo '<tr><td class="hm-lbl text-end fw-semibold">' . $lbl . '</td>';
+        for ($h = 0; $h < 24; $h++) {
+            $v = $data[$dw][$h] ?? null;
+            if ($v === null) { echo '<td><div class="hm-cell" style="background:rgba(148,163,184,.12)"></div></td>'; }
+            else { $a = 0.12 + 0.88 * ($v / $max); echo '<td><div class="hm-cell" style="background:rgba(' . $rgb . ',' . round($a, 2) . ')" title="' . $lbl . ' ' . $h . ':00 — ' . $num($v) . '">' . ($v >= $max * 0.6 ? $num($v) : '') . '</div></td>'; }
+        }
+        echo '</tr>';
+    }
+    echo '</tbody></table></div>';
+};
+?>
+<!-- Heatmap 3-mode -->
+<div class="card mt-3"><div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <h6 class="card-title mb-0">Heatmap <span class="text-secondary small fw-normal">(rata-rata · hari × jam, semua rekaman)</span></h6>
+        <div class="btn-group btn-group-sm" role="group" id="heat-toggle">
+            <button type="button" class="btn btn-outline-info active" data-heat="occ">Okupansi</button>
+            <button type="button" class="btn btn-outline-success" data-heat="in">Masuk</button>
+            <button type="button" class="btn btn-outline-warning" data-heat="out">Keluar</button>
+        </div>
     </div>
-    <div class="text-secondary small mt-2">Makin pekat = makin padat. Terisi seiring rekaman bertambah tiap hari.</div>
+    <div id="heat-occ"><?php $renderHeat($heat, '14,165,233'); ?></div>
+    <div id="heat-in" style="display:none"><?php $renderHeat($heatM, '34,197,94'); ?></div>
+    <div id="heat-out" style="display:none"><?php $renderHeat($heatK, '245,158,11'); ?></div>
+    <div class="text-secondary small mt-2"><b>Okupansi</b> = kepadatan (kendaraan di dalam). <b>Masuk/Keluar</b> = arus per jam. Makin pekat makin ramai; terisi seiring rekaman bertambah.</div>
+</div></div>
+
+<!-- Per pintu (gate) -->
+<?php
+$gateBar = function (array $list, string $color) use ($num) {
+    if (! $list) { echo '<div class="text-secondary small">Belum ada data pintu untuk tanggal ini.</div>'; return; }
+    $max = max(array_column($list, 'jumlah')) ?: 1;
+    foreach ($list as $g) {
+        $w = round($g['jumlah'] / $max * 100);
+        echo '<div class="d-flex align-items-center gap-2 mb-1">'
+            . '<div style="width:48px" class="small fw-semibold">' . esc($g['gate']) . '</div>'
+            . '<div class="flex-grow-1"><div style="height:14px;border-radius:4px;background:' . $color . ';width:' . $w . '%"></div></div>'
+            . '<div class="small text-secondary" style="width:56px;text-align:right">' . $num($g['jumlah']) . '</div></div>';
+    }
+};
+?>
+<div class="card mt-3"><div class="card-body">
+    <h6 class="card-title">Per Pintu (Gate) <span class="text-secondary small fw-normal">(<?= $fmtDate($date) ?> · kendaraan)</span></h6>
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <div class="small fw-semibold text-success mb-2"><i class="bi bi-box-arrow-in-right"></i> Masuk — <?= count($gates['masuk']) ?> pintu</div>
+            <?php $gateBar($gates['masuk'], '#16a34a'); ?>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="small fw-semibold text-warning mb-2"><i class="bi bi-box-arrow-right"></i> Keluar — <?= count($gates['keluar']) ?> pintu</div>
+            <?php $gateBar($gates['keluar'], '#f59e0b'); ?>
+        </div>
+    </div>
 </div></div>
 
 <?php if ($canRev): ?>
@@ -176,6 +217,7 @@ new Chart(document.getElementById('chartIntra'), {
         { label:'Total', data:PTS.map(p=>p.total), borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,.12)', fill:true, tension:.3, borderWidth:2, pointRadius:0 },
         { label:'Mobil', data:PTS.map(p=>p.mobil), borderColor:'#6366f1', tension:.3, borderWidth:1.5, pointRadius:0 },
         { label:'Motor', data:PTS.map(p=>p.motor), borderColor:'#f59e0b', tension:.3, borderWidth:1.5, pointRadius:0 },
+        { label:'Lainnya', data:PTS.map(p=>p.other), borderColor:'#10b981', tension:.3, borderWidth:1.5, pointRadius:0, hidden:PTS.every(p=>!p.other) },
     ]},
     options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
         plugins:{ legend:{ position:'bottom' } },
@@ -191,6 +233,26 @@ if (incEl) new Chart(incEl, {
         scales:{ x:{ ticks:{ maxTicksLimit:12, font:{ size:9 } } }, y:{ beginAtZero:true, ticks:{ callback: v => (v/1e6)+'jt' } } } }
 });
 <?php endif; ?>
+
+// Arus masuk/keluar per jam (tanggal terpilih)
+const FLOW = <?= json_encode($flowDay) ?>;
+const flEl = document.getElementById('chartFlow');
+if (flEl && FLOW.length) new Chart(flEl, {
+    type:'bar',
+    data:{ labels: FLOW.map(f => ('0'+f.jam).slice(-2)+':00'), datasets:[
+        { label:'Masuk', data:FLOW.map(f=>f.masuk), backgroundColor:'#16a34a', borderWidth:0 },
+        { label:'Keluar', data:FLOW.map(f=>f.keluar), backgroundColor:'#f59e0b', borderWidth:0 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } },
+        scales:{ x:{ ticks:{ font:{ size:9 } } }, y:{ beginAtZero:true } } }
+});
+
+// Toggle heatmap Okupansi / Masuk / Keluar
+document.querySelectorAll('#heat-toggle [data-heat]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#heat-toggle [data-heat]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    ['occ','in','out'].forEach(k => { const el = document.getElementById('heat-'+k); if (el) el.style.display = (k === b.dataset.heat) ? '' : 'none'; });
+}));
 </script>
 <?php endif; ?>
 <?= $this->endSection() ?>
