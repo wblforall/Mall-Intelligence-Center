@@ -314,6 +314,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('parking/compare') ?>" class="nav-link <?= uri_string() === 'parking/compare' ? 'active' : '' ?>">
             <i class="bi bi-arrow-left-right"></i> Compare Periode
         </a>
+        <a href="<?= base_url('parking/occupancy') ?>" class="nav-link <?= uri_string() === 'parking/occupancy' ? 'active' : '' ?>">
+            <i class="bi bi-activity"></i> Okupansi Intraday
+        </a>
         <?php endif; ?>
 
         <?php if (isset($event)):
