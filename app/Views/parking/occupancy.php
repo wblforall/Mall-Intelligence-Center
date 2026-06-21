@@ -102,9 +102,10 @@ $fmtDate = fn($d) => $d ? date('d M Y', strtotime($d)) : '—';
 
 <!-- Arus masuk vs keluar per jam (tanggal terpilih) -->
 <div class="card mt-3"><div class="card-body">
-    <h6 class="card-title">Arus Masuk vs Keluar per Jam <span class="text-secondary small fw-normal">(<?= $fmtDate($date) ?> · semua jenis kendaraan)</span></h6>
+    <h6 class="card-title">Arus Masuk &amp; Keluar per Jam <span class="text-secondary small fw-normal">(<?= $fmtDate($date) ?> · semua jenis kendaraan)</span></h6>
     <?php if ($flowDay): ?>
     <div class="pk-chart mt-2" style="height:280px"><canvas id="chartFlow"></canvas></div>
+    <div class="text-secondary small mt-2"><i class="bi bi-info-circle"></i> <b>Keluar = estimasi</b> (masuk − perubahan okupansi), bukan counter mentah SPI yang dobel-hitung lintasan gerbang. Terisi pada jam yang punya rekaman okupansi.</div>
     <?php else: ?>
     <div class="text-secondary small"><i class="bi bi-info-circle"></i> Arus per jam belum terekam untuk tanggal ini (mulai terisi setelah perekam menyertakan data dashboard SPI).</div>
     <?php endif; ?>
@@ -136,13 +137,11 @@ $renderHeat = function (array $data, string $rgb) use ($dows, $num) {
         <div class="btn-group btn-group-sm" role="group" id="heat-toggle">
             <button type="button" class="btn btn-outline-info active" data-heat="occ">Okupansi</button>
             <button type="button" class="btn btn-outline-success" data-heat="in">Masuk</button>
-            <button type="button" class="btn btn-outline-warning" data-heat="out">Keluar</button>
         </div>
     </div>
     <div id="heat-occ"><?php $renderHeat($heat, '14,165,233'); ?></div>
     <div id="heat-in" style="display:none"></div><!-- di-build lazy via JS -->
-    <div id="heat-out" style="display:none"></div>
-    <div class="text-secondary small mt-2"><b>Okupansi</b> = kepadatan (kendaraan di dalam). <b>Masuk/Keluar</b> = arus per jam. Makin pekat makin ramai; terisi seiring rekaman bertambah.</div>
+    <div class="text-secondary small mt-2"><b>Okupansi</b> = kepadatan (kendaraan di dalam). <b>Masuk</b> = arus masuk per jam. Makin pekat makin ramai; terisi seiring rekaman bertambah.</div>
 </div></div>
 
 <!-- Per pintu (gate) -->
@@ -160,17 +159,14 @@ $gateBar = function (array $list, string $color) use ($num) {
 };
 ?>
 <div class="card mt-3"><div class="card-body">
-    <h6 class="card-title">Per Pintu (Gate) <span class="text-secondary small fw-normal">(<?= $fmtDate($date) ?> · kendaraan)</span></h6>
+    <h6 class="card-title">Per Pintu Masuk (Gate) <span class="text-secondary small fw-normal">(<?= $fmtDate($date) ?> · kendaraan)</span></h6>
     <div class="row g-4">
-        <div class="col-12 col-lg-6">
+        <div class="col-12">
             <div class="small fw-semibold text-success mb-2"><i class="bi bi-box-arrow-in-right"></i> Masuk — <?= count($gates['masuk']) ?> pintu</div>
             <?php $gateBar($gates['masuk'], '#16a34a'); ?>
         </div>
-        <div class="col-12 col-lg-6">
-            <div class="small fw-semibold text-warning mb-2"><i class="bi bi-box-arrow-right"></i> Keluar — <?= count($gates['keluar']) ?> pintu</div>
-            <?php $gateBar($gates['keluar'], '#f59e0b'); ?>
-        </div>
     </div>
+    <div class="text-secondary small mt-2"><i class="bi bi-info-circle"></i> Pintu keluar tak ditampilkan — counter keluar per-gerbang SPI tidak reliable (dobel-scan) &amp; tak bisa diestimasi per-pintu.</div>
 </div></div>
 
 <?php if ($canRev): ?>
@@ -241,15 +237,15 @@ if (flEl && FLOW.length) new Chart(flEl, {
     type:'bar',
     data:{ labels: FLOW.map(f => ('0'+f.jam).slice(-2)+':00'), datasets:[
         { label:'Masuk', data:FLOW.map(f=>f.masuk), backgroundColor:'#16a34a', borderWidth:0 },
-        { label:'Keluar', data:FLOW.map(f=>f.keluar), backgroundColor:'#f59e0b', borderWidth:0 },
+        { label:'Keluar (est.)', data:FLOW.map(f=>f.keluarEst), backgroundColor:'#f59e0b', borderWidth:0 },
     ]},
     options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } },
         scales:{ x:{ ticks:{ font:{ size:9 } } }, y:{ beginAtZero:true } } }
 });
 
-// Heatmap Masuk/Keluar: data ringkas (JSON) + build lazy saat di-toggle (DOM awal ringan)
-const HEATD = { in: <?= json_encode($heatM) ?>, out: <?= json_encode($heatK) ?> };
-const HEAT_RGB = { in:'34,197,94', out:'245,158,11' };
+// Heatmap Masuk: data ringkas (JSON) + build lazy saat di-toggle (DOM awal ringan)
+const HEATD = { in: <?= json_encode($heatM) ?> };
+const HEAT_RGB = { in:'34,197,94' };
 const HEAT_DOWS = [[2,'Sen'],[3,'Sel'],[4,'Rab'],[5,'Kam'],[6,'Jum'],[7,'Sab'],[1,'Min']];
 const fmtN = n => Number(n).toLocaleString('id-ID');
 function buildHeat(key) {
@@ -277,8 +273,8 @@ document.querySelectorAll('#heat-toggle [data-heat]').forEach(b => b.addEventLis
     document.querySelectorAll('#heat-toggle [data-heat]').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
     const key = b.dataset.heat;
-    if (key === 'in' || key === 'out') buildHeat(key);
-    ['occ','in','out'].forEach(k => { const el = document.getElementById('heat-'+k); if (el) el.style.display = (k === key) ? '' : 'none'; });
+    if (key === 'in') buildHeat(key);
+    ['occ','in'].forEach(k => { const el = document.getElementById('heat-'+k); if (el) el.style.display = (k === key) ? '' : 'none'; });
 }));
 </script>
 <?php endif; ?>

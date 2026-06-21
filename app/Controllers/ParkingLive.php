@@ -25,13 +25,14 @@ class ParkingLive extends BaseController
         $zero = ['ok' => true, 'mobil' => 0, 'motor' => 0, 'total' => 0,
             'lot_mobil' => 0, 'lot_motor' => 0, 'lot_mobil_tersedia' => 0, 'lot_motor_tersedia' => 0];
 
-        // Aktivitas per pintu hari ini (kumulatif, dari DB — diisi cron --flows ~30 mnt)
-        $gates = ['masuk' => [], 'keluar' => []];
+        // Aktivitas per pintu MASUK hari ini (kumulatif, dari DB — diisi cron --flows ~30 mnt).
+        // Pintu keluar tak ditampilkan: counter keluar SPI tak reliable (dobel-scan gerbang).
+        $gates = ['masuk' => []];
         $db = \Config\Database::connect();
         if ($db->tableExists('spi_gate_daily')) {
-            foreach ($db->table('spi_gate_daily')->where('tanggal', date('Y-m-d'))
+            foreach ($db->table('spi_gate_daily')->where('tanggal', date('Y-m-d'))->where('arah', 'masuk')
                 ->orderBy('jumlah', 'DESC')->get()->getResultArray() as $r) {
-                $gates[$r['arah']][] = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
+                $gates['masuk'][] = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
             }
         }
 
