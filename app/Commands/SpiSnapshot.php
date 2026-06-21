@@ -13,7 +13,7 @@ use App\Services\SpiReportingService;
  *   php spark mic:spi-snapshot                 # rekam 1 snapshot sekarang
  *   php spark mic:spi-snapshot --prune-days 90 # + hapus snapshot > 90 hari (rollup nanti)
  *
- * Cron disarankan: setiap 15 menit  ->  0,15,30,45 * * * *
+ * Cron disarankan: setiap 10 menit  ->  0,10,20,30,40,50 * * * *
  */
 class SpiSnapshot extends BaseCommand
 {
@@ -33,17 +33,22 @@ class SpiSnapshot extends BaseCommand
             return;
         }
 
-        // Payment hari ini (opsional; jangan gagalkan snapshot bila error)
-        $payments = [];
-        try { $payments = $spi->fetchPaymentBreakdown(); } catch (\Throwable $e) {
-            log_message('warning', '[spi-snapshot] payment: ' . $e->getMessage());
-        }
-
         $db  = \Config\Database::connect();
         $now = date('Y-m-d H:i:s');
+        $today = date('Y-m-d');
+
+        // Satu kali fetch dashboard /home → arus + gate + per-jenis + payment (hemat: tak fetch home 2×)
+        $flows = ['hourly' => [], 'gates' => ['masuk' => [], 'keluar' => []], 'types' => [], 'payments' => []];
+        try { $flows = $spi->fetchDashboardFlows(); } catch (\Throwable $e) {
+            log_message('warning', '[spi-snapshot] flows: ' . $e->getMessage());
+        }
+        // payments_json dari dashboard (Jenis Pembayaran) → format [{method,amount}]
+        $payments = [];
+        foreach (($flows['payments'] ?? []) as $method => $amt) { $payments[] = ['method' => $method, 'amount' => (int) $amt]; }
+
         $db->table('spi_live_snapshot')->insert([
             'captured_at'     => $now,
-            'tanggal'         => date('Y-m-d'),
+            'tanggal'         => $today,
             'total_in'        => (int) $live['total'],
             'mobil_in'        => (int) $live['mobil'],
             'motor_in'        => (int) $live['motor'],
@@ -60,10 +65,8 @@ class SpiSnapshot extends BaseCommand
         CLI::write("Snapshot tersimpan {$now} — di dalam: {$live['total']} (mobil {$live['mobil']}/motor {$live['motor']}), "
             . 'income: ' . number_format($live['totalincome']) . '.', 'green');
 
-        // Arus masuk/keluar per jam & per pintu (kumulatif hari ini → ganti penuh tiap rekaman)
+        // Arus per jam & per pintu + per-jenis (kumulatif hari ini → ganti penuh tiap rekaman)
         try {
-            $flows = $spi->fetchDashboardFlows();
-            $today = date('Y-m-d');
             if (! empty($flows['hourly'])) {
                 $db->table('spi_hourly_flow')->where('tanggal', $today)->delete();
                 $rows = [];
@@ -83,8 +86,20 @@ class SpiSnapshot extends BaseCommand
                 $db->table('spi_gate_daily')->where('tanggal', $today)->delete();
                 $db->table('spi_gate_daily')->insertBatch($gateRows);
             }
+            // Per jenis kendaraan (masuk + income)
+            $typeRows = [];
+            foreach (($flows['types'] ?? []) as $jenis => $v) {
+                if ($jenis === 'lain') { continue; }
+                $typeRows[] = ['tanggal' => $today, 'jenis' => $jenis,
+                    'masuk' => (int) ($v['masuk'] ?? 0), 'income' => (int) ($v['income'] ?? 0), 'updated_at' => $now];
+            }
+            if ($typeRows) {
+                $db->table('spi_capture_type_daily')->where('tanggal', $today)->delete();
+                $db->table('spi_capture_type_daily')->insertBatch($typeRows);
+            }
             CLI::write('Arus: jam=' . count($flows['hourly']) . ' gate_masuk=' . count($flows['gates']['masuk'])
-                . ' gate_keluar=' . count($flows['gates']['keluar']) . '.', 'green');
+                . ' gate_keluar=' . count($flows['gates']['keluar']) . ' jenis=' . count($typeRows)
+                . ' payment=' . count($payments) . '.', 'green');
         } catch (\Throwable $e) {
             log_message('warning', '[spi-snapshot] flows: ' . $e->getMessage());
         }

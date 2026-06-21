@@ -86,7 +86,7 @@ class SpiReportingService
             'nontunai'           => $num($j['nontunai'] ?? 0),
             'totalincome'        => $num($j['totalincome'] ?? 0),
         ];
-        if ($out['ok']) { cache()->save($cacheKey, $out, 30); } // jangan cache kegagalan
+        if ($out['ok']) { cache()->save($cacheKey, $out, 15); } // jangan cache kegagalan; 15s utk Live cepat
         return $out;
     }
 
@@ -565,13 +565,30 @@ class SpiReportingService
      */
     public function fetchDashboardFlows(): array
     {
-        $out = ['hourly' => [], 'gates' => ['masuk' => [], 'keluar' => []]];
+        $out = ['hourly' => [], 'gates' => ['masuk' => [], 'keluar' => []], 'types' => [], 'payments' => []];
         if (! $this->ensureLogin()) { return $out; }
         $html = $this->httpGet($this->base . '/home', true);
         if (! $html) { return $out; }
 
         $out['gates']['masuk']  = $this->parseGateChart($html, 'myChartAksesMasuk');
         $out['gates']['keluar'] = $this->parseGateChart($html, 'myChartAksesKeluar');
+
+        // Per jenis kendaraan (dikelompokkan ke jenis dasar mobil/motor/box/truck/taxi/bus):
+        //  - masuk dari "Jenis Kendaraan" (myChartJenisKendaraan)
+        //  - income dari "Income per Jenis" (myChartTypeBar) — label ber-prefix operator
+        $types = [];
+        foreach ($this->parseGateChart($html, 'myChartJenisKendaraan') as $lab => $v) {
+            $bt = $this->baseType($lab); $types[$bt]['masuk'] = ($types[$bt]['masuk'] ?? 0) + (int) $v;
+        }
+        foreach ($this->parseGateChart($html, 'myChartTypeBar') as $lab => $v) {
+            $bt = $this->baseType($lab); $types[$bt]['income'] = ($types[$bt]['income'] ?? 0) + (int) $v;
+        }
+        $out['types'] = $types;
+
+        // Income per metode pembayaran (myChartTypeBar2 "Jenis Pembayaran")
+        foreach ($this->parseGateChart($html, 'myChartTypeBar2') as $lab => $v) {
+            $out['payments'][$lab] = (int) $v;
+        }
 
         $masuk  = $this->parseHourChart($html, 'myChartMasukStatistik');
         $keluar = $this->parseHourChart($html, 'statistics');
@@ -584,8 +601,8 @@ class SpiReportingService
     /** Chart per-pintu: ambil var xValues/yValues terakhir sebelum new Chart("$canvas"). */
     private function parseGateChart(string $html, string $canvas): array
     {
-        $p = strpos($html, 'new Chart("' . $canvas);
-        if ($p === false) { $p = strpos($html, "new Chart('" . $canvas); }
+        $p = strpos($html, 'new Chart("' . $canvas . '"');
+        if ($p === false) { $p = strpos($html, "new Chart('" . $canvas . "'"); }
         if ($p === false) { return []; }
         $pre = substr($html, 0, $p);
         if (! preg_match_all('/var\s+xValues\s*=\s*\[([^\]]*)\]/s', $pre, $xm)
@@ -600,8 +617,8 @@ class SpiReportingService
     /** Chart jam: jumlahkan semua dataset data:[...] per bucket, map label "H - H+1" → jam. */
     private function parseHourChart(string $html, string $canvas): array
     {
-        $p = strpos($html, 'new Chart("' . $canvas);
-        if ($p === false) { $p = strpos($html, "new Chart('" . $canvas); }
+        $p = strpos($html, 'new Chart("' . $canvas . '"');
+        if ($p === false) { $p = strpos($html, "new Chart('" . $canvas . "'"); }
         if ($p === false) { return []; }
         $pre = substr($html, 0, $p);
         if (! preg_match_all('/var\s+xValues\s*=\s*\[([^\]]*)\]/s', $pre, $xm)) { return []; }
@@ -626,6 +643,17 @@ class SpiReportingService
             if (preg_match('/^(\d+)\s*-\s*(\d+)/', $lab, $lm)) { $res[(int) $lm[1]] = $sum[$i] ?? 0; }
         }
         return $res;
+    }
+
+    /** Kelompokkan label kendaraan (kadang ber-prefix operator: MOBILJATRA) ke jenis dasar. */
+    private function baseType(string $label): string
+    {
+        $l = strtolower(preg_replace('/[^a-z]/i', '', $label));
+        foreach (['mobil', 'motor', 'box', 'taxi', 'bus'] as $t) {
+            if (str_starts_with($l, $t)) { return $t; }
+        }
+        if (str_starts_with($l, 'truk') || str_starts_with($l, 'truck')) { return 'truck'; }
+        return 'lain';
     }
 
     /** Cek kredensial & konektivitas (untuk diagnostik). */

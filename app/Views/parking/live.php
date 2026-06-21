@@ -47,7 +47,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
 </div>
 
 <div class="d-flex align-items-center gap-2 text-secondary small mb-3">
-    <span class="pk-live-dot"></span> diperbarui otomatis tiap 30 detik <span id="pk-live-time" class="ms-1"></span>
+    <span class="pk-live-dot"></span> diperbarui otomatis tiap 15 detik <span id="pk-live-time" class="ms-1"></span>
 </div>
 
 <div id="pk-live-wrap" style="position:relative">
@@ -249,6 +249,6 @@ async function refreshLive() {
 }
 PKL.start();
 refreshLive();
-setInterval(refreshLive, 30000);
+setInterval(refreshLive, 15000); // 15 dtk; load2.php fresh (cache 15s), payment dari cache 60s
 </script>
 <?= $this->endSection() ?>

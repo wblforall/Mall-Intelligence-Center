@@ -65,6 +65,42 @@ $delta = function ($cap, $fin) {
     <?php endif; ?>
 </div></div>
 
+<!-- Perbandingan per jenis kendaraan -->
+<div class="card mb-3"><div class="card-body">
+    <h6 class="card-title">Per Jenis Kendaraan — Rekaman vs SPI <span class="text-secondary small fw-normal">(<?= $payDate ? $fmtDate($payDate) : '—' ?>)</span></h6>
+    <?php if ($typeCompare): ?>
+    <div class="text-secondary small mb-2"><i class="bi bi-info-circle"></i> Masuk rekaman dari dashboard (mobil/motor/box); income rekaman dikelompokkan ke jenis dasar. SPI final per jenis dari arsip harian.</div>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Jenis</th>
+            <?php if ($canVeh): ?><th class="text-end">Masuk (rekam)</th><th class="text-end">Masuk (SPI)</th><th class="text-end">Δ</th><?php endif; ?>
+            <?php if ($canRev): ?><th class="text-end">Income (rekam)</th><th class="text-end">Income (SPI)</th><th class="text-end">Δ</th><?php endif; ?>
+        </tr></thead>
+        <tbody>
+        <?php foreach ($typeCompare as $r):
+            $dm = $delta($r['capMasuk'], $r['finMasuk']);
+            $di = $delta($r['capIncome'], $r['finIncome']); ?>
+            <tr>
+                <td class="text-capitalize"><?= esc($r['jenis']) ?></td>
+                <?php if ($canVeh): ?>
+                <td class="text-end"><?= $num($r['capMasuk']) ?></td>
+                <td class="text-end"><?= $r['finMasuk'] === null ? '<span class="text-secondary">menunggu</span>' : $num($r['finMasuk']) ?></td>
+                <td class="text-end <?= $dm['c'] ?>"><?= $dm['t'] ?></td>
+                <?php endif; ?>
+                <?php if ($canRev): ?>
+                <td class="text-end"><?= $rp($r['capIncome']) ?></td>
+                <td class="text-end"><?= $r['finIncome'] === null ? '<span class="text-secondary">menunggu</span>' : $rp($r['finIncome']) ?></td>
+                <td class="text-end <?= $di['c'] ?>"><?= $di['t'] ?></td>
+                <?php endif; ?>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table></div>
+    <div class="text-secondary small mt-2">Pilih tanggal di bagian Metode Pembayaran di bawah (dropdown yang sama).</div>
+    <?php else: ?>
+    <div class="text-secondary small">Belum ada rekaman per jenis untuk dibandingkan.</div>
+    <?php endif; ?>
+</div></div>
+
 <?php if ($canRev): ?>
 <!-- Perbandingan metode pembayaran -->
 <div class="card"><div class="card-body">

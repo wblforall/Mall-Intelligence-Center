@@ -97,8 +97,32 @@ class ParkingRecon extends BaseController
             usort($payCompare, fn($a, $b) => (($b['cap'] ?? $b['fin'] ?? 0)) <=> (($a['cap'] ?? $a['fin'] ?? 0)));
         }
 
+        // Perbandingan per JENIS untuk hari terpilih (capture vs final SPI)
+        $typeCompare = [];
+        if ($payDate) {
+            $cap = [];
+            if ($has('spi_capture_type_daily')) {
+                foreach ($db->table('spi_capture_type_daily')->where('tanggal', $payDate)->get()->getResultArray() as $r) {
+                    $cap[$r['jenis']] = ['masuk' => (int) $r['masuk'], 'income' => (int) $r['income']];
+                }
+            }
+            $vfin = $has('spi_vehicle_daily') ? $db->table('spi_vehicle_daily')->where('tanggal', $payDate)->get()->getRowArray() : null;
+            $ifin = $has('spi_income_daily')  ? $db->table('spi_income_daily')->where('tanggal', $payDate)->get()->getRowArray()  : null;
+            foreach (['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'] as $t) {
+                if (! isset($cap[$t]) && ! $vfin && ! $ifin) { continue; }
+                $typeCompare[] = [
+                    'jenis'     => $t,
+                    'capMasuk'  => $cap[$t]['masuk'] ?? null,
+                    'finMasuk'  => $vfin ? (int) ($vfin[$t] ?? 0) : null,
+                    'capIncome' => $cap[$t]['income'] ?? null,
+                    'finIncome' => $ifin ? (int) ($ifin[$t] ?? 0) : null,
+                ];
+            }
+        }
+
         return view('parking/recon', [
             'title'      => 'Rekaman vs SPI Final — Parkir',
+            'typeCompare' => $typeCompare,
             'canVeh'     => $canVeh,
             'canRev'     => $canRev,
             'rows'       => $rows,
