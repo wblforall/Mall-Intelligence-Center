@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.11.0** (Juni 2026)
+> Versi saat ini: **v2.12.0** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,36 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.12.0
+
+**Tanggal Rilis:** 21 Juni 2026
+
+Modul **Parkir (integrasi SPI)** — dashboard read-only data parkir Balikpapan Superblock dari sistem SPI Web Reporting, plus perekam data live independen untuk analisa & rekonsiliasi. Tambahan keamanan: auto-logout idle.
+
+### Perubahan dari v2.11.0
+
+#### Modul Parkir — Dashboard (read-only dari SPI)
+- **Live** (`/parking/live`): okupansi real-time (kendaraan di dalam, slot tersedia mobil/motor terpisah), diperbarui tiap 15 detik via AJAX dengan overlay loading; alert merah saat sisa slot ≤ 200; panel aktivitas per-pintu (kumulatif hari ini).
+- **Kendaraan — Summary**: tren harian per jenis, komposisi, Bayar (casual) vs Langganan (member), distribusi lama parkir, KPI (rata²/hari, hari puncak, weekday Sen–Kam vs weekend Jum–Min).
+- **Revenue — Summary**: income Casual/Member/Total per periode, tren bulanan sejak 2023, income tahunan + statistik harian, rincian metode pembayaran.
+- **Compare Periode**: banding MoM/YoY/custom — traffic & revenue, avg/hari, weekday/weekend, free/paid, ARPU, mix metode pembayaran (Δ share).
+- **DB-first**: semua halaman histori baca dari arsip lokal (cepat), bukan live SPI; live hanya untuk halaman Live.
+
+#### Modul Parkir — Perekam data live (cron, independen sesi)
+- Command `mic:spi-snapshot` merekam snapshot live tiap ~10 menit (okupansi) + dashboard `/home` tiap ~30 menit (arus/pintu/jenis/payment) — jalan di server, tak tergantung user login.
+- **Okupansi Intraday** (`/parking/occupancy`): grafik kepadatan per jam (mobil/motor/lainnya/total), income berjalan, arus Masuk vs Keluar per jam, heatmap 3-mode (Okupansi/Masuk/Keluar), per-pintu, rekonsiliasi EOD vs final SPI.
+- **Rekaman vs SPI Final** (`/parking/recon`): analisa terpisah membandingkan data yang kita rekam dengan data final SPI (kendaraan masuk, income, metode pembayaran, per jenis) — selisih %, hanya untuk tanggal yang sudah final SPI (±H-3).
+
+#### Sinkronisasi & Akses
+- Command `mic:spi-sync` (backfill 2023→kini + cron harian) mengisi arsip lokal: qty/income harian & bulanan, payment, durasi, free per jenis.
+- Tombol **"Tarik Data Terbaru"** di tiap halaman parkir — sync SPI on-demand dengan overlay progress & status (data baru / diperbarui / tidak ada).
+- Hak akses parkir terpisah: **`parking_live`** (Live), **`parking_vehicles`** (traffic), **`parking_revenue`** (income) — bisa diatur per-departemen & per-user lewat Menu Access.
+
+#### Keamanan
+- **Auto-logout idle 60 menit** berbasis aktivitas user nyata (mouse/keyboard/scroll) — polling background tidak dihitung; peringatan modal 1 menit sebelum logout; sinkron antar-tab.
 
 ---
 
