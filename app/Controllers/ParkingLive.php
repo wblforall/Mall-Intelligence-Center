@@ -20,18 +20,26 @@ class ParkingLive extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
-        // TIDAK menarik SPI di sini (lambat) — halaman render instan dgn nilai 0,
-        // lalu diisi via AJAX /parking/live-data + overlay progress. latestDataDate dari DB (cepat).
+        // TIDAK menarik SPI di sini (lambat) — okupansi render instan dgn nilai 0, diisi via AJAX.
         $zero = ['ok' => true, 'mobil' => 0, 'motor' => 0, 'total' => 0,
-            'lot_mobil' => 0, 'lot_motor' => 0, 'lot_mobil_tersedia' => 0, 'lot_motor_tersedia' => 0,
-            'tunai' => 0, 'nontunai' => 0, 'totalincome' => 0];
+            'lot_mobil' => 0, 'lot_motor' => 0, 'lot_mobil_tersedia' => 0, 'lot_motor_tersedia' => 0];
+
+        // Aktivitas per pintu hari ini (kumulatif, dari DB — diisi cron --flows ~30 mnt)
+        $gates = ['masuk' => [], 'keluar' => []];
+        $db = \Config\Database::connect();
+        if ($canVeh && $db->tableExists('spi_gate_daily')) {
+            foreach ($db->table('spi_gate_daily')->where('tanggal', date('Y-m-d'))
+                ->orderBy('jumlah', 'DESC')->get()->getResultArray() as $r) {
+                $gates[$r['arah']][] = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
+            }
+        }
 
         return view('parking/live', [
             'title'     => 'Live — Parkir',
             'canVeh'    => $canVeh,
             'canRev'    => $canRev,
             'live'      => $zero,
-            'payments'  => [],
+            'gates'     => $gates,
             'dataUntil' => (new SpiReportingService())->latestDataDate(),
         ]);
     }
@@ -60,28 +68,7 @@ class ParkingLive extends BaseController
                 'lot_motor_tersedia' => $live['lot_motor_tersedia'],
             ];
         }
-        if ($canRev) {
-            $out += [
-                'tunai'       => $live['tunai'],
-                'nontunai'    => $live['nontunai'],
-                'totalincome' => $live['totalincome'],
-                // Rincian metode dari snapshot terbaru (DB) — bukan scrape home (yg ~24dtk).
-                // Diperbarui berkala oleh cron mic:spi-snapshot.
-                'payments'    => $this->latestPayments(),
-            ];
-        }
+        // Income/payment TIDAK lagi ditampilkan di Live (pindah ke Okupansi Intraday).
         return $this->response->setJSON($out);
-    }
-
-    /** Rincian metode pembayaran dari snapshot terbaru yang punya data (DB, instan). */
-    private function latestPayments(): array
-    {
-        $db = \Config\Database::connect();
-        if (! $db->tableExists('spi_live_snapshot')) { return []; }
-        $row = $db->table('spi_live_snapshot')
-            ->select('payments_json')->where('payments_json IS NOT NULL', null, false)
-            ->orderBy('captured_at', 'DESC')->limit(1)->get()->getRowArray();
-        $arr = $row ? json_decode($row['payments_json'] ?: '[]', true) : [];
-        return is_array($arr) ? $arr : [];
     }
 }

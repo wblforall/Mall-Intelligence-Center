@@ -100,40 +100,28 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
 </div>
 <?php endif; ?>
 
-<?php if ($canRev): ?>
-<!-- REVENUE -->
-<h6 class="text-secondary text-uppercase small fw-bold mb-2"><i class="bi bi-cash-coin me-1"></i>Income Hari Ini <span class="fw-normal text-secondary">(estimasi berjalan)</span></h6>
+<?php if ($canVeh && (! empty($gates['masuk']) || ! empty($gates['keluar']))):
+$gbar = function ($list, $color) {
+    if (! $list) { echo '<div class="text-secondary small">—</div>'; return; }
+    $max = max(array_column($list, 'jumlah')) ?: 1;
+    foreach ($list as $g) {
+        $w = round($g['jumlah'] / $max * 100);
+        echo '<div class="d-flex align-items-center gap-2 mb-1"><div style="width:48px" class="small fw-semibold">' . esc($g['gate']) . '</div>'
+            . '<div class="flex-grow-1"><div style="height:13px;border-radius:4px;background:' . $color . ';width:' . $w . '%"></div></div>'
+            . '<div class="small text-secondary" style="width:54px;text-align:right">' . number_format($g['jumlah']) . '</div></div>';
+    }
+};
+?>
+<h6 class="text-secondary text-uppercase small fw-bold mb-2 mt-1"><i class="bi bi-door-open me-1"></i>Aktivitas Pintu <span class="fw-normal text-secondary">(kumulatif hari ini · diperbarui ~30 menit)</span></h6>
 <div class="row g-3">
-    <div class="col-12 col-lg-4">
-        <div class="card pk-kpi h-100" style="background:linear-gradient(135deg,#16a34a,#15803d) !important"><div class="card-body d-flex flex-column justify-content-center" style="color:#fff">
-            <div class="small opacity-75">Total Income</div>
-            <div class="big" id="live-income" style="font-size:2.4rem"><?= $rp($live['totalincome']) ?></div>
-            <div class="small opacity-75 mt-1">Tunai <span id="live-tunai"><?= $rp($live['tunai']) ?></span> · Non-Tunai <span id="live-nontunai"><?= $rp($live['nontunai']) ?></span></div>
-        </div></div>
-    </div>
-    <div class="col-12 col-lg-4">
-        <div class="card h-100"><div class="card-body">
-            <h6 class="card-title">Komposisi Pembayaran</h6>
-            <div class="pk-chart-sm"><canvas id="chartPay"></canvas></div>
-        </div></div>
-    </div>
-    <div class="col-12 col-lg-4">
-        <div class="card h-100"><div class="card-body">
-            <h6 class="card-title">Rincian Metode <span class="text-secondary small fw-normal">(hari ini)</span></h6>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <tbody id="pay-rows">
-                        <?php $totPay = array_sum(array_column($payments, 'amount'));
-                        foreach ($payments as $p): $pct = $totPay>0?round($p['amount']/$totPay*100):0; ?>
-                        <tr><td><?= esc($p['method']) ?></td><td class="text-end"><?= $rp($p['amount']) ?></td>
-                            <td class="text-end" style="width:30%"><div class="progress" style="height:7px"><div class="progress-bar" style="width:<?= $pct ?>%"></div></div></td></tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                    <tfoot><tr class="fw-bold border-top"><td>Total</td><td class="text-end" id="pay-total"><?= $rp($totPay) ?></td><td></td></tr></tfoot>
-                </table>
-            </div>
-        </div></div>
-    </div>
+    <div class="col-12 col-lg-6"><div class="card h-100"><div class="card-body">
+        <div class="small fw-semibold text-success mb-2"><i class="bi bi-box-arrow-in-right"></i> Masuk — <?= count($gates['masuk']) ?> pintu</div>
+        <?php $gbar($gates['masuk'], '#16a34a'); ?>
+    </div></div></div>
+    <div class="col-12 col-lg-6"><div class="card h-100"><div class="card-body">
+        <div class="small fw-semibold text-warning mb-2"><i class="bi bi-box-arrow-right"></i> Keluar — <?= count($gates['keluar']) ?> pintu</div>
+        <?php $gbar($gates['keluar'], '#f59e0b'); ?>
+    </div></div></div>
 </div>
 <?php endif; ?>
 </div><!-- /pk-live-wrap -->
@@ -141,20 +129,8 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
-const PK = { url: "<?= base_url('parking/live-data') ?>", canVeh: <?= $canVeh?'true':'false' ?>, canRev: <?= $canRev?'true':'false' ?>,
-    tunai: <?= (int)$live['tunai'] ?>, nontunai: <?= (int)$live['nontunai'] ?> };
+const PK = { url: "<?= base_url('parking/live-data') ?>", canVeh: <?= $canVeh?'true':'false' ?> };
 const num = n => Number(n||0).toLocaleString('id-ID');
-const rp  = n => 'Rp ' + Number(n||0).toLocaleString('id-ID');
-
-let chartPay = null;
-if (PK.canRev) {
-    chartPay = new Chart(document.getElementById('chartPay'), {
-        type:'doughnut',
-        data:{ labels:['Tunai','Non-Tunai'], datasets:[{ data:[PK.tunai, PK.nontunai], backgroundColor:['#0ea5e9','#16a34a'], borderWidth:0 }] },
-        options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ position:'bottom' },
-            tooltip:{ callbacks:{ label: c => c.label+': Rp '+Number(c.parsed).toLocaleString('id-ID') } } } }
-    });
-}
 const $ = id => document.getElementById(id);
 
 // Alert slot hampir penuh: sisa <= ambang (200). Ubah warna kartu + tampilkan banner.
@@ -228,20 +204,6 @@ async function refreshLive() {
             $('slotsub-mobil').textContent = num(d.mobil) + ' / ' + num(d.lot_mobil);
             $('slotsub-motor').textContent = num(d.motor) + ' / ' + num(d.lot_motor);
             slotAlert(d.lot_mobil_tersedia || 0, d.lot_motor_tersedia || 0);
-        }
-        if (PK.canRev) {
-            $('live-income').textContent = rp(d.totalincome);
-            $('live-tunai').textContent = rp(d.tunai);
-            $('live-nontunai').textContent = rp(d.nontunai);
-            if (chartPay) { chartPay.data.datasets[0].data = [d.tunai, d.nontunai]; chartPay.update(); }
-            if (Array.isArray(d.payments) && d.payments.length) {
-                const tot = d.payments.reduce((s,p)=>s+(p.amount||0),0) || 1;
-                $('pay-rows').innerHTML = d.payments.map(p => {
-                    const pct = Math.round((p.amount||0)/tot*100);
-                    return `<tr><td>${p.method}</td><td class="text-end">${rp(p.amount)}</td><td class="text-end" style="width:30%"><div class="progress" style="height:7px"><div class="progress-bar" style="width:${pct}%"></div></div></td></tr>`;
-                }).join('');
-                $('pay-total').textContent = rp(d.payments.reduce((s,p)=>s+(p.amount||0),0));
-            }
         }
         $('pk-live-time').textContent = '· ' + new Date().toLocaleTimeString('id-ID');
         if (!PKL.done) PKL.finish(true);
