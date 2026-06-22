@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.12.0** (Juni 2026)
+> Versi saat ini: **v2.13.0** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,24 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.13.0
+
+**Tanggal Rilis:** 7 Juni 2026
+
+### Perubahan dari v2.12.0
+
+#### Modul Parkir — Split Jenis Kendaraan
+
+- **Pintu masuk per jenis** (Live & Occupancy): panel aktivitas pintu masuk kini dibagi dua kolom — Motor (M01–M05, hijau) dan Mobil (M06–M09, cyan). Mapping gate ke jenis kendaraan disimpan sebagai konstanta di `SpiReportingService` (`GATE_MOTOR_MASUK`, `GATE_MOBIL_MASUK`).
+- **Heatmap Mobil & Motor terpisah** (Occupancy): tambah dua heatmap baru dari `spi_live_snapshot.mobil_in` dan `motor_in` — rata-rata kepadatan per hari × jam untuk masing-masing jenis. Empat heatmap kini tampil sekaligus (Motor | Mobil baris atas, Arus Masuk | Total Okupansi baris bawah).
+- **Sel heatmap diperbesar**: lebar 22px → 34px, font .6rem → .7rem agar angka 5 karakter (mis. `1,943`) terbaca penuh tanpa overflow.
+
+#### Fix Import Traffic
+
+- Tambah alias `'pintu flying tiger'` di `DOOR_MAP['pentacity']` untuk mengakomodasi perubahan nama pada file SPI PSV terbaru (sebelumnya `Pintu GF Flying Tiger`).
 
 ---
 
