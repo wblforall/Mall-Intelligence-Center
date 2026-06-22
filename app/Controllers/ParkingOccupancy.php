@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Services\SpiReportingService;
+
 /**
  * Okupansi Intraday & Rekonsiliasi — dari rekaman snapshot live (spi_live_snapshot).
  * Tren kepadatan per jam (mobil/motor/total), heatmap hari×jam, dan banding angka
@@ -55,10 +57,15 @@ class ParkingOccupancy extends BaseController
         }
 
         // Heatmap rata-rata okupansi: hari(1=Min..7=Sab) × jam(0..23)
-        $heatRows = $db->query('SELECT DAYOFWEEK(tanggal) dow, HOUR(captured_at) hr, ROUND(AVG(total_in)) v '
-            . 'FROM spi_live_snapshot GROUP BY dow, hr')->getResultArray();
-        $heat = []; // [dow][hr] = v
-        foreach ($heatRows as $h) { $heat[(int) $h['dow']][(int) $h['hr']] = (int) $h['v']; }
+        $heat = []; $heatMobil = []; $heatMotor = [];
+        foreach ($db->query('SELECT DAYOFWEEK(tanggal) dow, HOUR(captured_at) hr, '
+            . 'ROUND(AVG(total_in)) v, ROUND(AVG(mobil_in)) vm, ROUND(AVG(motor_in)) vk '
+            . 'FROM spi_live_snapshot GROUP BY dow, hr')->getResultArray() as $h) {
+            $dw = (int) $h['dow']; $hr = (int) $h['hr'];
+            $heat[$dw][$hr]      = (int) $h['v'];
+            $heatMobil[$dw][$hr] = (int) $h['vm'];
+            $heatMotor[$dw][$hr] = (int) $h['vk'];
+        }
 
         // Okupansi awal tiap jam (snapshot pertama per jam) utk tanggal terpilih — basis derivasi keluar.
         // Counter KELUAR mentah SPI tidak reliable (dobel-scan gerbang) → kita turunkan sendiri:
@@ -92,10 +99,15 @@ class ParkingOccupancy extends BaseController
 
         // Per pintu (gate) MASUK saja untuk tanggal terpilih.
         // Gate KELUAR tak ditampilkan: counter keluar SPI tak reliable & tak bisa diderivasi per-gerbang.
-        $gates = ['masuk' => []];
+        $motorGates = SpiReportingService::GATE_MOTOR_MASUK;
+        $mobilGates = SpiReportingService::GATE_MOBIL_MASUK;
+        $gates = ['masuk' => ['motor' => [], 'mobil' => [], 'other' => []]];
         if ($db->tableExists('spi_gate_daily')) {
             foreach ($db->table('spi_gate_daily')->where('tanggal', $date)->where('arah', 'masuk')->orderBy('jumlah', 'DESC')->get()->getResultArray() as $r) {
-                $gates['masuk'][] = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
+                $entry = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
+                if (in_array($r['gate'], $motorGates))      $gates['masuk']['motor'][] = $entry;
+                elseif (in_array($r['gate'], $mobilGates))  $gates['masuk']['mobil'][] = $entry;
+                else                                         $gates['masuk']['other'][] = $entry;
             }
         }
 
@@ -120,8 +132,10 @@ class ParkingOccupancy extends BaseController
             'points'  => $points,
             'peak'    => $peak,
             'peakInc' => $peakInc,
-            'heat'    => $heat,
-            'heatM'   => $heatM,
+            'heat'      => $heat,
+            'heatMobil' => $heatMobil,
+            'heatMotor' => $heatMotor,
+            'heatM'     => $heatM,
             'flowDay' => $flowDay,
             'gates'   => $gates,
             'recon'   => $recon,

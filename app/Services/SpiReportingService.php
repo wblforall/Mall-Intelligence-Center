@@ -20,6 +20,10 @@ namespace App\Services;
  */
 class SpiReportingService
 {
+    // Mapping gate masuk berdasarkan jenis kendaraan (PM1-5 = motor, PM6-9 = mobil)
+    const GATE_MOTOR_MASUK = ['M01', 'M02', 'M03', 'M04', 'M05'];
+    const GATE_MOBIL_MASUK = ['M06', 'M07', 'M08', 'M09'];
+
     private string $base;       // .../reporting2/public/index.php
     private string $liveHost;   // http://host:port  (untuk parking3/*)
     private string $apiHost;    // http://host:port  (untuk reporting2_api/*)

@@ -2,9 +2,9 @@
 <?= $this->section('styles') ?>
 <style>
 .pk-chart { position:relative; height:320px; }
-.hm-table { border-collapse:separate; border-spacing:2px; font-size:.66rem; }
+.hm-table { border-collapse:separate; border-spacing:2px; font-size:.75rem; }
 .hm-table td, .hm-table th { text-align:center; }
-.hm-cell { width:22px; height:20px; border-radius:3px; color:#fff; font-size:.6rem; line-height:20px; }
+.hm-cell { width:34px; height:22px; border-radius:3px; color:#fff; font-size:.7rem; line-height:22px; overflow:hidden; }
 .hm-lbl { color:var(--txt-muted,#94a3b8); padding:0 .35rem; white-space:nowrap; }
 </style>
 <?= $this->endSection() ?>
@@ -130,18 +130,28 @@ $renderHeat = function (array $data, string $rgb) use ($dows, $num) {
     echo '</tbody></table></div>';
 };
 ?>
-<!-- Heatmap 3-mode -->
+<!-- Heatmap -->
 <div class="card mt-3"><div class="card-body">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-        <h6 class="card-title mb-0">Heatmap <span class="text-secondary small fw-normal">(rata-rata · hari × jam, semua rekaman)</span></h6>
-        <div class="btn-group btn-group-sm" role="group" id="heat-toggle">
-            <button type="button" class="btn btn-outline-info active" data-heat="occ">Okupansi</button>
-            <button type="button" class="btn btn-outline-success" data-heat="in">Masuk</button>
+    <h6 class="card-title mb-3">Heatmap <span class="text-secondary small fw-normal">(rata-rata · hari × jam, semua rekaman)</span></h6>
+    <div class="row g-4">
+        <div class="col-xl-6">
+            <div class="small fw-semibold mb-1" style="color:#fbbf24"><i class="bi bi-bicycle me-1"></i>Motor</div>
+            <div id="heat-motor"></div>
+        </div>
+        <div class="col-xl-6">
+            <div class="small fw-semibold mb-1" style="color:#60a5fa"><i class="bi bi-car-front me-1"></i>Mobil</div>
+            <div id="heat-mobil"></div>
+        </div>
+        <div class="col-xl-6">
+            <div class="small fw-semibold mb-1" style="color:#4ade80"><i class="bi bi-box-arrow-in-right me-1"></i>Arus Masuk</div>
+            <div id="heat-in"></div>
+        </div>
+        <div class="col-xl-6">
+            <div class="small fw-semibold mb-1" style="color:#22d3ee"><i class="bi bi-grid me-1"></i>Total Okupansi</div>
+            <?php $renderHeat($heat, '14,165,233'); ?>
         </div>
     </div>
-    <div id="heat-occ"><?php $renderHeat($heat, '14,165,233'); ?></div>
-    <div id="heat-in" style="display:none"></div><!-- di-build lazy via JS -->
-    <div class="text-secondary small mt-2"><b>Okupansi</b> = kepadatan (kendaraan di dalam). <b>Masuk</b> = arus masuk per jam. Makin pekat makin ramai; terisi seiring rekaman bertambah.</div>
+    <div class="text-secondary small mt-3"><b>Okupansi</b> = kepadatan (kendaraan di dalam). <b>Arus Masuk</b> = kendaraan masuk per jam. Makin pekat makin ramai.</div>
 </div></div>
 
 <!-- Per pintu (gate) -->
@@ -161,9 +171,13 @@ $gateBar = function (array $list, string $color) use ($num) {
 <div class="card mt-3"><div class="card-body">
     <h6 class="card-title">Per Pintu Masuk (Gate) <span class="text-secondary small fw-normal">(<?= $fmtDate($date) ?> · kendaraan)</span></h6>
     <div class="row g-4">
-        <div class="col-12">
-            <div class="small fw-semibold text-success mb-2"><i class="bi bi-box-arrow-in-right"></i> Masuk — <?= count($gates['masuk']) ?> pintu</div>
-            <?php $gateBar($gates['masuk'], '#16a34a'); ?>
+        <div class="col-md-6">
+            <div class="small fw-semibold mb-2" style="color:#34d399"><i class="bi bi-bicycle me-1"></i>Motor — <?= count($gates['masuk']['motor']) ?> pintu</div>
+            <?php $gateBar($gates['masuk']['motor'], '#34d399'); ?>
+        </div>
+        <div class="col-md-6">
+            <div class="small fw-semibold mb-2" style="color:#22d3ee"><i class="bi bi-car-front me-1"></i>Mobil — <?= count($gates['masuk']['mobil']) ?> pintu</div>
+            <?php $gateBar($gates['masuk']['mobil'], '#22d3ee'); ?>
         </div>
     </div>
     <div class="text-secondary small mt-2"><i class="bi bi-info-circle"></i> Pintu keluar tak ditampilkan — counter keluar per-gerbang SPI tidak reliable (dobel-scan) &amp; tak bisa diestimasi per-pintu.</div>
@@ -243,9 +257,13 @@ if (flEl && FLOW.length) new Chart(flEl, {
         scales:{ x:{ ticks:{ font:{ size:9 } } }, y:{ beginAtZero:true } } }
 });
 
-// Heatmap Masuk: data ringkas (JSON) + build lazy saat di-toggle (DOM awal ringan)
-const HEATD = { in: <?= json_encode($heatM) ?> };
-const HEAT_RGB = { in:'34,197,94' };
+// Heatmap data (JSON) — lazy build saat di-toggle
+const HEATD = {
+    in:    <?= json_encode($heatM) ?>,
+    mobil: <?= json_encode($heatMobil) ?>,
+    motor: <?= json_encode($heatMotor) ?>
+};
+const HEAT_RGB = { in:'34,197,94', mobil:'59,130,246', motor:'251,191,36' };
 const HEAT_DOWS = [[2,'Sen'],[3,'Sel'],[4,'Rab'],[5,'Kam'],[6,'Jum'],[7,'Sab'],[1,'Min']];
 const fmtN = n => Number(n).toLocaleString('id-ID');
 function buildHeat(key) {
@@ -269,13 +287,7 @@ function buildHeat(key) {
     el.innerHTML = html + '</tbody></table></div>';
     el.dataset.built = '1';
 }
-document.querySelectorAll('#heat-toggle [data-heat]').forEach(b => b.addEventListener('click', () => {
-    document.querySelectorAll('#heat-toggle [data-heat]').forEach(x => x.classList.remove('active'));
-    b.classList.add('active');
-    const key = b.dataset.heat;
-    if (key === 'in') buildHeat(key);
-    ['occ','in'].forEach(k => { const el = document.getElementById('heat-'+k); if (el) el.style.display = (k === key) ? '' : 'none'; });
-}));
+['in','mobil','motor'].forEach(k => buildHeat(k));
 </script>
 <?php endif; ?>
 <?= $this->endSection() ?>

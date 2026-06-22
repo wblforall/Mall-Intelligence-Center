@@ -98,7 +98,7 @@ $occMotor = min(100, round(($live['motor'] / $capMotor) * 100));
     </div>
 </div>
 
-<?php if (! empty($gates['masuk'])):
+<?php if (! empty($gates['masuk']['motor']) || ! empty($gates['masuk']['mobil'])):
 $gbar = function ($list, $color) {
     if (! $list) { echo '<div class="text-secondary small">—</div>'; return; }
     $max = max(array_column($list, 'jumlah')) ?: 1;
@@ -112,9 +112,13 @@ $gbar = function ($list, $color) {
 ?>
 <h6 class="text-secondary text-uppercase small fw-bold mb-2 mt-1"><i class="bi bi-door-open me-1"></i>Aktivitas Pintu Masuk <span class="fw-normal text-secondary">(kumulatif hari ini · diperbarui ~30 menit)</span></h6>
 <div class="row g-3">
-    <div class="col-12"><div class="card h-100"><div class="card-body">
-        <div class="small fw-semibold text-success mb-2"><i class="bi bi-box-arrow-in-right"></i> Masuk — <?= count($gates['masuk']) ?> pintu</div>
-        <?php $gbar($gates['masuk'], '#16a34a'); ?>
+    <div class="col-md-6"><div class="card h-100"><div class="card-body">
+        <div class="small fw-semibold mb-2" style="color:#34d399"><i class="bi bi-bicycle me-1"></i>Motor — <?= count($gates['masuk']['motor']) ?> pintu</div>
+        <?php $gbar($gates['masuk']['motor'], '#34d399'); ?>
+    </div></div></div>
+    <div class="col-md-6"><div class="card h-100"><div class="card-body">
+        <div class="small fw-semibold mb-2" style="color:#22d3ee"><i class="bi bi-car-front me-1"></i>Mobil — <?= count($gates['masuk']['mobil']) ?> pintu</div>
+        <?php $gbar($gates['masuk']['mobil'], '#22d3ee'); ?>
     </div></div></div>
 </div>
 <?php endif; ?>
