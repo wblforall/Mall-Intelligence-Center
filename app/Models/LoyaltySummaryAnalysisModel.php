@@ -37,12 +37,15 @@ class LoyaltySummaryAnalysisModel extends Model
             ->first();
 
         $data = [
-            'analisa'       => $analisa,
             'highlight'     => $highlight,
             'kendala'       => $kendala,
             'tindak_lanjut' => $tindakLanjut,
             'updated_by'    => $userId,
         ];
+        // Tulis analisa (legacy) hanya jika tidak kosong — hindari overwrite data lama
+        if ($analisa !== '') {
+            $data['analisa'] = $analisa;
+        }
         if ($existing) {
             $this->update($existing['id'], $data);
         } else {

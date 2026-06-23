@@ -277,6 +277,7 @@ $hasAnalisa   = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tind
             <?php if ($highlight): ?><div class="mb-1"><strong>Highlight:</strong> <?= esc($highlight) ?></div><?php endif; ?>
             <?php if ($kendala): ?><div class="mb-1"><strong>Kendala:</strong> <?= esc($kendala) ?></div><?php endif; ?>
             <?php if ($tindakLanjut): ?><div><strong>Tindak Lanjut:</strong> <?= esc($tindakLanjut) ?></div><?php endif; ?>
+            <?php if ($analisa && !$highlight && !$kendala && !$tindakLanjut): ?><div><?= esc($analisa) ?></div><?php endif; ?>
         </div>
         <?php else: ?>
         <em class="text-muted">—</em>

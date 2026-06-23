@@ -477,6 +477,9 @@ $renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMa
                 <?php if ($highlight): ?><div class="mb-1"><span class="text-muted">✅</span> <?= esc($highlight) ?></div><?php endif; ?>
                 <?php if ($kendala): ?><div class="mb-1"><span class="text-muted">⚠️</span> <?= esc($kendala) ?></div><?php endif; ?>
                 <?php if ($tindakLanjut): ?><div><span class="text-muted">🔁</span> <?= esc($tindakLanjut) ?></div><?php endif; ?>
+                <?php if ($analisa && !$highlight && !$kendala && !$tindakLanjut): ?>
+                <div style="white-space:pre-wrap"><?= esc($analisa) ?></div>
+                <?php endif; ?>
                 <?php if (! $hasAnalisa): ?><div class="text-muted fst-italic">Belum ada analisa</div><?php endif; ?>
             </div>
             <?php endif; ?>
@@ -889,7 +892,6 @@ document.querySelectorAll('.progress-bar').forEach((bar, i) => {
             body.append('bulan', bulan);
             body.append('source', fields.dataset.source);
             body.append('program_id', fields.dataset.id);
-            body.append('analisa', '');
             fields.querySelectorAll('textarea[name]').forEach(ta => body.append(ta.name, ta.value));
 
             fetch('<?= base_url('loyalty/summary/analisa') ?>', {

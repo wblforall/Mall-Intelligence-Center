@@ -538,6 +538,8 @@ class LoyaltyCtrl extends BaseController
         $evalStatus = in_array($post['eval_status'] ?? '', ['berhasil', 'sebagian', 'gagal']) ? $post['eval_status'] : null;
         $pm = new LoyaltyProgramModel();
         ActivityLog::captureBefore($pm->find($id));
+        $db = \Config\Database::connect();
+        $db->transStart();
         $pm->lock($id, $this->currentUser()['id']);
         if ($evalStatus !== null) {
             $pm->update($id, [
@@ -545,6 +547,10 @@ class LoyaltyCtrl extends BaseController
                 'eval_kendala'     => ($post['eval_kendala'] ?? '') ?: null,
                 'eval_rekomendasi' => ($post['eval_rekomendasi'] ?? '') ?: null,
             ]);
+        }
+        $db->transComplete();
+        if (! $db->transStatus()) {
+            return redirect()->to('/loyalty#program-s-'.$id)->with('error', 'Gagal mengunci program.');
         }
         ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'loyalty_program', (string)$id, '', ['action' => 'lock', 'eval_status' => $evalStatus]);
@@ -579,12 +585,18 @@ class LoyaltyCtrl extends BaseController
             'mekanisme'           => $orig['mekanisme'],
             'target_peserta'      => $orig['target_peserta'],
             'target_member_aktif' => $orig['target_member_aktif'],
+            'target_type'         => $orig['target_type'],
+            'target_penyerapan'   => $orig['target_penyerapan'],
+            'total_voucher'       => $orig['total_voucher'],
+            'nilai_voucher'       => $orig['nilai_voucher'],
+            'biaya_per_member'    => $orig['biaya_per_member'],
             'budget'              => 0,
             'status'              => 'active',
             'catatan'             => $orig['catatan'],
             'created_by'          => $this->currentUser()['id'],
         ]);
         $newId = $progModel->getInsertID();
+        if (! $newId) return redirect()->to('/loyalty')->with('error', 'Gagal menduplikat program.');
         ActivityLog::write('create', 'loyalty_program', (string)$newId, $orig['nama_program'] . ' — Kopi', ['duplikat_dari' => $id]);
         return redirect()->to('/loyalty#program-s-' . $newId)->with('success', 'Program berhasil diduplikat. Perbarui tanggal dan item reward sesuai kebutuhan.');
     }
