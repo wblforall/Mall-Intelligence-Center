@@ -340,6 +340,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1"><?= count($entries) ?> entri</span>
                 <?php endif; ?>
             </span>
+            <div class="d-flex align-items-center gap-2">
             <?php if ($canManage && !$isInactive): ?>
             <button class="btn btn-xs btn-outline-primary toggle-add-realisasi"
                     style="padding:.2rem .6rem;font-size:.75rem"
@@ -347,7 +348,8 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <i class="bi bi-plus-lg me-1"></i>Input
             </button>
             <?php endif; ?>
-            <i class="bi bi-chevron-down sec-chevron text-muted ms-1" style="font-size:.75rem"></i>
+            <i class="bi bi-chevron-down sec-chevron text-muted" style="font-size:.75rem"></i>
+            </div>
         </div>
         <div id="sec-member-<?= $pid ?>" class="sec-body d-none">
 
@@ -480,6 +482,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <span class="ms-2 fw-semibold text-warning">Rp <?= number_format($voucherBudgetReal,0,',','.') ?> dipakai</span>
                 <?php endif; ?>
             </span>
+            <div class="d-flex align-items-center gap-2">
             <?php if ($canManage && !$isInactive): ?>
             <button class="btn btn-xs btn-outline-warning toggle-add-voucher-item"
                     style="padding:.2rem .6rem;font-size:.75rem"
@@ -487,7 +490,8 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <i class="bi bi-plus-lg me-1"></i>Tambah Voucher
             </button>
             <?php endif; ?>
-            <i class="bi bi-chevron-down sec-chevron text-muted ms-1" style="font-size:.75rem"></i>
+            <i class="bi bi-chevron-down sec-chevron text-muted" style="font-size:.75rem"></i>
+            </div>
         </div>
         <div id="sec-voucher-<?= $pid ?>" class="sec-body d-none">
 
@@ -735,6 +739,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <span class="ms-2 fw-semibold text-success">Rp <?= number_format($hadiahBudgetReal,0,',','.') ?> dibagikan</span>
                 <?php endif; ?>
             </span>
+            <div class="d-flex align-items-center gap-2">
             <?php if ($canManage && !$isInactive): ?>
             <button class="btn btn-xs btn-outline-success toggle-add-hadiah-item"
                     style="padding:.2rem .6rem;font-size:.75rem"
@@ -742,7 +747,8 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <i class="bi bi-plus-lg me-1"></i>Tambah Item
             </button>
             <?php endif; ?>
-            <i class="bi bi-chevron-down sec-chevron text-muted ms-1" style="font-size:.75rem"></i>
+            <i class="bi bi-chevron-down sec-chevron text-muted" style="font-size:.75rem"></i>
+            </div>
         </div>
         <div id="sec-hadiah-<?= $pid ?>" class="sec-body d-none">
 
