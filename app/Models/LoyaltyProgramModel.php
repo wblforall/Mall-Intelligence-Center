@@ -14,7 +14,8 @@ class LoyaltyProgramModel extends Model
         'tanggal_mulai', 'tanggal_selesai', 'jam_mulai', 'jam_selesai',
         'mekanisme', 'target_type', 'target_peserta', 'target_member_aktif', 'target_penyerapan', 'total_voucher',
         'nilai_voucher', 'biaya_per_member',
-        'budget', 'status', 'locked', 'locked_by', 'locked_at', 'catatan', 'created_by',
+        'budget', 'status', 'locked', 'locked_by', 'locked_at',
+        'eval_status', 'eval_kendala', 'eval_rekomendasi', 'catatan', 'created_by',
     ];
 
     public function getAll(): array

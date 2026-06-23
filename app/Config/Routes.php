@@ -228,6 +228,7 @@ $routes->post('loyalty/(:num)/delete', 'LoyaltyCtrl::deleteProgram/$1', ['filter
 $routes->post('loyalty/(:num)/toggle', 'LoyaltyCtrl::toggleStatus/$1', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/lock', 'LoyaltyCtrl::lock/$1', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/unlock', 'LoyaltyCtrl::unlock/$1', ['filter' => 'auth']);
+$routes->post('loyalty/(:num)/duplikat', 'LoyaltyCtrl::duplikat/$1', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/realisasi/add', 'LoyaltyCtrl::storeRealisasi/$1', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/realisasi/(:num)/delete', 'LoyaltyCtrl::deleteRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('loyalty/(:num)/hadiah/add', 'LoyaltyCtrl::storeHadiahItem/$1', ['filter' => 'auth']);

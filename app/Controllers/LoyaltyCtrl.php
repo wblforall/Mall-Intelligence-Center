@@ -534,11 +534,20 @@ class LoyaltyCtrl extends BaseController
     public function lock(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
+        $post       = $this->request->getPost();
+        $evalStatus = in_array($post['eval_status'] ?? '', ['berhasil', 'sebagian', 'gagal']) ? $post['eval_status'] : null;
         $pm = new LoyaltyProgramModel();
         ActivityLog::captureBefore($pm->find($id));
         $pm->lock($id, $this->currentUser()['id']);
+        if ($evalStatus !== null) {
+            $pm->update($id, [
+                'eval_status'      => $evalStatus,
+                'eval_kendala'     => ($post['eval_kendala'] ?? '') ?: null,
+                'eval_rekomendasi' => ($post['eval_rekomendasi'] ?? '') ?: null,
+            ]);
+        }
         ActivityLog::captureAfter($pm->find($id));
-        ActivityLog::write('update', 'loyalty_program', (string)$id, '', ['action' => 'lock']);
+        ActivityLog::write('update', 'loyalty_program', (string)$id, '', ['action' => 'lock', 'eval_status' => $evalStatus]);
         return redirect()->to('/loyalty#program-s-'.$id)->with('success', 'Program berhasil dikunci.');
     }
 
@@ -551,6 +560,33 @@ class LoyaltyCtrl extends BaseController
         ActivityLog::captureAfter($pm->find($id));
         ActivityLog::write('update', 'loyalty_program', (string)$id, '', ['action' => 'unlock']);
         return redirect()->to('/loyalty#program-s-'.$id)->with('success', 'Kunci program berhasil dibuka.');
+    }
+
+    public function duplikat(int $id)
+    {
+        if (! $this->canEditMenu('loyalty_main')) return redirect()->to('/loyalty')->with('error', 'Akses ditolak.');
+        $orig = (new LoyaltyProgramModel())->find($id);
+        if (! $orig) return redirect()->to('/loyalty')->with('error', 'Program tidak ditemukan.');
+        $progModel = new LoyaltyProgramModel();
+        $progModel->insert([
+            'nama_program'        => $orig['nama_program'] . ' — Kopi',
+            'jenis'               => $orig['jenis'],
+            'tenant_id'           => $orig['tenant_id'],
+            'tanggal_mulai'       => null,
+            'tanggal_selesai'     => null,
+            'jam_mulai'           => $orig['jam_mulai'],
+            'jam_selesai'         => $orig['jam_selesai'],
+            'mekanisme'           => $orig['mekanisme'],
+            'target_peserta'      => $orig['target_peserta'],
+            'target_member_aktif' => $orig['target_member_aktif'],
+            'budget'              => 0,
+            'status'              => 'active',
+            'catatan'             => $orig['catatan'],
+            'created_by'          => $this->currentUser()['id'],
+        ]);
+        $newId = $progModel->getInsertID();
+        ActivityLog::write('create', 'loyalty_program', (string)$newId, $orig['nama_program'] . ' — Kopi', ['duplikat_dari' => $id]);
+        return redirect()->to('/loyalty#program-s-' . $newId)->with('success', 'Program berhasil diduplikat. Perbarui tanggal dan item reward sesuai kebutuhan.');
     }
 
     public function storeRealisasi(int $programId)
@@ -909,16 +945,20 @@ class LoyaltyCtrl extends BaseController
         $bulan     = (string)$this->request->getPost('bulan');
         $source    = (string)$this->request->getPost('source');
         $programId = (int)$this->request->getPost('program_id');
-        $analisa   = trim((string)$this->request->getPost('analisa'));
+        $analisa      = trim((string)$this->request->getPost('analisa'));
+        $highlight    = trim((string)$this->request->getPost('highlight'));
+        $kendala      = trim((string)$this->request->getPost('kendala'));
+        $tindakLanjut = trim((string)$this->request->getPost('tindak_lanjut'));
 
         if (! preg_match('/^\d{4}-\d{2}$/', $bulan) || ! in_array($source, ['s', 'e'], true) || $programId <= 0) {
             return $this->response->setStatusCode(400)->setJSON(['ok' => false, 'error' => 'Data tidak valid.', 'csrf' => csrf_hash()]);
         }
 
-        (new LoyaltySummaryAnalysisModel())->saveAnalisa($bulan, $source, $programId, $analisa, $this->currentUser()['id']);
+        (new LoyaltySummaryAnalysisModel())->saveAnalisa($bulan, $source, $programId, $analisa, $this->currentUser()['id'], $highlight, $kendala, $tindakLanjut);
         ActivityLog::write('update', 'loyalty_analisa', $source . '_' . $programId, 'Analisa program — ' . $bulan, ['bulan' => $bulan]);
 
-        return $this->response->setJSON(['ok' => true, 'filled' => $analisa !== '', 'csrf' => csrf_hash()]);
+        $filled = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tindakLanjut !== '';
+        return $this->response->setJSON(['ok' => true, 'filled' => $filled, 'csrf' => csrf_hash()]);
     }
 
     public function printSummary()

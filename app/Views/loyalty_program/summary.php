@@ -437,9 +437,13 @@ $renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMa
         </div>
 
         <?php
-        $src        = $isS ? 's' : 'e';
-        $analisa    = $analisaMap[$key] ?? '';
-        $hasAnalisa = trim($analisa) !== '';
+        $src          = $isS ? 's' : 'e';
+        $analisaData  = $analisaMap[$key] ?? [];
+        $analisa      = $analisaData['analisa']       ?? '';
+        $highlight    = $analisaData['highlight']     ?? '';
+        $kendala      = $analisaData['kendala']       ?? '';
+        $tindakLanjut = $analisaData['tindak_lanjut'] ?? '';
+        $hasAnalisa   = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tindakLanjut !== '';
         ?>
         <div class="card-body border-top py-2 px-3 analisa-box" data-key="<?= $key ?>">
             <div class="d-flex justify-content-between align-items-center mb-1">
@@ -447,15 +451,34 @@ $renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMa
                 <span class="badge analisa-flag <?= $hasAnalisa ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis' ?>" style="font-size:.6rem" data-filled="<?= $hasAnalisa ? '1' : '0' ?>"><?= $hasAnalisa ? 'terisi' : 'belum diisi' ?></span>
             </div>
             <?php if ($canEdit): ?>
-            <textarea class="form-control form-control-sm analisa-input" rows="2"
-                      data-source="<?= $src ?>" data-id="<?= (int)$prog['id'] ?>"
-                      placeholder="Tulis analisa program untuk bulan ini..." style="font-size:.75rem"><?= esc($analisa) ?></textarea>
+            <div class="analisa-fields" data-source="<?= $src ?>" data-id="<?= (int)$prog['id'] ?>">
+                <div class="mb-1">
+                    <div class="small text-muted mb-1" style="font-size:.68rem">✅ Highlight (apa yang berjalan baik)</div>
+                    <textarea class="form-control form-control-sm analisa-input" name="highlight" rows="1"
+                              placeholder="..." style="font-size:.73rem"><?= esc($highlight) ?></textarea>
+                </div>
+                <div class="mb-1">
+                    <div class="small text-muted mb-1" style="font-size:.68rem">⚠️ Kendala</div>
+                    <textarea class="form-control form-control-sm analisa-input" name="kendala" rows="1"
+                              placeholder="..." style="font-size:.73rem"><?= esc($kendala) ?></textarea>
+                </div>
+                <div class="mb-1">
+                    <div class="small text-muted mb-1" style="font-size:.68rem">🔁 Tindak Lanjut (bulan depan)</div>
+                    <textarea class="form-control form-control-sm analisa-input" name="tindak_lanjut" rows="1"
+                              placeholder="..." style="font-size:.73rem"><?= esc($tindakLanjut) ?></textarea>
+                </div>
+            </div>
             <div class="d-flex justify-content-end align-items-center gap-2 mt-1">
                 <span class="analisa-status small"></span>
                 <button type="button" class="btn btn-sm btn-outline-primary analisa-save" style="font-size:.7rem;padding:.15rem .6rem"><i class="bi bi-save me-1"></i>Simpan</button>
             </div>
             <?php else: ?>
-            <div class="small <?= $hasAnalisa ? '' : 'text-muted fst-italic' ?>" style="font-size:.75rem;white-space:pre-wrap"><?= $hasAnalisa ? esc($analisa) : 'Belum ada analisa' ?></div>
+            <div style="font-size:.73rem">
+                <?php if ($highlight): ?><div class="mb-1"><span class="text-muted">✅</span> <?= esc($highlight) ?></div><?php endif; ?>
+                <?php if ($kendala): ?><div class="mb-1"><span class="text-muted">⚠️</span> <?= esc($kendala) ?></div><?php endif; ?>
+                <?php if ($tindakLanjut): ?><div><span class="text-muted">🔁</span> <?= esc($tindakLanjut) ?></div><?php endif; ?>
+                <?php if (! $hasAnalisa): ?><div class="text-muted fst-italic">Belum ada analisa</div><?php endif; ?>
+            </div>
             <?php endif; ?>
         </div>
 
@@ -854,7 +877,7 @@ document.querySelectorAll('.progress-bar').forEach((bar, i) => {
     document.querySelectorAll('.analisa-save').forEach(btn => {
         btn.addEventListener('click', function(){
             const box    = btn.closest('.analisa-box');
-            const ta     = box.querySelector('.analisa-input');
+            const fields = box.querySelector('.analisa-fields');
             const status = box.querySelector('.analisa-status');
             const flag   = box.querySelector('.analisa-flag');
             btn.disabled = true;
@@ -864,9 +887,10 @@ document.querySelectorAll('.progress-bar').forEach((bar, i) => {
             const body = new URLSearchParams();
             body.append(csrf.name, csrf.hash);
             body.append('bulan', bulan);
-            body.append('source', ta.dataset.source);
-            body.append('program_id', ta.dataset.id);
-            body.append('analisa', ta.value);
+            body.append('source', fields.dataset.source);
+            body.append('program_id', fields.dataset.id);
+            body.append('analisa', '');
+            fields.querySelectorAll('textarea[name]').forEach(ta => body.append(ta.name, ta.value));
 
             fetch('<?= base_url('loyalty/summary/analisa') ?>', {
                 method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body

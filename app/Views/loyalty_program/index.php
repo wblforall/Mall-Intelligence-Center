@@ -245,11 +245,16 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                         <i class="bi bi-<?= $isInactive ? 'play-circle' : 'pause-circle' ?>"></i>
                     </button>
                 </form>
-                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/lock') ?>">
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Kunci & Evaluasi Program"
+                    data-bs-toggle="modal" data-bs-target="#modalLock"
+                    data-id="<?= $pid ?>" data-nama="<?= esc($p['nama_program'], 'attr') ?>">
+                    <i class="bi bi-lock"></i>
+                </button>
+                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/duplikat') ?>">
                     <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Kunci Program"
-                        onclick="return confirm('Kunci program ini? Data tidak bisa diedit setelah dikunci.')">
-                        <i class="bi bi-lock"></i>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duplikat Program"
+                        onclick="return confirm('Duplikat program ini sebagai template baru?')">
+                        <i class="bi bi-copy"></i>
                     </button>
                 </form>
                 <button class="btn btn-sm btn-outline-secondary edit-btn"
@@ -1265,6 +1270,53 @@ $cntClosed     = count($allClosed);
 </div>
 </form>
 </div></div></div>
+
+<!-- Modal: Evaluasi saat Kunci -->
+<div class="modal fade" id="modalLock" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-lock me-2"></i>Kunci & Evaluasi Program</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="formLock" action="">
+                <?= csrf_field() ?>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Program <strong id="lockProgNama"></strong> akan dikunci. Tambahkan evaluasi akhir sebagai bahan referensi program berikutnya.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Capaian Program <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="eval_status" id="evalBerhasil" value="berhasil" required>
+                                <label class="form-check-label text-success fw-semibold" for="evalBerhasil"><i class="bi bi-check-circle me-1"></i>Berhasil</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="eval_status" id="evalSebagian" value="sebagian">
+                                <label class="form-check-label text-warning fw-semibold" for="evalSebagian"><i class="bi bi-dash-circle me-1"></i>Sebagian</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="eval_status" id="evalGagal" value="gagal">
+                                <label class="form-check-label text-danger fw-semibold" for="evalGagal"><i class="bi bi-x-circle me-1"></i>Perlu Perbaikan</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Kendala Utama <span class="text-danger">*</span></label>
+                        <textarea name="eval_kendala" class="form-control" rows="2" placeholder="Apa kendala terbesar dalam program ini?" required></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Rekomendasi untuk Program Berikutnya</label>
+                        <textarea name="eval_rekomendasi" class="form-control" rows="2" placeholder="Apa yang sebaiknya diperbaiki atau dipertahankan?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-lock-fill me-1"></i>Kunci Program</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <?php endif; ?>
 
 <?= $this->endSection() ?>
@@ -1477,6 +1529,18 @@ document.querySelectorAll('.edit-jenis-radio').forEach(r => {
     r.addEventListener('change', function() {
         document.getElementById('editNamaTenantWrap').classList.toggle('d-none', this.value !== 'tenant');
     });
+});
+
+// Modal kunci program: set action URL + nama
+document.getElementById('modalLock')?.addEventListener('show.bs.modal', function(e) {
+    const btn  = e.relatedTarget;
+    const id   = btn.dataset.id;
+    const nama = btn.dataset.nama;
+    document.getElementById('formLock').action = '<?= base_url('loyalty/') ?>' + id + '/lock';
+    document.getElementById('lockProgNama').textContent = nama;
+    // Reset form
+    this.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
+    this.querySelectorAll('textarea').forEach(t => t.value = '');
 });
 <?php endif; ?>
 

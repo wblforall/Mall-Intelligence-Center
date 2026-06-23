@@ -56,6 +56,45 @@ $pctStok       = $totalStok > 0       ? min(100, round($totalHadiah      / $tota
     </a>
 </div>
 
+<?php if ($isLocked && (($prog['eval_status'] ?? '') !== '')): ?>
+<div class="alert alert-secondary border-0 mb-3" style="background:rgba(148,163,184,.1)">
+    <div class="d-flex align-items-start gap-3 flex-wrap">
+        <div class="flex-grow-1">
+            <div class="small text-muted fw-semibold mb-2"><i class="bi bi-clipboard-check me-1"></i>Evaluasi Akhir Program</div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <?php
+                $evalColors = ['berhasil' => 'success', 'sebagian' => 'warning', 'gagal' => 'danger'];
+                $evalLabels = ['berhasil' => 'Berhasil', 'sebagian' => 'Sebagian', 'gagal' => 'Perlu Perbaikan'];
+                $evalIcons  = ['berhasil' => 'check-circle-fill', 'sebagian' => 'dash-circle-fill', 'gagal' => 'x-circle-fill'];
+                $es = $prog['eval_status'];
+                $ec = $evalColors[$es] ?? 'secondary';
+                ?>
+                <span class="badge bg-<?= $ec ?>-subtle text-<?= $ec ?> fs-6 px-3 py-2">
+                    <i class="bi bi-<?= $evalIcons[$es] ?? 'circle' ?> me-1"></i><?= $evalLabels[$es] ?? $es ?>
+                </span>
+            </div>
+            <?php if ($prog['eval_kendala'] ?? ''): ?>
+            <div class="mb-1">
+                <span class="small text-muted fw-semibold">Kendala:</span>
+                <span class="small ms-1"><?= nl2br(esc($prog['eval_kendala'])) ?></span>
+            </div>
+            <?php endif; ?>
+            <?php if ($prog['eval_rekomendasi'] ?? ''): ?>
+            <div>
+                <span class="small text-muted fw-semibold">Rekomendasi:</span>
+                <span class="small ms-1"><?= nl2br(esc($prog['eval_rekomendasi'])) ?></span>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php if ($prog['locked_at'] ?? ''): ?>
+        <div class="text-muted small flex-shrink-0">
+            <i class="bi bi-lock-fill me-1"></i>Dikunci <?= date('d M Y', strtotime($prog['locked_at'])) ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- KPI Cards (all-time) -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-xl">

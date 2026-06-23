@@ -261,11 +261,26 @@ foreach ($sections as $sec):
     <td class="<?= $serap  ? 'num' : 'zero' ?>"><?= $sebar ? $serap.'%' : '—' ?></td>
     <td class="<?= $hd     ? 'num' : 'zero' ?>"><?= numF($hd)     ?></td>
 </tr>
-<?php $aTxt = trim($analisaMap[$key] ?? ''); ?>
+<?php
+$analisaData  = $analisaMap[$key] ?? [];
+$highlight    = $analisaData['highlight']     ?? '';
+$kendala      = $analisaData['kendala']       ?? '';
+$tindakLanjut = $analisaData['tindak_lanjut'] ?? '';
+$analisa      = $analisaData['analisa']       ?? '';
+$hasAnalisa   = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tindakLanjut !== '';
+?>
 <tr class="analisa-row">
     <td colspan="<?= $isSt ? 8 : 9 ?>" style="background:#f8fafc;font-size:9px;color:#334155;padding:4px 8px;border-top:none">
         <strong style="color:#0f172a">Analisa:</strong>
-        <?= $aTxt !== '' ? nl2br(esc($aTxt)) : '<em style="color:#94a3b8">(belum diisi)</em>' ?>
+        <?php if ($hasAnalisa): ?>
+        <div style="font-size:.78rem">
+            <?php if ($highlight): ?><div class="mb-1"><strong>Highlight:</strong> <?= esc($highlight) ?></div><?php endif; ?>
+            <?php if ($kendala): ?><div class="mb-1"><strong>Kendala:</strong> <?= esc($kendala) ?></div><?php endif; ?>
+            <?php if ($tindakLanjut): ?><div><strong>Tindak Lanjut:</strong> <?= esc($tindakLanjut) ?></div><?php endif; ?>
+        </div>
+        <?php else: ?>
+        <em class="text-muted">—</em>
+        <?php endif; ?>
     </td>
 </tr>
 <?php endforeach; ?>
