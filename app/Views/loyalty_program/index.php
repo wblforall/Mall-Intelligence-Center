@@ -12,7 +12,7 @@
 .sec-toggle { cursor: pointer; user-select: none; }
 .sec-toggle .sec-chevron { transition: transform .25s ease; transform: rotate(-90deg); }
 .sec-toggle.sec-open .sec-chevron { transform: rotate(0deg); }
-.sec-body { overflow: hidden; height: 0; transition: height .3s cubic-bezier(.4,0,.2,1); }
+.sec-body { overflow: hidden; transition: height .3s cubic-bezier(.4,0,.2,1); }
 .loy-actions .dropdown-menu { min-width: 160px; }
 .loy-actions .dropdown-item { font-size: .82rem; padding: .35rem .9rem; }
 </style>
@@ -1455,6 +1455,9 @@ document.querySelectorAll('.progress-bar').forEach((bar, i) => {
 });
 
 // Collapsible sections — animated height expand/collapse
+// Init: semua sec-body mulai tertutup (height 0 via JS, bukan CSS, agar tidak konflik)
+document.querySelectorAll('.sec-body').forEach(b => { b.style.height = '0'; });
+
 document.querySelectorAll('.sec-toggle').forEach(hdr => {
     hdr.addEventListener('click', function(e) {
         if (e.target.closest('button, a, form')) return;
@@ -1462,17 +1465,20 @@ document.querySelectorAll('.sec-toggle').forEach(hdr => {
         if (!body) return;
         const isOpen = this.classList.contains('sec-open');
         if (isOpen) {
-            // Closing: pin height then animate to 0
+            // Tutup: pin ke tinggi aktual dulu → reflow → animasi ke 0
             body.style.height = body.scrollHeight + 'px';
             body.offsetHeight; // force reflow
             body.style.height = '0';
             this.classList.remove('sec-open');
         } else {
-            // Opening: animate from 0 to natural height
+            // Buka: animasi ke tinggi aktual
             body.style.height = body.scrollHeight + 'px';
             this.classList.add('sec-open');
-            body.addEventListener('transitionend', function done() {
-                body.style.height = '';  // let content grow freely after open
+            // Setelah selesai: set 'auto' agar konten bisa tumbuh (misal form buka di dalam)
+            // Filter: hanya dari body itu sendiri (bukan bubble dari child), hanya properti height
+            body.addEventListener('transitionend', function done(e) {
+                if (e.target !== body || e.propertyName !== 'height') return;
+                body.style.height = 'auto';
                 body.removeEventListener('transitionend', done);
             });
         }
