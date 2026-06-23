@@ -10,8 +10,9 @@
     to { opacity: 1; transform: translateY(0); }
 }
 .sec-toggle { cursor: pointer; user-select: none; }
-.sec-toggle .sec-chevron { transition: transform .2s ease; transform: rotate(-90deg); }
+.sec-toggle .sec-chevron { transition: transform .25s ease; transform: rotate(-90deg); }
 .sec-toggle.sec-open .sec-chevron { transform: rotate(0deg); }
+.sec-body { overflow: hidden; height: 0; transition: height .3s cubic-bezier(.4,0,.2,1); }
 .loy-actions .dropdown-menu { min-width: 160px; }
 .loy-actions .dropdown-item { font-size: .82rem; padding: .35rem .9rem; }
 </style>
@@ -351,7 +352,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
             <i class="bi bi-chevron-down sec-chevron text-muted" style="font-size:.75rem"></i>
             </div>
         </div>
-        <div id="sec-member-<?= $pid ?>" class="sec-body d-none">
+        <div id="sec-member-<?= $pid ?>" class="sec-body">
 
         <?php $targetBaru  = (int)($p['target_peserta'] ?? 0); ?>
         <?php $targetAktif = (int)($p['target_member_aktif'] ?? 0); ?>
@@ -493,7 +494,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
             <i class="bi bi-chevron-down sec-chevron text-muted" style="font-size:.75rem"></i>
             </div>
         </div>
-        <div id="sec-voucher-<?= $pid ?>" class="sec-body d-none">
+        <div id="sec-voucher-<?= $pid ?>" class="sec-body">
 
         <?php if ($canManage && !$isInactive): ?>
         <div id="add-voucher-item-<?= $pid ?>" class="d-none px-3 py-2 border-bottom bg-warning-subtle bg-opacity-25">
@@ -750,7 +751,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
             <i class="bi bi-chevron-down sec-chevron text-muted" style="font-size:.75rem"></i>
             </div>
         </div>
-        <div id="sec-hadiah-<?= $pid ?>" class="sec-body d-none">
+        <div id="sec-hadiah-<?= $pid ?>" class="sec-body">
 
         <?php if ($canManage && !$isInactive): ?>
         <div id="add-hadiah-item-<?= $pid ?>" class="d-none px-3 py-2 border-bottom bg-success-subtle bg-opacity-25">
@@ -1453,14 +1454,28 @@ document.querySelectorAll('.progress-bar').forEach((bar, i) => {
     }, 420 + i * 55);
 });
 
-// Collapsible sections — click header to expand/collapse
+// Collapsible sections — animated height expand/collapse
 document.querySelectorAll('.sec-toggle').forEach(hdr => {
     hdr.addEventListener('click', function(e) {
         if (e.target.closest('button, a, form')) return;
         const body = document.getElementById(this.dataset.sec);
         if (!body) return;
-        const nowHidden = body.classList.toggle('d-none');
-        this.classList.toggle('sec-open', !nowHidden);
+        const isOpen = this.classList.contains('sec-open');
+        if (isOpen) {
+            // Closing: pin height then animate to 0
+            body.style.height = body.scrollHeight + 'px';
+            body.offsetHeight; // force reflow
+            body.style.height = '0';
+            this.classList.remove('sec-open');
+        } else {
+            // Opening: animate from 0 to natural height
+            body.style.height = body.scrollHeight + 'px';
+            this.classList.add('sec-open');
+            body.addEventListener('transitionend', function done() {
+                body.style.height = '';  // let content grow freely after open
+                body.removeEventListener('transitionend', done);
+            });
+        }
     });
 });
 </script>
