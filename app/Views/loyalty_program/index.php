@@ -9,6 +9,11 @@
 @keyframes fadeUpLoy {
     to { opacity: 1; transform: translateY(0); }
 }
+.sec-toggle { cursor: pointer; user-select: none; }
+.sec-toggle .sec-chevron { transition: transform .2s ease; transform: rotate(-90deg); }
+.sec-toggle.sec-open .sec-chevron { transform: rotate(0deg); }
+.loy-actions .dropdown-menu { min-width: 160px; }
+.loy-actions .dropdown-item { font-size: .82rem; padding: .35rem .9rem; }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -222,62 +227,83 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <?php endif; ?>
             </div>
 
-            <div class="d-flex gap-1 flex-shrink-0">
+            <div class="d-flex gap-1 flex-shrink-0 loy-actions">
                 <a href="<?= base_url('loyalty/detail/' . ($isStandalone ? 's' : 'e') . '/' . $pid) ?>"
-                   class="btn btn-sm btn-outline-primary" title="Lihat Laporan Detail">
+                   class="btn btn-sm btn-outline-secondary" title="Laporan Detail">
                     <i class="bi bi-bar-chart-line"></i>
                 </a>
                 <?php if ($isStandalone && $canEdit): ?>
-                <?php if ($isLocked): ?>
-                <?php if ($isAdmin): ?>
-                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/unlock') ?>">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Buka Kunci">
-                        <i class="bi bi-unlock-fill"></i>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
                     </button>
-                </form>
-                <?php endif; ?>
-                <?php else: ?>
-                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/toggle') ?>">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-sm <?= $isInactive ? 'btn-outline-success' : 'btn-outline-secondary' ?>"
-                        title="<?= $isInactive ? 'Aktifkan' : 'Non-aktifkan' ?>">
-                        <i class="bi bi-<?= $isInactive ? 'play-circle' : 'pause-circle' ?>"></i>
-                    </button>
-                </form>
-                <button type="button" class="btn btn-sm btn-outline-secondary" title="Kunci & Evaluasi Program"
-                    data-bs-toggle="modal" data-bs-target="#modalLock"
-                    data-id="<?= $pid ?>" data-nama="<?= esc($p['nama_program'], 'attr') ?>">
-                    <i class="bi bi-lock"></i>
-                </button>
-                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/duplikat') ?>">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duplikat Program"
-                        onclick="return confirm('Duplikat program ini sebagai template baru?')">
-                        <i class="bi bi-copy"></i>
-                    </button>
-                </form>
-                <button class="btn btn-sm btn-outline-secondary edit-btn"
-                    data-id="<?= $pid ?>"
-                    data-jenis="<?= esc($p['jenis'] ?? 'internal', 'attr') ?>"
-                    data-tenant-id="<?= (int)($p['tenant_id'] ?? 0) ?>"
-                    data-nama="<?= esc($p['nama_program'], 'attr') ?>"
-                    data-tanggal-mulai="<?= $p['tanggal_mulai'] ?? '' ?>"
-                    data-tanggal-selesai="<?= $p['tanggal_selesai'] ?? '' ?>"
-                    data-jam-mulai="<?= substr($p['jam_mulai'] ?? '', 0, 5) ?>"
-                    data-jam-selesai="<?= substr($p['jam_selesai'] ?? '', 0, 5) ?>"
-                    data-mekanisme="<?= esc($p['mekanisme'], 'attr') ?>"
-                    data-target="<?= $p['target_peserta'] ?>"
-                    data-target-aktif="<?= $p['target_member_aktif'] ?? '' ?>"
-                    data-catatan="<?= esc($p['catatan'], 'attr') ?>">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <form method="POST" action="<?= base_url('loyalty/'.$pid.'/delete') ?>"
-                    onsubmit="return confirm('Hapus program beserta semua data realisasinya?')">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                </form>
-                <?php endif; /* isLocked else */ ?>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                    <?php if ($isLocked): ?>
+                        <?php if ($isAdmin): ?>
+                        <li>
+                            <form method="POST" action="<?= base_url('loyalty/'.$pid.'/unlock') ?>">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item text-warning">
+                                    <i class="bi bi-unlock-fill me-2"></i>Buka Kunci
+                                </button>
+                            </form>
+                        </li>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <li>
+                            <form method="POST" action="<?= base_url('loyalty/'.$pid.'/toggle') ?>">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item">
+                                    <i class="bi bi-<?= $isInactive ? 'play-circle' : 'pause-circle' ?> me-2"></i>
+                                    <?= $isInactive ? 'Aktifkan' : 'Non-aktifkan' ?>
+                                </button>
+                            </form>
+                        </li>
+                        <li>
+                            <button type="button" class="dropdown-item edit-btn"
+                                data-id="<?= $pid ?>"
+                                data-jenis="<?= esc($p['jenis'] ?? 'internal', 'attr') ?>"
+                                data-tenant-id="<?= (int)($p['tenant_id'] ?? 0) ?>"
+                                data-nama="<?= esc($p['nama_program'], 'attr') ?>"
+                                data-tanggal-mulai="<?= $p['tanggal_mulai'] ?? '' ?>"
+                                data-tanggal-selesai="<?= $p['tanggal_selesai'] ?? '' ?>"
+                                data-jam-mulai="<?= substr($p['jam_mulai'] ?? '', 0, 5) ?>"
+                                data-jam-selesai="<?= substr($p['jam_selesai'] ?? '', 0, 5) ?>"
+                                data-mekanisme="<?= esc($p['mekanisme'], 'attr') ?>"
+                                data-target="<?= $p['target_peserta'] ?>"
+                                data-target-aktif="<?= $p['target_member_aktif'] ?? '' ?>"
+                                data-catatan="<?= esc($p['catatan'], 'attr') ?>">
+                                <i class="bi bi-pencil me-2"></i>Edit
+                            </button>
+                        </li>
+                        <li>
+                            <button type="button" class="dropdown-item"
+                                data-bs-toggle="modal" data-bs-target="#modalLock"
+                                data-id="<?= $pid ?>" data-nama="<?= esc($p['nama_program'], 'attr') ?>">
+                                <i class="bi bi-lock me-2"></i>Kunci & Evaluasi
+                            </button>
+                        </li>
+                        <li>
+                            <form method="POST" action="<?= base_url('loyalty/'.$pid.'/duplikat') ?>">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item" onclick="return confirm('Duplikat program ini sebagai template baru?')">
+                                    <i class="bi bi-copy me-2"></i>Duplikat
+                                </button>
+                            </form>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="POST" action="<?= base_url('loyalty/'.$pid.'/delete') ?>"
+                                onsubmit="return confirm('Hapus program beserta semua data realisasinya?')">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="bi bi-trash me-2"></i>Hapus
+                                </button>
+                            </form>
+                        </li>
+                    <?php endif; /* isLocked */ ?>
+                    </ul>
+                </div>
                 <?php elseif (!$isStandalone): ?>
                 <a href="<?= base_url('events/'.$p['event_id'].'/loyalty') ?>" class="btn btn-sm btn-outline-secondary" title="Kelola di event">
                     <i class="bi bi-box-arrow-up-right"></i>
@@ -300,7 +326,8 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
     <?php $showMember = $canEdit || !empty($entries); ?>
     <?php if ($showMember): ?>
     <div class="border-top">
-        <div class="px-3 py-2 bg-primary-subtle d-flex justify-content-between align-items-center">
+        <div class="px-3 py-2 bg-primary-subtle d-flex justify-content-between align-items-center sec-toggle"
+             data-sec="sec-member-<?= $pid ?>">
             <span class="small fw-semibold text-primary">
                 <i class="bi bi-person-plus me-1"></i>Member
                 <?php if ($rTotal > 0): ?>
@@ -320,7 +347,9 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <i class="bi bi-plus-lg me-1"></i>Input
             </button>
             <?php endif; ?>
+            <i class="bi bi-chevron-down sec-chevron text-muted ms-1" style="font-size:.75rem"></i>
         </div>
+        <div id="sec-member-<?= $pid ?>" class="sec-body d-none">
 
         <?php $targetBaru  = (int)($p['target_peserta'] ?? 0); ?>
         <?php $targetAktif = (int)($p['target_member_aktif'] ?? 0); ?>
@@ -426,6 +455,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
         </table>
         </div>
         <?php endif; ?>
+        </div><!-- /sec-member -->
     </div>
     <?php endif; // showMember ?>
 
@@ -439,7 +469,8 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
     }
     ?>
     <div class="border-top">
-        <div class="px-3 py-2 bg-warning-subtle d-flex justify-content-between align-items-center">
+        <div class="px-3 py-2 bg-warning-subtle d-flex justify-content-between align-items-center sec-toggle"
+             data-sec="sec-voucher-<?= $pid ?>">
             <span class="small fw-semibold text-warning-emphasis">
                 <i class="bi bi-ticket-perforated me-1"></i>e-Voucher
                 <?php if (!empty($myVoucherItems)): ?>
@@ -456,7 +487,9 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <i class="bi bi-plus-lg me-1"></i>Tambah Voucher
             </button>
             <?php endif; ?>
+            <i class="bi bi-chevron-down sec-chevron text-muted ms-1" style="font-size:.75rem"></i>
         </div>
+        <div id="sec-voucher-<?= $pid ?>" class="sec-body d-none">
 
         <?php if ($canManage && !$isInactive): ?>
         <div id="add-voucher-item-<?= $pid ?>" class="d-none px-3 py-2 border-bottom bg-warning-subtle bg-opacity-25">
@@ -677,6 +710,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
             <?php endif; ?>
         </div>
         <?php endforeach; ?>
+        </div><!-- /sec-voucher -->
     </div>
     <?php endif; // showVoucher ?>
 
@@ -690,7 +724,8 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
     }
     ?>
     <div class="border-top">
-        <div class="px-3 py-2 bg-success-subtle d-flex justify-content-between align-items-center">
+        <div class="px-3 py-2 bg-success-subtle d-flex justify-content-between align-items-center sec-toggle"
+             data-sec="sec-hadiah-<?= $pid ?>">
             <span class="small fw-semibold text-success-emphasis">
                 <i class="bi bi-gift me-1"></i>Barang / Voucher Fisik
                 <?php if (!empty($myItems)): ?>
@@ -707,7 +742,9 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                 <i class="bi bi-plus-lg me-1"></i>Tambah Item
             </button>
             <?php endif; ?>
+            <i class="bi bi-chevron-down sec-chevron text-muted ms-1" style="font-size:.75rem"></i>
         </div>
+        <div id="sec-hadiah-<?= $pid ?>" class="sec-body d-none">
 
         <?php if ($canManage && !$isInactive): ?>
         <div id="add-hadiah-item-<?= $pid ?>" class="d-none px-3 py-2 border-bottom bg-success-subtle bg-opacity-25">
@@ -941,6 +978,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
             <?php endif; ?>
         </div>
         <?php endforeach; ?>
+        </div><!-- /sec-hadiah -->
     </div>
     <?php endif; // showHadiah ?>
 
@@ -1407,6 +1445,17 @@ document.querySelectorAll('.progress-bar').forEach((bar, i) => {
         bar.style.transition = 'width .75s ease';
         bar.style.width = target;
     }, 420 + i * 55);
+});
+
+// Collapsible sections — click header to expand/collapse
+document.querySelectorAll('.sec-toggle').forEach(hdr => {
+    hdr.addEventListener('click', function(e) {
+        if (e.target.closest('button, a, form')) return;
+        const body = document.getElementById(this.dataset.sec);
+        if (!body) return;
+        const nowHidden = body.classList.toggle('d-none');
+        this.classList.toggle('sec-open', !nowHidden);
+    });
 });
 </script>
 <script>
