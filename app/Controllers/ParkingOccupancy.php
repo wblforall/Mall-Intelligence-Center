@@ -21,11 +21,13 @@ class ParkingOccupancy extends BaseController
         }
 
         $db = \Config\Database::connect();
+        $emptyGates = ['masuk' => ['motor' => [], 'mobil' => [], 'other' => []]];
         if (! $db->tableExists('spi_live_snapshot')) {
             return view('parking/occupancy', ['empty' => true, 'canVeh' => $canVeh, 'canRev' => $canRev,
                 'title' => 'Okupansi Intraday — Parkir', 'date' => date('Y-m-d'),
                 'points' => [], 'peak' => ['total' => 0, 't' => null], 'days' => [], 'heat' => [],
-                'heatM' => [], 'flowDay' => [], 'gates' => ['masuk' => []], 'recon' => []]);
+                'heatMobil' => [], 'heatMotor' => [], 'heatM' => [], 'flowDay' => [],
+                'gates' => $emptyGates, 'recon' => []]);
         }
 
         // Hari yang punya rekaman (untuk dropdown + ringkasan)
@@ -56,11 +58,17 @@ class ParkingOccupancy extends BaseController
             if ($p['income'] > $peakInc) { $peakInc = $p['income']; }
         }
 
-        // Heatmap rata-rata okupansi: hari(1=Min..7=Sab) × jam(0..23)
+        // Heatmap rata-rata okupansi: hari(1=Min..7=Sab) × jam(0..23) — di-cache 15 menit
+        $heatCacheKey = 'spi_occ_heat_' . floor(time() / 900);
+        $heatRaw = cache($heatCacheKey);
+        if ($heatRaw === null) {
+            $heatRaw = $db->query('SELECT DAYOFWEEK(tanggal) dow, HOUR(captured_at) hr, '
+                . 'ROUND(AVG(total_in)) v, ROUND(AVG(mobil_in)) vm, ROUND(AVG(motor_in)) vk '
+                . 'FROM spi_live_snapshot GROUP BY dow, hr')->getResultArray();
+            cache()->save($heatCacheKey, $heatRaw, 900);
+        }
         $heat = []; $heatMobil = []; $heatMotor = [];
-        foreach ($db->query('SELECT DAYOFWEEK(tanggal) dow, HOUR(captured_at) hr, '
-            . 'ROUND(AVG(total_in)) v, ROUND(AVG(mobil_in)) vm, ROUND(AVG(motor_in)) vk '
-            . 'FROM spi_live_snapshot GROUP BY dow, hr')->getResultArray() as $h) {
+        foreach ($heatRaw as $h) {
             $dw = (int) $h['dow']; $hr = (int) $h['hr'];
             $heat[$dw][$hr]      = (int) $h['v'];
             $heatMobil[$dw][$hr] = (int) $h['vm'];
@@ -70,7 +78,7 @@ class ParkingOccupancy extends BaseController
         // Okupansi awal tiap jam (snapshot pertama per jam) utk tanggal terpilih — basis derivasi keluar.
         // Counter KELUAR mentah SPI tidak reliable (dobel-scan gerbang) → kita turunkan sendiri:
         //   keluar = masuk − Δokupansi   (kekekalan kendaraan). Masuk & okupansi reliable.
-        $occByHour = []; $lastOcc = null;
+        $occByHour = [];
         foreach ($db->query(
             'SELECT HOUR(captured_at) hr, total_in FROM spi_live_snapshot s WHERE tanggal = ? '
             . 'AND captured_at = (SELECT MIN(captured_at) FROM spi_live_snapshot WHERE tanggal = ? AND HOUR(captured_at) = HOUR(s.captured_at)) '
@@ -78,8 +86,12 @@ class ParkingOccupancy extends BaseController
         )->getResultArray() as $r) {
             $occByHour[(int) $r['hr']] = (int) $r['total_in'];
         }
+        // Snapshot terakhir: fallback HANYA untuk jam terakhir terekam (jam berjalan).
+        // Jika $occByHour[$h+1] tidak ada bukan karena jam berjalan melainkan gap cron,
+        // biarkan null agar keluarEst tidak dihitung dari delta multi-jam yang salah.
         $lastRow = $db->query('SELECT total_in FROM spi_live_snapshot WHERE tanggal = ? ORDER BY captured_at DESC LIMIT 1', [$date])->getRowArray();
         $lastOcc = $lastRow ? (int) $lastRow['total_in'] : null;
+        $lastRecordedHour = $occByHour ? max(array_keys($occByHour)) : null;
 
         // Arus masuk per jam (tanggal terpilih) + keluar-estimasi (masuk − Δokupansi) + heatmap masuk (dow × jam)
         $flowDay = []; $heatM = [];
@@ -87,29 +99,32 @@ class ParkingOccupancy extends BaseController
             foreach ($db->table('spi_hourly_flow')->where('tanggal', $date)->orderBy('jam', 'ASC')->get()->getResultArray() as $r) {
                 $h = (int) $r['jam']; $masuk = (int) $r['masuk'];
                 $occH    = $occByHour[$h] ?? null;
-                $occNext = $occByHour[$h + 1] ?? $lastOcc;   // awal jam berikut, atau snapshot terakhir utk jam berjalan
+                // Gunakan $lastOcc hanya saat ini adalah jam terakhir terekam (jam berjalan).
+                // Gap di tengah (jam berikutnya tidak ada karena cron bolong) → null, bukan $lastOcc.
+                $occNext = $occByHour[$h + 1]
+                    ?? (($lastRecordedHour !== null && $h === $lastRecordedHour) ? $lastOcc : null);
                 $keluarEst = ($occH !== null && $occNext !== null) ? max(0, $masuk - ($occNext - $occH)) : null;
                 $flowDay[] = ['jam' => $h, 'masuk' => $masuk, 'keluarEst' => $keluarEst];
             }
-            foreach ($db->query('SELECT DAYOFWEEK(tanggal) dow, jam, ROUND(AVG(masuk)) m '
-                . 'FROM spi_hourly_flow GROUP BY dow, jam')->getResultArray() as $h) {
+            $heatMCacheKey = 'spi_flow_heat_' . floor(time() / 900);
+            $heatMRaw = cache($heatMCacheKey);
+            if ($heatMRaw === null) {
+                $heatMRaw = $db->query('SELECT DAYOFWEEK(tanggal) dow, jam, ROUND(AVG(masuk)) m '
+                    . 'FROM spi_hourly_flow GROUP BY dow, jam')->getResultArray();
+                cache()->save($heatMCacheKey, $heatMRaw, 900);
+            }
+            foreach ($heatMRaw as $h) {
                 $heatM[(int) $h['dow']][(int) $h['jam']] = (int) $h['m'];
             }
         }
 
         // Per pintu (gate) MASUK saja untuk tanggal terpilih.
         // Gate KELUAR tak ditampilkan: counter keluar SPI tak reliable & tak bisa diderivasi per-gerbang.
-        $motorGates = SpiReportingService::GATE_MOTOR_MASUK;
-        $mobilGates = SpiReportingService::GATE_MOBIL_MASUK;
-        $gates = ['masuk' => ['motor' => [], 'mobil' => [], 'other' => []]];
-        if ($db->tableExists('spi_gate_daily')) {
-            foreach ($db->table('spi_gate_daily')->where('tanggal', $date)->where('arah', 'masuk')->orderBy('jumlah', 'DESC')->get()->getResultArray() as $r) {
-                $entry = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
-                if (in_array($r['gate'], $motorGates))      $gates['masuk']['motor'][] = $entry;
-                elseif (in_array($r['gate'], $mobilGates))  $gates['masuk']['mobil'][] = $entry;
-                else                                         $gates['masuk']['other'][] = $entry;
-            }
-        }
+        $gateRows = $db->tableExists('spi_gate_daily')
+            ? $db->table('spi_gate_daily')->where('tanggal', $date)->where('arah', 'masuk')
+                ->orderBy('jumlah', 'DESC')->get()->getResultArray()
+            : [];
+        $gates = ['masuk' => SpiReportingService::groupGates($gateRows)];
 
         // Rekonsiliasi: EOD rekaman (MAX income harian) vs SPI final (spi_income_daily)
         $recon = [];

@@ -20,9 +20,26 @@ namespace App\Services;
  */
 class SpiReportingService
 {
-    // Mapping gate masuk berdasarkan jenis kendaraan (PM1-5 = motor, PM6-9 = mobil)
+    // Mapping gate masuk berdasarkan jenis kendaraan (PM1-5 = motor, PM6-10 = mobil)
     const GATE_MOTOR_MASUK = ['M01', 'M02', 'M03', 'M04', 'M05'];
-    const GATE_MOBIL_MASUK = ['M06', 'M07', 'M08', 'M09'];
+    const GATE_MOBIL_MASUK = ['M06', 'M07', 'M08', 'M09', 'M10'];
+
+    /**
+     * Kelompokkan baris spi_gate_daily ke dalam bucket motor/mobil/other.
+     * @param  array $rows  hasil query: [['gate'=>'M01','jumlah'=>123], ...]
+     * @return array        ['motor'=>[...], 'mobil'=>[...], 'other'=>[...]]
+     */
+    public static function groupGates(array $rows): array
+    {
+        $groups = ['motor' => [], 'mobil' => [], 'other' => []];
+        foreach ($rows as $r) {
+            $entry = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
+            if (in_array($r['gate'], self::GATE_MOTOR_MASUK))     $groups['motor'][] = $entry;
+            elseif (in_array($r['gate'], self::GATE_MOBIL_MASUK)) $groups['mobil'][] = $entry;
+            else                                                    $groups['other'][] = $entry;
+        }
+        return $groups;
+    }
 
     private string $base;       // .../reporting2/public/index.php
     private string $liveHost;   // http://host:port  (untuk parking3/*)

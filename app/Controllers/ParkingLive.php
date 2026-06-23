@@ -27,19 +27,12 @@ class ParkingLive extends BaseController
 
         // Aktivitas per pintu MASUK hari ini (kumulatif, dari DB — diisi cron --flows ~30 mnt).
         // Pintu keluar tak ditampilkan: counter keluar SPI tak reliable (dobel-scan gerbang).
-        $motorGates = SpiReportingService::GATE_MOTOR_MASUK;
-        $mobilGates = SpiReportingService::GATE_MOBIL_MASUK;
-        $gates = ['masuk' => ['motor' => [], 'mobil' => [], 'other' => []]];
         $db = \Config\Database::connect();
-        if ($db->tableExists('spi_gate_daily')) {
-            foreach ($db->table('spi_gate_daily')->where('tanggal', date('Y-m-d'))->where('arah', 'masuk')
-                ->orderBy('jumlah', 'DESC')->get()->getResultArray() as $r) {
-                $entry = ['gate' => $r['gate'], 'jumlah' => (int) $r['jumlah']];
-                if (in_array($r['gate'], $motorGates))      $gates['masuk']['motor'][] = $entry;
-                elseif (in_array($r['gate'], $mobilGates))  $gates['masuk']['mobil'][] = $entry;
-                else                                         $gates['masuk']['other'][] = $entry;
-            }
-        }
+        $gateRows = $db->tableExists('spi_gate_daily')
+            ? $db->table('spi_gate_daily')->where('tanggal', date('Y-m-d'))->where('arah', 'masuk')
+                ->orderBy('jumlah', 'DESC')->get()->getResultArray()
+            : [];
+        $gates = ['masuk' => SpiReportingService::groupGates($gateRows)];
 
         return view('parking/live', [
             'title'     => 'Live — Parkir',
