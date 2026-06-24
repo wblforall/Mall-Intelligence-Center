@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Handout — Mall Intelligence Center</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  .wrap { max-width: 700px; width: 100%; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  p  { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+  .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .card { border-radius: 14px; padding: 24px 20px; text-decoration: none; color: #fff; display: block; transition: transform .15s, box-shadow .15s; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.4); }
+  .card .icon { font-size: 36px; margin-bottom: 12px; }
+  .card .title { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+  .card .desc  { font-size: 12px; opacity: .8; line-height: 1.5; }
+  .card.loyalty    { background: linear-gradient(135deg, #0d6efd, #0a58ca); }
+  .card.sponsorship{ background: linear-gradient(135deg, #d97706, #b45309); }
+  .card.creative   { background: linear-gradient(135deg, #7c3aed, #5b21b6); }
+  .footer { text-align: center; margin-top: 28px; font-size: 11px; color: #475569; }
+  @media (max-width: 580px) { .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Panduan Pengguna — Mall Intelligence Center</h1>
+  <p>Pilih modul untuk membuka handout</p>
+  <div class="cards">
+    <a href="loyalty.html" class="card loyalty">
+      <div class="icon">🏅</div>
+      <div class="title">Program Loyalty</div>
+      <div class="desc">Reward, voucher, hadiah, analisa bulanan</div>
+    </a>
+    <a href="sponsorship.html" class="card sponsorship">
+      <div class="icon">🏆</div>
+      <div class="title">Sponsorship</div>
+      <div class="desc">Deal sponsor, realisasi, evaluasi program</div>
+    </a>
+    <a href="creative.html" class="card creative">
+      <div class="icon">🎨</div>
+      <div class="title">Creative & Design</div>
+      <div class="desc">Konten digital, cetak, influencer, insight</div>
+    </a>
+  </div>
+  <div class="footer">Mall Intelligence Center v2.13.0 — PT. Wulandari Bangun Laksana Tbk.</div>
+</div>
+</body>
+</html>

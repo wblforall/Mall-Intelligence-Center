@@ -550,14 +550,15 @@ $user = $this->currentUser();
         }
         $name = 'creative_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
         $dir  = $this->fileDir($id);
-        $file->move($dir, $name);
 
-        (new CreativeFileModel())->insert([
+        $fileId = (new CreativeFileModel())->insert([
             'creative_item_id' => $id,
             'file_name'        => $name,
             'original_name'    => $file->getClientName(),
             'uploaded_by'      => $this->currentUser()['id'],
         ]);
+        if (! $fileId) return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'Gagal menyimpan file.');
+        $file->move($dir, $name);
 
         ActivityLog::write('upload', 'creative_standalone', (string)$id, $name, []);
 
@@ -574,8 +575,8 @@ $user = $this->currentUser();
         $row       = $fileModel->find($fileId);
         if ($row) {
             $path = FCPATH . 'uploads/creative-standalone/' . $id . '/' . $row['file_name'];
-            if (file_exists($path)) unlink($path);
             $fileModel->delete($fileId);
+            if (file_exists($path)) unlink($path);
         }
 
         ActivityLog::write('delete_file', 'creative_standalone', (string)$fileId, '', []);
@@ -611,8 +612,9 @@ $user = $this->currentUser();
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
 
-        $post = $this->request->getPost();
-        $dir  = $this->realisasiDir($id);
+        $post        = $this->request->getPost();
+        $dir         = $this->realisasiDir($id);
+        $pendingMoves = [];
 
         $fileName = null; $origName = null;
         $file = $this->request->getFile('bukti');
@@ -622,7 +624,7 @@ $user = $this->currentUser();
             }
             $fileName = 'real_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
             $origName = $file->getClientName();
-            $file->move($dir, $fileName);
+            $pendingMoves[] = [$file, $dir, $fileName];
         }
 
         $stFileName = null; $stOrigName = null;
@@ -633,7 +635,7 @@ $user = $this->currentUser();
             }
             $stFileName = 'st_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($stFile);
             $stOrigName = $stFile->getClientName();
-            $stFile->move($dir, $stFileName);
+            $pendingMoves[] = [$stFile, $dir, $stFileName];
         }
 
         $btFileName = null; $btOrigName = null;
@@ -644,10 +646,10 @@ $user = $this->currentUser();
             }
             $btFileName = 'bt_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($btFile);
             $btOrigName = $btFile->getClientName();
-            $btFile->move($dir, $btFileName);
+            $pendingMoves[] = [$btFile, $dir, $btFileName];
         }
 
-        (new CreativeRealisasiModel())->insert([
+        $rid = (new CreativeRealisasiModel())->insert([
             'creative_item_id'              => $id,
             'tanggal'                       => $post['tanggal'],
             'nilai'                         => (int)str_replace([',', '.', ' '], '', $post['nilai'] ?? 0),
@@ -661,6 +663,8 @@ $user = $this->currentUser();
             'catatan'                       => $post['catatan'] ?? null,
             'created_by'                    => $this->currentUser()['id'],
         ]);
+        if (! $rid) return redirect()->back()->with('error', 'Gagal menyimpan realisasi.');
+        foreach ($pendingMoves as [$f, $d, $n]) { $f->move($d, $n); }
 
         ActivityLog::write('create', 'creative_standalone_realisasi', (string)$id, $post['tanggal'], []);
 
@@ -712,10 +716,9 @@ $user = $this->currentUser();
             }
             $fileName = 'insight_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
             $origName = $file->getClientName();
-            $file->move($dir, $fileName);
         }
 
-        (new CreativeInsightModel())->insert([
+        $iid = (new CreativeInsightModel())->insert([
             'creative_item_id' => $id,
             'tanggal'          => $post['tanggal'],
             'platform'         => $post['platform'] ?? ($item['platform'] ?? null),
@@ -732,6 +735,8 @@ $user = $this->currentUser();
             'catatan'          => $post['catatan'] ?? null,
             'created_by'       => $this->currentUser()['id'],
         ]);
+        if (! $iid) return redirect()->back()->with('error', 'Gagal menyimpan insight.');
+        if ($file && $file->isValid() && !$file->hasMoved() && $fileName) { $file->move($dir, $fileName); }
 
         ActivityLog::write('create', 'creative_standalone_insight', (string)$id, $post['tanggal'], []);
 

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Panduan Pengguna — Program Sponsorship</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 10pt; }
+body { font-family: 'Segoe UI', system-ui, Arial, sans-serif; color: #1e293b; background: #fff; }
+
+.a4 { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; position: relative; }
+
+/* Cover */
+.cover {
+  width: 210mm; height: 297mm;
+  background: linear-gradient(160deg, #d97706 0%, #92400e 55%, #451a03 100%);
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 0; page-break-after: always; position: relative; overflow: hidden;
+}
+.cover-deco { position: absolute; border-radius: 50%; background: rgba(255,255,255,.06); }
+.cover-deco-1 { width: 340px; height: 340px; top: -100px; right: -100px; }
+.cover-deco-2 { width: 180px; height: 180px; bottom: 100px; left: -50px; }
+.cover-deco-3 { width: 100px; height: 100px; top: 200px; right: 80px; }
+.cover-top { padding: 28mm 20mm 0; position: relative; }
+.cover-series { display: inline-block; background: rgba(255,255,255,.15); color: rgba(255,255,255,.9); font-size: 8pt; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; margin-bottom: 16mm; }
+.cover-icon { font-size: 64pt; margin-bottom: 6mm; display: block; }
+.cover h1 { font-size: 30pt; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 4mm; }
+.cover-sub { font-size: 13pt; color: rgba(255,255,255,.75); font-weight: 400; line-height: 1.5; margin-bottom: 10mm; }
+.cover-divider { width: 40mm; height: 3px; background: rgba(255,255,255,.4); border-radius: 2px; margin-bottom: 8mm; }
+.cover-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.cover-tag { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.85); font-size: 8pt; padding: 3px 10px; border-radius: 20px; }
+.cover-footer { background: rgba(0,0,0,.25); padding: 5mm 20mm; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.cover-footer-brand { color: rgba(255,255,255,.6); font-size: 8pt; }
+.cover-footer-version { background: rgba(255,255,255,.15); color: rgba(255,255,255,.85); font-size: 8pt; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+
+/* Pages */
+.page { width: 210mm; min-height: 297mm; padding: 16mm 18mm 14mm; page-break-after: always; position: relative; }
+.page:last-child { page-break-after: auto; }
+
+.page-header { display: flex; align-items: center; gap: 10px; padding-bottom: 5mm; border-bottom: 2px solid #d97706; margin-bottom: 7mm; }
+.page-header-icon { width: 32px; height: 32px; background: #d97706; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14pt; flex-shrink: 0; }
+.page-header-title { font-size: 14pt; font-weight: 700; color: #d97706; }
+.page-header-sub   { font-size: 8pt; color: #64748b; margin-top: 1px; }
+.page-num { margin-left: auto; font-size: 8pt; color: #94a3b8; font-weight: 600; }
+
+.sec { margin-bottom: 6mm; }
+.sec-title { font-size: 10pt; font-weight: 700; color: #d97706; border-left: 3px solid #d97706; padding-left: 7px; margin-bottom: 3mm; text-transform: uppercase; letter-spacing: .5px; }
+
+.pdca { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 5mm; }
+.pdca-cell { border-radius: 8px; padding: 8px 9px; }
+.pdca-cell.plan  { background: #dbeafe; border: 1px solid #93c5fd; }
+.pdca-cell.do    { background: #dcfce7; border: 1px solid #86efac; }
+.pdca-cell.check { background: #fef9c3; border: 1px solid #fde047; }
+.pdca-cell.act   { background: #fce7f3; border: 1px solid #f9a8d4; }
+.pdca-label { font-size: 7pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; opacity: .55; margin-bottom: 2px; }
+.pdca-title { font-size: 9pt; font-weight: 700; margin-bottom: 4px; }
+.pdca-cell ul { font-size: 8pt; padding-left: 13px; }
+.pdca-cell ul li { margin-bottom: 2px; line-height: 1.4; }
+
+.step { display: flex; gap: 9px; margin-bottom: 5mm; align-items: flex-start; }
+.step-n { min-width: 24px; height: 24px; border-radius: 50%; background: #d97706; color: #fff; font-size: 9pt; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.step-body b { font-size: 9.5pt; }
+.step-body p { font-size: 8.5pt; color: #475569; margin-top: 2px; line-height: 1.5; }
+.hint { font-size: 8pt; color: #64748b; background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 4px 7px; border-radius: 0 4px 4px 0; margin-top: 3px; }
+
+.shot { margin: 4mm 0; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.shot img { width: 100%; display: block; }
+.shot-cap { font-size: 7.5pt; color: #64748b; padding: 4px 8px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+
+.callout { border-radius: 6px; padding: 7px 10px; margin: 3mm 0; font-size: 8.5pt; display: flex; gap: 8px; }
+.callout-icon { font-size: 12pt; flex-shrink: 0; }
+.callout-body b { display: block; font-size: 9pt; margin-bottom: 1px; }
+.callout.info    { background: #eff6ff; border: 1px solid #bfdbfe; }
+.callout.warn    { background: #fffbeb; border: 1px solid #fde68a; }
+.callout.success { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.callout.danger  { background: #fff1f2; border: 1px solid #fecdd3; }
+
+.tbl { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin: 3mm 0; }
+.tbl th { background: #d97706; color: #fff; padding: 5px 8px; text-align: left; font-size: 8pt; }
+.tbl td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; line-height: 1.4; }
+.tbl tr:nth-child(even) td { background: #f8fafc; }
+
+/* Status chips */
+.chip { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 7.5pt; font-weight: 600; }
+.prospek    { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.negosiasi  { background: #fffbeb; color: #92400e; }
+.konfirmasi { background: #eff6ff; color: #1e40af; }
+.lunas      { background: #f0fdf4; color: #166534; }
+.batal      { background: #fff1f2; color: #9f1239; }
+
+/* Deal flow */
+.deal-flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.deal-flow .arr { color: #cbd5e1; font-size: 10pt; }
+
+/* Eval chips */
+.eval-berhasil  { background: #f0fdf4; color: #166534; }
+.eval-sebagian  { background: #fffbeb; color: #92400e; }
+.eval-perbaikan { background: #fff1f2; color: #9f1239; }
+
+.page-footer { position: absolute; bottom: 8mm; left: 18mm; right: 18mm; border-top: 1px solid #e2e8f0; padding-top: 3mm; display: flex; align-items: center; justify-content: space-between; font-size: 7pt; color: #94a3b8; }
+
+@media print {
+  @page { margin: 0; size: A4; }
+  body  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cover, .page { page-break-after: always; }
+}
+@media screen {
+  body { background: #e2e8f0; padding: 20px 0; }
+  .a4, .cover, .page { box-shadow: 0 4px 24px rgba(0,0,0,.15); margin-bottom: 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="a4 cover">
+  <div class="cover-deco cover-deco-1"></div>
+  <div class="cover-deco cover-deco-2"></div>
+  <div class="cover-deco cover-deco-3"></div>
+  <div class="cover-top">
+    <span class="cover-series">Mall Intelligence Center · Panduan Pengguna</span>
+    <span class="cover-icon">🏆</span>
+    <h1>Program<br>Sponsorship</h1>
+    <p class="cover-sub">Panduan lengkap mengelola deal sponsor, tracking realisasi, dan evaluasi capaian program sponsorship</p>
+    <div class="cover-divider"></div>
+    <div class="cover-tags">
+      <span class="cover-tag">🎯 PDCA Framework</span>
+      <span class="cover-tag">📊 Summary Bulanan</span>
+      <span class="cover-tag">💰 Cash & In-Kind</span>
+      <span class="cover-tag">🔒 Lock & Evaluasi</span>
+    </div>
+  </div>
+  <div class="cover-footer">
+    <span class="cover-footer-brand">PT. Wulandari Bangun Laksana Tbk. — IT Dept</span>
+    <span class="cover-footer-version">v2.13.0 · Juni 2026</span>
+  </div>
+</div>
+
+<!-- HAL 1 — Overview & PDCA -->
+<div class="a4 page">
+  <div class="page-header">
+    <div class="page-header-icon">🏆</div>
+    <div>
+      <div class="page-header-title">Program Sponsorship</div>
+      <div class="page-header-sub">Gambaran Umum & Alur Kerja PDCA</div>
+    </div>
+    <span class="page-num">Hal. 1</span>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">Tentang Modul</div>
+    <p style="font-size:8.5pt;line-height:1.65;margin-bottom:4mm">
+      Modul <strong>Program Sponsorship</strong> digunakan untuk mengelola seluruh aktivitas sponsorship —
+      dari perencanaan target nilai, tracking per sponsor (prospek hingga lunas), upload bukti penerimaan,
+      hingga evaluasi capaian bulanan. Setiap program dapat berisi banyak sponsor baik jenis <em>Cash</em>
+      maupun <em>Barang/In-kind</em>.
+    </p>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">Alur Kerja PDCA</div>
+    <div class="pdca">
+      <div class="pdca-cell plan">
+        <div class="pdca-label">Plan</div>
+        <div class="pdca-title">🎯 Rencanakan</div>
+        <ul>
+          <li>Buat program sponsorship</li>
+          <li>Set target jumlah sponsor</li>
+          <li>Set target nilai total (Rp)</li>
+          <li>Set periode program</li>
+        </ul>
+      </div>
+      <div class="pdca-cell do">
+        <div class="pdca-label">Do</div>
+        <div class="pdca-title">📋 Jalankan</div>
+        <ul>
+          <li>Tambah data per sponsor</li>
+          <li>Update status deal</li>
+          <li>Input realisasi penerimaan</li>
+          <li>Upload bukti foto / BA</li>
+        </ul>
+      </div>
+      <div class="pdca-cell check">
+        <div class="pdca-label">Check</div>
+        <div class="pdca-title">📊 Pantau</div>
+        <ul>
+          <li>Lihat Summary Bulanan</li>
+          <li>Collection rate (%)</li>
+          <li>Tren realisasi chart</li>
+          <li>Progress per program</li>
+        </ul>
+      </div>
+      <div class="pdca-cell act">
+        <div class="pdca-label">Act</div>
+        <div class="pdca-title">💡 Evaluasi</div>
+        <ul>
+          <li>Isi analisa per program</li>
+          <li>Highlight / Kendala /</li>
+          <li>Tindak Lanjut</li>
+          <li>Lock + status evaluasi</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">Alur Status Deal</div>
+    <div class="deal-flow">
+      <span class="chip prospek">Prospek</span>
+      <span class="arr">→</span>
+      <span class="chip negosiasi">Negosiasi</span>
+      <span class="arr">→</span>
+      <span class="chip konfirmasi">Terkonfirmasi</span>
+      <span class="arr">→</span>
+      <span class="chip lunas">Lunas</span>
+    </div>
+    <p style="font-size:8pt;color:#64748b">Status <span class="chip batal">Batal</span> bisa diset kapan saja jika deal tidak jadi.</p>
+    <table class="tbl" style="margin-top:4mm">
+      <tr><th>Status</th><th>Artinya</th><th>Tindakan Selanjutnya</th></tr>
+      <tr><td><span class="chip prospek">Prospek</span></td><td>Calon sponsor teridentifikasi</td><td>Lakukan pendekatan awal</td></tr>
+      <tr><td><span class="chip negosiasi">Negosiasi</span></td><td>Dalam proses diskusi/penawaran</td><td>Finalisasi MOU / kontrak</td></tr>
+      <tr><td><span class="chip konfirmasi">Terkonfirmasi</span></td><td>Kontrak sudah ditandatangani</td><td>Tunggu pembayaran, input realisasi</td></tr>
+      <tr><td><span class="chip lunas">Lunas</span></td><td>Pembayaran/barang diterima penuh</td><td>Upload Berita Acara penerimaan</td></tr>
+      <tr><td><span class="chip batal">Batal</span></td><td>Deal tidak jadi</td><td>Catat di Kendala evaluasi</td></tr>
+    </table>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">Tampilan Utama</div>
+    <div class="shot">
+      <img src="img/sponsorship_index.png" alt="Halaman utama Sponsorship">
+      <div class="shot-cap">📌 Halaman utama — daftar program, KPI statistik, dan kartu per sponsor dengan status deal</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Mall Intelligence Center — Program Sponsorship</span>
+    <span>PT. Wulandari Bangun Laksana Tbk. · IT Dept · v2.13.0</span>
+  </div>
+</div>
+
+<!-- HAL 2 — Langkah-langkah -->
+<div class="a4 page">
+  <div class="page-header">
+    <div class="page-header-icon">📋</div>
+    <div>
+      <div class="page-header-title">Langkah-Langkah Penggunaan</div>
+      <div class="page-header-sub">Dari membuat program hingga mengunci evaluasi</div>
+    </div>
+    <span class="page-num">Hal. 2</span>
+  </div>
+
+  <div class="step">
+    <div class="step-n">1</div>
+    <div class="step-body">
+      <b>Buat Program Sponsorship</b>
+      <p>Klik <strong>+ Tambah Program</strong>. Isi nama program, periode (tanggal mulai–selesai), target jumlah sponsor, target nilai total (Rp), dan budget operasional jika ada.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">2</div>
+    <div class="step-body">
+      <b>Tambah Data Sponsor</b>
+      <p>Klik <strong>+ Tambah Sponsor</strong> di dalam kartu program. Pilih jenis: <em>Cash</em> (isi nilai Rp langsung) atau <em>Barang/In-kind</em> (isi daftar item + nilai per item). Isi nama perusahaan sponsor.</p>
+      <div class="hint">💡 Untuk sponsor Barang, sistem otomatis menghitung total nilai dari seluruh item yang diisi.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">3</div>
+    <div class="step-body">
+      <b>Update Status Deal Sesuai Perkembangan</b>
+      <p>Klik ikon edit (✏️) pada kartu sponsor, lalu ubah status deal sesuai progres negosiasi. Perbarui status secara berkala agar Summary Bulanan menampilkan data yang akurat.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">4</div>
+    <div class="step-body">
+      <b>Input Realisasi Penerimaan</b>
+      <p>Setelah dana atau barang diterima, klik <strong>+ Input Realisasi</strong> pada kartu sponsor. Isi tanggal terima, nilai yang diterima, upload foto bukti (opsional), dan Berita Acara (opsional).</p>
+      <div class="hint">💡 Satu sponsor bisa memiliki lebih dari satu realisasi untuk pembayaran bertahap (cicilan/termin).</div>
+    </div>
+  </div>
+
+  <div class="shot">
+    <img src="img/sponsorship_summary.png" alt="Summary Bulanan Sponsorship">
+    <div class="shot-cap">📌 Summary Bulanan — tren realisasi, progress per program, dan form analisa ACT di bagian bawah</div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">5</div>
+    <div class="step-body">
+      <b>Isi Analisa di Summary Bulanan (ACT)</b>
+      <p>Buka <strong>Summary Bulanan</strong>. Di bagian bawah, tiap program memiliki form analisa tiga kolom:</p>
+      <table class="tbl" style="margin-top:4px">
+        <tr><th>Kolom</th><th>Isi dengan</th></tr>
+        <tr><td>✅ <b>Highlight / Capaian</b></td><td>Sponsor baru confirmed, deal besar terkonfirmasi, dll.</td></tr>
+        <tr><td>⚠️ <b>Kendala</b></td><td>Sponsor yang memundurkan diri, deal alot, hambatan administrasi</td></tr>
+        <tr><td>🔁 <b>Tindak Lanjut</b></td><td>Follow-up yang akan dilakukan bulan depan, langkah konkret</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">6</div>
+    <div class="step-body">
+      <b>Kunci Program dengan Evaluasi Akhir (Lock)</b>
+      <p>Klik ikon gembok (🔒) pada kartu program. Isi modal evaluasi:</p>
+      <div style="display:flex;gap:8px;margin:4px 0 6px;flex-wrap:wrap">
+        <span class="chip eval-berhasil">✓ Berhasil</span>
+        <span class="chip eval-sebagian">~ Sebagian</span>
+        <span class="chip eval-perbaikan">✗ Perlu Perbaikan</span>
+      </div>
+      <p>Pilih hasil evaluasi, isi catatan kendala dan rekomendasi, lalu klik <strong>Kunci Program</strong>.</p>
+      <div class="hint">⚠️ Program terkunci tidak dapat diedit. Hubungi Admin untuk membuka kembali.</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Mall Intelligence Center — Program Sponsorship</span>
+    <span>PT. Wulandari Bangun Laksana Tbk. · IT Dept · v2.13.0</span>
+  </div>
+</div>
+
+<!-- HAL 3 — Tips & Referensi -->
+<div class="a4 page">
+  <div class="page-header">
+    <div class="page-header-icon">💡</div>
+    <div>
+      <div class="page-header-title">Tips & Referensi Penting</div>
+      <div class="page-header-sub">Hal-hal yang perlu diperhatikan dalam pengelolaan sponsorship</div>
+    </div>
+    <span class="page-num">Hal. 3</span>
+  </div>
+
+  <div class="callout info" style="margin-bottom:4mm">
+    <span class="callout-icon">📊</span>
+    <div class="callout-body">
+      <b>Collection Rate = Ukuran Kinerja Utama</b>
+      Angka <em>Collection Rate</em> di header halaman = total realisasi ÷ total nilai terkonfirmasi × 100%. Target: mendekati 100% sebelum program selesai.
+    </div>
+  </div>
+
+  <div class="callout warn" style="margin-bottom:4mm">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-body">
+      <b>Bedakan Sponsor Cash vs Barang</b>
+      Sponsor Barang wajib diisi per item (deskripsi + qty + nilai). Nilai total dihitung otomatis. Jangan input sponsor Barang sebagai Cash untuk menghindari ketidaksesuaian laporan.
+    </div>
+  </div>
+
+  <div class="callout success" style="margin-bottom:4mm">
+    <span class="callout-icon">📄</span>
+    <div class="callout-body">
+      <b>Dokumen Bukti Wajib Diupload</b>
+      Untuk Cash: upload bukti transfer. Untuk Barang: upload foto serah terima atau Berita Acara. Dokumen ini diperlukan untuk audit internal dan pelaporan manajemen.
+    </div>
+  </div>
+
+  <div class="callout danger" style="margin-bottom:6mm">
+    <span class="callout-icon">🔒</span>
+    <div class="callout-body">
+      <b>Perbarui Status Deal Secara Rutin</b>
+      Summary Bulanan hanya menghitung sponsor berstatus "Terkonfirmasi" ke atas untuk nilai deal. Sponsor yang masih "Prospek" atau "Negosiasi" tidak masuk hitungan target.
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">Referensi Cepat — KPI di Summary Bulanan</div>
+    <table class="tbl">
+      <tr><th>KPI</th><th>Formula / Artinya</th></tr>
+      <tr><td><b>Program Aktif</b></td><td>Jumlah program dengan status aktif (bukan locked/nonaktif)</td></tr>
+      <tr><td><b>Referensi Bulan</b></td><td>Total sponsor terkonfirmasi di semua program aktif</td></tr>
+      <tr><td><b>Nilai Deal</b></td><td>Total nilai sponsor berstatus Terkonfirmasi + Lunas</td></tr>
+      <tr><td><b>Total Terkumpul</b></td><td>Total nilai realisasi yang sudah diterima (cash + barang)</td></tr>
+      <tr><td><b>Collection Rate</b></td><td>Total Terkumpul ÷ Nilai Deal × 100%</td></tr>
+    </table>
+  </div>
+
+  <div class="sec" style="margin-top:5mm">
+    <div class="sec-title">FAQ Umum</div>
+    <table class="tbl">
+      <tr><th style="width:45%">Pertanyaan</th><th>Jawaban</th></tr>
+      <tr>
+        <td>Sponsor saya tidak masuk hitungan nilai deal?</td>
+        <td>Pastikan status dealnya minimal <span class="chip konfirmasi">Terkonfirmasi</span>. Prospek dan Negosiasi tidak dihitung.</td>
+      </tr>
+      <tr>
+        <td>Bisa input realisasi parsial (cicilan)?</td>
+        <td>Ya. Klik <em>+ Input Realisasi</em> beberapa kali untuk mencatat setiap pembayaran termin.</td>
+      </tr>
+      <tr>
+        <td>Apa bedanya lock program vs nonaktifkan?</td>
+        <td>Non-aktif = masih bisa diedit, hanya disembunyikan dari tampilan aktif. Lock = permanen, data tidak bisa diubah.</td>
+      </tr>
+      <tr>
+        <td>Apakah data analisa bisa diedit sebelum lock?</td>
+        <td>Ya. Klik area analisa di Summary dan simpan ulang. Tidak ada batasan berapa kali bisa diedit sebelum lock.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="margin-top:auto;padding-top:8mm;text-align:center">
+    <p style="font-size:8pt;color:#94a3b8">Modul Program Sponsorship — Mall Intelligence Center v2.13.0</p>
+    <p style="font-size:7.5pt;color:#cbd5e1;margin-top:2px">Pertanyaan teknis: hubungi tim IT melalui sistem tiket internal</p>
+  </div>
+
+  <div class="page-footer">
+    <span>Mall Intelligence Center — Program Sponsorship</span>
+    <span>PT. Wulandari Bangun Laksana Tbk. · IT Dept · v2.13.0</span>
+  </div>
+</div>
+
+</body>
+</html>

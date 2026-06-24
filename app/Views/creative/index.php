@@ -134,6 +134,20 @@ $insightFields = [
                     <input type="text" name="budget" class="form-control form-control-sm currency-input" placeholder="0">
                 </div>
                 <?php endif; ?>
+                <?php if (in_array($tipe, ['digital', 'influencer'])): ?>
+                <div class="col-sm-2">
+                    <label class="form-label small fw-semibold mb-1">Target Reach</label>
+                    <input type="number" name="target_reach" class="form-control form-control-sm" placeholder="0" min="0">
+                </div>
+                <div class="col-sm-2">
+                    <label class="form-label small fw-semibold mb-1">Target Impresi</label>
+                    <input type="number" name="target_impressions" class="form-control form-control-sm" placeholder="0" min="0">
+                </div>
+                <?php endif; ?>
+                <div class="col-sm-2">
+                    <label class="form-label small fw-semibold mb-1">Deadline</label>
+                    <input type="date" name="deadline" class="form-control form-control-sm">
+                </div>
                 <div class="col">
                     <label class="form-label small fw-semibold mb-1">Deskripsi / Catatan</label>
                     <input type="text" name="deskripsi" class="form-control form-control-sm" placeholder="Opsional">
@@ -190,10 +204,11 @@ $insightFields = [
                     <?php endif; ?>
                     <?php if ($tipe === 'digital' && $item['platform']): ?>
                     <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
-                        <i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?> me-1"></i><?= $platformLabels[$item['platform']] ?? $item['platform'] ?>
+                        <i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?> me-1"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?>
                     </span>
                     <?php endif; ?>
                     <span class="fw-semibold small"><?= esc($item['nama']) ?></span>
+                    <?php if (!empty($item['deadline'])): $dlDiff = (int)((strtotime($item['deadline']) - strtotime(date('Y-m-d'))) / 86400); $isDone = ($item['status'] ?? '') === 'approved'; if ($isDone): ?><span class="badge bg-success-subtle text-success ms-1" style="font-size:.6rem"><i class="bi bi-check-circle me-1"></i>Tepat waktu</span><?php elseif ($dlDiff < 0): ?><span class="badge bg-danger ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-exclamation-triangle-fill me-1"></i>Terlambat <?= abs($dlDiff) ?> hari</span><?php elseif ($dlDiff <= 3): ?><span class="badge bg-warning text-dark ms-1" style="font-size:.6rem"><i class="bi bi-clock me-1"></i><?= $dlDiff === 0 ? 'Hari ini!' : $dlDiff.' hari lagi' ?></span><?php else: ?><span class="badge bg-info-subtle text-info ms-1" style="font-size:.6rem"><i class="bi bi-calendar-check me-1"></i><?= date('d M', strtotime($item['deadline'])) ?></span><?php endif; endif; ?>
                 </div>
                 <?php if ($tipe === 'digital' && ($item['tanggal_take'] || $item['jam_take'] || $item['pic'])): ?>
                 <div class="small text-muted mb-1">
@@ -267,12 +282,15 @@ $insightFields = [
                         data-id="<?= $iid ?>"
                         data-nama="<?= esc($item['nama'], 'attr') ?>"
                         data-tipe="<?= $tipe ?>"
-                        data-platform="<?= $item['platform'] ?? '' ?>"
+                        data-platform="<?= esc($item['platform'] ?? '', 'attr') ?>"
                         data-tanggal-take="<?= $item['tanggal_take'] ?? '' ?>"
                         data-jam-take="<?= substr($item['jam_take'] ?? '', 0, 5) ?>"
                         data-pic="<?= esc($item['pic'] ?? '', 'attr') ?>"
                         data-deskripsi="<?= esc($item['deskripsi'], 'attr') ?>"
                         data-budget="<?= number_format($iBudget,0,',','.') ?>"
+                        data-target-reach="<?= (int)($item['target_reach'] ?? 0) ?>"
+                        data-target-impressions="<?= (int)($item['target_impressions'] ?? 0) ?>"
+                        data-deadline="<?= $item['deadline'] ?? '' ?>"
                         data-catatan="<?= esc($item['catatan'], 'attr') ?>">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -608,7 +626,7 @@ $insightFields = [
                             </select>
                         </div>
                         <?php else: ?>
-                        <input type="hidden" name="platform" value="<?= $item['platform'] ?>">
+                        <input type="hidden" name="platform" value="<?= esc($item['platform'] ?? '', 'attr') ?>">
                         <?php endif; ?>
                         <div class="col-sm-4">
                             <label class="form-label small fw-semibold mb-1">
@@ -663,7 +681,7 @@ $insightFields = [
                 <?php if ($item['platform'] === 'keduanya'): ?>
                 <td class="small">
                     <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
-                        <?= $platformLabels[$e['platform']] ?? $e['platform'] ?>
+                        <?= esc($platformLabels[$e['platform']] ?? $e['platform']) ?>
                     </span>
                 </td>
                 <?php endif; ?>
@@ -711,6 +729,24 @@ $insightFields = [
 
 <?php endif; // empty items ?>
 
+<!-- ACT — Analisa Otomatis -->
+<?php if (! empty($analysis)): ?>
+<div class="card mt-4 border-info-subtle">
+    <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-lightbulb-fill text-info"></i>
+        <span class="fw-semibold small">ACT — Analisa Otomatis</span>
+        <span class="badge bg-info-subtle text-info ms-1" style="font-size:.65rem">rule-based</span>
+    </div>
+    <div class="card-body py-2">
+        <ul class="mb-0 ps-3" style="font-size:.875rem">
+            <?php foreach ($analysis as $line): ?>
+            <li class="mb-1"><?= esc($line) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Edit Modal -->
 <?php if ($canEdit): ?>
 <div class="modal fade" id="editItemModal" tabindex="-1">
@@ -752,6 +788,11 @@ $insightFields = [
     <div id="editBudgetDiv" class="mb-3">
         <label class="form-label small fw-semibold">Budget (Rp)</label>
         <input type="text" name="budget" id="editBudget" class="form-control currency-input" value="0">
+    </div>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Deadline Produksi</label>
+        <input type="date" name="deadline" id="editDeadline" class="form-control">
+        <div class="form-text">Kosongkan jika tidak ada batas waktu.</div>
     </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Deskripsi</label>
@@ -880,6 +921,7 @@ document.querySelectorAll('.edit-item-btn').forEach(btn => {
         document.getElementById('editNama').value        = this.dataset.nama;
         document.getElementById('editDeskripsi').value   = this.dataset.deskripsi;
         document.getElementById('editBudget').value      = this.dataset.budget;
+        document.getElementById('editDeadline').value    = this.dataset.deadline || '';
         document.getElementById('editCatatan').value     = this.dataset.catatan;
         document.getElementById('editPlatformDiv').classList.toggle('d-none', !isDigital);
         document.getElementById('editTakeDiv').classList.toggle('d-none', !isDigital);

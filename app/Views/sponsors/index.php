@@ -93,7 +93,7 @@
         <button class="btn btn-sm btn-outline-secondary edit-btn"
             data-id="<?= $sp['id'] ?>"
             data-nama="<?= esc($sp['nama_sponsor'], 'attr') ?>"
-            data-jenis="<?= $sp['jenis'] ?>"
+            data-jenis="<?= esc($sp['jenis'], 'attr') ?>"
             data-nilai="<?= number_format($sp['nilai'],0,',','.') ?>"
             data-detail="<?= esc($sp['detail'], 'attr') ?>"
             data-items="<?= esc(json_encode($items), 'attr') ?>">

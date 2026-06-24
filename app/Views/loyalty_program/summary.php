@@ -195,32 +195,57 @@ $deltaBadge = function (float $cur, float $prev): string {
 </div>
 
 <?php
+// Compute per-card stats and return as array (defined early — used both in summary strip and in card render)
+$buildCardData = function(string $key, array $prog) use ($monthlyData, $cumulativeData, $voucherByProgram, $evoucherByProgram, $voucherCumByProgram, $evoucherCumByProgram, $hadiahByProgram, $ehadiahByProgram, $evoucherItemsGrouped): array {
+    $isS     = str_starts_with($key, 's_');
+    $isEv    = ($prog['target_type'] ?? '') === 'evoucher';
+    $data    = $monthlyData[$key] ?? [];
+    $cum     = $cumulativeData[$key] ?? [];
+    $mBaru   = (int)($data['total_jumlah'] ?? 0);     // bulan ini saja
+    $mAktif  = (int)($data['total_member_aktif'] ?? 0);
+    $mBaruCum  = (int)($cum['total_jumlah'] ?? 0);    // kumulatif s.d. bulan ini
+    $mAktifCum = (int)($cum['total_member_aktif'] ?? 0);
+    $vd      = $isS ? ($voucherByProgram[$prog['id']] ?? [])    : ($evoucherByProgram[$prog['id']] ?? []);
+    $vdCum   = $isS ? ($voucherCumByProgram[$prog['id']] ?? []) : ($evoucherCumByProgram[$prog['id']] ?? []);
+    $vSebar  = (int)($vd['total_tersebar'] ?? 0);
+    $vPakai  = (int)($vd['total_terpakai'] ?? 0);
+    $vPakaiCum = (int)($vdCum['total_terpakai'] ?? 0);
+    $hDibagi = $isS ? (int)($hadiahByProgram[$prog['id']] ?? 0) : (int)($ehadiahByProgram[$prog['id']] ?? 0);
+    $vQuota  = 0;
+    if ($isS && $isEv && ($prog['total_voucher'] ?? 0) > 0) {
+        $vQuota = (int)$prog['total_voucher'];
+    } elseif (!$isS && isset($evoucherItemsGrouped[$prog['id']])) {
+        $vQuota = array_sum(array_column($evoucherItemsGrouped[$prog['id']], 'total_diterbitkan'));
+    }
+    // Multi-month flag: cumulative differs from monthly increment (data exists from prior months)
+    $isMultiMonth = ($mBaruCum > $mBaru) || ($vPakaiCum > $vPakai);
+    // Target achievement always uses cumulative (correct for multi-month programs)
+    $tgt = 0; $ach = 0;
+    if (($prog['target_peserta'] ?? 0) > 0)     { $tgt++; if ($mBaruCum  >= (int)$prog['target_peserta'])      $ach++; }
+    if (($prog['target_member_aktif'] ?? 0) > 0) { $tgt++; if ($mAktifCum >= (int)$prog['target_member_aktif']) $ach++; }
+    if ($vQuota > 0)                             { $tgt++; if ($vPakaiCum >= $vQuota)                            $ach++; }
+    return compact('isS','isEv','mBaru','mAktif','mBaruCum','mAktifCum','vSebar','vPakai','vPakaiCum','hDibagi','vQuota','tgt','ach','isMultiMonth');
+};
+
 // Hitung ringkasan pencapaian target semua program untuk bulan ini
 $sumPrograms  = 0; $sumAchieved = 0; $sumPartial = 0;
 $sumBelum     = 0; $sumNoTarget = 0;
+$sumEvalBerhasil = 0; $sumEvalSebagian = 0; $sumEvalGagal = 0;
 foreach ($programMap as $key => $prog) {
-    $isS   = str_starts_with($key, 's_');
-    $isEv2 = ($prog['target_type'] ?? '') === 'evoucher';
-    $dat2  = $monthlyData[$key] ?? [];
-    $mB2   = (int)($dat2['total_jumlah'] ?? 0);
-    $mA2   = (int)($dat2['total_member_aktif'] ?? 0);
-    $vd2   = $isS ? ($voucherByProgram[$prog['id']] ?? []) : ($evoucherByProgram[$prog['id']] ?? []);
-    $vP2   = (int)($vd2['total_terpakai'] ?? 0);
-    $vQ2   = 0;
-    if ($isS && $isEv2 && ($prog['total_voucher'] ?? 0) > 0) {
-        $vQ2 = (int)$prog['total_voucher'];
-    } elseif (! $isS && isset($evoucherItemsGrouped[$prog['id']])) {
-        $vQ2 = array_sum(array_column($evoucherItemsGrouped[$prog['id']], 'total_diterbitkan'));
+    if (($prog['source'] ?? '') === 'standalone' && ($prog['locked'] ?? false) && ($prog['eval_status'] ?? '')) {
+        if ($prog['eval_status'] === 'berhasil')      $sumEvalBerhasil++;
+        elseif ($prog['eval_status'] === 'sebagian')  $sumEvalSebagian++;
+        elseif ($prog['eval_status'] === 'gagal')     $sumEvalGagal++;
     }
-    $tgt2 = 0; $ach2 = 0;
-    if (($prog['target_peserta'] ?? 0) > 0)     { $tgt2++; if ($mB2 >= (int)$prog['target_peserta'])     $ach2++; }
-    if (($prog['target_member_aktif'] ?? 0) > 0) { $tgt2++; if ($mA2 >= (int)$prog['target_member_aktif']) $ach2++; }
-    if ($vQ2 > 0)                                { $tgt2++; if ($vP2 >= $vQ2)                              $ach2++; }
+}
+$sumEvalTotal = $sumEvalBerhasil + $sumEvalSebagian + $sumEvalGagal;
+foreach ($programMap as $key => $prog) {
+    $d2 = $buildCardData($key, $prog);
     $sumPrograms++;
-    if ($tgt2 === 0)        $sumNoTarget++;
-    elseif ($ach2 === $tgt2) $sumAchieved++;
-    elseif ($ach2 > 0)      $sumPartial++;
-    else                    $sumBelum++;
+    if ($d2['tgt'] === 0)              $sumNoTarget++;
+    elseif ($d2['ach'] === $d2['tgt']) $sumAchieved++;
+    elseif ($d2['ach'] > 0)            $sumPartial++;
+    else                               $sumBelum++;
 }
 $sumWithTarget = $sumPrograms - $sumNoTarget;
 ?>
@@ -246,6 +271,25 @@ $sumWithTarget = $sumPrograms - $sumNoTarget;
     <span class="badge bg-secondary px-3 py-2" style="font-size:.8rem">
         <i class="bi bi-dash-circle me-1"></i><?= $sumNoTarget ?> program tanpa target
     </span>
+    <?php endif; ?>
+    <?php if ($sumEvalTotal > 0): ?>
+    <span class="vr mx-1"></span>
+    <span class="small fw-semibold text-muted">Evaluasi:</span>
+    <?php if ($sumEvalBerhasil > 0): ?>
+    <span class="badge bg-success px-3 py-2" style="font-size:.8rem">
+        <i class="bi bi-lock-fill me-1"></i><?= $sumEvalBerhasil ?> berhasil
+    </span>
+    <?php endif; ?>
+    <?php if ($sumEvalSebagian > 0): ?>
+    <span class="badge bg-warning text-dark px-3 py-2" style="font-size:.8rem">
+        <i class="bi bi-lock-fill me-1"></i><?= $sumEvalSebagian ?> sebagian
+    </span>
+    <?php endif; ?>
+    <?php if ($sumEvalGagal > 0): ?>
+    <span class="badge bg-danger px-3 py-2" style="font-size:.8rem">
+        <i class="bi bi-lock-fill me-1"></i><?= $sumEvalGagal ?> perlu perbaikan
+    </span>
+    <?php endif; ?>
     <?php endif; ?>
 </div>
 <?php endif; ?>
@@ -298,34 +342,10 @@ foreach ($programMap as $key => $prog) {
     else                                                      $mapStandaloneActive[$key] = $prog;
 }
 
-// Compute per-card stats and return as array
-$buildCardData = function(string $key, array $prog) use ($monthlyData, $voucherByProgram, $evoucherByProgram, $hadiahByProgram, $ehadiahByProgram, $evoucherItemsGrouped): array {
-    $isS     = str_starts_with($key, 's_');
-    $isEv    = ($prog['target_type'] ?? '') === 'evoucher';
-    $data    = $monthlyData[$key] ?? [];
-    $mBaru   = (int)($data['total_jumlah'] ?? 0);
-    $mAktif  = (int)($data['total_member_aktif'] ?? 0);
-    $vd      = $isS ? ($voucherByProgram[$prog['id']] ?? []) : ($evoucherByProgram[$prog['id']] ?? []);
-    $vSebar  = (int)($vd['total_tersebar'] ?? 0);
-    $vPakai  = (int)($vd['total_terpakai'] ?? 0);
-    $hDibagi = $isS ? (int)($hadiahByProgram[$prog['id']] ?? 0) : (int)($ehadiahByProgram[$prog['id']] ?? 0);
-    $vQuota  = 0;
-    if ($isS && $isEv && ($prog['total_voucher'] ?? 0) > 0) {
-        $vQuota = (int)$prog['total_voucher'];
-    } elseif (!$isS && isset($evoucherItemsGrouped[$prog['id']])) {
-        $vQuota = array_sum(array_column($evoucherItemsGrouped[$prog['id']], 'total_diterbitkan'));
-    }
-    $tgt = 0; $ach = 0;
-    if (($prog['target_peserta'] ?? 0) > 0)     { $tgt++; if ($mBaru  >= (int)$prog['target_peserta'])      $ach++; }
-    if (($prog['target_member_aktif'] ?? 0) > 0) { $tgt++; if ($mAktif >= (int)$prog['target_member_aktif']) $ach++; }
-    if ($vQuota > 0)                             { $tgt++; if ($vPakai >= $vQuota)                            $ach++; }
-    return compact('isS','isEv','mBaru','mAktif','vSebar','vPakai','hDibagi','vQuota','tgt','ach');
-};
-
 // Render a single program card (outputs HTML directly)
-$renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMap, $canEdit): void {
+$renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMap, $prevAnalisaMap, $canEdit): void {
     $d = $buildCardData($key, $prog);
-    extract($d); // isS, isEv, mBaru, mAktif, vSebar, vPakai, hDibagi, vQuota, tgt, ach
+    extract($d); // isS, isEv, mBaru, mAktif, mBaruCum, mAktifCum, vSebar, vPakai, vPakaiCum, hDibagi, vQuota, tgt, ach, isMultiMonth
     $isInactive  = ($prog['status'] ?? 'active') === 'inactive';
     $hasAnyData  = $mBaru > 0 || $mAktif > 0 || $vSebar > 0 || $vPakai > 0 || $hDibagi > 0;
     $hasContent  = $hasAnyData || $tgt > 0;
@@ -366,11 +386,34 @@ $renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMa
                 <?php if ($isInactive): ?>
                 <span class="badge bg-secondary" style="font-size:.6rem">Non-aktif</span>
                 <?php endif; ?>
+                <?php if ($isS && ($prog['locked'] ?? false) && ($prog['eval_status'] ?? '')): ?>
+                <?php
+                $evS       = $prog['eval_status'];
+                $evColor   = ['berhasil'=>'success','sebagian'=>'warning','gagal'=>'danger'][$evS] ?? 'secondary';
+                $evIcon    = ['berhasil'=>'check-circle-fill','sebagian'=>'dash-circle-fill','gagal'=>'x-circle-fill'][$evS] ?? 'lock-fill';
+                $evLabel   = ['berhasil'=>'Berhasil','sebagian'=>'Sebagian','gagal'=>'Perlu Perbaikan'][$evS] ?? $evS;
+                ?>
+                <span class="badge bg-<?= $evColor ?>-subtle text-<?= $evColor ?>" style="font-size:.6rem">
+                    <i class="bi bi-<?= $evIcon ?> me-1"></i><?= $evLabel ?>
+                </span>
+                <?php endif; ?>
             </div>
         </div>
 
         <div class="card-body py-2 px-3">
 
+            <?php
+            $prevAnal = $prevAnalisaMap[$key] ?? [];
+            $prevTL   = trim($prevAnal['tindak_lanjut'] ?? '');
+            ?>
+            <?php if ($prevTL): ?>
+            <div class="mb-2 p-2 rounded-2" style="background:rgba(var(--bs-warning-rgb),.1);font-size:.7rem;border-left:3px solid var(--bs-warning)">
+                <div class="fw-semibold mb-1" style="font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;color:var(--bs-warning-text-emphasis)">
+                    <i class="bi bi-arrow-return-right me-1"></i>Tindak Lanjut Bln Lalu
+                </div>
+                <div style="white-space:pre-wrap"><?= esc($prevTL) ?></div>
+            </div>
+            <?php endif; ?>
             <?php if ($tgt > 0): ?>
             <div class="mb-2">
                 <?php if ($ach === $tgt): ?>
@@ -406,8 +449,8 @@ $renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMa
                         <?php endif; ?>
                     </span>
                 </div>
-                <?php if (($prog['target_peserta'] ?? 0) > 0): echo $bar($mBaru, (int)$prog['target_peserta'], 'Baru', 'success', 'primary'); endif; ?>
-                <?php if (($prog['target_member_aktif'] ?? 0) > 0): echo $bar($mAktif, (int)$prog['target_member_aktif'], 'Aktif', 'success', 'info'); endif; ?>
+                <?php if (($prog['target_peserta'] ?? 0) > 0): echo $bar($mBaruCum, (int)$prog['target_peserta'], $isMultiMonth ? 'Kumulatif' : 'Baru', 'success', 'primary'); endif; ?>
+                <?php if (($prog['target_member_aktif'] ?? 0) > 0): echo $bar($mAktifCum, (int)$prog['target_member_aktif'], $isMultiMonth ? 'Kumulatif aktif' : 'Aktif', 'success', 'info'); endif; ?>
             </div>
             <?php endif; ?>
 
@@ -420,7 +463,7 @@ $renderCard = function(string $key, array $prog) use ($buildCardData, $analisaMa
                         <?php if ($vPakai > 0): ?><?= $vSebar > 0 ? ' &nbsp;·&nbsp; ' : '' ?><span class="text-success fw-semibold"><?= number_format($vPakai) ?> pakai</span><?php endif; ?>
                     </span>
                 </div>
-                <?php if ($vQuota > 0): echo $bar($vPakai, $vQuota, 'Terpakai', 'success', 'primary'); endif; ?>
+                <?php if ($vQuota > 0): echo $bar($vPakaiCum, $vQuota, $isMultiMonth ? 'Kumulatif' : 'Terpakai', 'success', 'primary'); endif; ?>
             </div>
             <?php endif; ?>
 

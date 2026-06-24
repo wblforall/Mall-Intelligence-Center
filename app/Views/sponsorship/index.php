@@ -161,6 +161,15 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
         <?php endif; ?>
         <?php if ($isLocked): ?>
         <span class="badge bg-danger-subtle text-danger ms-1"><i class="bi bi-lock-fill me-1"></i>Terkunci</span>
+        <?php if (($prog['eval_status'] ?? '')): ?>
+        <?php
+        $evS     = $prog['eval_status'];
+        $evColor = ['berhasil'=>'success','sebagian'=>'warning','gagal'=>'danger'][$evS] ?? 'secondary';
+        $evIcon  = ['berhasil'=>'check-circle-fill','sebagian'=>'dash-circle-fill','gagal'=>'x-circle-fill'][$evS] ?? 'lock-fill';
+        $evLabel = ['berhasil'=>'Berhasil','sebagian'=>'Sebagian','gagal'=>'Perlu Perbaikan'][$evS] ?? $evS;
+        ?>
+        <span class="badge bg-<?= $evColor ?>-subtle text-<?= $evColor ?>"><i class="bi bi-<?= $evIcon ?> me-1"></i><?= esc($evLabel) ?></span>
+        <?php endif; ?>
         <?php endif; ?>
         <div class="ms-auto d-flex gap-1">
             <?php if ($canEdit): ?>
@@ -183,10 +192,11 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                         data-target-nilai="<?= $prog['target_nilai'] ?? '' ?>"
                         data-catatan="<?= esc($prog['catatan'] ?? '', 'attr') ?>"
                         title="Edit"><i class="bi bi-pencil"></i></button>
-                <form method="post" action="<?= base_url('sponsorship/' . $pid . '/lock') ?>" class="d-inline">
-                    <?= csrf_field() ?>
-                    <button class="btn btn-sm btn-outline-warning" title="Kunci" onclick="return confirm('Kunci program ini?')"><i class="bi bi-lock"></i></button>
-                </form>
+                <button class="btn btn-sm btn-outline-warning" title="Kunci"
+                        data-bs-toggle="modal" data-bs-target="#lockProgramModal"
+                        data-id="<?= $pid ?>" data-nama="<?= esc($prog['nama_program'], 'attr') ?>">
+                    <i class="bi bi-lock"></i>
+                </button>
                 <form method="post" action="<?= base_url('sponsorship/' . $pid . '/toggle') ?>" class="d-inline">
                     <?= csrf_field() ?>
                     <button class="btn btn-sm <?= $prog['status'] === 'active' ? 'btn-outline-secondary' : 'btn-outline-success' ?>" title="Toggle Status">
@@ -282,7 +292,7 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                         <?php endif; ?>
                     </td>
                     <td><?= $sp['kategori'] ? '<span class="badge bg-secondary-subtle text-secondary">' . esc($sp['kategori']) . '</span>' : '—' ?></td>
-                    <td><span class="badge" style="background:#e2e8f0;color:#334155;font-weight:600"><?= ucfirst($sp['jenis']) ?></span></td>
+                    <td><span class="badge" style="background:#e2e8f0;color:#334155;font-weight:600"><?= esc(ucfirst($sp['jenis'])) ?></span></td>
                     <td class="text-end fw-semibold"><?= spFmt((int)$sp['nilai']) ?></td>
                     <td class="text-end fw-semibold">
                         <?php
@@ -321,7 +331,7 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                         </div>
                         <?php endif; ?>
                     </td>
-                    <td><span class="deal-badge deal-<?= $sp['status_deal'] ?>"><?= $dealStatusLabel[$sp['status_deal']] ?? $sp['status_deal'] ?></span></td>
+                    <td><span class="deal-badge deal-<?= esc($sp['status_deal']) ?>"><?= $dealStatusLabel[$sp['status_deal']] ?? esc($sp['status_deal']) ?></span></td>
                     <?php if ($canEditProg): ?>
                     <td class="text-end">
                         <div class="d-flex gap-1 justify-content-end">
@@ -331,9 +341,9 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                                     data-id="<?= $sp['id'] ?>"
                                     data-nama="<?= esc($sp['nama_sponsor'], 'attr') ?>"
                                     data-kategori="<?= esc($sp['kategori'] ?? '', 'attr') ?>"
-                                    data-jenis="<?= $sp['jenis'] ?>"
+                                    data-jenis="<?= esc($sp['jenis'], 'attr') ?>"
                                     data-nilai="<?= $sp['nilai'] ?>"
-                                    data-status="<?= $sp['status_deal'] ?>"
+                                    data-status="<?= esc($sp['status_deal'], 'attr') ?>"
                                     data-detail="<?= esc($sp['detail'] ?? '', 'attr') ?>"
                                     data-catatan="<?= esc($sp['catatan'] ?? '', 'attr') ?>"
                                     data-items="<?= esc(json_encode($itemsBySponsors[$sp['id']] ?? []), 'attr') ?>">
@@ -713,6 +723,53 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
     </div>
 </div>
 
+<!-- Lock Program Modal -->
+<div class="modal fade" id="lockProgramModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="lockProgramForm">
+                <?= csrf_field() ?>
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-lock me-1"></i>Kunci Program — <span id="lp_nama"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Program yang dikunci tidak bisa diedit lagi. Isi evaluasi (ACT) sebelum mengunci.</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Status Evaluasi</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="eval_status" id="lp_ev_berhasil" value="berhasil">
+                                <label class="form-check-label text-success" for="lp_ev_berhasil"><i class="bi bi-check-circle-fill me-1"></i>Berhasil</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="eval_status" id="lp_ev_sebagian" value="sebagian">
+                                <label class="form-check-label text-warning" for="lp_ev_sebagian"><i class="bi bi-dash-circle-fill me-1"></i>Sebagian</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="eval_status" id="lp_ev_gagal" value="gagal">
+                                <label class="form-check-label text-danger" for="lp_ev_gagal"><i class="bi bi-x-circle-fill me-1"></i>Perlu Perbaikan</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" for="lp_eval_kendala">Kendala / Catatan Evaluasi</label>
+                        <textarea name="eval_kendala" id="lp_eval_kendala" class="form-control form-control-sm" rows="2" placeholder="Opsional"></textarea>
+                    </div>
+                    <div>
+                        <label class="form-label small fw-semibold" for="lp_eval_rekomendasi">Rekomendasi / Tindak Lanjut</label>
+                        <textarea name="eval_rekomendasi" id="lp_eval_rekomendasi" class="form-control form-control-sm" rows="2" placeholder="Opsional"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-sm btn-warning text-white">Kunci Program</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <?= $this->section('scripts') ?>
 <script>
 function numFmt(val) {
@@ -831,6 +888,17 @@ function removeAsItem(btn) {
     const rows = document.querySelectorAll('.as-item-row');
     if (rows.length > 1) btn.closest('.as-item-row').remove();
 }
+
+// Lock Program modal
+document.getElementById('lockProgramModal').addEventListener('show.bs.modal', function(e) {
+    const b = e.relatedTarget;
+    this.querySelector('#lp_nama').textContent = b.dataset.nama || '';
+    const form = document.getElementById('lockProgramForm');
+    form.action = '<?= base_url('sponsorship/') ?>' + b.dataset.id + '/lock';
+    form.querySelectorAll('input[name=eval_status]').forEach(r => r.checked = false);
+    form.querySelector('#lp_eval_kendala').value = '';
+    form.querySelector('#lp_eval_rekomendasi').value = '';
+});
 </script>
 <?= $this->endSection() ?>
 

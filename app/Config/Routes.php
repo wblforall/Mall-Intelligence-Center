@@ -279,6 +279,7 @@ $routes->post('sponsorship/(:num)/sponsor/(:num)/edit', 'SponsorshipCtrl::update
 $routes->post('sponsorship/(:num)/sponsor/(:num)/delete', 'SponsorshipCtrl::deleteSponsor/$1/$2', ['filter' => 'auth']);
 $routes->post('sponsorship/(:num)/sponsor/(:num)/realisasi/add', 'SponsorshipCtrl::storeRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('sponsorship/(:num)/sponsor/(:num)/realisasi/(:num)/delete', 'SponsorshipCtrl::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
+$routes->post('sponsorship/analisa/save', 'SponsorshipCtrl::saveAnalisa', ['filter' => 'auth']);
 
 // VM Standalone (non-event)
 $routes->get('vm/monthly-summary', 'VMStandalone::monthly', ['filter' => 'auth']);

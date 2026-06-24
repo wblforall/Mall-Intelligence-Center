@@ -43,6 +43,48 @@ class EventCreativeCtrl extends BaseController
         $totalBudget    = array_sum(array_column($items, 'budget'));
         $totalRealisasi = array_sum(array_map(fn($r) => $r['total'] ?? 0, $realisasi));
 
+        // ACT: build per-event analysis using same rule-based engine as monthly
+        $totalReach = 0; $totalImpr = 0; $totalViews = 0; $totalEng = 0; $totalFoll = 0;
+        $topReach = 0; $topName = ''; $activeCount = 0;
+        foreach ($items as $item) {
+            $iid = $item['id'];
+            $ins = $insights[$iid] ?? null;
+            $hasReal = ! empty($realisasi[$iid]['entries']);
+            if ($ins || $hasReal) $activeCount++;
+            if ($ins) {
+                $r = (int)($ins['max_reach'] ?? 0);
+                $totalReach += $r;
+                $totalImpr  += (int)($ins['max_impressions'] ?? 0);
+                $totalViews += (int)($ins['max_views'] ?? 0);
+                $totalFoll  += (int)($ins['total_followers_gained'] ?? 0);
+                $totalEng   += (int)($ins['max_likes'] ?? 0) + (int)($ins['max_comments'] ?? 0)
+                             + (int)($ins['max_shares'] ?? 0) + (int)($ins['max_saves'] ?? 0);
+                if ($r > $topReach) { $topReach = $r; $topName = $item['nama']; }
+            }
+        }
+        $engRate   = $totalReach > 0 ? round($totalEng / $totalReach * 100, 1) : 0;
+        $serapan   = $totalBudget > 0 ? min(100, round($totalRealisasi / $totalBudget * 100)) : 0;
+        $today     = date('Y-m-d');
+        $overdue   = array_filter($items, fn($it) =>
+            !empty($it['deadline']) && $it['deadline'] < $today
+            && ($it['status'] ?? '') !== 'approved'
+        );
+        $analysis = $this->buildEventAnalysis([
+            'activeCount'    => $activeCount,
+            'totalItems'     => count($items),
+            'totalReach'     => $totalReach,
+            'totalImpr'      => $totalImpr,
+            'totalEng'       => $totalEng,
+            'totalFoll'      => $totalFoll,
+            'engagementRate' => $engRate,
+            'totalBudget'    => $totalBudget,
+            'totalRealisasi' => $totalRealisasi,
+            'serapanPct'     => $serapan,
+            'topItemReach'   => $topReach,
+            'topItemName'    => $topName,
+            'overdueCount'   => count($overdue),
+        ]);
+
         $completion = (new EventCompletionModel())->getByEvent($eventId)['creative'] ?? null;
 
         return view('creative/index', [
@@ -58,6 +100,7 @@ class EventCreativeCtrl extends BaseController
             'canEdit'        => $this->canEditMenu('creative') && ! $completion,
             'insights'       => $insights,
             'canApprove'     => in_array($this->currentUser()['role'] ?? '', ['admin', 'manager']),
+            'analysis'       => $analysis,
         ]);
     }
 
@@ -124,6 +167,7 @@ class EventCreativeCtrl extends BaseController
 
         $db->transStart();
         $fileModel->where('creative_item_id', $id)->delete();
+        (new EventCreativeInsightModel())->where('creative_item_id', $id)->delete();
         (new EventCreativeRealisasiModel())->where('creative_item_id', $id)->delete();
         (new EventCreativeItemModel())->delete($id);
         $db->transComplete();
@@ -178,8 +222,8 @@ class EventCreativeCtrl extends BaseController
         $row       = $fileModel->find($fileId);
         if ($row) {
             $path = $this->uploadDir($eventId) . $row['file_name'];
-            if (file_exists($path)) unlink($path);
             $fileModel->delete($fileId);
+            if (file_exists($path)) unlink($path);
         }
 
         ActivityLog::write('delete', 'creative', (string) $eventId, 'Hapus file creative');
@@ -210,6 +254,7 @@ class EventCreativeCtrl extends BaseController
         $post     = $this->request->getPost();
         $fileName = null;
         $origName = null;
+        $pendingMoves = [];
 
         $file = $this->request->getFile('bukti');
         if ($file && $file->isValid() && ! $file->hasMoved()) {
@@ -218,7 +263,7 @@ class EventCreativeCtrl extends BaseController
             }
             $fileName = 'real_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
             $origName = $file->getClientName();
-            $file->move($this->uploadDir($eventId), $fileName);
+            $pendingMoves[] = [$file, $this->uploadDir($eventId), $fileName];
         }
 
         $stFileName = null;
@@ -230,7 +275,7 @@ class EventCreativeCtrl extends BaseController
             }
             $stFileName = 'st_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($stFile);
             $stOrigName = $stFile->getClientName();
-            $stFile->move($this->uploadDir($eventId), $stFileName);
+            $pendingMoves[] = [$stFile, $this->uploadDir($eventId), $stFileName];
         }
 
         $btFileName = null;
@@ -242,10 +287,10 @@ class EventCreativeCtrl extends BaseController
             }
             $btFileName = 'bt_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($btFile);
             $btOrigName = $btFile->getClientName();
-            $btFile->move($this->uploadDir($eventId), $btFileName);
+            $pendingMoves[] = [$btFile, $this->uploadDir($eventId), $btFileName];
         }
 
-        (new EventCreativeRealisasiModel())->insert([
+        $rid = (new EventCreativeRealisasiModel())->insert([
             'event_id'                      => $eventId,
             'creative_item_id'              => $id,
             'tanggal'                       => $post['tanggal'],
@@ -260,6 +305,12 @@ class EventCreativeCtrl extends BaseController
             'catatan'                       => $post['catatan'] ?? null,
             'created_by'                    => $this->currentUser()['id'],
         ]);
+        if (! $rid) {
+            return redirect()->back()->with('error', 'Gagal menyimpan realisasi.');
+        }
+        foreach ($pendingMoves as [$f, $dir, $name]) {
+            $f->move($dir, $name);
+        }
 
         ActivityLog::write('update', 'creative', (string) $eventId, 'Tambah realisasi creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Realisasi berhasil ditambahkan.');
@@ -271,13 +322,13 @@ class EventCreativeCtrl extends BaseController
 
         $model = new EventCreativeRealisasiModel();
         $row   = $model->find($rid);
+        $model->delete($rid);
         if ($row) {
             $dir = $this->uploadDir($eventId);
             foreach (['file_name', 'serah_terima_file_name', 'bukti_terpasang_file_name'] as $col) {
                 if ($row[$col] && file_exists($dir . $row[$col])) unlink($dir . $row[$col]);
             }
         }
-        $model->delete($rid);
 
         ActivityLog::write('delete', 'creative', (string) $eventId, 'Hapus realisasi creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Realisasi berhasil dihapus.');
@@ -294,8 +345,7 @@ class EventCreativeCtrl extends BaseController
 
         $file = $this->request->getFile('screenshot');
         if ($file && $file->isValid() && ! $file->hasMoved()) {
-            $ext      = $file->getClientExtension();
-            $fileName = 'insight_' . $id . '_' . time() . '_' . random_int(100, 999) . '.' . $ext;
+            $fileName = 'insight_' . $id . '_' . time() . '_' . random_int(100, 999) . '.' . $this->safeExt($file);
             $origName = $file->getClientName();
             $file->move($this->uploadDir($eventId), $fileName);
         }
@@ -329,13 +379,61 @@ class EventCreativeCtrl extends BaseController
 
         $model = new EventCreativeInsightModel();
         $row   = $model->find($iid);
+        $model->delete($iid);
         if ($row && $row['file_name']) {
             $path = $this->uploadDir($eventId) . $row['file_name'];
             if (file_exists($path)) unlink($path);
         }
-        $model->delete($iid);
 
         ActivityLog::write('delete', 'creative', (string) $eventId, 'Hapus insight creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Insight berhasil dihapus.');
+    }
+
+    private function buildEventAnalysis(array $m): array
+    {
+        $a   = [];
+        $fmt = fn($n) => number_format((int)$n);
+        $rp  = fn($n) => 'Rp ' . number_format((int)$n, 0, ',', '.');
+
+        if ($m['activeCount'] <= 0) {
+            return ['Belum ada aktivitas (realisasi/insight) creative yang tercatat untuk event ini.'];
+        }
+        $a[] = "{$m['activeCount']} dari {$m['totalItems']} item creative aktif di event ini.";
+
+        if ($m['totalReach'] > 0) {
+            $a[] = "Total reach " . $fmt($m['totalReach']) . " dari seluruh konten digital.";
+        }
+        if ($m['totalEng'] > 0) {
+            $r    = $m['engagementRate'];
+            $nilai = $r >= 3 ? 'tergolong sangat baik' : ($r >= 1 ? 'tergolong sehat' : 'tergolong rendah');
+            $a[] = "Engagement " . $fmt($m['totalEng']) . " (rate {$r}% dari reach), {$nilai}.";
+        }
+        if ($m['totalBudget'] > 0) {
+            $s   = $m['serapanPct'];
+            $cat = $s > 100 ? 'melebihi budget' : ($s >= 80 ? 'mendekati batas budget' : 'masih dalam batas aman');
+            $a[] = "Realisasi " . $rp($m['totalRealisasi']) . "; serapan budget {$s}% ({$cat}).";
+        } elseif ($m['totalRealisasi'] > 0) {
+            $a[] = "Realisasi " . $rp($m['totalRealisasi']) . " (budget belum di-set).";
+        }
+        if ($m['totalFoll'] > 0) {
+            $a[] = "Pertumbuhan follower +" . $fmt($m['totalFoll']) . " dari konten event ini.";
+        }
+        if ($m['topItemReach'] > 0) {
+            $a[] = "Konten terbaik: \"{$m['topItemName']}\" — " . $fmt($m['topItemReach']) . " reach.";
+        }
+
+        $rec = [];
+        if ($m['totalEng'] > 0 && $m['engagementRate'] < 1) {
+            $rec[] = 'tingkatkan konten interaktif untuk mendongkrak engagement';
+        }
+        if ($m['totalBudget'] > 0 && $m['serapanPct'] < 50) {
+            $rec[] = 'percepat realisasi agar serapan budget tidak menumpuk';
+        }
+        if (($m['overdueCount'] ?? 0) > 0) {
+            $a[] = ($m['overdueCount'] === 1 ? '1 item' : $m['overdueCount'] . ' item') . ' melewati deadline dan belum approved — segera tindak lanjuti.';
+        }
+        if ($rec) $a[] = 'Rekomendasi: ' . implode('; ', $rec) . '.';
+
+        return $a;
     }
 }

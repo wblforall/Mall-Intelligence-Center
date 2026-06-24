@@ -11,7 +11,7 @@ class EventCreativeItemModel extends Model
     protected $useTimestamps = true;
     protected $allowedFields = [
         'event_id', 'tipe', 'nama', 'platform', 'tanggal_take', 'jam_take', 'pic',
-        'deskripsi', 'budget', 'status', 'catatan', 'urutan', 'created_by',
+        'deskripsi', 'budget', 'target_reach', 'target_impressions', 'deadline', 'status', 'catatan', 'urutan', 'created_by',
     ];
 
     public function getByEvent(int $eventId): array

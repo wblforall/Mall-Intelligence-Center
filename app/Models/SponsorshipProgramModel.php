@@ -12,7 +12,9 @@ class SponsorshipProgramModel extends Model
     protected $allowedFields = [
         'nama_program', 'tanggal_mulai', 'tanggal_selesai', 'deskripsi',
         'target_sponsor', 'target_nilai', 'budget',
-        'status', 'locked', 'locked_by', 'locked_at', 'catatan', 'created_by',
+        'status', 'locked', 'locked_by', 'locked_at',
+        'eval_status', 'eval_kendala', 'eval_rekomendasi',
+        'catatan', 'created_by',
     ];
 
     public function getAll(): array
@@ -29,13 +31,19 @@ class SponsorshipProgramModel extends Model
         ]);
     }
 
-    public function lock(int $id, int $userId): void
+    public function lock(int $id, int $userId, ?string $evalStatus = null, ?string $evalKendala = null, ?string $evalRekomendasi = null): void
     {
-        $this->update($id, [
+        $data = [
             'locked'    => 1,
             'locked_by' => $userId,
             'locked_at' => date('Y-m-d H:i:s'),
-        ]);
+        ];
+        if ($evalStatus !== null) {
+            $data['eval_status']      = $evalStatus;
+            $data['eval_kendala']     = $evalKendala ?: null;
+            $data['eval_rekomendasi'] = $evalRekomendasi ?: null;
+        }
+        $this->update($id, $data);
     }
 
     public function unlock(int $id): void

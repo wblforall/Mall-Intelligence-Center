@@ -148,7 +148,7 @@ $bulanLabel = function(string $ym): string {
                     </thead>
                     <tbody>
                     <?php
-                    $maxMonthVal = max(array_column($allMonthlyTotals, 'total_nilai') ?: [1]);
+                    $maxMonthVal = max(array_filter(array_column($allMonthlyTotals, 'total_nilai'), fn($v) => $v !== null) ?: [1]);
                     foreach ($allMonthlyTotals as $row):
                         $isSelected = $row['bulan'] === $bulan;
                     ?>
@@ -284,6 +284,13 @@ $bulanLabel = function(string $ym): string {
                         <?= esc($prog['nama_program']) ?>
                     </a>
                 </h6>
+                <?php if ($prog['locked'] && ($prog['eval_status'] ?? '')): ?>
+                <?php $es = $prog['eval_status']; $ec = ['berhasil'=>'success','sebagian'=>'warning','gagal'=>'danger'][$es] ?? 'secondary'; ?>
+                <span class="badge bg-<?= $ec ?>-subtle text-<?= $ec ?>" style="font-size:.68rem">
+                    <i class="bi bi-<?= ['berhasil'=>'check-circle-fill','sebagian'=>'dash-circle-fill','gagal'=>'x-circle-fill'][$es] ?? 'lock-fill' ?> me-1"></i>
+                    <?= ['berhasil'=>'Berhasil','sebagian'=>'Sebagian','gagal'=>'Perlu Perbaikan'][$es] ?? esc($es) ?>
+                </span>
+                <?php endif; ?>
                 <span class="small text-muted"><?= count($spList) ?> sponsor</span>
             </div>
             <table class="table table-sm mb-0" style="font-size:.82rem">
@@ -307,6 +314,90 @@ $bulanLabel = function(string $ym): string {
                 <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+<?php endforeach; ?>
+</div>
+
+<!-- ACT Phase — Analisa per Program -->
+<div class="row g-3 mb-4">
+<?php foreach ($programs as $prog):
+    $pid       = (int)$prog['id'];
+    $analisa   = $analisaMap[$pid]    ?? ['highlight'=>'','kendala'=>'','tindak_lanjut'=>''];
+    $prevAnal  = $prevAnalisaMap[$pid] ?? null;
+    $prevHasData = $prevAnal && ($prevAnal['highlight'] || $prevAnal['kendala'] || $prevAnal['tindak_lanjut']);
+    $hasData     = ($analisa['highlight'] || $analisa['kendala'] || $analisa['tindak_lanjut'] || $prevHasData);
+    if (! $canEdit && ! $hasData) continue;
+?>
+<div class="col-12 col-md-6">
+    <div class="card fade-up border-info-subtle" style="animation-delay:.5s">
+        <div class="card-header py-2 d-flex align-items-center gap-2">
+            <i class="bi bi-lightbulb-fill text-info"></i>
+            <span class="fw-semibold small">ACT — <?= esc($prog['nama_program']) ?></span>
+            <?php if ($prog['locked'] && ($prog['eval_status'] ?? '')): ?>
+            <?php $es = $prog['eval_status']; $ec = ['berhasil'=>'success','sebagian'=>'warning','gagal'=>'danger'][$es] ?? 'secondary'; ?>
+            <span class="badge bg-<?= $ec ?>-subtle text-<?= $ec ?> ms-auto" style="font-size:.65rem">
+                <?= ['berhasil'=>'Berhasil','sebagian'=>'Sebagian','gagal'=>'Perlu Perbaikan'][$es] ?>
+            </span>
+            <?php endif; ?>
+        </div>
+        <div class="card-body">
+            <?php if ($prevHasData && ($prevAnal['tindak_lanjut'] ?? '')): ?>
+            <div class="mb-3 p-2 rounded-2 border-start border-warning border-3" style="background:rgba(245,158,11,.07)">
+                <div class="small text-warning fw-semibold mb-1"><i class="bi bi-arrow-return-right me-1"></i>Tindak Lanjut Bulan Lalu</div>
+                <div class="small text-muted"><?= nl2br(esc($prevAnal['tindak_lanjut'])) ?></div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($canEdit): ?>
+            <form class="analisa-form" data-program="<?= $pid ?>" data-bulan="<?= esc($bulan, 'attr') ?>">
+                <?= csrf_field() ?>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold mb-1">Highlight / Capaian</label>
+                    <textarea name="highlight" class="form-control form-control-sm" rows="2"
+                              placeholder="Capaian utama bulan ini..."><?= esc($analisa['highlight']) ?></textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold mb-1">Kendala</label>
+                    <textarea name="kendala" class="form-control form-control-sm" rows="2"
+                              placeholder="Hambatan yang ditemui..."><?= esc($analisa['kendala']) ?></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold mb-1">Tindak Lanjut</label>
+                    <textarea name="tindak_lanjut" class="form-control form-control-sm" rows="2"
+                              placeholder="Rencana perbaikan bulan depan..."><?= esc($analisa['tindak_lanjut']) ?></textarea>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="submit" class="btn btn-sm btn-info text-white">
+                        <i class="bi bi-save me-1"></i>Simpan Analisa
+                    </button>
+                    <span class="analisa-status small text-muted"></span>
+                </div>
+            </form>
+            <?php else: ?>
+            <?php if ($analisa['highlight']): ?>
+            <div class="mb-2">
+                <div class="small text-muted fw-semibold mb-1">Highlight</div>
+                <div class="small"><?= nl2br(esc($analisa['highlight'])) ?></div>
+            </div>
+            <?php endif; ?>
+            <?php if ($analisa['kendala']): ?>
+            <div class="mb-2">
+                <div class="small text-muted fw-semibold mb-1">Kendala</div>
+                <div class="small"><?= nl2br(esc($analisa['kendala'])) ?></div>
+            </div>
+            <?php endif; ?>
+            <?php if ($analisa['tindak_lanjut']): ?>
+            <div>
+                <div class="small text-muted fw-semibold mb-1">Tindak Lanjut</div>
+                <div class="small"><?= nl2br(esc($analisa['tindak_lanjut'])) ?></div>
+            </div>
+            <?php endif; ?>
+            <?php if (! $hasData): ?>
+            <p class="text-muted small mb-0">Belum ada analisa.</p>
+            <?php endif; ?>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -366,6 +457,40 @@ $bulanLabel = function(string $ym): string {
         }
     });
 })();
+
+// Analisa AJAX save
+document.querySelectorAll('.analisa-form').forEach(function(form) {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const pid    = form.dataset.program;
+        const bulan  = form.dataset.bulan;
+        const status = form.querySelector('.analisa-status');
+        const btn    = form.querySelector('[type=submit]');
+        btn.disabled = true;
+        status.textContent = 'Menyimpan...';
+        try {
+            const fd = new FormData(form);
+            fd.append('program_id', pid);
+            fd.append('bulan', bulan);
+            const resp = await fetch('<?= base_url('sponsorship/analisa/save') ?>', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: fd,
+            });
+            const json = await resp.json();
+            if (json.csrf) {
+                document.querySelectorAll('input[name="<?= csrf_token() ?>"]').forEach(el => el.value = json.csrf);
+            }
+            status.textContent = json.ok ? 'Tersimpan.' : ('Gagal: ' + (json.error || ''));
+            status.style.color = json.ok ? '#16a34a' : '#dc2626';
+        } catch(err) {
+            status.textContent = 'Error koneksi.';
+            status.style.color = '#dc2626';
+        }
+        btn.disabled = false;
+        setTimeout(() => status.textContent = '', 3000);
+    });
+});
 </script>
 <?= $this->endSection() ?>
 

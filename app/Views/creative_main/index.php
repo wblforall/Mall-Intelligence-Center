@@ -217,6 +217,20 @@ foreach ($byTipe as $tipeItems) {
                         <input type="text" name="budget" class="form-control form-control-sm currency-input" placeholder="0">
                     </div>
                     <?php endif; ?>
+                    <?php if (in_array($tipe, ['digital', 'influencer'])): ?>
+                    <div class="col-sm-2">
+                        <label class="form-label small fw-semibold mb-1">Target Reach</label>
+                        <input type="number" name="target_reach" class="form-control form-control-sm" placeholder="0" min="0">
+                    </div>
+                    <div class="col-sm-2">
+                        <label class="form-label small fw-semibold mb-1">Target Impresi</label>
+                        <input type="number" name="target_impressions" class="form-control form-control-sm" placeholder="0" min="0">
+                    </div>
+                    <?php endif; ?>
+                    <div class="col-sm-2">
+                        <label class="form-label small fw-semibold mb-1">Deadline</label>
+                        <input type="date" name="deadline" class="form-control form-control-sm">
+                    </div>
                     <div class="col">
                         <label class="form-label small fw-semibold mb-1">Deskripsi / Catatan</label>
                         <input type="text" name="deskripsi" class="form-control form-control-sm" placeholder="Opsional">
@@ -286,12 +300,13 @@ foreach ($byTipe as $tipeItems) {
                     <?php endif; ?>
                     <?php if ($tipe === 'digital' && ($item['platform'] ?? '')): ?>
                     <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
-                        <i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?> me-1"></i><?= $platformLabels[$item['platform']] ?? $item['platform'] ?>
+                        <i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?> me-1"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?>
                     </span>
                     <?php endif; ?>
                     <span class="fw-semibold"><?= esc($item['nama']) ?></span>
                     <?php if (!empty($item['is_closed'])): ?><span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-check2-circle me-1"></i>Selesai</span><?php endif; ?>
                     <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?><span class="text-muted ms-1" style="font-size:.7rem"><i class="bi bi-calendar3"></i> <?= date('d M Y', strtotime($itgl)) ?></span><?php endif; ?>
+                    <?php if (!empty($item['deadline'])): $dlDiff = (int)((strtotime($item['deadline']) - strtotime(date('Y-m-d'))) / 86400); $isDone = !empty($item['is_closed']) || ($item['status'] ?? '') === 'approved'; if ($isDone): ?><span class="badge bg-success-subtle text-success ms-1" style="font-size:.6rem"><i class="bi bi-check-circle me-1"></i>Tepat waktu</span><?php elseif ($dlDiff < 0): ?><span class="badge bg-danger ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-exclamation-triangle-fill me-1"></i>Terlambat <?= abs($dlDiff) ?> hari</span><?php elseif ($dlDiff <= 3): ?><span class="badge bg-warning text-dark ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-clock me-1"></i><?= $dlDiff === 0 ? 'Hari ini!' : $dlDiff.' hari lagi' ?></span><?php else: ?><span class="badge bg-info-subtle text-info ms-1" style="font-size:.6rem"><i class="bi bi-calendar-check me-1"></i><?= date('d M', strtotime($item['deadline'])) ?></span><?php endif; endif; ?>
                 </div>
                 <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '') || ($item['pic'] ?? ''))): ?>
                 <div class="small text-muted mb-1">
@@ -364,7 +379,7 @@ foreach ($byTipe as $tipeItems) {
                         data-id="<?= $iid ?>"
                         data-nama="<?= esc($item['nama'], 'attr') ?>"
                         data-tipe="<?= $tipe ?>"
-                        data-platform="<?= $item['platform'] ?? '' ?>"
+                        data-platform="<?= esc($item['platform'] ?? '', 'attr') ?>"
                         data-tanggal-take="<?= $item['tanggal_take'] ?? '' ?>"
                         data-jam-take="<?= substr($item['jam_take'] ?? '', 0, 5) ?>"
                         data-pic="<?= esc($item['pic'] ?? '', 'attr') ?>"
@@ -372,6 +387,9 @@ foreach ($byTipe as $tipeItems) {
                         data-tanggal="<?= $item['tanggal'] ?? '' ?>"
                         data-is-closed="<?= !empty($item['is_closed']) ? '1' : '0' ?>"
                         data-budget="<?= number_format($iBudget, 0, ',', '.') ?>"
+                        data-target-reach="<?= (int)($item['target_reach'] ?? 0) ?>"
+                        data-target-impressions="<?= (int)($item['target_impressions'] ?? 0) ?>"
+                        data-deadline="<?= $item['deadline'] ?? '' ?>"
                         data-catatan="<?= esc($item['catatan'] ?? '', 'attr') ?>">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -742,6 +760,37 @@ foreach ($byTipe as $tipeItems) {
         </div>
         <?php endif; ?>
 
+        <?php
+        $tgtReach = (int)($item['target_reach'] ?? 0);
+        $tgtImpr  = (int)($item['target_impressions'] ?? 0);
+        $actReach = (int)($iInsight['max_reach'] ?? 0);
+        $actImpr  = (int)($iInsight['max_impressions'] ?? 0);
+        if (($tgtReach > 0 || $tgtImpr > 0) && ($actReach > 0 || $actImpr > 0)):
+        ?>
+        <div class="px-3 py-2 border-top">
+            <?php if ($tgtReach > 0): ?>
+            <?php $pctR = min(100, $tgtReach > 0 ? round($actReach / $tgtReach * 100) : 0); $colR = $pctR >= 100 ? 'success' : ($pctR >= 60 ? 'primary' : 'warning'); ?>
+            <div class="mb-1 d-flex align-items-center gap-2">
+                <span class="text-muted" style="font-size:.72rem;width:72px">Reach</span>
+                <div class="flex-grow-1" style="height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden">
+                    <div style="width:<?= $pctR ?>%;height:100%;border-radius:999px;background:var(--bs-<?= $colR ?>)"></div>
+                </div>
+                <span class="text-muted" style="font-size:.72rem"><?= number_format($actReach,0,',','.') ?> / <?= number_format($tgtReach,0,',','.') ?> (<?= $pctR ?>%)</span>
+            </div>
+            <?php endif; ?>
+            <?php if ($tgtImpr > 0): ?>
+            <?php $pctI = min(100, $tgtImpr > 0 ? round($actImpr / $tgtImpr * 100) : 0); $colI = $pctI >= 100 ? 'success' : ($pctI >= 60 ? 'primary' : 'warning'); ?>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted" style="font-size:.72rem;width:72px">Impresi</span>
+                <div class="flex-grow-1" style="height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden">
+                    <div style="width:<?= $pctI ?>%;height:100%;border-radius:999px;background:var(--bs-<?= $colI ?>)"></div>
+                </div>
+                <span class="text-muted" style="font-size:.72rem"><?= number_format($actImpr,0,',','.') ?> / <?= number_format($tgtImpr,0,',','.') ?> (<?= $pctI ?>%)</span>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <?php if ($canEdit): ?>
         <div id="add-insight-<?= $iid ?>" class="d-none px-3 py-2 border-top border-bottom bg-white">
             <form method="POST" action="<?= base_url('creative/' . $iid . '/insight/add') ?>"
@@ -761,7 +810,7 @@ foreach ($byTipe as $tipeItems) {
                         </select>
                     </div>
                     <?php else: ?>
-                    <input type="hidden" name="platform" value="<?= $item['platform'] ?? '' ?>">
+                    <input type="hidden" name="platform" value="<?= esc($item['platform'] ?? '', 'attr') ?>">
                     <?php endif; ?>
                     <div class="col-sm-4">
                         <label class="form-label small fw-semibold mb-1">
@@ -816,7 +865,7 @@ foreach ($byTipe as $tipeItems) {
             <?php if (($item['platform'] ?? '') === 'keduanya'): ?>
             <td class="small">
                 <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
-                    <?= $platformLabels[$ins['platform']] ?? $ins['platform'] ?>
+                    <?= esc($platformLabels[$ins['platform']] ?? $ins['platform']) ?>
                 </span>
             </td>
             <?php endif; ?>
@@ -890,12 +939,13 @@ foreach ($byTipe as $tipeItems) {
                     <?php endif; ?>
                     <?php if ($tipe === 'digital' && ($item['platform'] ?? '')): ?>
                     <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
-                        <i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?> me-1"></i><?= $platformLabels[$item['platform']] ?? $item['platform'] ?>
+                        <i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?> me-1"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?>
                     </span>
                     <?php endif; ?>
                     <span class="fw-semibold"><?= esc($item['nama']) ?></span>
                     <?php if (!empty($item['is_closed'])): ?><span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-check2-circle me-1"></i>Selesai</span><?php endif; ?>
                     <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?><span class="text-muted ms-1" style="font-size:.7rem"><i class="bi bi-calendar3"></i> <?= date('d M Y', strtotime($itgl)) ?></span><?php endif; ?>
+                    <?php if (!empty($item['deadline'])): $dlDiff = (int)((strtotime($item['deadline']) - strtotime(date('Y-m-d'))) / 86400); $isDone = !empty($item['is_closed']) || ($item['status'] ?? '') === 'approved'; if ($isDone): ?><span class="badge bg-success-subtle text-success ms-1" style="font-size:.6rem"><i class="bi bi-check-circle me-1"></i>Tepat waktu</span><?php elseif ($dlDiff < 0): ?><span class="badge bg-danger ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-exclamation-triangle-fill me-1"></i>Terlambat <?= abs($dlDiff) ?> hari</span><?php elseif ($dlDiff <= 3): ?><span class="badge bg-warning text-dark ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-clock me-1"></i><?= $dlDiff === 0 ? 'Hari ini!' : $dlDiff.' hari lagi' ?></span><?php else: ?><span class="badge bg-info-subtle text-info ms-1" style="font-size:.6rem"><i class="bi bi-calendar-check me-1"></i><?= date('d M', strtotime($item['deadline'])) ?></span><?php endif; endif; ?>
                 </div>
                 <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '') || ($item['pic'] ?? ''))): ?>
                 <div class="small text-muted mb-1">
@@ -1001,6 +1051,23 @@ foreach ($byTipe as $tipeItems) {
     <div id="editBudgetDiv" class="mb-3">
         <label class="form-label small fw-semibold">Budget (Rp)</label>
         <input type="text" name="budget" id="editBudget" class="form-control currency-input" value="0">
+    </div>
+    <div id="editTargetDiv" class="d-none">
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <label class="form-label small fw-semibold">Target Reach</label>
+                <input type="number" name="target_reach" id="editTargetReach" class="form-control" placeholder="0" min="0">
+            </div>
+            <div class="col-6">
+                <label class="form-label small fw-semibold">Target Impresi</label>
+                <input type="number" name="target_impressions" id="editTargetImpressions" class="form-control" placeholder="0" min="0">
+            </div>
+        </div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Deadline Produksi</label>
+        <input type="date" name="deadline" id="editDeadline" class="form-control">
+        <div class="form-text">Kosongkan jika tidak ada batas waktu.</div>
     </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Deskripsi</label>
@@ -1120,11 +1187,18 @@ document.querySelectorAll('.edit-item-btn').forEach(btn => {
         document.getElementById('editIsClosed').checked  = this.dataset.isClosed === '1';
         document.getElementById('editDeskripsi').value   = this.dataset.deskripsi;
         document.getElementById('editBudget').value      = this.dataset.budget;
+        document.getElementById('editDeadline').value    = this.dataset.deadline || '';
         document.getElementById('editCatatan').value     = this.dataset.catatan;
         document.getElementById('editPlatformDiv').classList.toggle('d-none', !isDigital);
         document.getElementById('editTakeDiv').classList.toggle('d-none', !isDigital);
         document.getElementById('editPicDiv').classList.toggle('d-none', !isDigital);
         document.getElementById('editBudgetDiv').classList.toggle('d-none', tipe === 'master_design');
+        const hasTarget = tipe === 'digital' || tipe === 'influencer';
+        document.getElementById('editTargetDiv').classList.toggle('d-none', !hasTarget);
+        if (hasTarget) {
+            document.getElementById('editTargetReach').value       = this.dataset.targetReach || '';
+            document.getElementById('editTargetImpressions').value = this.dataset.targetImpressions || '';
+        }
         if (isDigital) {
             document.getElementById('editPlatform').value    = this.dataset.platform;
             document.getElementById('editTanggalTake').value = this.dataset.tanggalTake;

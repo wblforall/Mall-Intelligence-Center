@@ -756,6 +756,39 @@ class LoyaltyCtrl extends BaseController
             }
         }
 
+        // Cumulative totals up to selected month (for progress-vs-target across multi-month programs)
+        $sCumulative  = $sModel->getCumulativeByPrograms($bulan, $standaloneIds);
+        $eCumulative  = $eModel->getCumulativeByPrograms($bulan, $eventIds);
+        $vCumulative  = $vrModel->getCumulativeByItems($bulan, $allVoucherIds);
+        $evCumulative = $evrModel->getCumulativeByItems($bulan, $allEvoucherIds);
+
+        $cumulativeData = [];
+        foreach ($sCumulative as $id => $data) { $cumulativeData['s_' . $id] = $data; }
+        foreach ($eCumulative as $id => $data) { $cumulativeData['e_' . $id] = $data; }
+
+        $voucherCumByProgram = [];
+        foreach ($voucherItemsGrouped as $progId => $items) {
+            $voucherCumByProgram[$progId] = ['total_tersebar' => 0, 'total_terpakai' => 0];
+            foreach ($items as $vi) {
+                $vd = $vCumulative[$vi['id']] ?? null;
+                if ($vd) {
+                    $voucherCumByProgram[$progId]['total_tersebar'] += (int)$vd['total_tersebar'];
+                    $voucherCumByProgram[$progId]['total_terpakai'] += (int)$vd['total_terpakai'];
+                }
+            }
+        }
+        $evoucherCumByProgram = [];
+        foreach ($evoucherItemsGrouped as $progId => $items) {
+            $evoucherCumByProgram[$progId] = ['total_tersebar' => 0, 'total_terpakai' => 0];
+            foreach ($items as $vi) {
+                $vd = $evCumulative[$vi['id']] ?? null;
+                if ($vd) {
+                    $evoucherCumByProgram[$progId]['total_tersebar'] += (int)$vd['total_tersebar'];
+                    $evoucherCumByProgram[$progId]['total_terpakai'] += (int)$vd['total_terpakai'];
+                }
+            }
+        }
+
         // KPIs for selected month
         $kpiMember      = 0;
         $kpiMemberAktif = 0;
@@ -933,7 +966,11 @@ class LoyaltyCtrl extends BaseController
             'nilaiHadiah'          => $nilaiHadiah,
             'serapanPct'           => $serapanPct,
             'nilaiRealisasiPrev'   => $nilaiRealisasiPrev,
+            'cumulativeData'       => $cumulativeData,
+            'voucherCumByProgram'  => $voucherCumByProgram,
+            'evoucherCumByProgram' => $evoucherCumByProgram,
             'analisaMap'           => (new LoyaltySummaryAnalysisModel())->getMapByMonth($bulan),
+            'prevAnalisaMap'       => (new LoyaltySummaryAnalysisModel())->getMapByMonth($prevBulan),
             'canEdit'              => $this->canEditMenu('loyalty_main'),
             'trendYear'            => $trendYear,
             'kpiMemberPrev'        => $kpiMemberPrev,

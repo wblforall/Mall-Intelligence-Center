@@ -53,6 +53,26 @@ class LoyaltyVoucherRealisasiModel extends Model
         return $result;
     }
 
+    // Cumulative totals up to (and including) $upToMonth, keyed by item_id
+    public function getCumulativeByItems(string $upToMonth, array $itemIds): array
+    {
+        if (empty($itemIds)) return [];
+        $rows = $this->db->table('loyalty_voucher_realisasi')
+            ->select('item_id, SUM(tersebar) as total_tersebar, SUM(terpakai) as total_terpakai')
+            ->whereIn('item_id', $itemIds)
+            ->where("DATE_FORMAT(tanggal, '%Y-%m') <=", $upToMonth)
+            ->groupBy('item_id')
+            ->get()->getResultArray();
+        $result = [];
+        foreach ($rows as $r) {
+            $result[$r['item_id']] = [
+                'total_tersebar' => (int)$r['total_tersebar'],
+                'total_terpakai' => (int)$r['total_terpakai'],
+            ];
+        }
+        return $result;
+    }
+
     // All monthly totals across given item IDs (for trend)
     public function getAllMonthlyTotals(array $itemIds): array
     {

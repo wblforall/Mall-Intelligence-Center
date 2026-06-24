@@ -74,6 +74,21 @@ class EventLoyaltyRealisasiModel extends Model
             ->get()->getResultArray();
     }
 
+    // Cumulative totals up to (and including) $upToMonth, keyed by program_id
+    public function getCumulativeByPrograms(string $upToMonth, array $programIds): array
+    {
+        if (empty($programIds)) return [];
+        $rows = $this->db->table('event_loyalty_realisasi')
+            ->select("program_id, SUM(jumlah) as total_jumlah, COALESCE(SUM(member_aktif), 0) as total_member_aktif")
+            ->whereIn('program_id', $programIds)
+            ->where("DATE_FORMAT(tanggal, '%Y-%m') <=", $upToMonth)
+            ->groupBy('program_id')
+            ->get()->getResultArray();
+        $result = [];
+        foreach ($rows as $row) { $result[$row['program_id']] = $row; }
+        return $result;
+    }
+
     // Daily rows for month (for chart)
     public function getDailyForMonth(string $bulan, array $programIds): array
     {

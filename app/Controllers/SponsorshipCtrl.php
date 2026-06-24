@@ -6,6 +6,7 @@ use App\Models\SponsorshipProgramModel;
 use App\Models\SponsorshipSponsorModel;
 use App\Models\SponsorshipSponsorItemModel;
 use App\Models\SponsorshipRealisasiModel;
+use App\Models\SponsorshipSummaryAnalysisModel;
 use App\Libraries\ActivityLog;
 
 class SponsorshipCtrl extends BaseController
@@ -167,21 +168,25 @@ class SponsorshipCtrl extends BaseController
         $sponsorIds = array_column($sponsors, 'id');
 
         $db = db_connect();
-        $db->transStart();
+        $realisasiRows = [];
         if ($sponsorIds) {
             $realisasiRows = (new SponsorshipRealisasiModel())->whereIn('sponsor_id', $sponsorIds)->findAll();
-            foreach ($realisasiRows as $r) {
-                if ($r['file_bukti']) {
-                    $path = FCPATH . 'uploads/sponsorship/' . $id . '/' . $r['file_bukti'];
-                    if (file_exists($path)) unlink($path);
-                }
-            }
+        }
+        $db->transStart();
+        if ($sponsorIds) {
             $db->table('sponsorship_realisasi')->whereIn('sponsor_id', $sponsorIds)->delete();
             $db->table('sponsorship_sponsor_items')->whereIn('sponsor_id', $sponsorIds)->delete();
             $db->table('sponsorship_sponsors')->where('program_id', $id)->delete();
         }
         (new SponsorshipProgramModel())->delete($id);
         $db->transComplete();
+
+        if ($db->transStatus()) {
+            $dir = FCPATH . 'uploads/sponsorship/' . $id . '/';
+            foreach ($realisasiRows as $r) {
+                if ($r['file_bukti'] && file_exists($dir . $r['file_bukti'])) unlink($dir . $r['file_bukti']);
+            }
+        }
 
         ActivityLog::write('delete', 'sponsorship_program', (string)$id, $prog['nama_program'] ?? '');
         return redirect()->to('/sponsorship')->with('success', 'Program berhasil dihapus.');
@@ -202,11 +207,13 @@ class SponsorshipCtrl extends BaseController
     public function lock(int $id)
     {
         if (! $this->canEditMenu('sponsorship_main')) return redirect()->to('/sponsorship')->with('error', 'Akses ditolak.');
+        $post        = $this->request->getPost();
+        $evalStatus  = in_array($post['eval_status'] ?? '', ['berhasil', 'sebagian', 'gagal']) ? $post['eval_status'] : null;
         $pm = new SponsorshipProgramModel();
         ActivityLog::captureBefore($pm->find($id));
-        $pm->lock($id, $this->currentUser()['id']);
+        $pm->lock($id, $this->currentUser()['id'], $evalStatus, $post['eval_kendala'] ?? null, $post['eval_rekomendasi'] ?? null);
         ActivityLog::captureAfter($pm->find($id));
-        ActivityLog::write('update', 'sponsorship_program', (string)$id, '', ['action' => 'lock']);
+        ActivityLog::write('update', 'sponsorship_program', (string)$id, '', ['action' => 'lock', 'eval_status' => $evalStatus]);
         return redirect()->to('/sponsorship#program-' . $id)->with('success', 'Program berhasil dikunci.');
     }
 
@@ -244,6 +251,7 @@ class SponsorshipCtrl extends BaseController
             'catatan'     => trim($post['catatan'] ?? '') ?: null,
             'created_by'  => $this->currentUser()['id'],
         ]);
+        if (! $id) return redirect()->to('/sponsorship#program-' . $programId)->with('error', 'Gagal menyimpan sponsor.');
 
         if ($isBarang) {
             $total = $this->saveItems($id, $programId, $post);
@@ -328,20 +336,22 @@ class SponsorshipCtrl extends BaseController
         $uploadDir = FCPATH . 'uploads/sponsorship/' . $programId . '/';
         if (! is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
-        $fileBukti = null;
+        $fileBukti   = null;
+        $pendingFile = null;
+        $pendingName = null;
         $file = $this->request->getFile('file_bukti');
         if ($file && $file->isValid() && ! $file->hasMoved()) {
             if ($err = $this->validateUpload($file, self::MIME_DOC, 10)) {
                 return redirect()->back()->with('error', $err);
             }
-            $name = 'bukti_' . $sponsorId . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
-            $file->move($uploadDir, $name);
-            $fileBukti = $name;
+            $pendingName = 'bukti_' . $sponsorId . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
+            $fileBukti   = $pendingName;
+            $pendingFile = $file;
         }
 
-        $nilai = (int)str_replace([',', '.', ' '], '', $post['nilai'] ?? 0);
-        $model = new SponsorshipRealisasiModel();
-        $model->insert([
+        $nilai    = (int)str_replace([',', '.', ' '], '', $post['nilai'] ?? 0);
+        $model    = new SponsorshipRealisasiModel();
+        $insertId = $model->insert([
             'program_id' => $programId,
             'sponsor_id' => $sponsorId,
             'tanggal'    => $post['tanggal'] ?: null,
@@ -350,8 +360,10 @@ class SponsorshipCtrl extends BaseController
             'file_bukti' => $fileBukti,
             'created_by' => $this->currentUser()['id'],
         ]);
+        if (! $insertId) return redirect()->back()->with('error', 'Gagal menyimpan realisasi.');
+        if ($pendingFile) $pendingFile->move($uploadDir, $pendingName);
 
-        ActivityLog::write('create', 'sponsorship_realisasi', (string)$model->getInsertID(), $post['tanggal'] ?? '', ['program_id' => $programId, 'sponsor_id' => $sponsorId, 'nilai' => $nilai]);
+        ActivityLog::write('create', 'sponsorship_realisasi', (string)$insertId, $post['tanggal'] ?? '', ['program_id' => $programId, 'sponsor_id' => $sponsorId, 'nilai' => $nilai]);
         return redirect()->to('/sponsorship#program-' . $programId)->with('success', 'Realisasi berhasil disimpan.');
     }
 
@@ -364,10 +376,10 @@ class SponsorshipCtrl extends BaseController
         $row   = $model->find($rid);
         if ($row) {
             $dir = FCPATH . 'uploads/sponsorship/' . $programId . '/';
+            $model->delete($rid);
             if ($row['file_bukti'] && file_exists($dir . $row['file_bukti'])) {
                 unlink($dir . $row['file_bukti']);
             }
-            $model->delete($rid);
         }
 
         ActivityLog::write('delete', 'sponsorship_realisasi', (string)$rid, '', ['program_id' => $programId]);
@@ -437,6 +449,12 @@ class SponsorshipCtrl extends BaseController
         // Per-program sponsor breakdown
         $sponsors = $spModel->getByPrograms($programIds);
 
+        // Analisa per program (ACT phase)
+        $aModel      = new SponsorshipSummaryAnalysisModel();
+        $prevBulan   = date('Y-m', strtotime($bulan . '-01 -1 month'));
+        $analisaMap  = $aModel->getMapByMonth($bulan);
+        $prevAnalisaMap = $aModel->getMapByMonth($prevBulan);
+
         return view('sponsorship/summary', [
             'user'             => $this->currentUser(),
             'programs'         => $programs,
@@ -452,7 +470,39 @@ class SponsorshipCtrl extends BaseController
             'chartDates'       => $chartDates,
             'dailyNilai'       => $dailyNilai,
             'sponsors'         => $sponsors,
+            'analisaMap'       => $analisaMap,
+            'prevAnalisaMap'   => $prevAnalisaMap,
+            'canEdit'          => $this->canEditMenu('sponsorship_main'),
         ]);
+    }
+
+    // Simpan analisa per program (AJAX) — dipakai di halaman summary
+    public function saveAnalisa()
+    {
+        if (! $this->canEditMenu('sponsorship_main')) {
+            return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'error' => 'Akses ditolak.']);
+        }
+        $bulan     = (string)$this->request->getPost('bulan');
+        $programId = (int)$this->request->getPost('program_id');
+        $highlight    = trim((string)$this->request->getPost('highlight'));
+        $kendala      = trim((string)$this->request->getPost('kendala'));
+        $tindakLanjut = trim((string)$this->request->getPost('tindak_lanjut'));
+
+        if (! preg_match('/^\d{4}-\d{2}$/', $bulan) || $programId <= 0) {
+            return $this->response->setStatusCode(400)->setJSON(['ok' => false, 'error' => 'Data tidak valid.', 'csrf' => csrf_hash()]);
+        }
+        if (! (new SponsorshipProgramModel())->find($programId)) {
+            return $this->response->setStatusCode(404)->setJSON(['ok' => false, 'error' => 'Program tidak ditemukan.', 'csrf' => csrf_hash()]);
+        }
+
+        $analisaModel = new SponsorshipSummaryAnalysisModel();
+        $existing     = $analisaModel->where('bulan', $bulan)->where('program_id', $programId)->first();
+        $analisaModel->saveAnalisa($bulan, $programId, $this->currentUser()['id'], $highlight, $kendala, $tindakLanjut);
+        $action = $existing ? 'update' : 'create';
+        ActivityLog::write($action, 'sponsorship_analisa', (string)$programId, 'Analisa program — ' . $bulan, ['bulan' => $bulan]);
+
+        $filled = $highlight !== '' || $kendala !== '' || $tindakLanjut !== '';
+        return $this->response->setJSON(['ok' => true, 'filled' => $filled, 'csrf' => csrf_hash()]);
     }
 
     // Serve file bukti realisasi sponsorship lewat auth (tidak boleh diakses publik langsung).

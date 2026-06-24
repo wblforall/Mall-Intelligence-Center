@@ -84,6 +84,8 @@ class EventSponsors extends BaseController
     public function store(int $eventId)
     {
         if (! $this->canEditMenu('sponsors')) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Akses ditolak.');
+        $completion = (new EventCompletionModel())->getByEvent($eventId)['sponsors'] ?? null;
+        if ($completion) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Modul sudah dikunci.');
 
         $post     = $this->request->getPost();
         $isBarang = $post['jenis'] === 'barang';
@@ -110,26 +112,33 @@ class EventSponsors extends BaseController
     public function update(int $eventId, int $id)
     {
         if (! $this->canEditMenu('sponsors')) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Akses ditolak.');
+        $completion = (new EventCompletionModel())->getByEvent($eventId)['sponsors'] ?? null;
+        if ($completion) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Modul sudah dikunci.');
 
         $post     = $this->request->getPost();
         $isBarang = $post['jenis'] === 'barang';
 
         $sponsorModel = new EventSponsorModel();
         ActivityLog::captureBefore($sponsorModel->find($id));
+        $cashNilai = $isBarang ? 0 : (int) str_replace([',', '.', ' '], '', $post['nilai'] ?? 0);
         $eventSponsorData = [
             'nama_sponsor' => $post['nama_sponsor'],
             'jenis'        => $post['jenis'],
-            'nilai'        => $isBarang ? 0 : (int) str_replace([',', '.', ' '], '', $post['nilai'] ?? 0),
+            'nilai'        => $cashNilai,
             'detail'       => $post['detail'] ?? null,
         ];
-        $sponsorModel->update($id, $eventSponsorData);
-        ActivityLog::captureAfter($eventSponsorData);
 
+        $db = db_connect();
+        $db->transStart();
+        $sponsorModel->update($id, $eventSponsorData);
         if ($isBarang) {
             (new EventSponsorItemModel())->deleteBySponsor($id);
             $total = $this->saveItems($id, $post);
             $sponsorModel->update($id, ['nilai' => $total]);
         }
+        $db->transComplete();
+
+        ActivityLog::captureAfter($sponsorModel->find($id));
         ActivityLog::write('update', 'sponsor', (string)$id, $post['nama_sponsor'], ['event_id' => $eventId, 'jenis' => $post['jenis']]);
 
         return redirect()->to("/events/{$eventId}/sponsors")->with('success', 'Sponsor berhasil diperbarui.');
@@ -138,6 +147,8 @@ class EventSponsors extends BaseController
     public function delete(int $eventId, int $id)
     {
         if (! $this->canEditMenu('sponsors')) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Akses ditolak.');
+        $completion = (new EventCompletionModel())->getByEvent($eventId)['sponsors'] ?? null;
+        if ($completion) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Modul sudah dikunci.');
 
         $db             = db_connect();
         $realisasiModel = new EventSponsorRealisasiModel();
@@ -167,6 +178,8 @@ class EventSponsors extends BaseController
     public function storeRealisasi(int $eventId, int $sponsorId)
     {
         if (! $this->canEditMenu('sponsors')) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Akses ditolak.');
+        $completion = (new EventCompletionModel())->getByEvent($eventId)['sponsors'] ?? null;
+        if ($completion) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Modul sudah dikunci.');
 
         $post      = $this->request->getPost();
         $uploadDir = FCPATH . 'uploads/sponsor-realisasi/' . $eventId . '/';
@@ -214,6 +227,8 @@ class EventSponsors extends BaseController
     public function deleteRealisasi(int $eventId, int $sponsorId, int $id)
     {
         if (! $this->canEditMenu('sponsors')) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Akses ditolak.');
+        $completion = (new EventCompletionModel())->getByEvent($eventId)['sponsors'] ?? null;
+        if ($completion) return redirect()->to("/events/{$eventId}/sponsors")->with('error', 'Modul sudah dikunci.');
 
         $model = new EventSponsorRealisasiModel();
         $row   = $model->find($id);
