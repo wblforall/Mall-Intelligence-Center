@@ -28,6 +28,11 @@ class WorkReportCtrl extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
+        // Admin → admin overview
+        if ($this->isAdmin()) {
+            return redirect()->to('/work-report/admin');
+        }
+
         $emp = $this->currentEmployee();
 
         // GM → GM view
@@ -217,6 +222,40 @@ class WorkReportCtrl extends BaseController
             'history'  => $history,
             'comments' => $comments,
             'empId'    => (int) $emp['id'],
+        ]);
+    }
+
+    // ── Admin Overview ───────────────────────────────────────────────────
+    public function admin(): string|\CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->isAdmin()) {
+            return redirect()->to('/work-report')->with('error', 'Akses ditolak.');
+        }
+
+        $db      = \Config\Database::connect();
+        $divisiId = (int) ($this->request->getGet('divisi_id') ?? 0) ?: null;
+        $deptId   = (int) ($this->request->getGet('dept_id') ?? 0) ?: null;
+
+        $items    = $this->m->forAdmin($divisiId, $deptId);
+        $divisis  = $db->table('divisions')->orderBy('nama')->get()->getResultArray();
+        $depts    = $db->table('departments')->where('is_outsource', 0)->orderBy('name')->get()->getResultArray();
+
+        // Kelompokkan per divisi → dept
+        $grouped = [];
+        foreach ($items as $item) {
+            $div  = $item['divisi_name'] ?? 'Tanpa Divisi';
+            $dept = $item['dept_name']   ?? 'Tanpa Dept';
+            $grouped[$div][$dept][] = $item;
+        }
+        ksort($grouped);
+
+        return view('work_report/admin', [
+            'grouped'    => $grouped,
+            'divisis'    => $divisis,
+            'depts'      => $depts,
+            'filterDiv'  => $divisiId,
+            'filterDept' => $deptId,
+            'total'      => count($items),
         ]);
     }
 

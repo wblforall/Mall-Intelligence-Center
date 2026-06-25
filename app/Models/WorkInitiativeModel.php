@@ -102,4 +102,32 @@ class WorkInitiativeModel extends Model
             ->orderBy('work_initiatives.created_at', 'DESC')
             ->findAll();
     }
+
+    // Semua inisiatif aktif (untuk Admin — lintas dept & divisi)
+    public function forAdmin(?int $divisiId = null, ?int $deptId = null): array
+    {
+        $q = $this->select('work_initiatives.*, d.name AS dept_name, dv.nama AS divisi_name,
+                e.nama AS pic_name, cb.nama AS created_by_name,
+                ad.name AS assigned_dept_name,
+                u_latest.status AS latest_status,
+                u_latest.progress_pct AS latest_progress,
+                u_latest.catatan AS latest_catatan,
+                u_latest.hambatan AS latest_hambatan,
+                u_latest.created_at AS latest_updated_at,
+                (SELECT COUNT(*) FROM work_initiative_flags f WHERE f.initiative_id = work_initiatives.id AND f.is_active = 1) AS is_flagged')
+            ->join('departments d', 'd.id = work_initiatives.dept_id', 'left')
+            ->join('divisions dv', 'dv.id = work_initiatives.divisi_id', 'left')
+            ->join('employees e', 'e.id = work_initiatives.pic_employee_id', 'left')
+            ->join('employees cb', 'cb.id = work_initiatives.created_by', 'left')
+            ->join('departments ad', 'ad.id = work_initiatives.assigned_to_dept_id', 'left')
+            ->join('work_initiative_updates u_latest',
+                'u_latest.id = (SELECT id FROM work_initiative_updates WHERE initiative_id = work_initiatives.id ORDER BY created_at DESC LIMIT 1)',
+                'left')
+            ->where('work_initiatives.is_active', 1);
+
+        if ($divisiId) $q->where('work_initiatives.divisi_id', $divisiId);
+        if ($deptId)   $q->where('work_initiatives.dept_id', $deptId);
+
+        return $q->orderBy('dv.nama')->orderBy('d.name')->orderBy('work_initiatives.created_at', 'DESC')->findAll();
+    }
 }

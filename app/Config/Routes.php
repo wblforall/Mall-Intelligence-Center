@@ -640,6 +640,7 @@ $routes->post('legal/ext/(:segment)/comment',             'Legal\LegalReviewExtC
 
 // ── Work Initiative Report ──────────────────────────────────────────────
 $routes->get ('work-report',                              'WorkReportCtrl::index',                    ['filter' => 'auth']);
+$routes->get ('work-report/admin',                        'WorkReportCtrl::admin',                    ['filter' => 'auth']);
 $routes->post('work-report/store',                        'WorkReportCtrl::store',                    ['filter' => 'auth']);
 $routes->post('work-report/(:num)/edit',                  'WorkReportCtrl::edit/$1',                  ['filter' => 'auth']);
 $routes->post('work-report/(:num)/delete',                'WorkReportCtrl::delete/$1',                ['filter' => 'auth']);
