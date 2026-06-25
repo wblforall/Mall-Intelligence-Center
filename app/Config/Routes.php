@@ -637,3 +637,22 @@ $routes->post('legal/reviews/(:num)/archive',             'Legal\LegalReviewCont
 // Review eksternal (tanpa auth)
 $routes->get ('legal/ext/(:segment)',                     'Legal\LegalReviewExtController::show/$1');
 $routes->post('legal/ext/(:segment)/comment',             'Legal\LegalReviewExtController::comment/$1');
+
+// ── Work Initiative Report ──────────────────────────────────────────────
+$routes->get ('work-report',                              'WorkReportCtrl::index',                    ['filter' => 'auth']);
+$routes->post('work-report/store',                        'WorkReportCtrl::store',                    ['filter' => 'auth']);
+$routes->post('work-report/(:num)/edit',                  'WorkReportCtrl::edit/$1',                  ['filter' => 'auth']);
+$routes->post('work-report/(:num)/delete',                'WorkReportCtrl::delete/$1',                ['filter' => 'auth']);
+$routes->post('work-report/(:num)/update',                'WorkReportCtrl::addUpdate/$1',             ['filter' => 'auth']);
+$routes->get ('work-report/(:num)/detail',                'WorkReportCtrl::detail/$1',                ['filter' => 'auth']);
+
+$routes->get ('work-report/division',                     'WorkReportDeputyCtrl::index',              ['filter' => 'auth']);
+$routes->post('work-report/division/store',               'WorkReportDeputyCtrl::store',              ['filter' => 'auth']);
+$routes->post('work-report/division/(:num)/edit',         'WorkReportDeputyCtrl::edit/$1',            ['filter' => 'auth']);
+$routes->post('work-report/division/(:num)/flag',         'WorkReportDeputyCtrl::flag/$1',            ['filter' => 'auth']);
+$routes->post('work-report/division/(:num)/comment',      'WorkReportDeputyCtrl::addComment/$1',      ['filter' => 'auth']);
+$routes->post('work-report/division/(:num)/reply-gm',     'WorkReportDeputyCtrl::replyGm/$1',         ['filter' => 'auth']);
+$routes->get ('work-report/division/(:num)/detail',       'WorkReportDeputyCtrl::detail/$1',          ['filter' => 'auth']);
+
+$routes->get ('work-report/gm',                           'WorkReportGmCtrl::index',                  ['filter' => 'auth']);
+$routes->post('work-report/gm/(:num)/note',               'WorkReportGmCtrl::addNote/$1',             ['filter' => 'auth']);

@@ -167,6 +167,35 @@ class EmailNotifier
         return self::wrap('Traffic Summary — ' . $tgl, $content);
     }
 
+    public static function workReportReminder(string $empNama, string $deptName, array $items, string $monday): string
+    {
+        $tgl  = date('d F Y', strtotime($monday));
+        $rows = '';
+        foreach ($items as $ini) {
+            $judul = htmlspecialchars($ini['judul']);
+            $last  = $ini['last_update']
+                ? date('d M Y', strtotime($ini['last_update']))
+                : '<em style="color:#dc2626">Belum pernah</em>';
+            $rows .= "<tr>
+                <td style='padding:6px 8px;border:1px solid #e5e7eb'>{$judul}</td>
+                <td style='padding:6px 8px;border:1px solid #e5e7eb;color:#6b7280'>{$last}</td>
+            </tr>";
+        }
+        $content = "
+            <p>Yth. <strong>" . htmlspecialchars($empNama) . "</strong>,</p>
+            <p>Minggu ini (<strong>{$tgl}</strong>) belum ada update progress untuk inisiatif kerja berikut:</p>
+            <table style='width:100%;border-collapse:collapse;font-size:9.5pt;margin:12px 0'>
+                <thead><tr style='background:#f3f4f6'>
+                    <th style='padding:6px 8px;border:1px solid #e5e7eb;text-align:left'>Inisiatif</th>
+                    <th style='padding:6px 8px;border:1px solid #e5e7eb;text-align:left'>Update Terakhir</th>
+                </tr></thead>
+                <tbody>{$rows}</tbody>
+            </table>
+            <p>Mohon login ke sistem dan update progress setiap Senin pagi.</p>
+            <p style='color:#6b7280;font-size:9pt'>Pesan ini dikirim otomatis setiap Senin pagi.</p>";
+        return self::wrap('Reminder Update Inisiatif — ' . htmlspecialchars($deptName), $content);
+    }
+
     public static function idpApprovalAtasan(array $plan, string $url): string
     {
         $label    = htmlspecialchars($plan['periode_label']);

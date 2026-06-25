@@ -1,0 +1,255 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Libraries\ActivityLog;
+use App\Models\WorkInitiativeModel;
+use App\Models\WorkInitiativeUpdateModel;
+use App\Models\WorkInitiativeCommentModel;
+
+class WorkReportCtrl extends BaseController
+{
+    private WorkInitiativeModel       $m;
+    private WorkInitiativeUpdateModel $mu;
+    private WorkInitiativeCommentModel $mc;
+
+    public function __construct()
+    {
+        $this->m  = new WorkInitiativeModel();
+        $this->mu = new WorkInitiativeUpdateModel();
+        $this->mc = new WorkInitiativeCommentModel();
+    }
+
+    // ── Routing entry point ──────────────────────────────────────────────
+    // Redirect ke view yang sesuai jabatan
+    public function index(): \CodeIgniter\HTTP\RedirectResponse|string
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $emp = $this->currentEmployee();
+
+        // GM → GM view
+        if ($emp && $this->isGm($emp)) {
+            return redirect()->to('/work-report/gm');
+        }
+
+        // Deputy → Deputy view
+        if ($emp && $this->isDeputy($emp)) {
+            return redirect()->to('/work-report/division');
+        }
+
+        // Dept Head / User biasa → Dept Head view
+        return $this->deptView();
+    }
+
+    // ── Dept Head View ───────────────────────────────────────────────────
+    private function deptView(): string
+    {
+        $emp = $this->currentEmployee();
+        if (! $emp || ! $emp['dept_id']) {
+            return redirect()->to('/')->with('error', 'Akun belum terhubung ke karyawan atau departemen.');
+        }
+
+        $deptId = (int) $emp['dept_id'];
+        $items  = $this->m->forDeptHead($deptId);
+        $db     = \Config\Database::connect();
+
+        $deptInfo  = $db->table('departments')->where('id', $deptId)->get()->getRowArray();
+        $employees = $db->table('employees')
+            ->where('dept_id', $deptId)
+            ->where('status', 'aktif')
+            ->orderBy('nama')
+            ->get()->getResultArray();
+
+        return view('work_report/index', [
+            'items'     => $items,
+            'deptInfo'  => $deptInfo,
+            'employees' => $employees,
+            'empId'     => (int) $emp['id'],
+        ]);
+    }
+
+    // ── Store inisiatif baru (Dept Head) ─────────────────────────────────
+    public function store(): \CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $emp = $this->currentEmployee();
+        if (! $emp) return redirect()->to('/work-report')->with('error', 'Akun belum terhubung ke karyawan.');
+
+        $data = [
+            'dept_id'         => (int) $emp['dept_id'],
+            'divisi_id'       => $emp['divisi_id'] ?? null,
+            'judul'           => trim($this->request->getPost('judul')),
+            'deskripsi'       => trim($this->request->getPost('deskripsi') ?? ''),
+            'pic_employee_id' => $this->request->getPost('pic_employee_id') ?: null,
+            'target_mulai'    => $this->request->getPost('target_mulai') ?: null,
+            'target_selesai'  => $this->request->getPost('target_selesai') ?: null,
+            'created_by'      => (int) $emp['id'],
+            'is_active'       => 1,
+        ];
+
+        if ($data['judul'] === '') {
+            return redirect()->to('/work-report')->with('error', 'Judul wajib diisi.');
+        }
+
+        $id = $this->m->insert($data);
+        ActivityLog::write('create', 'work_initiative', (string) $id, $data['judul']);
+
+        return redirect()->to('/work-report')->with('success', 'Inisiatif berhasil ditambahkan.');
+    }
+
+    // ── Edit inisiatif ───────────────────────────────────────────────────
+    public function edit(int $id): \CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $emp  = $this->currentEmployee();
+        $item = $this->m->find($id);
+        if (! $item) return redirect()->to('/work-report')->with('error', 'Inisiatif tidak ditemukan.');
+
+        // Hanya boleh edit jika: inisiatif milik dept sendiri ATAU di-assign ke deptnya
+        if (! $this->canAccessItem($item, $emp)) {
+            return redirect()->to('/work-report')->with('error', 'Akses ditolak.');
+        }
+
+        $judul = trim($this->request->getPost('judul'));
+        if ($judul === '') return redirect()->to('/work-report')->with('error', 'Judul wajib diisi.');
+
+        ActivityLog::captureBefore($item);
+        $this->m->update($id, [
+            'judul'           => $judul,
+            'deskripsi'       => trim($this->request->getPost('deskripsi') ?? ''),
+            'pic_employee_id' => $this->request->getPost('pic_employee_id') ?: null,
+            'target_mulai'    => $this->request->getPost('target_mulai') ?: null,
+            'target_selesai'  => $this->request->getPost('target_selesai') ?: null,
+        ]);
+        ActivityLog::captureAfter($this->m->find($id));
+        ActivityLog::write('update', 'work_initiative', (string) $id, $judul);
+
+        return redirect()->to('/work-report')->with('success', 'Inisiatif diperbarui.');
+    }
+
+    // ── Delete inisiatif ─────────────────────────────────────────────────
+    public function delete(int $id): \CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $emp  = $this->currentEmployee();
+        $item = $this->m->find($id);
+        if (! $item) return redirect()->to('/work-report')->with('error', 'Inisiatif tidak ditemukan.');
+
+        // Hanya boleh hapus jika created_by user ini
+        if ((int) $item['created_by'] !== (int) $emp['id'] && ! $this->isAdmin()) {
+            return redirect()->to('/work-report')->with('error', 'Hanya pembuat inisiatif yang bisa menghapus.');
+        }
+
+        $this->m->update($id, ['is_active' => 0]);
+        ActivityLog::write('delete', 'work_initiative', (string) $id, $item['judul']);
+
+        return redirect()->to('/work-report')->with('success', 'Inisiatif dihapus.');
+    }
+
+    // ── Tambah update status (Senin report) ──────────────────────────────
+    public function addUpdate(int $id): \CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $emp  = $this->currentEmployee();
+        $item = $this->m->find($id);
+        if (! $item || ! $this->canAccessItem($item, $emp)) {
+            return redirect()->to('/work-report')->with('error', 'Akses ditolak.');
+        }
+
+        $status = $this->request->getPost('status');
+        $valid  = ['on_track', 'at_risk', 'delayed', 'done', 'cancelled'];
+        if (! in_array($status, $valid)) {
+            return redirect()->to('/work-report')->with('error', 'Status tidak valid.');
+        }
+
+        $pct = $this->request->getPost('progress_pct');
+        $this->mu->insert([
+            'initiative_id' => $id,
+            'status'        => $status,
+            'progress_pct'  => ($pct !== '' && $pct !== null) ? max(0, min(100, (int) $pct)) : null,
+            'catatan'       => trim($this->request->getPost('catatan') ?? ''),
+            'hambatan'      => trim($this->request->getPost('hambatan') ?? ''),
+            'updated_by'    => (int) $emp['id'],
+            'created_at'    => date('Y-m-d H:i:s'),
+        ]);
+
+        ActivityLog::write('update', 'work_initiative', (string) $id, 'Update status: ' . $status);
+
+        return redirect()->to('/work-report')->with('success', 'Update progress disimpan.');
+    }
+
+    // ── Detail: history update + komentar Deputy ─────────────────────────
+    public function detail(int $id): string|\CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $emp  = $this->currentEmployee();
+        $item = $this->m->find($id);
+        if (! $item || ! $this->canAccessItem($item, $emp)) {
+            return redirect()->to('/work-report')->with('error', 'Akses ditolak.');
+        }
+
+        $db       = \Config\Database::connect();
+        $deptInfo = $db->table('departments')->where('id', $item['dept_id'])->get()->getRowArray();
+        $history  = $this->mu->historyFor($id);
+        $comments = $this->mc->deptDeputyComments($id); // Dept Head hanya lihat komentar dept_deputy
+
+        return view('work_report/detail', [
+            'item'     => $item,
+            'deptInfo' => $deptInfo,
+            'history'  => $history,
+            'comments' => $comments,
+            'empId'    => (int) $emp['id'],
+        ]);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+    private function currentEmployee(): ?array
+    {
+        $uid = session()->get('user_id');
+        if (! $uid) return null;
+        return \Config\Database::connect()
+            ->table('employees')
+            ->select('employees.*, d.name AS dept_name, dv.nama AS divisi_name, j.grade, j.nama AS jabatan_nama')
+            ->join('departments d', 'd.id = employees.dept_id', 'left')
+            ->join('divisions dv', 'dv.id = d.division_id', 'left')
+            ->join('jabatans j', 'j.id = employees.jabatan_id', 'left')
+            ->where('employees.user_id', $uid)
+            ->get()->getRowArray();
+    }
+
+    private function isGm(array $emp): bool
+    {
+        return str_contains(strtolower($emp['jabatan_nama'] ?? ''), 'general manager');
+    }
+
+    private function isDeputy(array $emp): bool
+    {
+        $grade = (int) ($emp['grade'] ?? 99);
+        return $grade === 3; // grade 3 = Deputy GM
+    }
+
+    private function canAccessItem(array $item, ?array $emp): bool
+    {
+        if ($this->isAdmin() || ! $emp) return $this->isAdmin();
+        $deptId = (int) $emp['dept_id'];
+        return (int) $item['dept_id'] === $deptId || (int) ($item['assigned_to_dept_id'] ?? 0) === $deptId;
+    }
+}

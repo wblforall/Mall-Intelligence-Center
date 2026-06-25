@@ -504,6 +504,17 @@ body { min-height: 100vh; }
         </a>
         <?php endif; ?>
 
+        <?php
+        $_deptMenusWR = session()->get('dept_menus');
+        $_canViewWR   = session()->get('role') === 'admin' || ($_deptMenusWR['work_report']['can_view'] ?? false);
+        if ($_canViewWR):
+        ?>
+        <div class="nav-label">Inisiatif Kerja</div>
+        <a href="<?= base_url('work-report') ?>" class="nav-link <?= str_starts_with(uri_string(), 'work-report') ? 'active' : '' ?>">
+            <i class="bi bi-kanban"></i> Laporan Inisiatif
+        </a>
+        <?php endif; ?>
+
         <?php if (session()->get('role_perms')['can_view_logs'] ?? session()->get('role_is_admin') || session()->get('user_role') === 'admin'): ?>
         <div class="nav-label">System</div>
         <a href="<?= base_url('logs') ?>" class="nav-link <?= str_starts_with(uri_string(), 'logs') ? 'active' : '' ?>">
