@@ -68,11 +68,28 @@ ksort($grouped);
                 <span class="badge bg-info-subtle text-info" style="font-size:.63rem"><i class="bi bi-person-badge me-1"></i>Dari Deputy</span>
                 <?php endif; ?>
             </div>
-            <?php if (! empty($item['latest_catatan'])): ?>
-            <div class="text-muted" style="font-size:.73rem"><?= esc(mb_substr($item['latest_catatan'], 0, 120)) ?><?= strlen($item['latest_catatan']) > 120 ? '…' : '' ?></div>
+            <?php if ($item['latest_progress'] !== null): ?>
+            <div class="mt-2 d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:5px">
+                    <div class="progress-bar <?= (int)$item['latest_progress'] >= 100 ? 'bg-success' : ((int)$item['latest_progress'] >= 60 ? 'bg-primary' : 'bg-warning') ?>"
+                        style="width:<?= $item['latest_progress'] ?>%"></div>
+                </div>
+                <small class="text-muted flex-shrink-0" style="font-size:.7rem"><?= $item['latest_progress'] ?>%</small>
+            </div>
             <?php endif; ?>
-            <?php if (! empty($item['latest_hambatan'])): ?>
-            <div class="text-warning-emphasis" style="font-size:.73rem"><i class="bi bi-cone-striped me-1"></i><?= esc(mb_substr($item['latest_hambatan'], 0, 100)) ?></div>
+            <?php if (! empty($item['latest_catatan']) || ! empty($item['latest_hambatan'])): ?>
+            <div class="mt-2 mb-1 d-flex flex-column gap-1">
+                <?php if (! empty($item['latest_catatan'])): ?>
+                <div class="px-2 py-1 rounded" style="background:var(--bs-secondary-bg);font-size:.8rem;border-left:3px solid var(--bs-primary)">
+                    <?= nl2br(esc(mb_substr($item['latest_catatan'], 0, 150))) ?><?= mb_strlen($item['latest_catatan']) > 150 ? '…' : '' ?>
+                </div>
+                <?php endif; ?>
+                <?php if (! empty($item['latest_hambatan'])): ?>
+                <div class="px-2 py-1 rounded" style="background:var(--bs-secondary-bg);font-size:.8rem;border-left:3px solid var(--bs-warning)">
+                    <i class="bi bi-cone-striped text-warning me-1"></i><?= nl2br(esc(mb_substr($item['latest_hambatan'], 0, 120))) ?>
+                </div>
+                <?php endif; ?>
+            </div>
             <?php endif; ?>
             <div class="d-flex gap-3 mt-1 flex-wrap" style="font-size:.68rem;color:var(--bs-secondary-color)">
                 <?php if (! empty($item['created_by_name'])): ?><span class="text-muted"><i class="bi bi-pencil me-1"></i><?= esc($item['created_by_name']) ?></span><?php endif; ?>
