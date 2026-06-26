@@ -92,7 +92,11 @@ class LegalController extends BaseController
             return redirect()->back()->with('error', 'File tidak valid.');
         }
 
-        $ext      = $file->getClientExtension();
+        if ($err = $this->validateUpload($file, self::MIME_DOC, 20)) {
+            return redirect()->back()->with('error', $err);
+        }
+
+        $ext      = $this->safeExt($file);
         $filename = $type . '_' . $entityId . '_' . time() . '.' . $ext;
         $destDir  = FCPATH . 'uploads/legal/';
         if (! is_dir($destDir)) mkdir($destDir, 0755, true);

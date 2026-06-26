@@ -20,6 +20,13 @@ class PipController extends BaseApiController
 
         if (! $plan) return $this->error('PIP tidak ditemukan.', 404);
 
+        // Read scope: approver, supervisor of the employee, or the employee themselves.
+        if (! $this->can('can_approve_pip')
+            && ! $this->isSupervisorOfEmployee((int)$plan['employee_id'])
+            && $this->employeeUserId((int)$plan['employee_id']) !== (int)$this->apiUser['id']) {
+            return $this->forbidden();
+        }
+
         $plan['items'] = $this->db->table('pip_items')
             ->where('pip_id', $id)
             ->get()->getResultArray();
@@ -30,6 +37,7 @@ class PipController extends BaseApiController
     public function approvals()
     {
         if (! $this->requireAuth()) return $this->response;
+        if (! $this->can('can_approve_pip')) return $this->forbidden();
 
         $status = $this->request->getGet('status') ?? 'pending';
         $pihak  = $this->request->getGet('pihak')  ?? 'atasan';
@@ -59,6 +67,7 @@ class PipController extends BaseApiController
     public function approve(int $id)
     {
         if (! $this->requireAuth()) return $this->response;
+        if (! $this->can('can_approve_pip')) return $this->forbidden();
 
         $body  = $this->request->getJSON(true) ?? [];
         $pihak = trim($body['pihak'] ?? 'atasan');
@@ -69,6 +78,10 @@ class PipController extends BaseApiController
         $model = new PipPlanModel();
         $plan  = $model->find($id);
         if (! $plan) return $this->error('PIP tidak ditemukan.', 404);
+        // Block self-approval: an approver cannot sign off on their own PIP.
+        if ($this->employeeUserId((int)$plan['employee_id']) === (int)$this->apiUser['id']) {
+            return $this->forbidden('Anda tidak dapat menyetujui PIP Anda sendiri.');
+        }
         if ($plan['persetujuan_' . $pihak] !== 'pending') return $this->error('PIP ini sudah diproses.');
 
         $model->update($id, ['persetujuan_' . $pihak => 'setuju']);
@@ -80,6 +93,7 @@ class PipController extends BaseApiController
     public function reject(int $id)
     {
         if (! $this->requireAuth()) return $this->response;
+        if (! $this->can('can_approve_pip')) return $this->forbidden();
 
         $body   = $this->request->getJSON(true) ?? [];
         $pihak  = trim($body['pihak'] ?? 'atasan');
@@ -91,6 +105,9 @@ class PipController extends BaseApiController
         $model = new PipPlanModel();
         $plan  = $model->find($id);
         if (! $plan) return $this->error('PIP tidak ditemukan.', 404);
+        if ($this->employeeUserId((int)$plan['employee_id']) === (int)$this->apiUser['id']) {
+            return $this->forbidden('Anda tidak dapat memproses PIP Anda sendiri.');
+        }
         if ($plan['persetujuan_' . $pihak] !== 'pending') return $this->error('PIP ini sudah diproses.');
 
         $field = $pihak === 'atasan' ? 'catatan_penolakan_atasan' : 'catatan_penolakan';

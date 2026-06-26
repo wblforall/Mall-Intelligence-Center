@@ -17,6 +17,11 @@ class AuthController extends BaseApiController
 
     public function login()
     {
+        $throttler = \Config\Services::throttler();
+        if ($throttler->check(md5($this->request->getIPAddress() . '_apilogin'), 10, MINUTE) === false) {
+            return $this->error('Terlalu banyak percobaan login. Coba lagi sebentar.', 429);
+        }
+
         $body     = $this->request->getJSON(true) ?? [];
         $email    = trim($body['email'] ?? '');
         $password = $body['password'] ?? '';
@@ -29,6 +34,7 @@ class AuthController extends BaseApiController
         $user      = $userModel->findByEmail($email);
 
         if (! $user || ! $user['is_active']) {
+            password_verify($password, '$2y$10$usesomesillystringforsalt0123456789abcdefghijklmnopqrstuv');
             return $this->error('Email atau password salah.', 401);
         }
 
@@ -48,6 +54,10 @@ class AuthController extends BaseApiController
             }
             $userModel->update($user['id'], ['failed_login_attempts' => $attempts]);
             return $this->error('Email atau password salah.', 401);
+        }
+
+        if (! empty($user['must_change_password'])) {
+            return $this->error('Anda harus mengganti password melalui web sebelum login mobile.', 403);
         }
 
         $userModel->update($user['id'], ['failed_login_attempts' => 0, 'locked_until' => null]);

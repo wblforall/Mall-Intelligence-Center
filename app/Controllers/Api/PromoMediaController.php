@@ -10,6 +10,7 @@ class PromoMediaController extends BaseApiController
     public function approvals()
     {
         if (! $this->requireAuth()) return $this->response;
+        if (! $this->can('can_approve_promo_media')) return $this->forbidden();
 
         $status = $this->request->getGet('status') ?? 'pending';
 
@@ -26,6 +27,7 @@ class PromoMediaController extends BaseApiController
     public function approve(int $id)
     {
         if (! $this->requireAuth()) return $this->response;
+        if (! $this->can('can_approve_promo_media')) return $this->forbidden();
 
         $body = $this->request->getJSON(true) ?? [];
         $note = trim($body['note'] ?? '');
@@ -50,6 +52,7 @@ class PromoMediaController extends BaseApiController
     public function reject(int $id)
     {
         if (! $this->requireAuth()) return $this->response;
+        if (! $this->can('can_approve_promo_media')) return $this->forbidden();
 
         $body   = $this->request->getJSON(true) ?? [];
         $reason = trim($body['note'] ?? '');

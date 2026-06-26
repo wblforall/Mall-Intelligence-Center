@@ -63,6 +63,9 @@ class LegalReviewController extends BaseController
         if (! $file || ! $file->isValid()) {
             return redirect()->back()->withInput()->with('error', 'Dokumen draft wajib diupload.');
         }
+        if ($err = $this->validateUpload($file, self::MIME_DOC, 20)) {
+            return redirect()->back()->withInput()->with('error', $err);
+        }
 
         $id = $this->model->insert($data);
 
@@ -160,6 +163,9 @@ class LegalReviewController extends BaseController
 
         $file = $this->request->getFile('file_dokumen');
         if (! $file || ! $file->isValid()) return redirect()->back()->with('error', 'File tidak valid.');
+        if ($err = $this->validateUpload($file, self::MIME_DOC, 20)) {
+            return redirect()->back()->with('error', $err);
+        }
 
         $userId = session()->get('user_id');
         $this->saveVersion($id, $file, $this->request->getPost('catatan_perubahan'), $userId);
@@ -289,7 +295,7 @@ class LegalReviewController extends BaseController
     private function saveVersion(int $reviewId, $file, ?string $catatan, int $userId): void
     {
         $versi    = $this->vModel->getNextVersi($reviewId);
-        $ext      = $file->getClientExtension();
+        $ext      = $this->safeExt($file);
         $filename = 'review_' . $reviewId . '_v' . $versi . '_' . time() . '.' . $ext;
         $destDir  = FCPATH . 'uploads/legal_reviews/';
         if (! is_dir($destDir)) mkdir($destDir, 0755, true);

@@ -357,6 +357,7 @@ const USAGES     = <?= json_encode(array_column($usages, null, 'id'), JSON_UNESC
 const sBadge = {pending:'warning text-dark', approved:'success', done:'secondary', rejected:'danger'};
 const sLabel = {pending:'Pending', approved:'Approved', done:'Done', rejected:'Rejected'};
 
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function showDetail(id) {
     const u = USAGES[id];
     if (!u) return;
@@ -370,14 +371,14 @@ function showDetail(id) {
     let html = `<div style="margin-bottom:14px">
         <span class="badge bg-${sBadge[u.status]||'secondary'}" style="font-size:.8rem;padding:5px 12px">${sLabel[u.status]||u.status}</span>
     </div>`;
-    html += row('Titik',   (u.spot_kode||'')+(u.spot_nama?' — '+u.spot_nama:''));
-    if (u.slot_number) html += row('Slot', 'Slot '+u.slot_number);
-    html += row('Dept',    u.dept||'–');
-    html += row('Materi',  '<strong>'+(u.nama_materi||'–')+'</strong>');
-    if (u.deskripsi_materi) html += row('Keterangan', u.deskripsi_materi);
-    html += row('Periode', (u.tanggal_mulai||'')+(u.tanggal_selesai?' s/d '+u.tanggal_selesai:''));
-    if (u.catatan_pemohon)  html += row('Catatan',   u.catatan_pemohon);
-    if (u.rejection_reason) html += row('Ditolak',   u.rejection_reason, true);
+    html += row('Titik',   esc(u.spot_kode||'')+(u.spot_nama?' — '+esc(u.spot_nama):''));
+    if (u.slot_number) html += row('Slot', 'Slot '+esc(u.slot_number));
+    html += row('Dept',    esc(u.dept||'–'));
+    html += row('Materi',  '<strong>'+esc(u.nama_materi||'–')+'</strong>');
+    if (u.deskripsi_materi) html += row('Keterangan', esc(u.deskripsi_materi));
+    html += row('Periode', esc(u.tanggal_mulai||'')+(u.tanggal_selesai?' s/d '+esc(u.tanggal_selesai):''));
+    if (u.catatan_pemohon)  html += row('Catatan',   esc(u.catatan_pemohon));
+    if (u.rejection_reason) html += row('Ditolak',   esc(u.rejection_reason), true);
 
     document.getElementById('gModalBody').innerHTML = html;
 

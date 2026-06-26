@@ -332,6 +332,11 @@ class Users extends BaseController
         (new UserModel())->update($id, $data);
         session()->set('user_name', $post['name']);
 
+        // A self-initiated password change revokes outstanding mobile API tokens.
+        if (isset($data['password'])) {
+            (new \App\Models\ApiTokenModel())->revokeAllForUser((int)$id);
+        }
+
         $changed = isset($data['password']) ? 'nama & password' : 'nama';
         ActivityLog::write('update', 'profile', (string) $id, 'Ubah profil sendiri (' . $changed . ')');
         return redirect()->to('/profile')->with('success', 'Profil berhasil diperbarui.');

@@ -1642,12 +1642,13 @@ foreach ($sections as $sec):
 
             // Update price list DOM
             const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+            const _esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
             const list = document.getElementById('bbmPriceList');
             if (list) {
                 list.innerHTML = data.prices.map(p => `
                 <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1" style="font-size:.8rem;background:var(--bs-tertiary-bg)">
                     <div>
-                        <span>${p.nama}</span>
+                        <span>${_esc(p.nama)}</span>
                         ${p.subsidi ? '<span class="badge bg-warning-subtle text-warning border ms-1" style="font-size:.6rem">PSO</span>' : ''}
                     </div>
                     <span class="fw-bold ms-2 text-nowrap">${fmt(p.harga)}</span>

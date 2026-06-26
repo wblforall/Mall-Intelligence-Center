@@ -42,7 +42,7 @@ class Jabatans extends BaseController
                 'grade'       => (int)$j['grade'],
                 'dept_id'     => $j['dept_id'] ? (int)$j['dept_id'] : null,
                 'division_id' => $j['division_id'] ? (int)$j['division_id'] : null,
-            ], $allJabs)),
+            ], $allJabs), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_APOS),
         ]);
     }
 

@@ -21,6 +21,13 @@ class IdpController extends BaseApiController
 
         if (! $plan) return $this->error('IDP tidak ditemukan.', 404);
 
+        // Read scope: HR (people_dev), the employee's supervisor, or the employee themselves.
+        if (! $this->canViewMenu('people_dev')
+            && ! $this->isSupervisorOfEmployee((int)$plan['employee_id'])
+            && $this->employeeUserId((int)$plan['employee_id']) !== (int)$this->apiUser['id']) {
+            return $this->forbidden();
+        }
+
         $plan['items'] = $this->db->table('idp_items')
             ->where('idp_id', $id)
             ->orderBy('urutan', 'ASC')
@@ -32,6 +39,7 @@ class IdpController extends BaseApiController
     public function approvals()
     {
         if (! $this->requireAuth()) return $this->response;
+        if (! $this->canViewMenu('people_dev')) return $this->forbidden();
 
         $status = $this->request->getGet('status') ?? 'pending';
 
@@ -57,6 +65,7 @@ class IdpController extends BaseApiController
         $model = new IdpPlanModel();
         $plan  = $model->find($id);
         if (! $plan) return $this->error('IDP tidak ditemukan.', 404);
+        if (! $this->canApproveIdp((int)$plan['employee_id'])) return $this->forbidden();
         if ($plan['persetujuan_atasan'] !== 'pending') return $this->error('IDP ini sudah diproses.');
 
         $body = $this->request->getJSON(true) ?? [];
@@ -85,6 +94,7 @@ class IdpController extends BaseApiController
         $model = new IdpPlanModel();
         $plan  = $model->find($id);
         if (! $plan) return $this->error('IDP tidak ditemukan.', 404);
+        if (! $this->canApproveIdp((int)$plan['employee_id'])) return $this->forbidden();
         if ($plan['persetujuan_atasan'] !== 'pending') return $this->error('IDP ini sudah diproses.');
 
         $model->update($id, [
@@ -94,5 +104,12 @@ class IdpController extends BaseApiController
 
         ActivityLog::write('reject', 'idp_plan', (string)$id, 'Rejected via mobile by ' . $this->apiUser['name']);
         return $this->success(null, 'IDP ditolak.');
+    }
+
+    /** IDP approval is allowed for HR (people_dev edit) or the employee's direct supervisor; never self. */
+    private function canApproveIdp(int $employeeId): bool
+    {
+        if ($this->employeeUserId($employeeId) === (int)$this->apiUser['id']) return false;
+        return $this->canEditMenu('people_dev') || $this->isSupervisorOfEmployee($employeeId);
     }
 }

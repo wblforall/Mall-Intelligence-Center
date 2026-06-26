@@ -7,6 +7,7 @@ use App\Models\DepartmentMenuModel;
 use App\Models\RoleModel;
 use App\Models\LoginLogModel;
 use App\Models\PasswordResetModel;
+use App\Models\ApiTokenModel;
 use App\Libraries\ActivityLog;
 use CodeIgniter\Controller;
 
@@ -22,6 +23,12 @@ class Auth extends Controller
 
     public function login()
     {
+        // Throttle login attempts per IP (DoS / credential-spraying guard, in addition to per-account lockout).
+        $throttler = \Config\Services::throttler();
+        if ($throttler->check(md5($this->request->getIPAddress() . '_login'), 10, MINUTE) === false) {
+            return redirect()->back()->with('error', 'Terlalu banyak percobaan login. Coba lagi sebentar.')->withInput();
+        }
+
         $email    = $this->request->getPost('email');
         $password = $this->request->getPost('password');
 
@@ -29,6 +36,8 @@ class Auth extends Controller
         $user  = $model->findByEmail($email);
 
         if (! $user) {
+            // Equalize response time with the password_verify path to limit account enumeration.
+            password_verify($password, '$2y$10$usesomesillystringforsalt0123456789abcdefghijklmnopqrstuv');
             ActivityLog::write('login_failed', 'auth', null, 'Login gagal — email tidak ditemukan', ['email' => $email]);
             return redirect()->back()->with('error', 'Email atau password salah.')->withInput();
         }
@@ -240,6 +249,8 @@ class Auth extends Controller
                 'password'             => password_hash($password, PASSWORD_BCRYPT),
                 'must_change_password' => 0,
             ]);
+            // Invalidate all outstanding mobile API tokens after a password reset.
+            (new ApiTokenModel())->revokeAllForUser((int)$user['id']);
             ActivityLog::write('update', 'user', (string)$user['id'], 'reset_password');
         }
 

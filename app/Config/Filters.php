@@ -37,7 +37,8 @@ class Filters extends BaseConfig
     public array $globals = [
         'before' => [
             // 'honeypot',
-            'csrf',
+            // API uses stateless Bearer-token auth (no cookies) → exempt from session CSRF.
+            'csrf' => ['except' => ['api/*']],
             'invalidchars',
         ],
         'after' => [

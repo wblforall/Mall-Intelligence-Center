@@ -139,7 +139,7 @@ class PeopleTna extends BaseController
             'employees'   => $employees,
             'assessorMap' => $assessorMap,
             'available'   => $available,
-            'empPickerJson' => json_encode(array_values($empForPicker)),
+            'empPickerJson' => json_encode(array_values($empForPicker), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_APOS),
         ]);
     }
 

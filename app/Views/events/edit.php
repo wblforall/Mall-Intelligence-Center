@@ -14,11 +14,11 @@
     <?= csrf_field() ?>
     <div class="mb-3">
         <label class="form-label fw-semibold">Nama Event <span class="text-danger">*</span></label>
-        <input type="text" name="name" class="form-control" value="<?= old('name', $event['name']) ?>" required>
+        <input type="text" name="name" class="form-control" value="<?= esc(old('name', $event['name']), 'attr') ?>" required>
     </div>
     <div class="mb-3">
         <label class="form-label fw-semibold">Tema Event</label>
-        <input type="text" name="tema" class="form-control" value="<?= old('tema', $event['tema'] ?? '') ?>" placeholder="IP Character, Seasonal, Brand...">
+        <input type="text" name="tema" class="form-control" value="<?= esc(old('tema', $event['tema'] ?? ''), 'attr') ?>" placeholder="IP Character, Seasonal, Brand...">
     </div>
     <div class="mb-3">
         <label class="form-label fw-semibold">Mall / Lokasi <span class="text-danger">*</span></label>

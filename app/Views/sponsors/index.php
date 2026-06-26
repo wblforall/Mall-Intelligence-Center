@@ -333,12 +333,13 @@ function updateBarangTotal(prefix) {
     document.getElementById(prefix + 'BarangTotal').textContent = formatRp(total);
 }
 
+const _escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function addItemRow(prefix, desk, qty, nilai) {
     const container = document.getElementById(prefix + 'ItemsContainer');
     const row = document.createElement('div');
     row.className = 'row g-1 mb-1 item-row';
     row.innerHTML =
-        '<div class="col-5"><input type="text" name="deskripsi_barang[]" class="form-control form-control-sm" placeholder="Nama barang" value="' + (desk||'') + '"></div>' +
+        '<div class="col-5"><input type="text" name="deskripsi_barang[]" class="form-control form-control-sm" placeholder="Nama barang" value="' + _escAttr(desk||'') + '"></div>' +
         '<div class="col-2"><input type="number" name="qty[]" class="form-control form-control-sm" placeholder="0" min="0" value="' + (qty||'') + '"></div>' +
         '<div class="col-4"><input type="text" name="nilai_item[]" class="form-control form-control-sm item-nilai currency-input" placeholder="0" value="' + (nilai ? parseInt(nilai).toLocaleString('id-ID') : '') + '"></div>' +
         '<div class="col-1"><button type="button" class="btn btn-sm btn-outline-danger w-100 remove-row"><i class="bi bi-x"></i></button></div>';

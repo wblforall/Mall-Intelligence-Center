@@ -213,11 +213,12 @@ function loadDetail(deptId, tahun, deptName) {
                 return;
             }
             let html = '<div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Program</th><th>Tanggal</th><th>Tipe</th><th class="text-center">Peserta Hadir</th><th class="text-end">Biaya/Peserta</th><th class="text-end">Total</th></tr></thead><tbody>';
+            const _esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
             data.programs.forEach(p => {
                 const tgl = p.tanggal_mulai ? new Date(p.tanggal_mulai).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) : '—';
                 const biaya = p.biaya_per_peserta ? 'Rp ' + Number(p.biaya_per_peserta).toLocaleString('id-ID') : '—';
                 const total = p.total_biaya ? 'Rp ' + Number(p.total_biaya).toLocaleString('id-ID') : '—';
-                html += `<tr><td>${p.nama}</td><td>${tgl}</td><td><span class="badge bg-secondary" style="font-size:.65rem">${p.tipe}</span></td><td class="text-center">${p.peserta_hadir}</td><td class="text-end">${biaya}</td><td class="text-end fw-semibold">${total}</td></tr>`;
+                html += `<tr><td>${_esc(p.nama)}</td><td>${tgl}</td><td><span class="badge bg-secondary" style="font-size:.65rem">${_esc(p.tipe)}</span></td><td class="text-center">${_esc(p.peserta_hadir)}</td><td class="text-end">${biaya}</td><td class="text-end fw-semibold">${total}</td></tr>`;
             });
             html += '</tbody></table></div>';
             document.getElementById('detailModalBody').innerHTML = html;

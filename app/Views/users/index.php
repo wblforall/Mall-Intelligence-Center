@@ -289,6 +289,7 @@ const loginLogsData = <?= json_encode($loginLogsJson) ?>;
 })();
 </script>
 <script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 document.querySelectorAll('.login-hist-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const uid   = this.dataset.uid;
@@ -300,15 +301,15 @@ document.querySelectorAll('.login-hist-btn').forEach(btn => {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Belum ada riwayat login.</td></tr>';
         } else {
             tbody.innerHTML = logs.map(l => {
-                const dt = l.login_at ? l.login_at.replace('T', ' ').substring(0, 16) : '—';
+                const dt = l.login_at ? esc(l.login_at.replace('T', ' ').substring(0, 16)) : '—';
                 const devIcon = l.device_type === 'mobile' ? 'phone' : (l.device_type === 'tablet' ? 'tablet' : 'laptop');
-                const devLabel = l.device_name ? `${l.device_type} (${l.device_name})` : l.device_type;
+                const devLabel = l.device_name ? `${esc(l.device_type)} (${esc(l.device_name)})` : esc(l.device_type);
                 return `<tr>
                     <td class="small">${dt}</td>
-                    <td class="small font-monospace">${l.ip || '—'}</td>
-                    <td class="small">${l.hostname || '<span class="text-muted">—</span>'}</td>
-                    <td class="small">${l.browser || '—'} ${l.browser_ver || ''}</td>
-                    <td class="small">${l.platform || '—'}</td>
+                    <td class="small font-monospace">${esc(l.ip) || '—'}</td>
+                    <td class="small">${esc(l.hostname) || '<span class="text-muted">—</span>'}</td>
+                    <td class="small">${esc(l.browser) || '—'} ${esc(l.browser_ver)}</td>
+                    <td class="small">${esc(l.platform) || '—'}</td>
                     <td class="small"><i class="bi bi-${devIcon} me-1"></i>${devLabel}</td>
                 </tr>`;
             }).join('');

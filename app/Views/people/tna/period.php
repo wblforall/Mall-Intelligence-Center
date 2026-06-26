@@ -290,6 +290,7 @@ $typeLabels = ['self' => 'Self', 'atasan' => 'Atasan', 'rekan' => 'Rekan'];
 <?= $this->section('scripts') ?>
 <script>
 const ALL_EMPLOYEES = <?= $empPickerJson ?? '[]' ?>;
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 (function() {
     const modal     = document.getElementById('addAssessorModal');
@@ -408,10 +409,10 @@ const ALL_EMPLOYEES = <?= $empPickerJson ?? '[]' ?>;
             div.style.cursor = 'pointer';
             div.innerHTML = `
                 <div class="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center fw-bold flex-shrink-0 text-primary"
-                     style="width:32px;height:32px;font-size:.75rem">${a.nama.charAt(0).toUpperCase()}</div>
+                     style="width:32px;height:32px;font-size:.75rem">${esc(a.nama.charAt(0).toUpperCase())}</div>
                 <div class="flex-grow-1">
-                    <div class="small fw-semibold">${a.nama} ${grade}</div>
-                    <div style="font-size:.7rem" class="text-muted">${a.jabatan} · <em>${levelLabel}</em></div>
+                    <div class="small fw-semibold">${esc(a.nama)} ${esc(grade)}</div>
+                    <div style="font-size:.7rem" class="text-muted">${esc(a.jabatan)} · <em>${esc(levelLabel)}</em></div>
                 </div>
                 <i class="bi bi-square text-muted check-icon fs-5"></i>`;
             div.addEventListener('click', () => {
@@ -475,13 +476,13 @@ const ALL_EMPLOYEES = <?= $empPickerJson ?? '[]' ?>;
             return `<label class="d-flex align-items-center gap-2 px-3 py-2 border-bottom rekan-row"
                           style="cursor:pointer;${checked ? 'background:var(--bs-primary-bg-subtle)' : ''}" for="${uid}">
                 <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
-                     style="width:28px;height:28px;font-size:.72rem">${e.nama.charAt(0).toUpperCase()}</div>
+                     style="width:28px;height:28px;font-size:.72rem">${esc(e.nama.charAt(0).toUpperCase())}</div>
                 <div class="flex-grow-1">
-                    <div class="small fw-semibold">${e.nama}</div>
-                    <div style="font-size:.7rem" class="text-muted">${e.jabatan}${currentRekanTab === 'grade' ? ' · <span class="text-body">' + (e.dept_name || '') + '</span>' : ''}</div>
+                    <div class="small fw-semibold">${esc(e.nama)}</div>
+                    <div style="font-size:.7rem" class="text-muted">${esc(e.jabatan)}${currentRekanTab === 'grade' ? ' · <span class="text-body">' + esc(e.dept_name || '') + '</span>' : ''}</div>
                 </div>
                 <i class="bi ${checked ? 'bi-check-square-fill text-primary' : 'bi-square text-muted'} fs-5 check-icon"></i>
-                <input type="checkbox" name="assessor_names[]" id="${uid}" value="${e.nama.replace(/"/g,'&quot;')}"
+                <input type="checkbox" name="assessor_names[]" id="${uid}" value="${esc(e.nama)}"
                        class="d-none rekan-cb-vis" ${checked ? 'checked' : ''}>
             </label>`;
         }).join('');

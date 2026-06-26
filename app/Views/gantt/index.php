@@ -144,8 +144,9 @@
                 const e   = new Date(+task._end - 86400000).toLocaleDateString('id-ID', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
                 const col = BAR_COLORS[task.custom_class] || '#555';
                 const grp = GROUP_LABEL[task.custom_class] || '';
+                const _esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
                 return `<div style="padding:8px 10px;font-size:12px;max-width:260px;line-height:1.6">
-                    <div style="font-weight:600;margin-bottom:3px">${task.name}</div>
+                    <div style="font-weight:600;margin-bottom:3px">${_esc(task.name)}</div>
                     <div style="color:#94a3b8;font-size:11px">${s}</div>
                     <div style="color:#94a3b8;font-size:11px">s/d ${e}</div>
                     <div style="margin-top:6px">

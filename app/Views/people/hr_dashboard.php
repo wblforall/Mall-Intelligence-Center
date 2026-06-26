@@ -153,8 +153,9 @@
 <script>
 const _palette = ['#6366f1','#22c55e','#f59e0b','#ef4444','#06b6d4','#8b5cf6','#ec4899','#14b8a6','#f97316','#3b82f6','#84cc16','#a855f7'];
 const _tick = () => (getComputedStyle(document.body).getPropertyValue('--bs-secondary-color') || '#888').trim();
-const MEMBERS = <?= json_encode($members) ?>;
+const MEMBERS = <?= json_encode($members, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_APOS) ?>;
 const EMP_URL = '<?= base_url('people/employees') ?>/';
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const _drill = new bootstrap.Modal(document.getElementById('drillModal'));
 
 function showMembers(dim, label, sub) {
@@ -163,9 +164,9 @@ function showMembers(dim, label, sub) {
         `${label} <span class="text-muted fw-normal">· ${list.length} orang${sub ? ' · ' + sub : ''}</span>`;
     let html = '<table class="table table-sm table-hover align-middle mb-0"><tbody>';
     list.slice().sort((a, b) => a.n.localeCompare(b.n)).forEach(m => {
-        html += `<tr style="cursor:pointer" onclick="location.href='${EMP_URL}${m.i}'">
-            <td class="ps-3 fw-medium small">${m.n}</td>
-            <td class="small text-muted">${m.d}</td>
+        html += `<tr style="cursor:pointer" onclick="location.href='${EMP_URL}${encodeURIComponent(m.i)}'">
+            <td class="ps-3 fw-medium small">${esc(m.n)}</td>
+            <td class="small text-muted">${esc(m.d)}</td>
             <td class="text-end pe-3"><i class="bi bi-chevron-right text-muted"></i></td></tr>`;
     });
     html += '</tbody></table>';

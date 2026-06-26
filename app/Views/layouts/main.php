@@ -748,13 +748,14 @@ if (typeof Chart !== 'undefined') {
 
     function showBanner(p) {
         if (!p.pesan) return;
+        const _esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const banner  = document.getElementById('themeBanner');
         const bannerT = document.getElementById('themeBannerText');
         const colorMap = { confetti:'#8b5cf6', balloons:'#ec4899', snow:'#38bdf8', fireworks:'#f97316', stars:'#fbbf24', none:'#64748b' };
         const c = colorMap[p.animation] || '#8b5cf6';
         banner.style.background = `linear-gradient(90deg,${c}22,${c}0a)`;
         banner.style.borderBottomColor = c + '44';
-        bannerT.innerHTML = `<span style="margin-right:.5rem;font-size:1rem">${p.emoji || '🎉'}</span>${p.pesan}<small class="ms-2" style="opacity:.45">${p.nama}</small>`;
+        bannerT.innerHTML = `<span style="margin-right:.5rem;font-size:1rem">${_esc(p.emoji || '🎉')}</span>${_esc(p.pesan)}<small class="ms-2" style="opacity:.45">${_esc(p.nama)}</small>`;
         banner.classList.add('show');
     }
 
