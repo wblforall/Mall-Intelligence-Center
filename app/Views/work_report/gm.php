@@ -16,6 +16,11 @@ $statusLabel = [
         <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Laporan Inisiatif Kerja</h4>
         <small class="text-muted">Ringkasan yang dikurasi Deputy per Divisi</small>
     </div>
+    <?php if (! empty($byDivisi)): ?>
+    <button class="btn btn-outline-secondary btn-sm" onclick="salinLaporan()" title="Salin sebagai teks untuk dikirim via WA">
+        <i class="bi bi-clipboard me-1"></i>Salin Laporan
+    </button>
+    <?php endif; ?>
 </div>
 
 
@@ -30,6 +35,12 @@ $statusLabel = [
 <div class="card mb-4">
 <div class="card-header py-2" style="background:linear-gradient(90deg,var(--bs-primary-bg-subtle),transparent)">
     <h6 class="mb-0 fw-bold"><i class="bi bi-layers me-2 text-primary"></i><?= esc($divisiName) ?></h6>
+    <?php
+    $deputies = array_unique(array_filter(array_column($divisiItems, 'deputy_name')));
+    if ($deputies):
+    ?>
+    <small class="text-muted"><i class="bi bi-person-badge me-1"></i><?= esc(implode(', ', $deputies)) ?></small>
+    <?php endif; ?>
 </div>
 <div class="card-body p-0">
 
@@ -132,5 +143,52 @@ foreach ($divisiItems as $item) {
 <?php endforeach; ?>
 
 <?php endif; ?>
+
+<?php
+// Build teks laporan untuk clipboard
+$statusText = ['on_track'=>'On Track','at_risk'=>'At Risk','delayed'=>'Delayed','done'=>'Selesai','cancelled'=>'Dibatalkan'];
+$lines = [];
+$lines[] = '*LAPORAN INISIATIF KERJA*';
+$lines[] = 'Per: ' . date('d M Y');
+foreach ($byDivisi as $divisiName => $divisiItems):
+    $lines[] = '';
+    $lines[] = '*' . strtoupper($divisiName) . '*';
+    $deps = array_unique(array_filter(array_column($divisiItems, 'deputy_name')));
+    if ($deps) $lines[] = 'Deputy: ' . implode(', ', $deps);
+
+    $byDeptTxt = [];
+    foreach ($divisiItems as $it) {
+        $byDeptTxt[$it['dept_name'] ?? 'Tanpa Dept'][] = $it;
+    }
+    foreach ($byDeptTxt as $deptName => $deptItems):
+        $lines[] = '';
+        $lines[] = '_' . $deptName . '_';
+        $no = 1;
+        foreach ($deptItems as $it):
+            $st = $statusText[$it['latest_status'] ?? ''] ?? '-';
+            $pct = $it['latest_progress'] !== null ? ' | ' . $it['latest_progress'] . '%' : '';
+            $lines[] = $no++ . '. ' . $it['judul'] . ' (' . $st . $pct . ')';
+            if (! empty($it['latest_catatan'])) $lines[] = '   ' . $it['latest_catatan'];
+            if (! empty($it['latest_hambatan'])) $lines[] = '   ⚠️ ' . $it['latest_hambatan'];
+            if (! empty($it['target_selesai'])) $lines[] = '   Target: ' . date('d M Y', strtotime($it['target_selesai']));
+        endforeach;
+    endforeach;
+endforeach;
+$laporanTeks = implode("\n", $lines);
+?>
+<textarea id="laporanClipboard" style="position:absolute;left:-9999px" aria-hidden="true"><?= htmlspecialchars($laporanTeks) ?></textarea>
+
+<script>
+function salinLaporan() {
+    const txt = document.getElementById('laporanClipboard').value;
+    navigator.clipboard.writeText(txt).then(() => {
+        const btn = event.currentTarget;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Tersalin!';
+        btn.classList.replace('btn-outline-secondary', 'btn-success');
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.replace('btn-success', 'btn-outline-secondary'); }, 2000);
+    });
+}
+</script>
 
 <?= $this->endSection() ?>
