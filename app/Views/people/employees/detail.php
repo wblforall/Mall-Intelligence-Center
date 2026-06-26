@@ -58,8 +58,12 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             <div><?= $employee['no_hp'] ? esc($employee['no_hp']) : '—' ?></div>
         </div>
         <div class="col-md-4">
-            <div class="text-muted small">Email</div>
+            <div class="text-muted small">Email Pribadi</div>
             <div><?= $employee['email'] ? esc($employee['email']) : '—' ?></div>
+        </div>
+        <div class="col-md-4">
+            <div class="text-muted small">Email Kerja</div>
+            <div><?= $employee['email_kerja'] ? esc($employee['email_kerja']) : '—' ?></div>
         </div>
         <div class="col-md-4">
             <div class="text-muted small">Tanggal Masuk</div>
@@ -123,7 +127,19 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
         <?= csrf_field() ?>
         <div class="col-md-5">
             <label class="form-label small mb-1">Email login</label>
-            <input type="email" name="email" class="form-control form-control-sm" value="<?= esc($employee['email'] ?? '') ?>" placeholder="email@perusahaan.com" required>
+            <select name="email" class="form-select form-select-sm" required>
+                <option value="">— Pilih email —</option>
+                <?php if (! empty($employee['email_kerja'])): ?>
+                <option value="<?= esc($employee['email_kerja']) ?>" selected>
+                    <?= esc($employee['email_kerja']) ?> (kerja)
+                </option>
+                <?php endif; ?>
+                <?php if (! empty($employee['email'])): ?>
+                <option value="<?= esc($employee['email']) ?>" <?= empty($employee['email_kerja']) ? 'selected' : '' ?>>
+                    <?= esc($employee['email']) ?> (pribadi)
+                </option>
+                <?php endif; ?>
+            </select>
         </div>
         <div class="col-md-4">
             <label class="form-label small mb-1">Role</label>
@@ -400,8 +416,12 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             <input type="text" name="no_hp" class="form-control" value="<?= esc($employee['no_hp'] ?? '') ?>">
         </div>
         <div class="col-md-6">
-            <label class="form-label small fw-semibold">Email</label>
+            <label class="form-label small fw-semibold">Email Pribadi</label>
             <input type="email" name="email" class="form-control" value="<?= esc($employee['email'] ?? '') ?>">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Email Kerja</label>
+            <input type="email" name="email_kerja" class="form-control" value="<?= esc($employee['email_kerja'] ?? '') ?>" placeholder="nama@wbl-bsb.com">
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Status</label>
