@@ -21,7 +21,7 @@ $statusLabel = [
 
 <div class="row g-3">
 <!-- Info + History -->
-<div class="col-lg-7">
+<div class="col-12 col-lg-7">
     <div class="card mb-3">
         <div class="card-header py-2"><h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2"></i>Detail Inisiatif</h6></div>
         <div class="card-body">
@@ -30,13 +30,13 @@ $statusLabel = [
             <?php endif; ?>
             <div class="row g-2" style="font-size:.8rem">
                 <?php if (! empty($item['pic_name'])): ?>
-                <div class="col-sm-4"><span class="text-muted">PIC</span><br><?= esc($item['pic_name']) ?></div>
+                <div class="col-6 col-sm-4"><span class="text-muted">PIC</span><br><?= esc($item['pic_name']) ?></div>
                 <?php endif; ?>
                 <?php if (! empty($item['target_mulai'])): ?>
-                <div class="col-sm-4"><span class="text-muted">Target Mulai</span><br><?= date('d M Y', strtotime($item['target_mulai'])) ?></div>
+                <div class="col-6 col-sm-4"><span class="text-muted">Target Mulai</span><br><?= date('d M Y', strtotime($item['target_mulai'])) ?></div>
                 <?php endif; ?>
                 <?php if (! empty($item['target_selesai'])): ?>
-                <div class="col-sm-4"><span class="text-muted">Target Selesai</span><br><?= date('d M Y', strtotime($item['target_selesai'])) ?></div>
+                <div class="col-6 col-sm-4"><span class="text-muted">Target Selesai</span><br><?= date('d M Y', strtotime($item['target_selesai'])) ?></div>
                 <?php endif; ?>
             </div>
         </div>
@@ -76,7 +76,7 @@ $statusLabel = [
 </div>
 
 <!-- Komentar Deputy -->
-<div class="col-lg-5">
+<div class="col-12 col-lg-5">
     <div class="card">
         <div class="card-header py-2">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-left-text me-2 text-primary"></i>Komentar Deputy</h6>

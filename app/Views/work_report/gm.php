@@ -17,7 +17,7 @@ $statusLabel = [
         <small class="text-muted">Ringkasan yang dikurasi Deputy per Divisi</small>
     </div>
     <?php if (! empty($byDivisi)): ?>
-    <button class="btn btn-outline-secondary btn-sm" onclick="salinLaporan()" title="Salin sebagai teks untuk dikirim via WA">
+    <button class="btn btn-success btn-sm" onclick="salinLaporan()" title="Salin sebagai teks untuk dikirim via WA">
         <i class="bi bi-clipboard me-1"></i>Salin Laporan
     </button>
     <?php endif; ?>
@@ -124,7 +124,7 @@ foreach ($divisiItems as $item) {
             <!-- Form catatan GM -->
             <form method="POST" action="<?= base_url('work-report/gm/' . $item['id'] . '/note') ?>">
                 <?= csrf_field() ?>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     <input type="text" name="body" class="form-control form-control-sm" placeholder="Tambah catatan ke Deputy…" required>
                     <button type="submit" class="btn btn-warning btn-sm flex-shrink-0 text-dark">
                         <i class="bi bi-send me-1"></i>Kirim
@@ -185,8 +185,7 @@ function salinLaporan() {
         const btn = event.currentTarget;
         const orig = btn.innerHTML;
         btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Tersalin!';
-        btn.classList.replace('btn-outline-secondary', 'btn-success');
-        setTimeout(() => { btn.innerHTML = orig; btn.classList.replace('btn-success', 'btn-outline-secondary'); }, 2000);
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
     });
 }
 </script>

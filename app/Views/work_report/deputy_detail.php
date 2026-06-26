@@ -17,7 +17,7 @@ $statusLabel = [
         <h5 class="fw-bold mb-0"><?= esc($item['judul']) ?></h5>
         <small class="text-muted"><?= esc($item['dept_name'] ?? '') ?></small>
     </div>
-    <div class="ms-auto d-flex gap-2">
+    <div class="ms-auto d-flex gap-2 flex-wrap">
         <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/flag') ?>">
             <?= csrf_field() ?>
             <button type="submit" class="btn btn-sm <?= $isFlagged ? 'btn-warning' : 'btn-outline-secondary' ?>">
@@ -33,7 +33,7 @@ $statusLabel = [
 
 <div class="row g-3">
 <!-- Riwayat -->
-<div class="col-lg-5">
+<div class="col-12 col-lg-5">
     <div class="card mb-3">
         <div class="card-header py-2"><h6 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2"></i>Riwayat Update</h6></div>
         <div class="list-group list-group-flush" style="max-height:400px;overflow-y:auto">
@@ -65,7 +65,7 @@ $statusLabel = [
 </div>
 
 <!-- Komentar & Thread GM -->
-<div class="col-lg-7">
+<div class="col-12 col-lg-7">
     <!-- Thread GM ↔ Deputy (atas) -->
     <div class="card mb-3">
         <div class="card-header py-2 d-flex align-items-center justify-content-between">
@@ -162,11 +162,11 @@ $statusLabel = [
         </select>
     </div>
     <div class="row g-2">
-        <div class="col-sm-6">
+        <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold">Target Mulai</label>
             <input type="date" name="target_mulai" class="form-control form-control-sm" value="<?= $item['target_mulai'] ?? '' ?>">
         </div>
-        <div class="col-sm-6">
+        <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold">Target Selesai</label>
             <input type="date" name="target_selesai" class="form-control form-control-sm" value="<?= $item['target_selesai'] ?? '' ?>">
         </div>

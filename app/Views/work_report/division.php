@@ -74,7 +74,7 @@ ksort($grouped);
             <?php if (! empty($item['latest_hambatan'])): ?>
             <div class="text-warning-emphasis" style="font-size:.73rem"><i class="bi bi-cone-striped me-1"></i><?= esc(mb_substr($item['latest_hambatan'], 0, 100)) ?></div>
             <?php endif; ?>
-            <div class="d-flex gap-3 mt-1" style="font-size:.68rem;color:var(--bs-secondary-color)">
+            <div class="d-flex gap-3 mt-1 flex-wrap" style="font-size:.68rem;color:var(--bs-secondary-color)">
                 <?php if (! empty($item['created_by_name'])): ?><span class="text-muted"><i class="bi bi-pencil me-1"></i><?= esc($item['created_by_name']) ?></span><?php endif; ?>
                 <?php if (! empty($item['pic_name'])): ?><span><i class="bi bi-person-check me-1"></i>PIC: <?= esc($item['pic_name']) ?></span><?php endif; ?>
                 <?php if (! empty($item['target_selesai'])): ?><span><i class="bi bi-calendar-check me-1"></i><?= date('d M Y', strtotime($item['target_selesai'])) ?></span><?php endif; ?>
@@ -153,11 +153,11 @@ ksort($grouped);
         <div class="form-text" style="font-size:.68rem">Jika di-assign, Dept Head dept tersebut bisa melihat dan mengupdate.</div>
     </div>
     <div class="row g-2">
-        <div class="col-sm-4">
+        <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold">Target Mulai</label>
             <input type="date" name="target_mulai" class="form-control form-control-sm">
         </div>
-        <div class="col-sm-4">
+        <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold">Target Selesai</label>
             <input type="date" name="target_selesai" class="form-control form-control-sm">
         </div>

@@ -51,7 +51,7 @@ $statusLabel = [
             <span class="badge rounded-pill bg-danger ms-1" style="font-size:.65rem;min-width:1.4em"><?= $commentUnread[$item['id']] ?></span>
             <?php endif; ?>
         </div>
-        <div class="d-flex gap-1 flex-shrink-0">
+        <div class="d-flex gap-1 flex-shrink-0 flex-wrap">
             <?php if ($info): ?>
             <span class="badge <?= $info['badge'] ?>" style="font-size:.68rem"><?= $info['label'] ?></span>
             <?php endif; ?>
@@ -147,24 +147,24 @@ $statusLabel = [
             <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/update') ?>">
                 <?= csrf_field() ?>
                 <div class="row g-2">
-                    <div class="col-sm-4">
+                    <div class="col-12 col-sm-4">
                         <select name="status" class="form-select form-select-sm" required>
                             <?php foreach ($statusLabel as $k => $v): ?>
                             <option value="<?= $k ?>" <?= ($item['latest_status'] ?? '') === $k ? 'selected' : '' ?>><?= $v['label'] ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-sm-2">
+                    <div class="col-6 col-sm-2">
                         <input type="number" name="progress_pct" class="form-control form-control-sm" placeholder="% (opsional)"
                             min="0" max="100" value="<?= $item['latest_progress'] ?? '' ?>">
                     </div>
-                    <div class="col-sm-6">
+                    <div class="col-12 col-sm-6">
                         <input type="text" name="catatan" class="form-control form-control-sm" placeholder="Perkembangan minggu ini" value="">
                     </div>
-                    <div class="col-sm-10">
+                    <div class="col-12 col-sm-10">
                         <input type="text" name="hambatan" class="form-control form-control-sm" placeholder="Hambatan (kosongkan jika tidak ada)">
                     </div>
-                    <div class="col-sm-2">
+                    <div class="col-12 col-sm-2">
                         <button type="submit" class="btn btn-primary btn-sm w-100">Simpan</button>
                     </div>
                 </div>

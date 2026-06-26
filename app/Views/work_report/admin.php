@@ -22,7 +22,7 @@ $statusLabel = [
 <form method="GET" action="<?= base_url('work-report/admin') ?>" class="card mb-4">
 <div class="card-body py-2">
 <div class="row g-2 align-items-end">
-    <div class="col-sm-4">
+    <div class="col-12 col-sm-4">
         <label class="form-label small fw-semibold mb-1">Divisi</label>
         <select name="divisi_id" class="form-select form-select-sm">
             <option value="">Semua Divisi</option>
@@ -31,7 +31,7 @@ $statusLabel = [
             <?php endforeach; ?>
         </select>
     </div>
-    <div class="col-sm-4">
+    <div class="col-12 col-sm-4">
         <label class="form-label small fw-semibold mb-1">Departemen</label>
         <select name="dept_id" class="form-select form-select-sm">
             <option value="">Semua Departemen</option>
@@ -40,7 +40,7 @@ $statusLabel = [
             <?php endforeach; ?>
         </select>
     </div>
-    <div class="col-sm-auto">
+    <div class="col-12 col-sm-auto">
         <button type="submit" class="btn btn-primary btn-sm">Filter</button>
         <?php if ($filterDiv || $filterDept): ?>
         <a href="<?= base_url('work-report/admin') ?>" class="btn btn-outline-secondary btn-sm ms-1">Reset</a>
