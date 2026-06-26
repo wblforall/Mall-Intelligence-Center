@@ -78,7 +78,7 @@ ksort($grouped);
             </div>
             <?php endif; ?>
             <?php if (! empty($item['latest_catatan']) || ! empty($item['latest_hambatan'])): ?>
-            <div class="mt-2 mb-1 d-flex flex-column gap-1">
+            <div class="mt-1 d-flex flex-column gap-1">
                 <?php if (! empty($item['latest_catatan'])): ?>
                 <div class="px-2 py-1 rounded" style="background:var(--bs-secondary-bg);font-size:.8rem;border-left:3px solid var(--bs-primary)">
                     <?= nl2br(esc(mb_substr($item['latest_catatan'], 0, 150))) ?><?= mb_strlen($item['latest_catatan']) > 150 ? '…' : '' ?>
@@ -91,7 +91,7 @@ ksort($grouped);
                 <?php endif; ?>
             </div>
             <?php endif; ?>
-            <div class="d-flex gap-3 mt-1 flex-wrap" style="font-size:.68rem;color:var(--bs-secondary-color)">
+            <div class="d-flex gap-2 mt-1 flex-wrap" style="font-size:.68rem;color:var(--bs-secondary-color)">
                 <?php if (! empty($item['created_by_name'])): ?><span class="text-muted"><i class="bi bi-pencil me-1"></i><?= esc($item['created_by_name']) ?></span><?php endif; ?>
                 <?php if (! empty($item['pic_name'])): ?><span><i class="bi bi-person-check me-1"></i>PIC: <?= esc($item['pic_name']) ?></span><?php endif; ?>
                 <?php if (! empty($item['target_selesai'])): ?><span><i class="bi bi-calendar-check me-1"></i><?= date('d M Y', strtotime($item['target_selesai'])) ?></span><?php endif; ?>
