@@ -56,9 +56,9 @@ class WorkReportDeputyCtrl extends BaseController
                 ->get()->getResultArray();
             $readMap = array_column($reads, 'last_read_gm_at', 'initiative_id');
 
-            // Komentar GM terbaru per inisiatif
+            // Komentar GM yang belum dibaca per inisiatif
             $rows = $db->table('work_initiative_comments')
-                ->select('initiative_id, MAX(created_at) AS latest_at')
+                ->select('initiative_id, MAX(created_at) AS latest_at, COUNT(*) AS total')
                 ->where('visibility', 'gm_deputy')
                 ->whereIn('initiative_id', $initiativeIds)
                 ->groupBy('initiative_id')
@@ -66,7 +66,15 @@ class WorkReportDeputyCtrl extends BaseController
             foreach ($rows as $r) {
                 $lastRead = $readMap[$r['initiative_id']] ?? null;
                 if (! $lastRead || $r['latest_at'] > $lastRead) {
-                    $gmUnread[$r['initiative_id']] = true;
+                    // Hitung hanya yang belum dibaca
+                    $unreadCount = $lastRead
+                        ? $db->table('work_initiative_comments')
+                            ->where('initiative_id', $r['initiative_id'])
+                            ->where('visibility', 'gm_deputy')
+                            ->where('created_at >', $lastRead)
+                            ->countAllResults()
+                        : (int) $r['total'];
+                    $gmUnread[$r['initiative_id']] = $unreadCount;
                 }
             }
         }

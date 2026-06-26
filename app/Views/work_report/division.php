@@ -60,8 +60,8 @@ ksort($grouped);
                 <span class="badge bg-danger" style="font-size:.63rem"><i class="bi bi-exclamation-triangle me-1"></i>Terlambat</span>
                 <?php endif; ?>
                 <?php if (! empty($gmUnread[$item['id']])): ?>
-                <span class="badge bg-primary" style="font-size:.63rem">
-                    <i class="bi bi-chat-fill me-1"></i>Pesan GM
+                <span class="badge rounded-pill bg-danger" style="font-size:.65rem;min-width:1.4em">
+                    <?= $gmUnread[$item['id']] ?>
                 </span>
                 <?php endif; ?>
                 <?php if (! empty($item['assigned_to_dept_id'])): ?>
