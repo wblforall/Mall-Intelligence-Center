@@ -21,12 +21,6 @@ $statusLabel = [
     </button>
 </div>
 
-<?php if (session()->getFlashdata('success')): ?>
-<div class="alert alert-success alert-dismissible fade show py-2"><small><?= session()->getFlashdata('success') ?></small><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-<?php endif; ?>
-<?php if (session()->getFlashdata('error')): ?>
-<div class="alert alert-danger alert-dismissible fade show py-2"><small><?= session()->getFlashdata('error') ?></small><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-<?php endif; ?>
 
 <?php if (empty($items)): ?>
 <div class="text-center text-muted py-5">
@@ -83,20 +77,60 @@ $statusLabel = [
             <?php if (! empty($item['target_selesai'])): ?> — <?= date('d M Y', strtotime($item['target_selesai'])) ?><?php endif; ?>
         </span>
         <?php endif; ?>
-        <?php if (! empty($item['latest_updated_at'])): ?>
-        <span class="ms-auto"><i class="bi bi-arrow-repeat me-1"></i>Update <?= date('d M Y', strtotime($item['latest_updated_at'])) ?></span>
+    </div>
+
+    <?php $itemHistory = $histories[$item['id']] ?? []; ?>
+    <?php if (! empty($itemHistory)): ?>
+    <div class="mb-2">
+        <?php $first = $itemHistory[0]; $rest = array_slice($itemHistory, 1); ?>
+        <!-- Update terbaru selalu tampil -->
+        <div class="p-2 rounded" style="background:var(--bs-secondary-bg);font-size:.75rem">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <?php $si = $statusLabel[$first['status']] ?? $statusLabel['on_track']; ?>
+                <span class="badge <?= $si['badge'] ?>" style="font-size:.6rem"><?= $si['label'] ?></span>
+                <?php if ($first['progress_pct'] !== null): ?>
+                <span class="text-muted"><?= $first['progress_pct'] ?>%</span>
+                <?php endif; ?>
+                <span class="text-muted ms-auto"><?= date('d M Y', strtotime($first['created_at'])) ?></span>
+            </div>
+            <?php if (! empty($first['catatan'])): ?>
+            <div><?= nl2br(esc($first['catatan'])) ?></div>
+            <?php endif; ?>
+            <?php if (! empty($first['hambatan'])): ?>
+            <div class="mt-1 border-start border-warning border-2 ps-2 text-warning-emphasis">
+                <i class="bi bi-cone-striped me-1"></i><?= nl2br(esc($first['hambatan'])) ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <!-- Update sebelumnya — collapsible -->
+        <?php if (! empty($rest)): ?>
+        <div class="collapse" id="hist<?= $item['id'] ?>">
+        <?php foreach ($rest as $h):
+            $hi = $statusLabel[$h['status']] ?? $statusLabel['on_track']; ?>
+        <div class="p-2 rounded mt-1" style="background:var(--bs-secondary-bg);font-size:.75rem;opacity:.8">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge <?= $hi['badge'] ?>" style="font-size:.6rem"><?= $hi['label'] ?></span>
+                <?php if ($h['progress_pct'] !== null): ?>
+                <span class="text-muted"><?= $h['progress_pct'] ?>%</span>
+                <?php endif; ?>
+                <span class="text-muted ms-auto"><?= date('d M Y', strtotime($h['created_at'])) ?></span>
+            </div>
+            <?php if (! empty($h['catatan'])): ?>
+            <div><?= nl2br(esc($h['catatan'])) ?></div>
+            <?php endif; ?>
+            <?php if (! empty($h['hambatan'])): ?>
+            <div class="mt-1 border-start border-warning border-2 ps-2 text-warning-emphasis">
+                <i class="bi bi-cone-striped me-1"></i><?= nl2br(esc($h['hambatan'])) ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+        </div>
+        <button class="btn btn-link btn-sm p-0 mt-1" style="font-size:.7rem"
+            data-bs-toggle="collapse" data-bs-target="#hist<?= $item['id'] ?>">
+            <i class="bi bi-clock-history me-1"></i><?= count($rest) ?> update sebelumnya
+        </button>
         <?php endif; ?>
-    </div>
-
-    <?php if (! empty($item['latest_catatan'])): ?>
-    <div class="p-2 rounded mb-2" style="background:var(--bs-secondary-bg);font-size:.75rem">
-        <strong>Progress:</strong> <?= nl2br(esc($item['latest_catatan'])) ?>
-    </div>
-    <?php endif; ?>
-
-    <?php if (! empty($item['latest_hambatan'])): ?>
-    <div class="p-2 rounded mb-2 border-start border-warning border-3" style="background:var(--bs-secondary-bg);font-size:.75rem">
-        <strong class="text-warning"><i class="bi bi-cone-striped me-1"></i>Hambatan:</strong> <?= nl2br(esc($item['latest_hambatan'])) ?>
     </div>
     <?php endif; ?>
 

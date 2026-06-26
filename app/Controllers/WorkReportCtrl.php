@@ -68,8 +68,15 @@ class WorkReportCtrl extends BaseController
             ->orderBy('nama')
             ->get()->getResultArray();
 
+        // Load history semua update untuk setiap inisiatif
+        $histories = [];
+        foreach ($items as $it) {
+            $histories[$it['id']] = $this->mu->historyFor((int) $it['id']);
+        }
+
         return view('work_report/index', [
             'items'     => $items,
+            'histories' => $histories,
             'deptInfo'  => $deptInfo,
             'employees' => $employees,
             'empId'     => (int) $emp['id'],

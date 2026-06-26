@@ -18,9 +18,6 @@ $statusLabel = [
     </div>
 </div>
 
-<?php if (session()->getFlashdata('success')): ?>
-<div class="alert alert-success alert-dismissible fade show py-2"><small><?= session()->getFlashdata('success') ?></small><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-<?php endif; ?>
 
 <?php if (empty($byDivisi)): ?>
 <div class="text-center text-muted py-5">

@@ -506,7 +506,10 @@ body { min-height: 100vh; }
 
         <?php
         $_deptMenusWR = session()->get('dept_menus');
-        $_canViewWR   = session()->get('role_is_admin') || session()->get('user_role') === 'admin' || ($_deptMenusWR['work_report']['can_view'] ?? false);
+        $_userMenusWR = session()->get('user_menus');
+        $_canViewWR   = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
+                     || ($_deptMenusWR['work_report']['can_view'] ?? false)
+                     || ($_userMenusWR['work_report']['can_view'] ?? false);
         if ($_canViewWR):
         ?>
         <div class="nav-label">Inisiatif Kerja</div>

@@ -21,12 +21,6 @@ $statusLabel = [
     </button>
 </div>
 
-<?php if (session()->getFlashdata('success')): ?>
-<div class="alert alert-success alert-dismissible fade show py-2"><small><?= session()->getFlashdata('success') ?></small><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-<?php endif; ?>
-<?php if (session()->getFlashdata('error')): ?>
-<div class="alert alert-danger alert-dismissible fade show py-2"><small><?= session()->getFlashdata('error') ?></small><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-<?php endif; ?>
 
 <?php
 // Kelompokkan per dept
