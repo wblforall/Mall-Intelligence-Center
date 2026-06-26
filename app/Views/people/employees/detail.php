@@ -390,7 +390,7 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Divisi <small class="text-muted fw-normal">(isi jika tanpa dept)</small></label>
-            <select id="editDivId" class="form-select" onchange="loadJabatans('editDeptId','editDivId','editJabatanId')">
+            <select name="division_id" id="editDivId" class="form-select" onchange="loadJabatans('editDeptId','editDivId','editJabatanId')">
                 <option value="">— Pilih Divisi —</option>
                 <?php foreach ($divisions as $dv): ?>
                 <option value="<?= $dv['id'] ?>" <?= $currentDivisionId == $dv['id'] ? 'selected' : '' ?>><?= esc($dv['nama']) ?></option>

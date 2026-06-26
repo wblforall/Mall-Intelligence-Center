@@ -426,18 +426,15 @@ class PeopleEmployees extends BaseController
         $allEmployees = (new EmployeeModel())->getWithDept();
         $departments  = (new DepartmentModel())->selectable();
 
-        // Derive current division for the edit form (deputy case: dept_id is null)
-        $currentDivisionId = null;
-        if ($employee['dept_id']) {
+        // Derive current division for the edit form — employees.division_id takes precedence (Deputy case)
+        $currentDivisionId = $employee['division_id'] ?? null;
+        if (! $currentDivisionId && $employee['dept_id']) {
             foreach ($departments as $d) {
                 if ($d['id'] == $employee['dept_id']) {
                     $currentDivisionId = $d['division_id'] ?? null;
                     break;
                 }
             }
-        } elseif ($employee['jabatan_id']) {
-            $jab = (new JabatanModel())->find($employee['jabatan_id']);
-            $currentDivisionId = $jab['division_id'] ?? null;
         }
 
         return view('people/employees/detail', [
@@ -496,6 +493,7 @@ class PeopleEmployees extends BaseController
             'tanggal_lahir' => $post['tanggal_lahir'] ?: null,
             'tanggal_masuk' => $post['tanggal_masuk'],
             'dept_id'       => $post['dept_id'] ?: null,
+            'division_id'   => $post['division_id'] ?: null,
             'jabatan'       => $jabatanNama,
             'jabatan_id'    => $jabatanId,
             'atasan_id'     => $atasanId,
@@ -557,6 +555,7 @@ class PeopleEmployees extends BaseController
             'tanggal_lahir' => $post['tanggal_lahir'] ?: null,
             'tanggal_masuk' => $post['tanggal_masuk'],
             'dept_id'       => $post['dept_id'] ?: null,
+            'division_id'   => $post['division_id'] ?: null,
             'jabatan'       => $jabatanNama,
             'jabatan_id'    => $jabatanId,
             'atasan_id'     => $atasanId,
