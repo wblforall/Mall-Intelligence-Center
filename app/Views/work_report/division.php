@@ -59,9 +59,9 @@ ksort($grouped);
                 <?php if ($overdue): ?>
                 <span class="badge bg-danger" style="font-size:.63rem"><i class="bi bi-exclamation-triangle me-1"></i>Terlambat</span>
                 <?php endif; ?>
-                <?php if (($gmCommentCounts[$item['id']] ?? 0) > 0): ?>
+                <?php if (! empty($gmUnread[$item['id']])): ?>
                 <span class="badge bg-primary" style="font-size:.63rem">
-                    <i class="bi bi-chat-fill me-1"></i>Pesan GM (<?= $gmCommentCounts[$item['id']] ?>)
+                    <i class="bi bi-chat-fill me-1"></i>Pesan GM
                 </span>
                 <?php endif; ?>
                 <?php if (! empty($item['assigned_to_dept_id'])): ?>

@@ -66,40 +66,8 @@ $statusLabel = [
 
 <!-- Komentar & Thread GM -->
 <div class="col-lg-7">
-    <!-- Komentar Deputy → Dept -->
+    <!-- Thread GM ↔ Deputy (atas) -->
     <div class="card mb-3">
-        <div class="card-header py-2 d-flex align-items-center justify-content-between">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-left-text me-2 text-primary"></i>Komentar ke Dept Head</h6>
-            <small class="text-muted" style="font-size:.68rem">Terlihat Dept Head + Deputy</small>
-        </div>
-        <div class="list-group list-group-flush">
-        <?php if (empty($deptComments)): ?>
-            <div class="list-group-item small text-muted text-center py-2">Belum ada komentar.</div>
-        <?php else: ?>
-            <?php foreach ($deptComments as $c): ?>
-            <div class="list-group-item py-2">
-                <div class="d-flex justify-content-between mb-1">
-                    <small class="fw-semibold"><?= esc($c['author_name'] ?? '—') ?></small>
-                    <small class="text-muted"><?= date('d M Y H:i', strtotime($c['created_at'])) ?></small>
-                </div>
-                <div class="small"><?= nl2br(esc($c['body'])) ?></div>
-            </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-        </div>
-        <div class="card-footer py-2">
-            <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/comment') ?>">
-                <?= csrf_field() ?>
-                <div class="d-flex gap-2">
-                    <input type="text" name="body" class="form-control form-control-sm" placeholder="Tulis komentar…" required>
-                    <button type="submit" class="btn btn-primary btn-sm flex-shrink-0">Kirim</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Thread GM ↔ Deputy -->
-    <div class="card">
         <div class="card-header py-2 d-flex align-items-center justify-content-between">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-dots me-2 text-warning"></i>Thread GM ↔ Deputy</h6>
             <small class="text-muted" style="font-size:.68rem">Hanya terlihat GM + Deputy</small>
@@ -129,6 +97,38 @@ $statusLabel = [
                 <div class="d-flex gap-2">
                     <input type="text" name="body" class="form-control form-control-sm" placeholder="Balas ke GM…" required>
                     <button type="submit" class="btn btn-warning btn-sm flex-shrink-0 text-dark">Kirim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Komentar Deputy → Dept Head -->
+    <div class="card">
+        <div class="card-header py-2 d-flex align-items-center justify-content-between">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-left-text me-2 text-primary"></i>Komentar ke Dept Head</h6>
+            <small class="text-muted" style="font-size:.68rem">Terlihat Dept Head + Deputy</small>
+        </div>
+        <div class="list-group list-group-flush">
+        <?php if (empty($deptComments)): ?>
+            <div class="list-group-item small text-muted text-center py-2">Belum ada komentar.</div>
+        <?php else: ?>
+            <?php foreach ($deptComments as $c): ?>
+            <div class="list-group-item py-2">
+                <div class="d-flex justify-content-between mb-1">
+                    <small class="fw-semibold"><?= esc($c['author_name'] ?? '—') ?></small>
+                    <small class="text-muted"><?= date('d M Y H:i', strtotime($c['created_at'])) ?></small>
+                </div>
+                <div class="small"><?= nl2br(esc($c['body'])) ?></div>
+            </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+        </div>
+        <div class="card-footer py-2">
+            <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/comment') ?>">
+                <?= csrf_field() ?>
+                <div class="d-flex gap-2">
+                    <input type="text" name="body" class="form-control form-control-sm" placeholder="Tulis komentar…" required>
+                    <button type="submit" class="btn btn-primary btn-sm flex-shrink-0">Kirim</button>
                 </div>
             </form>
         </div>

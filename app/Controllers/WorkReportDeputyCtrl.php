@@ -45,18 +45,29 @@ class WorkReportDeputyCtrl extends BaseController
 
         $items = $this->m->forDivision((int) $emp['divisi_id']);
 
-        // Hitung komentar GM (gm_deputy) per inisiatif — satu query untuk semua
+        // Badge "Pesan GM": cek komentar gm_deputy yang lebih baru dari last_read_gm_at
         $initiativeIds = array_column($items, 'id');
-        $gmCommentCounts = [];
+        $gmUnread = [];
         if ($initiativeIds) {
+            // Waktu baca terakhir per inisiatif untuk user ini
+            $reads = $db->table('work_initiative_reads')
+                ->whereIn('initiative_id', $initiativeIds)
+                ->where('user_id', session()->get('user_id'))
+                ->get()->getResultArray();
+            $readMap = array_column($reads, 'last_read_gm_at', 'initiative_id');
+
+            // Komentar GM terbaru per inisiatif
             $rows = $db->table('work_initiative_comments')
-                ->select('initiative_id, COUNT(*) AS cnt')
+                ->select('initiative_id, MAX(created_at) AS latest_at')
                 ->where('visibility', 'gm_deputy')
                 ->whereIn('initiative_id', $initiativeIds)
                 ->groupBy('initiative_id')
                 ->get()->getResultArray();
             foreach ($rows as $r) {
-                $gmCommentCounts[$r['initiative_id']] = (int) $r['cnt'];
+                $lastRead = $readMap[$r['initiative_id']] ?? null;
+                if (! $lastRead || $r['latest_at'] > $lastRead) {
+                    $gmUnread[$r['initiative_id']] = true;
+                }
             }
         }
 
@@ -76,7 +87,7 @@ class WorkReportDeputyCtrl extends BaseController
             'depts'           => $depts,
             'divisi'          => $divisi,
             'emp'             => $emp,
-            'gmCommentCounts' => $gmCommentCounts,
+            'gmUnread' => $gmUnread,
         ]);
     }
 
@@ -263,6 +274,19 @@ class WorkReportDeputyCtrl extends BaseController
             ->where('division_id', $emp['divisi_id'])
             ->where('is_outsource', 0)
             ->get()->getResultArray();
+
+        // Mark GM thread as read
+        $uid = (int) session()->get('user_id');
+        $existing = $db->table('work_initiative_reads')
+            ->where('initiative_id', $id)->where('user_id', $uid)->get()->getRowArray();
+        if ($existing) {
+            $db->table('work_initiative_reads')
+                ->where('initiative_id', $id)->where('user_id', $uid)
+                ->update(['last_read_gm_at' => date('Y-m-d H:i:s')]);
+        } else {
+            $db->table('work_initiative_reads')
+                ->insert(['initiative_id' => $id, 'user_id' => $uid, 'last_read_gm_at' => date('Y-m-d H:i:s')]);
+        }
 
         return view('work_report/deputy_detail', [
             'item'         => $item,
