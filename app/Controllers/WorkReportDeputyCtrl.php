@@ -45,6 +45,21 @@ class WorkReportDeputyCtrl extends BaseController
 
         $items = $this->m->forDivision((int) $emp['divisi_id']);
 
+        // Hitung komentar GM (gm_deputy) per inisiatif — satu query untuk semua
+        $initiativeIds = array_column($items, 'id');
+        $gmCommentCounts = [];
+        if ($initiativeIds) {
+            $rows = $db->table('work_initiative_comments')
+                ->select('initiative_id, COUNT(*) AS cnt')
+                ->where('visibility', 'gm_deputy')
+                ->whereIn('initiative_id', $initiativeIds)
+                ->groupBy('initiative_id')
+                ->get()->getResultArray();
+            foreach ($rows as $r) {
+                $gmCommentCounts[$r['initiative_id']] = (int) $r['cnt'];
+            }
+        }
+
         // Kelompokkan per dept
         $byDept = [];
         foreach ($items as $item) {
@@ -55,12 +70,13 @@ class WorkReportDeputyCtrl extends BaseController
         $ownItems = array_filter($items, fn($i) => (int)$i['created_by'] === (int)$emp['id'] && ! $i['assigned_to_dept_id']);
 
         return view('work_report/division', [
-            'items'    => $items,
-            'byDept'   => $byDept,
-            'ownItems' => array_values($ownItems),
-            'depts'    => $depts,
-            'divisi'   => $divisi,
-            'emp'      => $emp,
+            'items'           => $items,
+            'byDept'          => $byDept,
+            'ownItems'        => array_values($ownItems),
+            'depts'           => $depts,
+            'divisi'          => $divisi,
+            'emp'             => $emp,
+            'gmCommentCounts' => $gmCommentCounts,
         ]);
     }
 

@@ -59,6 +59,11 @@ ksort($grouped);
                 <?php if ($overdue): ?>
                 <span class="badge bg-danger" style="font-size:.63rem"><i class="bi bi-exclamation-triangle me-1"></i>Terlambat</span>
                 <?php endif; ?>
+                <?php if (($gmCommentCounts[$item['id']] ?? 0) > 0): ?>
+                <span class="badge bg-primary" style="font-size:.63rem">
+                    <i class="bi bi-chat-fill me-1"></i>Pesan GM (<?= $gmCommentCounts[$item['id']] ?>)
+                </span>
+                <?php endif; ?>
                 <?php if (! empty($item['assigned_to_dept_id'])): ?>
                 <span class="badge bg-info-subtle text-info" style="font-size:.63rem"><i class="bi bi-person-badge me-1"></i>Dari Deputy</span>
                 <?php endif; ?>
@@ -70,7 +75,8 @@ ksort($grouped);
             <div class="text-warning-emphasis" style="font-size:.73rem"><i class="bi bi-cone-striped me-1"></i><?= esc(mb_substr($item['latest_hambatan'], 0, 100)) ?></div>
             <?php endif; ?>
             <div class="d-flex gap-3 mt-1" style="font-size:.68rem;color:var(--bs-secondary-color)">
-                <?php if (! empty($item['pic_name'])): ?><span><i class="bi bi-person me-1"></i><?= esc($item['pic_name']) ?></span><?php endif; ?>
+                <?php if (! empty($item['created_by_name'])): ?><span class="text-muted"><i class="bi bi-pencil me-1"></i><?= esc($item['created_by_name']) ?></span><?php endif; ?>
+                <?php if (! empty($item['pic_name'])): ?><span><i class="bi bi-person-check me-1"></i>PIC: <?= esc($item['pic_name']) ?></span><?php endif; ?>
                 <?php if (! empty($item['target_selesai'])): ?><span><i class="bi bi-calendar-check me-1"></i><?= date('d M Y', strtotime($item['target_selesai'])) ?></span><?php endif; ?>
                 <?php if (! empty($item['latest_updated_at'])): ?><span><i class="bi bi-arrow-repeat me-1"></i><?= date('d M Y', strtotime($item['latest_updated_at'])) ?></span><?php endif; ?>
             </div>
@@ -80,19 +86,18 @@ ksort($grouped);
             <!-- Flag/Unflag -->
             <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/flag') ?>">
                 <?= csrf_field() ?>
-                <button type="submit" class="btn btn-sm <?= $isFlagged ? 'btn-warning' : 'btn-outline-secondary' ?>"
-                    style="font-size:.68rem" title="<?= $isFlagged ? 'Sembunyikan dari GM' : 'Tampilkan di GM' ?>">
-                    <i class="bi bi-flag<?= $isFlagged ? '-fill' : '' ?>"></i>
+                <button type="submit" class="btn btn-sm <?= $isFlagged ? 'btn-warning' : 'btn-outline-secondary' ?>" style="font-size:.68rem">
+                    <i class="bi bi-flag<?= $isFlagged ? '-fill' : '' ?> me-1"></i><?= $isFlagged ? 'Batalkan Flag' : 'Flag ke GM' ?>
                 </button>
             </form>
             <!-- Komentar ke Dept -->
             <button class="btn btn-sm btn-outline-primary" style="font-size:.68rem"
                 data-bs-toggle="collapse" data-bs-target="#commentForm<?= $item['id'] ?>">
-                <i class="bi bi-chat-left-dots"></i>
+                <i class="bi bi-chat-left-dots me-1"></i>Komentar
             </button>
             <!-- Detail -->
             <a href="<?= base_url('work-report/division/' . $item['id'] . '/detail') ?>" class="btn btn-sm btn-outline-info" style="font-size:.68rem">
-                <i class="bi bi-eye"></i>
+                <i class="bi bi-eye me-1"></i>Detail
             </a>
         </div>
     </div>

@@ -66,7 +66,8 @@ foreach ($divisiItems as $item) {
                 <div class="text-muted small mb-1"><?= esc(mb_substr($item['deskripsi'], 0, 150)) ?></div>
                 <?php endif; ?>
                 <div class="d-flex flex-wrap gap-3" style="font-size:.7rem;color:var(--bs-secondary-color)">
-                    <?php if (! empty($item['pic_name'])): ?><span><i class="bi bi-person me-1"></i><?= esc($item['pic_name']) ?></span><?php endif; ?>
+                    <?php if (! empty($item['created_by_name'])): ?><span class="text-muted"><i class="bi bi-pencil me-1"></i><?= esc($item['created_by_name']) ?></span><?php endif; ?>
+                    <?php if (! empty($item['pic_name'])): ?><span><i class="bi bi-person-check me-1"></i>PIC: <?= esc($item['pic_name']) ?></span><?php endif; ?>
                     <?php if (! empty($item['target_selesai'])): ?><span><i class="bi bi-calendar-check me-1"></i><?= date('d M Y', strtotime($item['target_selesai'])) ?></span><?php endif; ?>
                     <?php if (! empty($item['deputy_name'])): ?><span><i class="bi bi-person-badge me-1 text-primary"></i>Dikurasi: <?= esc($item['deputy_name']) ?></span><?php endif; ?>
                 </div>
