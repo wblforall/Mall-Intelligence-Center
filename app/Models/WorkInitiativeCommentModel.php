@@ -18,7 +18,7 @@ class WorkInitiativeCommentModel extends Model
             ->join('employees e', 'e.id = work_initiative_comments.author_id', 'left')
             ->where('initiative_id', $initiativeId)
             ->where('visibility', 'dept_deputy')
-            ->whereNull('parent_id')
+            ->where('work_initiative_comments.parent_id IS NULL')
             ->orderBy('created_at', 'ASC')
             ->findAll();
     }

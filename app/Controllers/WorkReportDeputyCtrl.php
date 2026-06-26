@@ -266,9 +266,14 @@ class WorkReportDeputyCtrl extends BaseController
         if (! $uid) return null;
         return \Config\Database::connect()
             ->table('employees')
-            ->select('employees.*, d.name AS dept_name, d.division_id AS divisi_id, dv.nama AS divisi_name, j.grade, j.nama AS jabatan_nama')
+            ->select('employees.*,
+                d.name AS dept_name,
+                COALESCE(dv_direct.id, dv_dept.id) AS divisi_id,
+                COALESCE(dv_direct.nama, dv_dept.nama) AS divisi_name,
+                j.grade, j.nama AS jabatan_nama')
             ->join('departments d', 'd.id = employees.dept_id', 'left')
-            ->join('divisions dv', 'dv.id = d.division_id', 'left')
+            ->join('divisions dv_dept', 'dv_dept.id = d.division_id', 'left')
+            ->join('divisions dv_direct', 'dv_direct.id = employees.division_id', 'left')
             ->join('jabatans j', 'j.id = employees.jabatan_id', 'left')
             ->where('employees.user_id', $uid)
             ->get()->getRowArray();
