@@ -74,12 +74,44 @@ class WorkReportCtrl extends BaseController
             $histories[$it['id']] = $this->mu->historyFor((int) $it['id']);
         }
 
+        // Badge unread: komentar Deputy (dept_deputy) yang belum Dept Head baca
+        $initiativeIds = array_column($items, 'id');
+        $commentUnread = [];
+        if ($initiativeIds) {
+            $uid = (int) session()->get('user_id');
+            $reads = $db->table('work_initiative_reads')
+                ->whereIn('initiative_id', $initiativeIds)
+                ->where('user_id', $uid)
+                ->get()->getResultArray();
+            $readMap = array_column($reads, 'last_read_comment_at', 'initiative_id');
+
+            $rows = $db->table('work_initiative_comments')
+                ->select('initiative_id, MAX(created_at) AS latest_at, COUNT(*) AS total')
+                ->where('visibility', 'dept_deputy')
+                ->whereIn('initiative_id', $initiativeIds)
+                ->groupBy('initiative_id')
+                ->get()->getResultArray();
+            foreach ($rows as $r) {
+                $lastRead = $readMap[$r['initiative_id']] ?? null;
+                if (! $lastRead || $r['latest_at'] > $lastRead) {
+                    $commentUnread[$r['initiative_id']] = $lastRead
+                        ? $db->table('work_initiative_comments')
+                            ->where('initiative_id', $r['initiative_id'])
+                            ->where('visibility', 'dept_deputy')
+                            ->where('created_at >', $lastRead)
+                            ->countAllResults()
+                        : (int) $r['total'];
+                }
+            }
+        }
+
         return view('work_report/index', [
-            'items'     => $items,
-            'histories' => $histories,
-            'deptInfo'  => $deptInfo,
-            'employees' => $employees,
-            'empId'     => (int) $emp['id'],
+            'items'          => $items,
+            'histories'      => $histories,
+            'commentUnread'  => $commentUnread,
+            'deptInfo'       => $deptInfo,
+            'employees'      => $employees,
+            'empId'          => (int) $emp['id'],
         ]);
     }
 
@@ -221,7 +253,21 @@ class WorkReportCtrl extends BaseController
         $db       = \Config\Database::connect();
         $deptInfo = $db->table('departments')->where('id', $item['dept_id'])->get()->getRowArray();
         $history  = $this->mu->historyFor($id);
-        $comments = $this->mc->deptDeputyComments($id); // Dept Head hanya lihat komentar dept_deputy
+        $comments = $this->mc->deptDeputyComments($id);
+
+        // Mark komentar Deputy sebagai terbaca
+        $uid = (int) session()->get('user_id');
+        $now = date('Y-m-d H:i:s');
+        $existing = $db->table('work_initiative_reads')
+            ->where('initiative_id', $id)->where('user_id', $uid)->get()->getRowArray();
+        if ($existing) {
+            $db->table('work_initiative_reads')
+                ->where('initiative_id', $id)->where('user_id', $uid)
+                ->update(['last_read_comment_at' => $now]);
+        } else {
+            $db->table('work_initiative_reads')
+                ->insert(['initiative_id' => $id, 'user_id' => $uid, 'last_read_comment_at' => $now]);
+        }
 
         return view('work_report/detail', [
             'item'     => $item,

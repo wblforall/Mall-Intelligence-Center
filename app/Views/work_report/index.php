@@ -47,6 +47,9 @@ $statusLabel = [
             <?php if ($overdue): ?>
             <span class="badge bg-danger ms-1" style="font-size:.65rem"><i class="bi bi-exclamation-triangle me-1"></i>Terlambat</span>
             <?php endif; ?>
+            <?php if (! empty($commentUnread[$item['id']])): ?>
+            <span class="badge rounded-pill bg-danger ms-1" style="font-size:.65rem;min-width:1.4em"><?= $commentUnread[$item['id']] ?></span>
+            <?php endif; ?>
         </div>
         <div class="d-flex gap-1 flex-shrink-0">
             <?php if ($info): ?>

@@ -61,6 +61,7 @@ foreach ($divisiItems as $item) {
                     <?= esc($item['judul']) ?>
                     <?php if ($info): ?><span class="badge <?= $info['badge'] ?> ms-1" style="font-size:.65rem"><?= $info['label'] ?></span><?php endif; ?>
                     <?php if ($overdue): ?><span class="badge bg-danger ms-1" style="font-size:.65rem"><i class="bi bi-exclamation-triangle me-1"></i>Terlambat</span><?php endif; ?>
+                    <?php if (! empty($gmUnread[$item['id']])): ?><span class="badge rounded-pill bg-danger ms-1" style="font-size:.65rem;min-width:1.4em"><?= $gmUnread[$item['id']] ?></span><?php endif; ?>
                 </div>
                 <?php if (! empty($item['deskripsi'])): ?>
                 <div class="text-muted small mb-1"><?= esc(mb_substr($item['deskripsi'], 0, 150)) ?></div>
