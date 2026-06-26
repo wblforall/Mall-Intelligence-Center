@@ -13,7 +13,7 @@ $statusLabel = [
 
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Inisiatif Kerja — Admin</h4>
+        <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report — Admin</h4>
         <small class="text-muted"><?= $total ?> inisiatif aktif</small>
     </div>
 </div>

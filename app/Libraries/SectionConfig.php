@@ -21,7 +21,7 @@ class SectionConfig
         'parking_vehicles'   => 'Parkir — Traffic Kendaraan',
         'parking_revenue'    => 'Parkir — Revenue',
         'legal'              => 'Legal',
-        'work_report'        => 'Laporan Inisiatif Kerja',
+        'work_report'        => 'Progress Report',
         // ── Per-Event (Event Sub-menu) ───────────────────────────
         'summary'       => 'Event Summary',
         'content'       => 'Content & Rundown',

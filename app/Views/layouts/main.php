@@ -512,9 +512,9 @@ body { min-height: 100vh; }
                      || ($_userMenusWR['work_report']['can_view'] ?? false);
         if ($_canViewWR):
         ?>
-        <div class="nav-label">Inisiatif Kerja</div>
+        <div class="nav-label">Progress Report</div>
         <a href="<?= base_url('work-report') ?>" class="nav-link <?= str_starts_with(uri_string(), 'work-report') ? 'active' : '' ?>">
-            <i class="bi bi-kanban"></i> Laporan Inisiatif
+            <i class="bi bi-kanban"></i> Progress Report
         </a>
         <?php endif; ?>
 

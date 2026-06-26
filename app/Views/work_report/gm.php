@@ -13,7 +13,7 @@ $statusLabel = [
 
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Laporan Inisiatif Kerja</h4>
+        <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report</h4>
         <small class="text-muted">Ringkasan yang dikurasi Deputy per Divisi</small>
     </div>
     <?php if (! empty($byDivisi)): ?>
@@ -148,7 +148,7 @@ foreach ($divisiItems as $item) {
 // Build teks laporan untuk clipboard
 $statusText = ['on_track'=>'On Track','at_risk'=>'At Risk','delayed'=>'Delayed','done'=>'Selesai','cancelled'=>'Dibatalkan'];
 $lines = [];
-$lines[] = '*LAPORAN INISIATIF KERJA*';
+$lines[] = '*PROGRESS REPORT*';
 $lines[] = 'Per: ' . date('d M Y');
 foreach ($byDivisi as $divisiName => $divisiItems):
     $lines[] = '';

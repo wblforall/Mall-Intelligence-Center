@@ -57,7 +57,7 @@ class WorkReportReminder extends BaseCommand
             $count    = count($items);
 
             $body = EmailNotifier::workReportReminder($empNama, $deptName, $items, $monday);
-            $subject = "Reminder: Update Inisiatif Kerja Minggu Ini — {$deptName}";
+            $subject = "Reminder: Update Progress Report Minggu Ini — {$deptName}";
 
             if (EmailNotifier::send($email, $subject, $body)) {
                 $sent++;

@@ -13,7 +13,7 @@ $statusLabel = [
 
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Inisiatif Kerja — Divisi</h4>
+        <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report — Divisi</h4>
         <small class="text-muted"><?= esc($divisi['nama'] ?? '') ?></small>
     </div>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAdd">

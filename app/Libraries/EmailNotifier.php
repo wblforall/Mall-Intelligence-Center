@@ -183,7 +183,7 @@ class EmailNotifier
         }
         $content = "
             <p>Yth. <strong>" . htmlspecialchars($empNama) . "</strong>,</p>
-            <p>Minggu ini (<strong>{$tgl}</strong>) belum ada update progress untuk inisiatif kerja berikut:</p>
+            <p>Minggu ini (<strong>{$tgl}</strong>) belum ada update progress untuk progress report berikut:</p>
             <table style='width:100%;border-collapse:collapse;font-size:9.5pt;margin:12px 0'>
                 <thead><tr style='background:#f3f4f6'>
                     <th style='padding:6px 8px;border:1px solid #e5e7eb;text-align:left'>Inisiatif</th>

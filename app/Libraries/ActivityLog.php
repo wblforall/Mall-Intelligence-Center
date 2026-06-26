@@ -102,7 +102,7 @@ class ActivityLog
         'legal_review'                  => 'Review Kontrak Legal',
         'dashboard'                     => 'Dashboard Utama',
         'profile'                       => 'Profil Akun',
-        'work_initiative'               => 'Inisiatif Kerja',
+        'work_initiative'               => 'Progress Report',
     ];
 
     // Label ramah-baca untuk sebuah module key; fallback humanize bila tak terdaftar
