@@ -3,6 +3,10 @@
 <style>
 .pk-chart { position:relative; height:300px; }
 .pk-chart-sm { position:relative; height:240px; }
+/* Tabel revenue: header & footer sticky, background navy solid (tema --card-bg cuma .92 opaque) */
+.rev-tbl { border-collapse:separate; border-spacing:0; }
+.rev-tbl thead th { position:sticky; top:0; z-index:5; background-color:#0e1a2a !important; box-shadow:inset 0 -1px 0 rgba(255,255,255,.12); }
+.rev-tbl tfoot td { position:sticky; bottom:0; z-index:5; background-color:#0e1a2a !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.12); }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -130,6 +134,108 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
             <div class="text-secondary small"><i class="bi bi-info-circle"></i> Belum ada arsip metode pembayaran untuk periode ini. Jalankan <code>php spark mic:spi-sync --from 2023-01-01</code> untuk mengisi arsip dari SPI.</div>
             <?php endif; ?>
         </div></div>
+    </div>
+</div>
+
+<!-- Tabel revenue: Month-to-Month & Day-to-Day -->
+<div class="row g-3 mt-1">
+    <!-- Month to month (Casual / Member / Total) -->
+    <div class="col-12 col-xl-5">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar3 me-2"></i>Revenue per Bulan</h6>
+                <span class="text-secondary small">sejak Jan 2023</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height:460px">
+                    <table class="table table-sm table-hover align-middle mb-0 small rev-tbl">
+                        <thead>
+                            <tr>
+                                <th class="text-start ps-3">Bulan</th>
+                                <th class="text-end">Casual</th>
+                                <th class="text-end">Member</th>
+                                <th class="text-end pe-3">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($total)): ?>
+                            <tr><td colspan="4" class="text-secondary py-3 text-center">Belum ada data.</td></tr>
+                            <?php else: foreach ($total as $i => $t):
+                                $c = $casual[$i]['value'] ?? 0;
+                                $m = $member[$i]['value'] ?? 0;
+                            ?>
+                            <tr>
+                                <td class="text-start ps-3 fw-medium"><?= esc($t['label']) ?></td>
+                                <td class="text-end"><?= $rp($c) ?></td>
+                                <td class="text-end"><?= $rp($m) ?></td>
+                                <td class="text-end pe-3 fw-semibold"><?= $rp($t['value']) ?></td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                        <?php if (! empty($total)): ?>
+                        <tfoot class="fw-bold">
+                            <tr>
+                                <td class="text-start ps-3">Total</td>
+                                <td class="text-end"><?= $rp($sumCasual) ?></td>
+                                <td class="text-end"><?= $rp($sumMember) ?></td>
+                                <td class="text-end pe-3 text-success"><?= $rp($sumTotal) ?></td>
+                            </tr>
+                        </tfoot>
+                        <?php endif; ?>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Day to day (per jenis) -->
+    <div class="col-12 col-xl-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-day me-2"></i>Revenue per Hari <span class="text-secondary small fw-normal">(per jenis)</span></h6>
+                <span class="text-secondary small"><?= $fmtDate($start) ?> – <?= $fmtDate($end) ?></span>
+            </div>
+            <div class="card-body p-0">
+                <?php $rtypes = ['mobil' => 'Mobil', 'motor' => 'Motor', 'box' => 'Box', 'truck' => 'Truck', 'taxi' => 'Taxi', 'bus' => 'Bus']; ?>
+                <div class="table-responsive" style="max-height:460px">
+                    <table class="table table-sm table-hover align-middle mb-0 small text-end rev-tbl">
+                        <thead>
+                            <tr>
+                                <th class="text-start ps-3">Tanggal</th>
+                                <?php foreach ($rtypes as $lbl): ?>
+                                <th><?= $lbl ?></th>
+                                <?php endforeach; ?>
+                                <th class="pe-3">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($daily)): ?>
+                            <tr><td colspan="<?= count($rtypes) + 2 ?>" class="text-secondary py-3 text-center">Belum ada data untuk periode ini.</td></tr>
+                            <?php else: foreach ($daily as $row): ?>
+                            <tr>
+                                <td class="text-start ps-3 fw-medium"><?= $fmtDate($row['tanggal']) ?></td>
+                                <?php foreach ($rtypes as $k => $lbl): $v = (int) ($row[$k] ?? 0); ?>
+                                <td class="<?= $v === 0 ? 'text-secondary' : '' ?>"><?= $rp($v) ?></td>
+                                <?php endforeach; ?>
+                                <td class="pe-3 fw-semibold"><?= $rp((int) ($row['total'] ?? 0)) ?></td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                        <?php if (! empty($daily)): ?>
+                        <tfoot class="fw-bold">
+                            <tr>
+                                <td class="text-start ps-3">Total</td>
+                                <?php foreach ($rtypes as $k => $lbl): ?>
+                                <td><?= $rp($byType[$k] ?? 0) ?></td>
+                                <?php endforeach; ?>
+                                <td class="pe-3 text-success"><?= $rp($sumPeriod) ?></td>
+                            </tr>
+                        </tfoot>
+                        <?php endif; ?>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
