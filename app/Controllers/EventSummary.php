@@ -256,21 +256,54 @@ class EventSummary extends BaseController
         $chartMobil  = [];
         $chartMotor  = [];
 
+        // Jenis kendaraan (key => [label, kolom DB]) — urutan tampil tabel day-to-day
+        $vehicleTypeMeta = [
+            'mobil'      => ['label' => 'Mobil',      'col' => 'total_mobil'],
+            'motor'      => ['label' => 'Motor',      'col' => 'total_motor'],
+            'mobil_box'  => ['label' => 'Mobil Box',  'col' => 'total_mobil_box'],
+            'truck'      => ['label' => 'Truck',      'col' => 'total_truck'],
+            'bus'        => ['label' => 'Bus',        'col' => 'total_bus'],
+            'mobil_free' => ['label' => 'Mobil Free', 'col' => 'total_mobil_free'],
+            'motor_free' => ['label' => 'Motor Free', 'col' => 'total_motor_free'],
+        ];
+
         // Fill every day of event
-        $vehicleMap = [];
+        $vehicleByDate = [];
         foreach ($vehicleData as $v) {
-            $vehicleMap[$v['tanggal']]['mobil'] = (int)$v['total_mobil'];
-            $vehicleMap[$v['tanggal']]['motor'] = (int)$v['total_motor'];
+            foreach ($vehicleTypeMeta as $key => $meta) {
+                $vehicleByDate[$v['tanggal']][$key] = (int)($v[$meta['col']] ?? 0);
+            }
         }
+
+        $vehicleDaily      = [];   // baris per-tanggal: ['label', 'counts'=>[type=>n], 'total']
+        $vehicleTypeTotals = [];   // total per jenis sepanjang event
+        foreach ($vehicleTypeMeta as $key => $meta) { $vehicleTypeTotals[$key] = 0; }
 
         for ($i = 0; $i < $event['event_days']; $i++) {
             $date          = date('Y-m-d', strtotime($startDate . " +{$i} days"));
             $chartDates[]  = date('d/m', strtotime($date));
             $chartEwalk[]  = $trafficMap[$date]['ewalk'] ?? 0;
             $chartPenta[]  = $trafficMap[$date]['pentacity'] ?? 0;
-            $chartMobil[]  = $vehicleMap[$date]['mobil'] ?? 0;
-            $chartMotor[]  = $vehicleMap[$date]['motor'] ?? 0;
+            $chartMobil[]  = $vehicleByDate[$date]['mobil'] ?? 0;
+            $chartMotor[]  = $vehicleByDate[$date]['motor'] ?? 0;
+
+            $dayCounts = [];
+            $dayTotal  = 0;
+            foreach ($vehicleTypeMeta as $key => $meta) {
+                $c = $vehicleByDate[$date][$key] ?? 0;
+                $dayCounts[$key]          = $c;
+                $dayTotal                += $c;
+                $vehicleTypeTotals[$key] += $c;
+            }
+            $vehicleDaily[] = ['label' => date('d/m', strtotime($date)), 'counts' => $dayCounts, 'total' => $dayTotal];
         }
+
+        // Hanya tampilkan jenis yang ada datanya
+        $vehicleActiveTypes = [];
+        foreach ($vehicleTypeMeta as $key => $meta) {
+            if ($vehicleTypeTotals[$key] > 0) $vehicleActiveTypes[$key] = $meta['label'];
+        }
+        $vehicleGrandTotal = array_sum($vehicleTypeTotals);
 
         // Chart totals
         $totalEwalk     = array_sum($chartEwalk);
@@ -352,6 +385,10 @@ class EventSummary extends BaseController
             'chartPenta'            => $chartPenta,
             'chartMobil'            => $chartMobil,
             'chartMotor'            => $chartMotor,
+            'vehicleDaily'          => $vehicleDaily,
+            'vehicleActiveTypes'    => $vehicleActiveTypes,
+            'vehicleTypeTotals'     => $vehicleTypeTotals,
+            'vehicleGrandTotal'     => $vehicleGrandTotal,
             'eventLocations'        => (new EventLocationModel())->getEventLocations($eventId),
             'canApprove'            => $canApprove,
         ]);

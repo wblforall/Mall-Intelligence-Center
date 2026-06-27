@@ -309,6 +309,55 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
 </div>
 </div><!-- /charts row -->
 
+<!-- Tabel kendaraan harian per jenis -->
+<?php if ($vehicleGrandTotal > 0): ?>
+<div class="row g-3 mb-3">
+<div class="col-12 anim-fade-up" style="animation-delay:.5s">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>Kendaraan Harian per Jenis</h6>
+            <span class="fw-bold text-warning" style="font-size:.82rem"><?= number_format($vehicleGrandTotal) ?> total</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 text-center small">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-start ps-3">Tanggal</th>
+                            <?php foreach ($vehicleActiveTypes as $label): ?>
+                            <th class="text-end"><?= esc($label) ?></th>
+                            <?php endforeach; ?>
+                            <th class="text-end pe-3">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($vehicleDaily as $row): ?>
+                        <tr>
+                            <td class="text-start ps-3 fw-medium"><?= esc($row['label']) ?></td>
+                            <?php foreach ($vehicleActiveTypes as $key => $label): ?>
+                            <td class="text-end<?= $row['counts'][$key] === 0 ? ' text-muted' : '' ?>"><?= number_format($row['counts'][$key]) ?></td>
+                            <?php endforeach; ?>
+                            <td class="text-end pe-3 fw-semibold"><?= number_format($row['total']) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td class="text-start ps-3">Total</td>
+                            <?php foreach ($vehicleActiveTypes as $key => $label): ?>
+                            <td class="text-end"><?= number_format($vehicleTypeTotals[$key]) ?></td>
+                            <?php endforeach; ?>
+                            <td class="text-end pe-3 text-warning"><?= number_format($vehicleGrandTotal) ?></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+<?php endif; ?>
+
 <!-- Cards -->
 <div class="row g-3">
 <div class="col-lg-6 anim-fade-up" style="animation-delay:.52s">
