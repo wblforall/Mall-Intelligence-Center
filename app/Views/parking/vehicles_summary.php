@@ -3,6 +3,16 @@
 <style>
 .pk-chart { position:relative; height:300px; }
 .pk-chart-sm { position:relative; height:240px; }
+/* Tabel rincian: header & footer sticky.
+   - border-collapse: separate WAJIB (dgn collapse, bg sel sticky tdk ikut tercat).
+   - bg pakai navy SOLID 100% — tema ini --card-bg cuma .92 opaque, sisanya tembus saat scroll. */
+.pk-detail { border-collapse:separate; border-spacing:0; }
+.pk-detail thead th { position:sticky; z-index:5; background-color:#0e1a2a !important; }
+.pk-detail thead tr:first-child th  { top:0; }
+.pk-detail thead tr:nth-child(2) th { top:30px; box-shadow:inset 0 -1px 0 rgba(255,255,255,.12); }
+.pk-detail tfoot td { position:sticky; bottom:0; z-index:5; background-color:#0e1a2a !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.12); }
+/* garis pemisah antar grup jenis (kolom Bayar paling kiri tiap jenis + kolom Total) */
+.pk-detail .grp { border-left:1px solid rgba(255,255,255,.08); }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -119,6 +129,72 @@ $grTot = max(1, $grandTotal);
                 <?php else: ?>
                 <div class="pk-chart-sm"><canvas id="chartDuration"></canvas></div>
                 <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rincian per tanggal -->
+<?php $pkTypes = ['mobil' => 'Mobil', 'motor' => 'Motor', 'box' => 'Box', 'truck' => 'Truck', 'taxi' => 'Taxi', 'bus' => 'Bus']; ?>
+<div class="row g-3 mt-0">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>Rincian per Tanggal</h6>
+                    <span class="text-secondary" style="font-size:.72rem">Tiap jenis dipecah: <b>Casual</b> &amp; <b>Langg.</b> (member)</span>
+                </div>
+                <span class="text-secondary small"><?= $fmtDate($start) ?> – <?= $fmtDate($end) ?> · <?= count($daily) ?> hari</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height:560px">
+                    <table class="table table-sm table-hover align-middle mb-0 text-center small pk-detail">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" class="text-start ps-3 align-middle">Tanggal</th>
+                                <?php foreach ($pkTypes as $label): ?>
+                                <th colspan="2" class="grp"><?= $label ?></th>
+                                <?php endforeach; ?>
+                                <th rowspan="2" class="text-end pe-3 align-middle grp">Total</th>
+                            </tr>
+                            <tr>
+                                <?php foreach ($pkTypes as $label): ?>
+                                <th class="text-end grp fw-normal text-secondary" style="font-size:.7rem">Casual</th>
+                                <th class="text-end fw-normal text-secondary" style="font-size:.7rem">Langg.</th>
+                                <?php endforeach; ?>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($daily)): ?>
+                            <tr><td colspan="<?= count($pkTypes) * 2 + 2 ?>" class="text-secondary py-3">Belum ada data untuk periode ini.</td></tr>
+                            <?php else: foreach ($daily as $row): ?>
+                            <tr>
+                                <td class="text-start ps-3 fw-medium"><?= $fmtDate($row['tanggal']) ?></td>
+                                <?php foreach ($pkTypes as $k => $lbl):
+                                    $v  = (int) ($row[$k] ?? 0);
+                                    $vf = min((int) ($row[$k . '_free'] ?? 0), $v);
+                                ?>
+                                <td class="text-end grp"><?= $num($v - $vf) ?></td>
+                                <td class="text-end text-secondary"><?= $num($vf) ?></td>
+                                <?php endforeach; ?>
+                                <td class="text-end pe-3 fw-semibold grp"><?= $num((int) ($row['total'] ?? 0)) ?></td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                        <?php if (! empty($daily)): ?>
+                        <tfoot class="fw-bold">
+                            <tr>
+                                <td class="text-start ps-3">Total</td>
+                                <?php foreach ($pkTypes as $k => $lbl): $bt = (int) ($byType[$k] ?? 0); $ft = (int) ($free[$k] ?? 0); ?>
+                                <td class="text-end grp"><?= $num($bt - $ft) ?></td>
+                                <td class="text-end text-secondary fw-normal"><?= $num($ft) ?></td>
+                                <?php endforeach; ?>
+                                <td class="text-end pe-3 text-primary grp"><?= $num($grandTotal) ?></td>
+                            </tr>
+                        </tfoot>
+                        <?php endif; ?>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
