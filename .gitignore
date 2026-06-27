@@ -78,3 +78,4 @@ public/.htaccess
 
 # SPI cookie jar (runtime)
 writable/spi/
+public/userguide/
