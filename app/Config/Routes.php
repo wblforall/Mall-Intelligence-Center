@@ -593,23 +593,59 @@ $routes->get ('legal/permits/(:num)/edit',                'Legal\LegalPermitCont
 $routes->post('legal/permits/(:num)/edit',                'Legal\LegalPermitController::update/$1',         ['filter' => 'auth']);
 $routes->post('legal/permits/(:num)/delete',              'Legal\LegalPermitController::delete/$1',         ['filter' => 'auth']);
 
-// Kontrak Vendor
-$routes->get ('legal/contracts',                          'Legal\LegalContractController::index',           ['filter' => 'auth']);
-$routes->get ('legal/contracts/new',                      'Legal\LegalContractController::new',             ['filter' => 'auth']);
-$routes->post('legal/contracts',                          'Legal\LegalContractController::create',          ['filter' => 'auth']);
-$routes->get ('legal/contracts/(:num)',                   'Legal\LegalContractController::show/$1',         ['filter' => 'auth']);
-$routes->get ('legal/contracts/(:num)/edit',              'Legal\LegalContractController::edit/$1',         ['filter' => 'auth']);
-$routes->post('legal/contracts/(:num)/edit',              'Legal\LegalContractController::update/$1',       ['filter' => 'auth']);
-$routes->post('legal/contracts/(:num)/delete',            'Legal\LegalContractController::delete/$1',       ['filter' => 'auth']);
+// Review SPK
+$routes->get ('legal/spk',                                'Legal\LegalSpkController::index',                ['filter' => 'auth']);
+$routes->get ('legal/spk/new',                            'Legal\LegalSpkController::new',                  ['filter' => 'auth']);
+$routes->post('legal/spk',                                'Legal\LegalSpkController::create',               ['filter' => 'auth']);
+$routes->get ('legal/spk/(:num)',                         'Legal\LegalSpkController::show/$1',              ['filter' => 'auth']);
+$routes->get ('legal/spk/(:num)/edit',                    'Legal\LegalSpkController::edit/$1',              ['filter' => 'auth']);
+$routes->post('legal/spk/(:num)/edit',                    'Legal\LegalSpkController::update/$1',            ['filter' => 'auth']);
+$routes->post('legal/spk/(:num)/delete',                  'Legal\LegalSpkController::delete/$1',            ['filter' => 'auth']);
 
-// Perjanjian Sewa
-$routes->get ('legal/leases',                             'Legal\LegalLeaseController::index',              ['filter' => 'auth']);
-$routes->get ('legal/leases/new',                         'Legal\LegalLeaseController::new',                ['filter' => 'auth']);
-$routes->post('legal/leases',                             'Legal\LegalLeaseController::create',             ['filter' => 'auth']);
-$routes->get ('legal/leases/(:num)',                      'Legal\LegalLeaseController::show/$1',            ['filter' => 'auth']);
-$routes->get ('legal/leases/(:num)/edit',                 'Legal\LegalLeaseController::edit/$1',            ['filter' => 'auth']);
-$routes->post('legal/leases/(:num)/edit',                 'Legal\LegalLeaseController::update/$1',          ['filter' => 'auth']);
-$routes->post('legal/leases/(:num)/delete',               'Legal\LegalLeaseController::delete/$1',          ['filter' => 'auth']);
+// Perjanjian Kerja Sama
+$routes->get ('legal/pks',                                'Legal\LegalPksController::index',                ['filter' => 'auth']);
+$routes->get ('legal/pks/new',                            'Legal\LegalPksController::new',                  ['filter' => 'auth']);
+$routes->post('legal/pks',                                'Legal\LegalPksController::create',               ['filter' => 'auth']);
+$routes->get ('legal/pks/(:num)',                         'Legal\LegalPksController::show/$1',              ['filter' => 'auth']);
+$routes->get ('legal/pks/(:num)/edit',                    'Legal\LegalPksController::edit/$1',              ['filter' => 'auth']);
+$routes->post('legal/pks/(:num)/edit',                    'Legal\LegalPksController::update/$1',            ['filter' => 'auth']);
+$routes->post('legal/pks/(:num)/delete',                  'Legal\LegalPksController::delete/$1',            ['filter' => 'auth']);
+
+// PSM Mall
+$routes->get ('legal/psm-mall',                           'Legal\LegalPsmMallController::index',            ['filter' => 'auth']);
+$routes->get ('legal/psm-mall/new',                       'Legal\LegalPsmMallController::new',              ['filter' => 'auth']);
+$routes->post('legal/psm-mall',                           'Legal\LegalPsmMallController::create',           ['filter' => 'auth']);
+$routes->get ('legal/psm-mall/(:num)',                    'Legal\LegalPsmMallController::show/$1',          ['filter' => 'auth']);
+$routes->get ('legal/psm-mall/(:num)/edit',               'Legal\LegalPsmMallController::edit/$1',          ['filter' => 'auth']);
+$routes->post('legal/psm-mall/(:num)/edit',               'Legal\LegalPsmMallController::update/$1',        ['filter' => 'auth']);
+$routes->post('legal/psm-mall/(:num)/delete',             'Legal\LegalPsmMallController::delete/$1',        ['filter' => 'auth']);
+
+// PSM Developer
+$routes->get ('legal/psm-developer',                      'Legal\LegalPsmDeveloperController::index',       ['filter' => 'auth']);
+$routes->get ('legal/psm-developer/new',                  'Legal\LegalPsmDeveloperController::new',         ['filter' => 'auth']);
+$routes->post('legal/psm-developer',                      'Legal\LegalPsmDeveloperController::create',      ['filter' => 'auth']);
+$routes->get ('legal/psm-developer/(:num)',               'Legal\LegalPsmDeveloperController::show/$1',     ['filter' => 'auth']);
+$routes->get ('legal/psm-developer/(:num)/edit',          'Legal\LegalPsmDeveloperController::edit/$1',     ['filter' => 'auth']);
+$routes->post('legal/psm-developer/(:num)/edit',          'Legal\LegalPsmDeveloperController::update/$1',   ['filter' => 'auth']);
+$routes->post('legal/psm-developer/(:num)/delete',        'Legal\LegalPsmDeveloperController::delete/$1',   ['filter' => 'auth']);
+
+// PSM Gudang
+$routes->get ('legal/psm-gudang',                         'Legal\LegalPsmGudangController::index',          ['filter' => 'auth']);
+$routes->get ('legal/psm-gudang/new',                     'Legal\LegalPsmGudangController::new',            ['filter' => 'auth']);
+$routes->post('legal/psm-gudang',                         'Legal\LegalPsmGudangController::create',         ['filter' => 'auth']);
+$routes->get ('legal/psm-gudang/(:num)',                  'Legal\LegalPsmGudangController::show/$1',        ['filter' => 'auth']);
+$routes->get ('legal/psm-gudang/(:num)/edit',             'Legal\LegalPsmGudangController::edit/$1',        ['filter' => 'auth']);
+$routes->post('legal/psm-gudang/(:num)/edit',             'Legal\LegalPsmGudangController::update/$1',      ['filter' => 'auth']);
+$routes->post('legal/psm-gudang/(:num)/delete',           'Legal\LegalPsmGudangController::delete/$1',      ['filter' => 'auth']);
+
+// Kontrak Sewa Pameran
+$routes->get ('legal/kontrak-pameran',                    'Legal\LegalKontrakPameranController::index',     ['filter' => 'auth']);
+$routes->get ('legal/kontrak-pameran/new',                'Legal\LegalKontrakPameranController::new',       ['filter' => 'auth']);
+$routes->post('legal/kontrak-pameran',                    'Legal\LegalKontrakPameranController::create',    ['filter' => 'auth']);
+$routes->get ('legal/kontrak-pameran/(:num)',             'Legal\LegalKontrakPameranController::show/$1',   ['filter' => 'auth']);
+$routes->get ('legal/kontrak-pameran/(:num)/edit',        'Legal\LegalKontrakPameranController::edit/$1',   ['filter' => 'auth']);
+$routes->post('legal/kontrak-pameran/(:num)/edit',        'Legal\LegalKontrakPameranController::update/$1', ['filter' => 'auth']);
+$routes->post('legal/kontrak-pameran/(:num)/delete',      'Legal\LegalKontrakPameranController::delete/$1', ['filter' => 'auth']);
 
 // Dokumen (shared upload/delete)
 $routes->post('legal/documents/upload',                   'Legal\LegalController::uploadDocument',          ['filter' => 'auth']);

@@ -3,9 +3,13 @@
 namespace App\Controllers\Legal;
 
 use App\Controllers\BaseController;
-use App\Models\LegalLeaseModel;
 use App\Models\LegalPermitModel;
-use App\Models\LegalContractModel;
+use App\Models\LegalSpkModel;
+use App\Models\LegalPksModel;
+use App\Models\LegalPsmMallModel;
+use App\Models\LegalPsmDeveloperModel;
+use App\Models\LegalPsmGudangModel;
+use App\Models\LegalKontrakPameranModel;
 use App\Models\LegalDocumentModel;
 use App\Libraries\ActivityLog;
 
@@ -15,33 +19,28 @@ class LegalController extends BaseController
     {
         if (! $this->canViewMenu('legal')) return redirect()->to('/events');
 
-        $leaseM    = new LegalLeaseModel();
-        $permitM   = new LegalPermitModel();
-        $contractM = new LegalContractModel();
+        $permitM    = new LegalPermitModel();
+        $spkM       = new LegalSpkModel();
+        $pksM       = new LegalPksModel();
+        $psmMallM   = new LegalPsmMallModel();
+        $psmDevM    = new LegalPsmDeveloperModel();
+        $psmGudangM = new LegalPsmGudangModel();
+        $pameranM   = new LegalKontrakPameranModel();
 
-        // Summary counts
         $summary = [
-            'leases' => [
-                'active'   => $leaseM->where('status', 'active')->countAllResults(),
-                'expiring' => $leaseM->getExpiringCount(30),
-            ],
-            'permits' => [
-                'active'   => $permitM->where('status', 'active')->countAllResults(),
-                'expiring' => $permitM->getExpiringCount(30),
-            ],
-            'contracts' => [
-                'active'   => $contractM->where('status', 'active')->countAllResults(),
-                'expiring' => $contractM->getExpiringCount(30),
-            ],
+            'permits'       => ['active' => $permitM->where('status', 'active')->countAllResults(),     'expiring' => $permitM->getExpiringCount(30)],
+            'spk'           => ['active' => $spkM->where('status', 'aktif')->countAllResults(),         'expiring' => $spkM->getExpiringCount(30)],
+            'pks'           => ['active' => $pksM->where('status', 'active')->countAllResults(),        'expiring' => $pksM->getExpiringCount(30)],
+            'psm_mall'      => ['active' => $psmMallM->where('status', 'active')->countAllResults(),    'expiring' => $psmMallM->getExpiringCount(30)],
+            'psm_developer' => ['active' => $psmDevM->where('status', 'active')->countAllResults(),     'expiring' => $psmDevM->getExpiringCount(30)],
+            'psm_gudang'    => ['active' => $psmGudangM->where('status', 'active')->countAllResults(),  'expiring' => $psmGudangM->getExpiringCount(30)],
+            'pameran'       => ['active' => $pameranM->where('status', 'aktif')->countAllResults(),     'expiring' => $pameranM->getExpiringCount(30)],
         ];
-
-        // Unified expiring table (≤30 days from all 3 entities)
-        $expiring = $this->getExpiringAll(30);
 
         return view('legal/index', [
             'title'    => 'Legal',
             'summary'  => $summary,
-            'expiring' => $expiring,
+            'expiring' => $this->getExpiringAll(30),
         ]);
     }
 
@@ -49,26 +48,44 @@ class LegalController extends BaseController
     {
         $cutoff = date('Y-m-d', strtotime("+{$days} days"));
         $today  = date('Y-m-d');
-        $rows   = [];
-
-        $db = \Config\Database::connect();
-
-        $leases = $db->table('legal_leases')
-            ->select("id, 'lease' as entity_type, CONCAT('Sewa: ', tenant_name) as nama, nomor_kontrak as nomor, mall_id, tanggal_berakhir, status")
-            ->where('tanggal_berakhir <=', $cutoff)->where('tanggal_berakhir >=', $today)
-            ->whereIn('status', ['active', 'draft'])->get()->getResultArray();
+        $db     = \Config\Database::connect();
 
         $permits = $db->table('legal_permits')
             ->select("id, 'permit' as entity_type, CONCAT('Izin: ', nama_izin) as nama, nomor_izin as nomor, mall_id, tanggal_berakhir, status")
             ->where('tanggal_berakhir IS NOT NULL')->where('tanggal_berakhir <=', $cutoff)
             ->where('tanggal_berakhir >=', $today)->where('status', 'active')->get()->getResultArray();
 
-        $contracts = $db->table('legal_contracts')
-            ->select("id, 'contract' as entity_type, CONCAT('Vendor: ', nama_vendor) as nama, nomor_kontrak as nomor, mall_id, tanggal_berakhir, status")
+        $pks = $db->table('legal_pks')
+            ->select("id, 'pks' as entity_type, CONCAT('PKS: ', pihak_kedua) as nama, nomor_pks as nomor, NULL as mall_id, tanggal_berakhir, status")
             ->where('tanggal_berakhir <=', $cutoff)->where('tanggal_berakhir >=', $today)
             ->whereIn('status', ['active', 'draft'])->get()->getResultArray();
 
-        $rows = array_merge($leases, $permits, $contracts);
+        $psmMall = $db->table('legal_psm_mall')
+            ->select("id, 'psm_mall' as entity_type, CONCAT('PSM Mall: ', nama_tenant) as nama, nomor_psm as nomor, mall_id, tanggal_berakhir, status")
+            ->where('tanggal_berakhir <=', $cutoff)->where('tanggal_berakhir >=', $today)
+            ->whereIn('status', ['active', 'draft'])->get()->getResultArray();
+
+        $psmDev = $db->table('legal_psm_developer')
+            ->select("id, 'psm_developer' as entity_type, CONCAT('PSM Dev: ', nama_developer) as nama, nomor_psm as nomor, mall_id, tanggal_berakhir, status")
+            ->where('tanggal_berakhir <=', $cutoff)->where('tanggal_berakhir >=', $today)
+            ->whereIn('status', ['active', 'draft'])->get()->getResultArray();
+
+        $psmGudang = $db->table('legal_psm_gudang')
+            ->select("id, 'psm_gudang' as entity_type, CONCAT('Gudang: ', nama_penyewa) as nama, nomor_psm as nomor, NULL as mall_id, tanggal_berakhir, status")
+            ->where('tanggal_berakhir <=', $cutoff)->where('tanggal_berakhir >=', $today)
+            ->whereIn('status', ['active', 'draft'])->get()->getResultArray();
+
+        $spk = $db->table('legal_spk')
+            ->select("id, 'spk' as entity_type, CONCAT('SPK: ', nama_vendor) as nama, nomor_spk as nomor, NULL as mall_id, tanggal_selesai as tanggal_berakhir, status")
+            ->where('tanggal_selesai <=', $cutoff)->where('tanggal_selesai >=', $today)
+            ->whereIn('status', ['draft', 'aktif'])->get()->getResultArray();
+
+        $pameran = $db->table('legal_kontrak_pameran')
+            ->select("id, 'kontrak_pameran' as entity_type, CONCAT('Pameran: ', nama_event) as nama, nomor_kontrak as nomor, mall_id, tanggal_selesai as tanggal_berakhir, status")
+            ->where('tanggal_selesai <=', $cutoff)->where('tanggal_selesai >=', $today)
+            ->whereIn('status', ['draft', 'aktif'])->get()->getResultArray();
+
+        $rows = array_merge($permits, $pks, $psmMall, $psmDev, $psmGudang, $spk, $pameran);
         usort($rows, fn($a, $b) => strcmp($a['tanggal_berakhir'], $b['tanggal_berakhir']));
         return $rows;
     }
@@ -84,7 +101,8 @@ class LegalController extends BaseController
         $name     = trim($this->request->getPost('nama_dokumen'));
         $file     = $this->request->getFile('file_dokumen');
 
-        if (! in_array($type, ['lease', 'permit', 'contract']) || ! $entityId) {
+        $validTypes = ['permit', 'spk', 'pks', 'psm_mall', 'psm_developer', 'psm_gudang', 'kontrak_pameran'];
+        if (! in_array($type, $validTypes) || ! $entityId) {
             return redirect()->back()->with('error', 'Data tidak valid.');
         }
 

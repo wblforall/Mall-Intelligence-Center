@@ -490,17 +490,29 @@ body { min-height: 100vh; }
         <a href="<?= base_url('legal') ?>" class="nav-link <?= uri_string() === 'legal' ? 'active' : '' ?>">
             <i class="bi bi-shield-check"></i> Dashboard Legal
         </a>
-        <a href="<?= base_url('legal/reviews') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/reviews') ? 'active' : '' ?>">
-            <i class="bi bi-file-earmark-text"></i> Review Kontrak
-        </a>
         <a href="<?= base_url('legal/permits') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/permits') ? 'active' : '' ?>">
             <i class="bi bi-patch-check"></i> Perizinan & Lisensi
         </a>
-        <a href="<?= base_url('legal/contracts') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/contracts') ? 'active' : '' ?>">
-            <i class="bi bi-briefcase"></i> Kontrak Vendor
+        <a href="<?= base_url('legal/spk') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/spk') ? 'active' : '' ?>">
+            <i class="bi bi-file-earmark-text"></i> Review SPK
         </a>
-        <a href="<?= base_url('legal/leases') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/leases') ? 'active' : '' ?>">
-            <i class="bi bi-building"></i> Perjanjian Sewa
+        <a href="<?= base_url('legal/pks') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/pks') ? 'active' : '' ?>">
+            <i class="bi bi-handshake"></i> Perjanjian Kerja Sama
+        </a>
+        <a href="<?= base_url('legal/psm-mall') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/psm-mall') ? 'active' : '' ?>">
+            <i class="bi bi-shop"></i> PSM Mall
+        </a>
+        <a href="<?= base_url('legal/psm-developer') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/psm-developer') ? 'active' : '' ?>">
+            <i class="bi bi-building"></i> PSM Developer
+        </a>
+        <a href="<?= base_url('legal/psm-gudang') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/psm-gudang') ? 'active' : '' ?>">
+            <i class="bi bi-box-seam"></i> PSM Gudang
+        </a>
+        <a href="<?= base_url('legal/kontrak-pameran') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/kontrak-pameran') ? 'active' : '' ?>">
+            <i class="bi bi-easel"></i> Kontrak Sewa Pameran
+        </a>
+        <a href="<?= base_url('legal/reviews') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/reviews') && !str_starts_with(uri_string(), 'legal/review-file') ? 'active' : '' ?>">
+            <i class="bi bi-chat-left-text"></i> Review Dokumen
         </a>
         <?php endif; ?>
 

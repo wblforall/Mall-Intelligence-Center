@@ -3,9 +3,33 @@
 
 <?php
 $mallLabel = [1 => 'eWalk', 2 => 'Pentacity'];
-$typeLabel = ['lease' => 'Perjanjian Sewa', 'permit' => 'Perizinan', 'contract' => 'Kontrak Vendor'];
-$typeIcon  = ['lease' => 'bi-building', 'permit' => 'bi-patch-check', 'contract' => 'bi-briefcase'];
-$typeUrl   = ['lease' => 'leases', 'permit' => 'permits', 'contract' => 'contracts'];
+$typeLabel = [
+    'permit'          => 'Perizinan',
+    'spk'             => 'Review SPK',
+    'pks'             => 'PKS',
+    'psm_mall'        => 'PSM Mall',
+    'psm_developer'   => 'PSM Developer',
+    'psm_gudang'      => 'PSM Gudang',
+    'kontrak_pameran' => 'Kontrak Pameran',
+];
+$typeIcon = [
+    'permit'          => 'bi-patch-check',
+    'spk'             => 'bi-file-earmark-text',
+    'pks'             => 'bi-handshake',
+    'psm_mall'        => 'bi-shop',
+    'psm_developer'   => 'bi-building',
+    'psm_gudang'      => 'bi-box-seam',
+    'kontrak_pameran' => 'bi-easel',
+];
+$typeUrl = [
+    'permit'          => 'permits',
+    'spk'             => 'spk',
+    'pks'             => 'pks',
+    'psm_mall'        => 'psm-mall',
+    'psm_developer'   => 'psm-developer',
+    'psm_gudang'      => 'psm-gudang',
+    'kontrak_pameran' => 'kontrak-pameran',
+];
 
 function legalDaysLeft(string $date): int {
     return (int)(new DateTime())->diff(new DateTime($date))->format('%r%a');
@@ -24,7 +48,7 @@ function legalExpiryBadge(string $date): string {
     <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
             <h4 class="fw-bold mb-0"><i class="bi bi-shield-check me-2 text-primary"></i>Legal</h4>
-            <p class="text-muted small mb-0">Monitor kontrak, perizinan, dan dokumen hukum</p>
+            <p class="text-muted small mb-0">Monitor kontrak, perjanjian, dan dokumen hukum</p>
         </div>
     </div>
 
@@ -32,14 +56,18 @@ function legalExpiryBadge(string $date): string {
     <div class="row g-3 mb-4">
         <?php
         $cards = [
-            ['label' => 'Perjanjian Sewa',   'icon' => 'bi-building',     'url' => 'legal/leases',    'key' => 'leases'],
-            ['label' => 'Perizinan & Lisensi','icon' => 'bi-patch-check',  'url' => 'legal/permits',   'key' => 'permits'],
-            ['label' => 'Kontrak Vendor',     'icon' => 'bi-briefcase',    'url' => 'legal/contracts', 'key' => 'contracts'],
+            ['label' => 'Perizinan & Lisensi', 'icon' => 'bi-patch-check',      'url' => 'legal/permits',         'key' => 'permits'],
+            ['label' => 'Review SPK',           'icon' => 'bi-file-earmark-text','url' => 'legal/spk',             'key' => 'spk'],
+            ['label' => 'Perjanjian Kerja Sama','icon' => 'bi-handshake',        'url' => 'legal/pks',             'key' => 'pks'],
+            ['label' => 'PSM Mall',             'icon' => 'bi-shop',             'url' => 'legal/psm-mall',        'key' => 'psm_mall'],
+            ['label' => 'PSM Developer',        'icon' => 'bi-building',         'url' => 'legal/psm-developer',   'key' => 'psm_developer'],
+            ['label' => 'PSM Gudang',           'icon' => 'bi-box-seam',         'url' => 'legal/psm-gudang',      'key' => 'psm_gudang'],
+            ['label' => 'Kontrak Sewa Pameran', 'icon' => 'bi-easel',            'url' => 'legal/kontrak-pameran', 'key' => 'pameran'],
         ];
         foreach ($cards as $c):
             $s = $summary[$c['key']];
         ?>
-        <div class="col-md-4">
+        <div class="col-md-4 col-xl-3">
             <a href="<?= base_url($c['url']) ?>" class="card text-decoration-none h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3">
@@ -89,7 +117,6 @@ function legalExpiryBadge(string $date): string {
                     </thead>
                     <tbody>
                         <?php foreach ($expiring as $r):
-                            $days = legalDaysLeft($r['tanggal_berakhir']);
                             $urlKey = $typeUrl[$r['entity_type']] ?? '#';
                         ?>
                         <tr>

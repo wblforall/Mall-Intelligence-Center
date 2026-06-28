@@ -18,11 +18,23 @@
             <a href="<?= base_url('legal/permits/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
                 <i class="bi bi-patch-check me-2"></i>Perizinan & Lisensi
             </a>
-            <a href="<?= base_url('legal/contracts/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
-                <i class="bi bi-briefcase me-2"></i>Kontrak Vendor
+            <a href="<?= base_url('legal/spk/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
+                <i class="bi bi-file-earmark-text me-2"></i>Review SPK
             </a>
-            <a href="<?= base_url('legal/leases/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
-                <i class="bi bi-building me-2"></i>Perjanjian Sewa
+            <a href="<?= base_url('legal/pks/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
+                <i class="bi bi-handshake me-2"></i>Perjanjian Kerja Sama
+            </a>
+            <a href="<?= base_url('legal/psm-mall/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
+                <i class="bi bi-shop me-2"></i>PSM Mall
+            </a>
+            <a href="<?= base_url('legal/psm-developer/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
+                <i class="bi bi-building me-2"></i>PSM Developer
+            </a>
+            <a href="<?= base_url('legal/psm-gudang/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
+                <i class="bi bi-box-seam me-2"></i>PSM Gudang
+            </a>
+            <a href="<?= base_url('legal/kontrak-pameran/new?from_review='.$review['id']) ?>" class="btn btn-outline-primary">
+                <i class="bi bi-easel me-2"></i>Kontrak Sewa Pameran
             </a>
         </div>
         <div class="mt-3">
