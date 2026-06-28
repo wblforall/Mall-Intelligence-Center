@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.13.0** (Juni 2026)
+> Versi saat ini: **v2.14.0** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,36 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.14.0
+
+**Tanggal Rilis:** 28 Juni 2026
+
+### Perubahan dari v2.13.0
+
+#### Modul Legal — Restrukturisasi Sub-modul
+
+Menggantikan sub-modul generik (Lease & Contract) dengan 6 entitas legal spesifik sesuai kebutuhan operasional PT. WBL:
+
+- **Review SPK** (`/legal/spk`): Surat Perintah Kerja ke vendor — nomor SPK, nama vendor, deskripsi pekerjaan, nilai, PIC internal, tanggal terbit & selesai, status (draft/aktif/selesai/batal).
+- **Perjanjian Kerja Sama** (`/legal/pks`): PKS dengan pihak eksternal — nomor PKS, pihak kedua, ruang lingkup, nilai, tanggal mulai & berakhir, expiry tracking.
+- **PSM Mall** (`/legal/psm-mall`): Perjanjian Sewa Menyewa area mall — tenant, unit/lokasi, luas m², nilai sewa, periode bayar, per-mall (eWalk/Pentacity).
+- **PSM Developer** (`/legal/psm-developer`): Perjanjian dengan pemilik/developer gedung — nama developer, objek perjanjian, nilai, pilihan per-mall atau keduanya.
+- **PSM Gudang** (`/legal/psm-gudang`): Perjanjian sewa gudang — nama penyewa, lokasi, luas m², nilai sewa, expiry tracking.
+- **Kontrak Sewa Pameran** (`/legal/kontrak-pameran`): Kontrak event/pameran — penyelenggara, nama event, lokasi area, per-mall, tanggal mulai–selesai, nilai sewa.
+
+Sub-modul **Perizinan & Lisensi** dan **Review Dokumen** tetap ada tanpa perubahan.
+
+#### Infrastruktur Legal
+
+- Tabel lama `legal_leases` dan `legal_contracts` direname ke `_bak` (data historis aman).
+- ENUM `legal_documents.entity_type` dan `legal_reviews.entity_type` diperluas untuk mendukung semua 6 tipe baru — upload dokumen dan Review workflow bisa di-link ke semua sub-modul.
+- Dashboard Legal (`/legal`) diperbarui: 7 summary card (aktif + badge segera berakhir), tabel expiring mencakup semua sub-modul termasuk Kontrak Pameran.
+- Sidebar navigasi diperbarui dengan 8 link baru.
+- `legal:check-expiry` cron diperluas mencakup semua 7 entitas (termasuk Kontrak Pameran via `tanggal_selesai`).
+- Semua `delete()` controller menggunakan database transaction — file fisik dihapus hanya setelah DB commit berhasil.
 
 ---
 
