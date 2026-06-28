@@ -60,7 +60,7 @@ class LegalReviewModel extends Model
         if (!$row) return null;
 
         $row['assignees'] = $this->db->table('legal_review_assignees a')
-            ->select('a.*, u.name as user_name, u.dept_id')
+            ->select('a.*, u.name as user_name, u.department_id')
             ->join('users u', 'u.id = a.user_id', 'left')
             ->where('a.review_id', $id)
             ->get()->getResultArray();
