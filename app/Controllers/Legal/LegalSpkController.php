@@ -37,7 +37,7 @@ class LegalSpkController extends BaseController
     {
         if (! $this->canEditMenu('legal')) return redirect()->to('/legal/spk')->with('error', 'Akses ditolak.');
 
-        $users = $this->db->table('users')->where('active', 1)->orderBy('name')->get()->getResultArray();
+        $users = db_connect()->table('users')->where('is_active', 1)->orderBy('name')->get()->getResultArray();
         return view('legal/spk/form', ['title' => 'Tambah SPK', 'row' => null, 'users' => $users]);
     }
 
@@ -67,7 +67,7 @@ class LegalSpkController extends BaseController
 
         $pic = null;
         if ($row['pic_user_id']) {
-            $pic = $this->db->table('users')->where('id', $row['pic_user_id'])->get()->getRowArray();
+            $pic = db_connect()->table('users')->where('id', $row['pic_user_id'])->get()->getRowArray();
         }
 
         return view('legal/spk/show', [
@@ -86,7 +86,7 @@ class LegalSpkController extends BaseController
         $row = $this->model->find($id);
         if (! $row) return redirect()->to('/legal/spk')->with('error', 'Data tidak ditemukan.');
 
-        $users = $this->db->table('users')->where('active', 1)->orderBy('name')->get()->getResultArray();
+        $users = db_connect()->table('users')->where('is_active', 1)->orderBy('name')->get()->getResultArray();
         return view('legal/spk/form', ['title' => 'Edit SPK', 'row' => $row, 'users' => $users]);
     }
 
