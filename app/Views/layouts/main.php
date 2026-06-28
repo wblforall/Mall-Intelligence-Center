@@ -497,7 +497,7 @@ body { min-height: 100vh; }
             <i class="bi bi-file-earmark-text"></i> Review SPK
         </a>
         <a href="<?= base_url('legal/pks') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/pks') ? 'active' : '' ?>">
-            <i class="bi bi-handshake"></i> Perjanjian Kerja Sama
+            <i class="bi bi-people"></i> Perjanjian Kerja Sama
         </a>
         <a href="<?= base_url('legal/psm-mall') ?>" class="nav-link <?= str_starts_with(uri_string(), 'legal/psm-mall') ? 'active' : '' ?>">
             <i class="bi bi-shop"></i> PSM Mall
