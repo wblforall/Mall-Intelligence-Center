@@ -155,8 +155,11 @@ $statusLabel = [
                         </select>
                     </div>
                     <div class="col-6 col-sm-2">
-                        <input type="number" name="progress_pct" class="form-control form-control-sm" placeholder="% (opsional)"
-                            min="0" max="100" value="<?= $item['latest_progress'] ?? '' ?>">
+                        <div class="input-group input-group-sm">
+                            <input type="number" name="progress_pct" class="form-control form-control-sm" placeholder="0"
+                                min="0" max="100" value="<?= $item['latest_progress'] ?? '' ?>">
+                            <span class="input-group-text">%</span>
+                        </div>
                     </div>
                     <div class="col-12">
                         <textarea name="catatan" class="form-control form-control-sm" placeholder="Perkembangan minggu ini" rows="3"></textarea>
