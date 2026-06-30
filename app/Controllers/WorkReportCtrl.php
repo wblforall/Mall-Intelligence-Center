@@ -50,7 +50,7 @@ class WorkReportCtrl extends BaseController
     }
 
     // ── Dept Head View ───────────────────────────────────────────────────
-    private function deptView(): string
+    private function deptView(): string|\CodeIgniter\HTTP\RedirectResponse
     {
         $emp = $this->currentEmployee();
         if (! $emp || ! $emp['dept_id']) {
