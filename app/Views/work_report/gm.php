@@ -187,6 +187,19 @@ foreach ($byDivisi as $divisiName => $divisiItems) {
 <script>
 const _initiatives = <?= json_encode(array_values($initiativeData)) ?>;
 
+function copyFallback(txt, onCopied) {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try {
+        if (document.execCommand('copy')) { onCopied(); }
+        else { alert('Gagal menyalin teks.'); }
+    } catch(e) { alert('Gagal menyalin teks.'); }
+    document.body.removeChild(ta);
+}
+
 function togglePilihSemua(btn) {
     const checks = document.querySelectorAll('.initiative-check');
     const allChecked = [...checks].every(c => c.checked);
@@ -233,13 +246,25 @@ function salinLaporan(btn) {
         }
     }
 
-    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    const txt = lines.join('\n');
+
+    function onCopied() {
         const orig = btn.innerHTML;
         btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Tersalin!';
         setTimeout(() => { btn.innerHTML = orig; }, 2000);
         const toast = new bootstrap.Toast(document.getElementById('toastSalin'), {delay: 3000});
         toast.show();
-    }).catch(() => alert('Gagal menyalin. Pastikan browser mengizinkan akses clipboard.'));
+    }
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt).then(onCopied).catch(() => copyFallback(txt, onCopied));
+        } else {
+            copyFallback(txt, onCopied);
+        }
+    } catch(e) {
+        copyFallback(txt, onCopied);
+    }
 }
 </script>
 
