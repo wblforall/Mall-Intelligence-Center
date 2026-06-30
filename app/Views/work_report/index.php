@@ -161,11 +161,11 @@ $statusLabel = [
                     <div class="col-12">
                         <textarea name="catatan" class="form-control form-control-sm" placeholder="Perkembangan minggu ini" rows="3"></textarea>
                     </div>
-                    <div class="col-12 col-sm-10">
-                        <input type="text" name="hambatan" class="form-control form-control-sm" placeholder="Hambatan (kosongkan jika tidak ada)">
+                    <div class="col-12">
+                        <textarea name="hambatan" class="form-control form-control-sm" placeholder="Hambatan (kosongkan jika tidak ada)" rows="3"></textarea>
                     </div>
-                    <div class="col-12 col-sm-2">
-                        <button type="submit" class="btn btn-primary btn-sm w-100">Simpan</button>
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
                     </div>
                 </div>
             </form>
