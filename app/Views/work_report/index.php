@@ -158,8 +158,8 @@ $statusLabel = [
                         <input type="number" name="progress_pct" class="form-control form-control-sm" placeholder="% (opsional)"
                             min="0" max="100" value="<?= $item['latest_progress'] ?? '' ?>">
                     </div>
-                    <div class="col-12 col-sm-6">
-                        <input type="text" name="catatan" class="form-control form-control-sm" placeholder="Perkembangan minggu ini" value="">
+                    <div class="col-12">
+                        <textarea name="catatan" class="form-control form-control-sm" placeholder="Perkembangan minggu ini" rows="3"></textarea>
                     </div>
                     <div class="col-12 col-sm-10">
                         <input type="text" name="hambatan" class="form-control form-control-sm" placeholder="Hambatan (kosongkan jika tidak ada)">
