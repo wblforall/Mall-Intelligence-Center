@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.14.0** (Juni 2026)
+> Versi saat ini: **v2.15.0** (Juni 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,46 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.15.0
+
+**Tanggal Rilis:** 30 Juni 2026
+
+### Perubahan dari v2.14.0
+
+#### Progress Report — Penyempurnaan UX
+
+- Field **Perkembangan Minggu Ini** dan **Hambatan** diubah menjadi `textarea` 3 baris — mendukung teks multi-baris dengan Enter.
+- Field persentase progres dilengkapi tanda **%** (input-group addon) agar lebih jelas satuannya.
+- Istilah "inisiatif" diganti seragam menjadi **"program kerja"** di seluruh tampilan (index, division, deputy, GM, admin) dan user guide.
+- **Checkbox per kartu** untuk memilih program kerja yang akan disalin ke clipboard — default tidak tercentang, ada tombol "Pilih Semua / Batal Pilih".
+- **Toast notifikasi** muncul di kanan bawah saat laporan berhasil disalin.
+- Format salin laporan (WhatsApp) dikelompokkan per divisi → per departemen, mencantumkan status, progres %, catatan, hambatan, dan target.
+- Data salin dibaca dari `data-*` attribute DOM (lebih reliable daripada PHP JSON embed yang sebelumnya selalu kosong).
+- Fallback `document.execCommand('copy')` ditambahkan untuk lingkungan HTTP yang tidak mendukung `navigator.clipboard`.
+- Fix indentasi baris ke-2 dan seterusnya pada teks multi-baris saat disalin (baris pertama `"   "`, baris lanjutan juga konsisten `"   "`).
+- Fix: `deptView()` di `WorkReportController` mengembalikan redirect jika akun tidak terhubung ke data karyawan (sebelumnya throw error).
+
+#### PWA — Aplikasi Dapat Diinstall
+
+- MIC kini mendukung **Progressive Web App (PWA)** — dapat diinstall langsung dari browser tanpa App Store/Play Store.
+- Platform yang didukung: Chrome/Edge di desktop (Windows/Mac), Chrome di Android, Safari di iOS/iPadOS.
+- Komponen: `manifest.webmanifest` (name, icons, theme color, display standalone), `sw.js` (service worker network-first untuk navigasi, stale-while-revalidate untuk aset statis), halaman `offline.html` branded dengan auto-reconnect.
+- Icon lengkap: 192px, 512px, 512px maskable (adaptive icon Android), apple-touch-icon.
+- **User Guide PWA** baru — `UserGuide_PWA.pdf` — mencakup langkah install per platform, fitur offline, update otomatis, sesi, dan cara uninstall.
+
+#### Fix Sidebar — Akses Menu
+
+- Pengguna tanpa departemen (`dept_menus = null`) tidak lagi melihat link menu yang seharusnya tersembunyi.
+- Perbaikan 9 kondisi null yang terbalik di `app/Views/layouts/main.php` — dari pola `|| $var === null` (salah, malah membuka akses) ke `|| ($var !== null && (...))`.
+
+#### Fix Legal
+
+- `LegalSpkController`: ganti `$this->db` → `db_connect()` sesuai pola CI4 (sebelumnya null reference error).
+- `LegalReviewModel`: kolom `dept_id` → `department_id` di query (nama kolom yang benar di tabel `users`).
+- Navigasi PKS: icon `bi-handshake` diganti `bi-people` (Bootstrap Icons 1.11.3 tidak memiliki `bi-handshake`).
 
 ---
 
