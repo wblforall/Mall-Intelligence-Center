@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= $pageTitle ?? 'Mall Intelligence Center' ?></title>
 <link rel="icon" type="image/png" href="<?= base_url('img/mic-logo-sm.png') ?>">
+<!-- ── PWA ── -->
+<link rel="manifest" href="<?= base_url('manifest.webmanifest') ?>">
+<meta name="theme-color" content="#091528">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MIC">
+<link rel="apple-touch-icon" href="<?= base_url('img/apple-touch-icon.png') ?>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="<?= base_url('css/theme.css') ?>" rel="stylesheet">
@@ -986,5 +994,14 @@ if (typeof Chart !== 'undefined') {
 })();
 </script>
 <?php endif; ?>
+<!-- ── PWA service worker ── -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('<?= base_url('sw.js') ?>')
+        .catch(err => console.warn('SW register gagal:', err));
+    });
+  }
+</script>
 </body>
 </html>

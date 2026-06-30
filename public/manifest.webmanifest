@@ -1,0 +1,20 @@
+{
+  "name": "Mall Intelligence Center",
+  "short_name": "MIC",
+  "description": "Sistem manajemen event & people PT. Wulandari Bangun Laksana Tbk.",
+  "id": "/mall-intelligence-center/public/?app=mic",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#091528",
+  "background_color": "#030911",
+  "lang": "id",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offline — Mall Intelligence Center</title>
+<link rel="icon" type="image/png" href="img/mic-logo-sm.png">
+<style>
+  :root { --bg: #030911; --panel: #091528; --accent: #e8415a; --muted: #8aa0b8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(ellipse 130% 90% at 95% 0%, #1c5f9e 0%, #0b2a52 48%, transparent 72%),
+      linear-gradient(200deg, #0a1c30 0%, #030911 70%);
+    color: #e7eef7; padding: 1.5rem;
+  }
+  .card {
+    background: rgba(9,21,40,.7); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 1rem;
+    padding: 2.5rem 2rem; max-width: 420px; width: 100%; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  .logo { width: 96px; height: auto; margin-bottom: 1.25rem; opacity: .95; }
+  h1 { font-size: 1.25rem; margin: 0 0 .5rem; font-weight: 700; }
+  p { color: var(--muted); font-size: .92rem; line-height: 1.55; margin: 0 0 1.5rem; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
+         margin-right: .4rem; vertical-align: middle; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+  button {
+    background: var(--accent); color: #fff; border: none; border-radius: .6rem;
+    padding: .7rem 1.6rem; font-size: .9rem; font-weight: 600; cursor: pointer;
+    transition: filter .15s;
+  }
+  button:hover { filter: brightness(1.1); }
+  .status { margin-top: 1rem; font-size: .78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="img/icon-192.png" alt="MIC">
+    <h1>Tidak ada koneksi</h1>
+    <p>Mall Intelligence Center butuh koneksi internet untuk memuat halaman ini. Periksa jaringan Anda lalu coba lagi.</p>
+    <button onclick="location.reload()">Coba lagi</button>
+    <div class="status"><span class="dot"></span><span id="net">Menunggu koneksi…</span></div>
+  </div>
+  <script>
+    function refresh() { if (navigator.onLine) location.reload(); }
+    window.addEventListener('online', refresh);
+    setInterval(refresh, 4000);
+    document.getElementById('net').textContent =
+      navigator.onLine ? 'Koneksi terdeteksi — memuat ulang…' : 'Menunggu koneksi…';
+  </script>
+</body>
+</html>
