@@ -73,7 +73,16 @@ foreach ($divisiItems as $item) {
     <div class="border rounded mb-3 p-3" id="initiative-<?= $item['id'] ?>">
         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
             <div class="form-check me-1 mt-1 flex-shrink-0">
-                <input class="form-check-input initiative-check" type="checkbox" value="<?= $item['id'] ?>" id="chk-<?= $item['id'] ?>">
+                <input class="form-check-input initiative-check" type="checkbox" value="<?= $item['id'] ?>" id="chk-<?= $item['id'] ?>"
+                    data-divisi="<?= esc($divisiName) ?>"
+                    data-dept="<?= esc($deptName) ?>"
+                    data-deputy="<?= esc($item['deputy_name'] ?? '') ?>"
+                    data-judul="<?= esc($item['judul']) ?>"
+                    data-status="<?= esc($statusLabel[$item['latest_status'] ?? '']['label'] ?? '-') ?>"
+                    data-progress="<?= $item['latest_progress'] !== null ? $item['latest_progress'] : '' ?>"
+                    data-catatan="<?= esc($item['latest_catatan'] ?? '') ?>"
+                    data-hambatan="<?= esc($item['latest_hambatan'] ?? '') ?>"
+                    data-target="<?= ! empty($item['target_selesai']) ? date('d M Y', strtotime($item['target_selesai'])) : '' ?>">
             </div>
             <div class="flex-grow-1">
                 <div class="fw-semibold mb-1">
@@ -152,28 +161,6 @@ foreach ($divisiItems as $item) {
 
 <?php endif; ?>
 
-<?php
-// Embed initiative data as JS for dynamic clipboard building
-$statusText = ['on_track'=>'On Track','at_risk'=>'At Risk','delayed'=>'Delayed','done'=>'Selesai','cancelled'=>'Dibatalkan'];
-$initiativeData = [];
-foreach ($byDivisi as $divisiName => $divisiItems) {
-    foreach ($divisiItems as $it) {
-        $initiativeData[$it['id']] = [
-            'id'           => $it['id'],
-            'divisi'       => $divisiName,
-            'dept'         => $it['dept_name'] ?? 'Tanpa Dept',
-            'deputy'       => $it['deputy_name'] ?? null,
-            'judul'        => $it['judul'],
-            'status'       => $statusText[$it['latest_status'] ?? ''] ?? '-',
-            'progress'     => $it['latest_progress'],
-            'catatan'      => $it['latest_catatan'] ?? null,
-            'hambatan'     => $it['latest_hambatan'] ?? null,
-            'target'       => ! empty($it['target_selesai']) ? date('d M Y', strtotime($it['target_selesai'])) : null,
-        ];
-    }
-}
-?>
-
 <!-- Toast notifikasi -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
     <div id="toastSalin" class="toast align-items-center text-bg-success border-0" role="alert" aria-atomic="true">
@@ -185,8 +172,6 @@ foreach ($byDivisi as $divisiName => $divisiItems) {
 </div>
 
 <script>
-const _initiatives = <?= json_encode(array_values($initiativeData)) ?>;
-
 function copyFallback(txt, onCopied) {
     const ta = document.createElement('textarea');
     ta.value = txt;
@@ -210,38 +195,36 @@ function togglePilihSemua(btn) {
 }
 
 function salinLaporan(btn) {
-    const checkedIds = new Set(
-        [...document.querySelectorAll('.initiative-check:checked')].map(c => +c.value)
-    );
-    if (checkedIds.size === 0) {
+    const checked = [...document.querySelectorAll('.initiative-check:checked')];
+    if (checked.length === 0) {
         alert('Pilih minimal satu inisiatif untuk disalin.');
         return;
     }
-    const selected = _initiatives.filter(i => checkedIds.has(i.id));
 
-    // Kelompokkan divisi → dept
+    // Baca data dari data-* attribute (lebih reliable daripada PHP-embedded JSON)
     const byDivisi = {};
-    selected.forEach(i => {
-        byDivisi[i.divisi] = byDivisi[i.divisi] || {};
-        byDivisi[i.divisi][i.dept] = byDivisi[i.divisi][i.dept] || [];
-        byDivisi[i.divisi][i.dept].push(i);
+    checked.forEach(el => {
+        const d = el.dataset;
+        byDivisi[d.divisi] = byDivisi[d.divisi] || {};
+        byDivisi[d.divisi][d.dept] = byDivisi[d.divisi][d.dept] || [];
+        byDivisi[d.divisi][d.dept].push(d);
     });
 
     const lines = ['*PROGRESS REPORT*', 'Per: ' + new Date().toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'})];
     for (const [divisi, depts] of Object.entries(byDivisi)) {
         lines.push('');
         lines.push('*' + divisi.toUpperCase() + '*');
-        const deps = [...new Set(Object.values(depts).flat().map(i => i.deputy).filter(Boolean))];
+        const deps = [...new Set(Object.values(depts).flat().map(d => d.deputy).filter(Boolean))];
         if (deps.length) lines.push('Deputy: ' + deps.join(', '));
         for (const [dept, items] of Object.entries(depts)) {
             lines.push('');
             lines.push('_' + dept + '_');
-            items.forEach((it, idx) => {
-                const pct = it.progress !== null ? ' | ' + it.progress + '%' : '';
-                lines.push((idx + 1) + '. ' + it.judul + ' (' + it.status + pct + ')');
-                if (it.catatan)  lines.push('   ' + it.catatan);
-                if (it.hambatan) lines.push('   ⚠️ ' + it.hambatan);
-                if (it.target)   lines.push('   Target: ' + it.target);
+            items.forEach((d, idx) => {
+                const pct = d.progress ? ' | ' + d.progress + '%' : '';
+                lines.push((idx + 1) + '. ' + d.judul + ' (' + d.status + pct + ')');
+                if (d.catatan)  lines.push('   ' + d.catatan);
+                if (d.hambatan) lines.push('   ⚠️ ' + d.hambatan);
+                if (d.target)   lines.push('   Target: ' + d.target);
             });
         }
     }
