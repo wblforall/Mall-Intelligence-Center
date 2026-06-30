@@ -73,7 +73,7 @@ foreach ($divisiItems as $item) {
     <div class="border rounded mb-3 p-3" id="initiative-<?= $item['id'] ?>">
         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
             <div class="form-check me-1 mt-1 flex-shrink-0">
-                <input class="form-check-input initiative-check" type="checkbox" value="<?= $item['id'] ?>" id="chk-<?= $item['id'] ?>" checked>
+                <input class="form-check-input initiative-check" type="checkbox" value="<?= $item['id'] ?>" id="chk-<?= $item['id'] ?>">
             </div>
             <div class="flex-grow-1">
                 <div class="fw-semibold mb-1">
