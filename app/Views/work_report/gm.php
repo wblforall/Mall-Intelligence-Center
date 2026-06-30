@@ -17,9 +17,14 @@ $statusLabel = [
         <small class="text-muted">Ringkasan yang dikurasi Deputy per Divisi</small>
     </div>
     <?php if (! empty($byDivisi)): ?>
-    <button class="btn btn-success btn-sm" onclick="salinLaporan()" title="Salin sebagai teks untuk dikirim via WA">
-        <i class="bi bi-clipboard me-1"></i>Salin Laporan
-    </button>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm" onclick="togglePilihSemua(this)" id="btnPilihSemua">
+            <i class="bi bi-check2-square me-1"></i>Pilih Semua
+        </button>
+        <button class="btn btn-success btn-sm" onclick="salinLaporan(this)" id="btnSalin">
+            <i class="bi bi-clipboard me-1"></i>Salin Laporan
+        </button>
+    </div>
     <?php endif; ?>
 </div>
 
@@ -67,6 +72,9 @@ foreach ($divisiItems as $item) {
     ?>
     <div class="border rounded mb-3 p-3" id="initiative-<?= $item['id'] ?>">
         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+            <div class="form-check me-1 mt-1 flex-shrink-0">
+                <input class="form-check-input initiative-check" type="checkbox" value="<?= $item['id'] ?>" id="chk-<?= $item['id'] ?>" checked>
+            </div>
             <div class="flex-grow-1">
                 <div class="fw-semibold mb-1">
                     <?= esc($item['judul']) ?>
@@ -145,48 +153,93 @@ foreach ($divisiItems as $item) {
 <?php endif; ?>
 
 <?php
-// Build teks laporan untuk clipboard
+// Embed initiative data as JS for dynamic clipboard building
 $statusText = ['on_track'=>'On Track','at_risk'=>'At Risk','delayed'=>'Delayed','done'=>'Selesai','cancelled'=>'Dibatalkan'];
-$lines = [];
-$lines[] = '*PROGRESS REPORT*';
-$lines[] = 'Per: ' . date('d M Y');
-foreach ($byDivisi as $divisiName => $divisiItems):
-    $lines[] = '';
-    $lines[] = '*' . strtoupper($divisiName) . '*';
-    $deps = array_unique(array_filter(array_column($divisiItems, 'deputy_name')));
-    if ($deps) $lines[] = 'Deputy: ' . implode(', ', $deps);
-
-    $byDeptTxt = [];
+$initiativeData = [];
+foreach ($byDivisi as $divisiName => $divisiItems) {
     foreach ($divisiItems as $it) {
-        $byDeptTxt[$it['dept_name'] ?? 'Tanpa Dept'][] = $it;
+        $initiativeData[$it['id']] = [
+            'id'           => $it['id'],
+            'divisi'       => $divisiName,
+            'dept'         => $it['dept_name'] ?? 'Tanpa Dept',
+            'deputy'       => $it['deputy_name'] ?? null,
+            'judul'        => $it['judul'],
+            'status'       => $statusText[$it['latest_status'] ?? ''] ?? '-',
+            'progress'     => $it['latest_progress'],
+            'catatan'      => $it['latest_catatan'] ?? null,
+            'hambatan'     => $it['latest_hambatan'] ?? null,
+            'target'       => ! empty($it['target_selesai']) ? date('d M Y', strtotime($it['target_selesai'])) : null,
+        ];
     }
-    foreach ($byDeptTxt as $deptName => $deptItems):
-        $lines[] = '';
-        $lines[] = '_' . $deptName . '_';
-        $no = 1;
-        foreach ($deptItems as $it):
-            $st = $statusText[$it['latest_status'] ?? ''] ?? '-';
-            $pct = $it['latest_progress'] !== null ? ' | ' . $it['latest_progress'] . '%' : '';
-            $lines[] = $no++ . '. ' . $it['judul'] . ' (' . $st . $pct . ')';
-            if (! empty($it['latest_catatan'])) $lines[] = '   ' . $it['latest_catatan'];
-            if (! empty($it['latest_hambatan'])) $lines[] = '   ⚠️ ' . $it['latest_hambatan'];
-            if (! empty($it['target_selesai'])) $lines[] = '   Target: ' . date('d M Y', strtotime($it['target_selesai']));
-        endforeach;
-    endforeach;
-endforeach;
-$laporanTeks = implode("\n", $lines);
+}
 ?>
-<textarea id="laporanClipboard" style="position:absolute;left:-9999px" aria-hidden="true"><?= htmlspecialchars($laporanTeks) ?></textarea>
+
+<!-- Toast notifikasi -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+    <div id="toastSalin" class="toast align-items-center text-bg-success border-0" role="alert" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body"><i class="bi bi-check2-circle me-2"></i>Laporan berhasil disalin!</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
 
 <script>
-function salinLaporan() {
-    const txt = document.getElementById('laporanClipboard').value;
-    navigator.clipboard.writeText(txt).then(() => {
-        const btn = event.currentTarget;
+const _initiatives = <?= json_encode(array_values($initiativeData)) ?>;
+
+function togglePilihSemua(btn) {
+    const checks = document.querySelectorAll('.initiative-check');
+    const allChecked = [...checks].every(c => c.checked);
+    checks.forEach(c => c.checked = !allChecked);
+    btn.innerHTML = !allChecked
+        ? '<i class="bi bi-x-square me-1"></i>Batal Pilih'
+        : '<i class="bi bi-check2-square me-1"></i>Pilih Semua';
+}
+
+function salinLaporan(btn) {
+    const checkedIds = new Set(
+        [...document.querySelectorAll('.initiative-check:checked')].map(c => +c.value)
+    );
+    if (checkedIds.size === 0) {
+        alert('Pilih minimal satu inisiatif untuk disalin.');
+        return;
+    }
+    const selected = _initiatives.filter(i => checkedIds.has(i.id));
+
+    // Kelompokkan divisi → dept
+    const byDivisi = {};
+    selected.forEach(i => {
+        byDivisi[i.divisi] = byDivisi[i.divisi] || {};
+        byDivisi[i.divisi][i.dept] = byDivisi[i.divisi][i.dept] || [];
+        byDivisi[i.divisi][i.dept].push(i);
+    });
+
+    const lines = ['*PROGRESS REPORT*', 'Per: ' + new Date().toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'})];
+    for (const [divisi, depts] of Object.entries(byDivisi)) {
+        lines.push('');
+        lines.push('*' + divisi.toUpperCase() + '*');
+        const deps = [...new Set(Object.values(depts).flat().map(i => i.deputy).filter(Boolean))];
+        if (deps.length) lines.push('Deputy: ' + deps.join(', '));
+        for (const [dept, items] of Object.entries(depts)) {
+            lines.push('');
+            lines.push('_' + dept + '_');
+            items.forEach((it, idx) => {
+                const pct = it.progress !== null ? ' | ' + it.progress + '%' : '';
+                lines.push((idx + 1) + '. ' + it.judul + ' (' + it.status + pct + ')');
+                if (it.catatan)  lines.push('   ' + it.catatan);
+                if (it.hambatan) lines.push('   ⚠️ ' + it.hambatan);
+                if (it.target)   lines.push('   Target: ' + it.target);
+            });
+        }
+    }
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
         const orig = btn.innerHTML;
         btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Tersalin!';
         setTimeout(() => { btn.innerHTML = orig; }, 2000);
-    });
+        const toast = new bootstrap.Toast(document.getElementById('toastSalin'), {delay: 3000});
+        toast.show();
+    }).catch(() => alert('Gagal menyalin. Pastikan browser mengizinkan akses clipboard.'));
 }
 </script>
 
