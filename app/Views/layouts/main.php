@@ -115,7 +115,7 @@ body { min-height: 100vh; }
         <?php
         $_deptMenusE = session()->get('dept_menus');
         $_canSeeEvents = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || $_deptMenusE === null || ($_deptMenusE['events']['can_view'] ?? false);
+            || ($_deptMenusE !== null && ($_deptMenusE['events']['can_view'] ?? false));
         if ($_canSeeEvents):
             $_eventsOpen = str_starts_with(uri_string(), 'events') && ! isset($event);
         ?>
@@ -139,7 +139,7 @@ body { min-height: 100vh; }
         <?php
         $_deptMenusL = session()->get('dept_menus');
         $_canSeeLoyalty = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || $_deptMenusL === null || ($_deptMenusL['loyalty_main']['can_view'] ?? false);
+            || ($_deptMenusL !== null && ($_deptMenusL['loyalty_main']['can_view'] ?? false));
         if ($_canSeeLoyalty):
             $_loyaltyOpen = str_starts_with(uri_string(), 'loyalty') || str_starts_with(uri_string(), 'stock/');
         ?>
@@ -173,7 +173,7 @@ body { min-height: 100vh; }
         <?php
         $_deptMenusSp = session()->get('dept_menus');
         $_canSeeSponsor = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || $_deptMenusSp === null || ($_deptMenusSp['sponsorship_main']['can_view'] ?? false);
+            || ($_deptMenusSp !== null && ($_deptMenusSp['sponsorship_main']['can_view'] ?? false));
         if ($_canSeeSponsor):
             $_sponsorOpen = str_starts_with(uri_string(), 'sponsorship');
         ?>
@@ -196,7 +196,7 @@ body { min-height: 100vh; }
         $_creativeMainOpen = (str_starts_with(uri_string(), 'creative') || str_starts_with(uri_string(), 'creative/media-promo')) && !isset($event);
         $_deptMenusC = session()->get('dept_menus');
         $_canSeeCreativeMain = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || $_deptMenusC === null || ($_deptMenusC['creative_main']['can_view'] ?? false);
+            || ($_deptMenusC !== null && ($_deptMenusC['creative_main']['can_view'] ?? false));
         if ($_canSeeCreativeMain):
         ?>
         <a href="<?= base_url('creative') ?>" class="nav-link"
@@ -229,7 +229,7 @@ body { min-height: 100vh; }
         <?php
         $deptMenusNav  = session()->get('dept_menus');
         $canSeeVM = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || $deptMenusNav === null || ($deptMenusNav['vm_main']['can_view'] ?? false);
+            || ($deptMenusNav !== null && ($deptMenusNav['vm_main']['can_view'] ?? false));
         $_vmOpen = str_starts_with(uri_string(), 'vm') && ! isset($event);
         if ($canSeeVM):
         ?>
@@ -250,8 +250,8 @@ body { min-height: 100vh; }
 
         <?php
         $_isAdminNav    = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
-        $canViewTraffic = $_isAdminNav || $deptMenusNav === null || ($deptMenusNav['traffic']['can_view'] ?? false);
-        $canEditTraffic = $_isAdminNav || $deptMenusNav === null || ($deptMenusNav['traffic']['can_edit'] ?? false);
+        $canViewTraffic = $_isAdminNav || ($deptMenusNav !== null && ($deptMenusNav['traffic']['can_view'] ?? false));
+        $canEditTraffic = $_isAdminNav || ($deptMenusNav !== null && ($deptMenusNav['traffic']['can_edit'] ?? false));
         $canSeeTraffic  = $canViewTraffic || $canEditTraffic; // inputter (edit-only, mis. Security) tetap lihat menu
         if ($canSeeTraffic):
         ?>
@@ -395,7 +395,7 @@ body { min-height: 100vh; }
         <?php
         $_isAdmin = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
         $_deptMenusPd = session()->get('dept_menus');
-        $_canViewPd   = $_isAdmin || $_deptMenusPd === null || ($_deptMenusPd['people_dev']['can_view'] ?? false);
+        $_canViewPd   = $_isAdmin || ($_deptMenusPd !== null && ($_deptMenusPd['people_dev']['can_view'] ?? false));
         $_canHr       = $_isAdmin || ($_deptMenusPd['hr_main']['can_view'] ?? false);
         // Data Karyawan, Struktur Organisasi & Pengajuan Data: dipakai HR; bila user PD-only, ditampilkan di section PD agar tetap punya akses.
         ?>
@@ -483,7 +483,7 @@ body { min-height: 100vh; }
         <?php
         $_isAdminLegal  = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
         $_deptMenusLegal = session()->get('dept_menus');
-        $_canViewLegal   = $_isAdminLegal || $_deptMenusLegal === null || ($_deptMenusLegal['legal']['can_view'] ?? false);
+        $_canViewLegal   = $_isAdminLegal || ($_deptMenusLegal !== null && ($_deptMenusLegal['legal']['can_view'] ?? false));
         if ($_canViewLegal):
         ?>
         <div class="nav-label">Legal</div>
