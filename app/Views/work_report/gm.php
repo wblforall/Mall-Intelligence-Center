@@ -210,6 +210,11 @@ function salinLaporan(btn) {
         byDivisi[d.divisi][d.dept].push(d);
     });
 
+    // Indent tiap baris teks multi-baris secara konsisten (baris pertama beda prefix)
+    const fmtBlock = (text, first, cont) =>
+        String(text).split(/\r?\n/).map(s => s.trim()).filter(s => s !== '')
+            .map((s, i) => (i === 0 ? first : cont) + s).join('\n');
+
     const lines = ['*PROGRESS REPORT*', 'Per: ' + new Date().toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'})];
     for (const [divisi, depts] of Object.entries(byDivisi)) {
         lines.push('');
@@ -222,8 +227,8 @@ function salinLaporan(btn) {
             items.forEach((d, idx) => {
                 const pct = d.progress ? ' | ' + d.progress + '%' : '';
                 lines.push((idx + 1) + '. ' + d.judul + ' (' + d.status + pct + ')');
-                if (d.catatan)  lines.push('   ' + d.catatan);
-                if (d.hambatan) lines.push('   ⚠️ ' + d.hambatan);
+                if (d.catatan)  lines.push(fmtBlock(d.catatan, '   ', '   '));
+                if (d.hambatan) lines.push(fmtBlock(d.hambatan, '   ⚠️ ', '   '));
                 if (d.target)   lines.push('   Target: ' + d.target);
             });
         }
