@@ -14,7 +14,7 @@ $statusLabel = [
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report — Admin</h4>
-        <small class="text-muted"><?= $total ?> inisiatif aktif</small>
+        <small class="text-muted"><?= $total ?> program kerja aktif</small>
     </div>
 </div>
 
@@ -53,7 +53,7 @@ $statusLabel = [
 <?php if (empty($grouped)): ?>
 <div class="text-center text-muted py-5">
     <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-    Tidak ada inisiatif ditemukan.
+    Tidak ada program kerja ditemukan.
 </div>
 <?php else: ?>
 
@@ -67,13 +67,13 @@ $statusLabel = [
 <div class="card mb-3">
 <div class="card-header py-2 d-flex align-items-center justify-content-between">
     <span class="fw-semibold small"><i class="bi bi-building me-2 text-muted"></i><?= esc($deptName) ?></span>
-    <small class="text-muted"><?= count($items) ?> inisiatif</small>
+    <small class="text-muted"><?= count($items) ?> program kerja</small>
 </div>
 <div class="table-responsive">
 <table class="table table-sm align-middle mb-0" style="font-size:.78rem">
 <thead>
 <tr>
-    <th style="width:30%">Inisiatif</th>
+    <th style="width:30%">Program Kerja</th>
     <th style="width:10%">Status</th>
     <th style="width:10%">Progress</th>
     <th style="width:15%">PIC</th>

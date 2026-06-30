@@ -17,7 +17,7 @@ $statusLabel = [
         <small class="text-muted"><?= esc($deptInfo['name'] ?? '') ?></small>
     </div>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAdd">
-        <i class="bi bi-plus-lg me-1"></i>Tambah Inisiatif
+        <i class="bi bi-plus-lg me-1"></i>Tambah Program Kerja
     </button>
 </div>
 
@@ -25,7 +25,7 @@ $statusLabel = [
 <?php if (empty($items)): ?>
 <div class="text-center text-muted py-5">
     <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-    Belum ada inisiatif. Klik <strong>Tambah Inisiatif</strong> untuk memulai.
+    Belum ada program kerja. Klik <strong>Tambah Program Kerja</strong> untuk memulai.
 </div>
 <?php else: ?>
 <div class="row g-3">
@@ -183,7 +183,7 @@ $statusLabel = [
 <div class="modal fade" id="modalEdit<?= $item['id'] ?>" tabindex="-1">
 <div class="modal-dialog modal-lg">
 <div class="modal-content">
-<div class="modal-header py-2"><h6 class="modal-title fw-semibold">Edit Inisiatif</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-header py-2"><h6 class="modal-title fw-semibold">Edit Program Kerja</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
 <div class="modal-body">
 <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/edit') ?>">
     <?= csrf_field() ?>
@@ -216,7 +216,7 @@ $statusLabel = [
     </div>
     <div class="d-flex gap-2 mt-3 justify-content-between">
         <button type="button" class="btn btn-outline-danger btn-sm"
-            onclick="if(confirm('Hapus inisiatif ini?')) document.getElementById('delForm<?= $item['id'] ?>').submit()">
+            onclick="if(confirm('Hapus program kerja ini?')) document.getElementById('delForm<?= $item['id'] ?>').submit()">
             <i class="bi bi-trash me-1"></i>Hapus
         </button>
         <div class="d-flex gap-2">
@@ -242,13 +242,13 @@ $statusLabel = [
 <div class="modal fade" id="modalAdd" tabindex="-1">
 <div class="modal-dialog modal-lg">
 <div class="modal-content">
-<div class="modal-header py-2"><h6 class="modal-title fw-semibold"><i class="bi bi-plus-circle me-2"></i>Tambah Inisiatif</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-header py-2"><h6 class="modal-title fw-semibold"><i class="bi bi-plus-circle me-2"></i>Tambah Program Kerja</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
 <div class="modal-body">
 <form method="POST" action="<?= base_url('work-report/store') ?>">
     <?= csrf_field() ?>
     <div class="mb-2">
         <label class="form-label small fw-semibold">Judul <span class="text-danger">*</span></label>
-        <input type="text" name="judul" class="form-control form-control-sm" required placeholder="Nama inisiatif / program kerja">
+        <input type="text" name="judul" class="form-control form-control-sm" required placeholder="Nama program kerja">
     </div>
     <div class="mb-2">
         <label class="form-label small fw-semibold">Deskripsi</label>

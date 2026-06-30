@@ -32,7 +32,7 @@ $statusLabel = [
 <?php if (empty($byDivisi)): ?>
 <div class="text-center text-muted py-5">
     <i class="bi bi-flag fs-1 d-block mb-2"></i>
-    Belum ada inisiatif yang ditampilkan Deputy.
+    Belum ada program kerja yang ditampilkan Deputy.
 </div>
 <?php else: ?>
 
@@ -197,7 +197,7 @@ function togglePilihSemua(btn) {
 function salinLaporan(btn) {
     const checked = [...document.querySelectorAll('.initiative-check:checked')];
     if (checked.length === 0) {
-        alert('Pilih minimal satu inisiatif untuk disalin.');
+        alert('Pilih minimal satu program kerja untuk disalin.');
         return;
     }
 

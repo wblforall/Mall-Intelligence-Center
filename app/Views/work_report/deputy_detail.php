@@ -140,7 +140,7 @@ $statusLabel = [
 <div class="modal fade" id="modalEdit" tabindex="-1">
 <div class="modal-dialog modal-lg">
 <div class="modal-content">
-<div class="modal-header py-2"><h6 class="modal-title fw-semibold">Edit Inisiatif</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-header py-2"><h6 class="modal-title fw-semibold">Edit Program Kerja</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
 <div class="modal-body">
 <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/edit') ?>">
     <?= csrf_field() ?>

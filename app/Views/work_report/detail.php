@@ -23,7 +23,7 @@ $statusLabel = [
 <!-- Info + History -->
 <div class="col-12 col-lg-7">
     <div class="card mb-3">
-        <div class="card-header py-2"><h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2"></i>Detail Inisiatif</h6></div>
+        <div class="card-header py-2"><h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2"></i>Detail Program Kerja</h6></div>
         <div class="card-body">
             <?php if (! empty($item['deskripsi'])): ?>
             <p class="small mb-2"><?= nl2br(esc($item['deskripsi'])) ?></p>

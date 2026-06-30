@@ -17,7 +17,7 @@ $statusLabel = [
         <small class="text-muted"><?= esc($divisi['nama'] ?? '') ?></small>
     </div>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAdd">
-        <i class="bi bi-plus-lg me-1"></i>Tambah Inisiatif
+        <i class="bi bi-plus-lg me-1"></i>Tambah Program Kerja
     </button>
 </div>
 
@@ -36,7 +36,7 @@ ksort($grouped);
 <div class="card mb-3">
 <div class="card-header d-flex align-items-center justify-content-between py-2">
     <h6 class="mb-0 fw-semibold"><i class="bi bi-building me-2 text-muted"></i><?= esc($deptName) ?></h6>
-    <small class="text-muted"><?= count($deptItems) ?> inisiatif</small>
+    <small class="text-muted"><?= count($deptItems) ?> program kerja</small>
 </div>
 <div class="list-group list-group-flush">
 <?php foreach ($deptItems as $item):
@@ -139,7 +139,7 @@ ksort($grouped);
 <?php if (empty($items)): ?>
 <div class="text-center text-muted py-5">
     <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-    Belum ada inisiatif di divisi ini.
+    Belum ada program kerja di divisi ini.
 </div>
 <?php endif; ?>
 
@@ -147,7 +147,7 @@ ksort($grouped);
 <div class="modal fade" id="modalAdd" tabindex="-1">
 <div class="modal-dialog modal-lg">
 <div class="modal-content">
-<div class="modal-header py-2"><h6 class="modal-title fw-semibold"><i class="bi bi-plus-circle me-2"></i>Tambah Inisiatif</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-header py-2"><h6 class="modal-title fw-semibold"><i class="bi bi-plus-circle me-2"></i>Tambah Program Kerja</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
 <div class="modal-body">
 <form method="POST" action="<?= base_url('work-report/division/store') ?>">
     <?= csrf_field() ?>
@@ -162,7 +162,7 @@ ksort($grouped);
     <div class="mb-2">
         <label class="form-label small fw-semibold">Assign ke Departemen</label>
         <select name="assigned_to_dept_id" class="form-select form-select-sm">
-            <option value="">— Inisiatif Deputy sendiri (tidak di-assign) —</option>
+            <option value="">— Program Kerja Deputy sendiri (tidak di-assign) —</option>
             <?php foreach ($depts as $d): ?>
             <option value="<?= $d['id'] ?>"><?= esc($d['name']) ?></option>
             <?php endforeach; ?>
