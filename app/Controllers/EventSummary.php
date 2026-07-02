@@ -227,7 +227,8 @@ class EventSummary extends BaseController
         $totalBudgetReal = $loyaltyBudgetReal + $contentRealisasi + $creativeRealisasiTotal + $vmRealTotal;
 
         // KPI derived values
-        $profit          = $totalRevenue - $totalBudget;
+        // Margin pakai biaya REALISASI (aktual), konsisten dgn Laporan Post Event.
+        $profit          = $totalRevenue - $totalBudgetReal;
         $marginPct       = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
         $profitPositive  = $profit >= 0;
         $budgetRealPct   = $totalBudget > 0 ? min(100, round($totalBudgetReal / $totalBudget * 100, 1)) : 0;

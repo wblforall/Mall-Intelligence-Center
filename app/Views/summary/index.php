@@ -223,7 +223,7 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
                     <?= $profitPositive ? '' : '-' ?>Rp <?= number_format(abs($profit),0,',','.') ?>
                 </div>
                 <div class="small text-<?= $profitPositive ? 'primary' : 'danger' ?> mt-1">
-                    <?= ($marginPct >= 0 ? '+' : '') ?><?= $marginPct ?>% dari revenue
+                    <?= ($marginPct >= 0 ? '+' : '') ?><?= $marginPct ?>% margin · Revenue − Realisasi
                 </div>
             </div>
         </div>
