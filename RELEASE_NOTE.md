@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.15.0** (Juni 2026)
+> Versi saat ini: **v2.16.0** (Juli 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,44 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.16.0
+
+**Tanggal Rilis:** 3 Juli 2026
+
+### Perubahan dari v2.15.0
+
+#### Laporan Post Event — Section Traffic & Perbaikan KPI
+
+- Section baru **"Performa Event — Traffic & Kendaraan"** di Laporan Post Event: total/rata-rata/puncak pengunjung + tabel harian pengunjung dan kendaraan per jenis. Data mengikuti pemetaan tanggal & mall event (konsisten dengan halaman Summary).
+- **Fix KPI Budget Realisasi**: realisasi Dekorasi/VM sebelumnya terlewat dari total (padahal Total Budget sudah termasuk VM) — kini ikut dihitung, angka tidak lagi under-report.
+- **Margin Profit** kini dihitung dari biaya **realisasi (aktual)**, bukan budget rencana — sesuai sifat laporan pasca-event. Diterapkan konsisten di **Laporan Post Event** dan **Summary Event**. Label diperjelas "Revenue − Realisasi". Ringkasan bulanan (`monthly`) tetap basis budget rencana.
+
+#### Traffic Kendaraan — Otomatis dari SPI
+
+- Menu **Input Kendaraan manual dihapus**. Tabel `daily_vehicles` (sumber data kendaraan di Event Summary) kini **dicerminkan otomatis** dari data parkir SPI (`spi_vehicle_daily`) setiap kali sinkronisasi berjalan.
+- Command `mic:spi-sync` menambah opsi **`--mirror-only`** untuk backfill historis dari salinan lokal tanpa menarik ulang dari server SPI (instan).
+
+#### Revenue Parkir — Anti-Hang
+
+- Halaman **Revenue Parkir** kini murni membaca dari database (read-only), tidak lagi melakukan *fetch live* ke server SPI saat data bulan berjalan belum tersync. Menghilangkan gejala halaman "loading" berkepanjangan saat SPI lambat/tidak responsif.
+
+#### Hak Akses — Penyederhanaan
+
+- Klasifikasi menu (standalone vs per-event) dipusatkan di `SectionConfig` sebagai **sumber tunggal** — mengurangi duplikasi saat menambah menu baru.
+- Saat akses departemen diubah, notifikasi kini menyebut **berapa user yang harus login ulang** agar perubahan berlaku.
+
+#### PWA — Perbaikan Keamanan Cache
+
+- Service worker **berhenti menyimpan (cache) halaman HTML** hasil navigasi. Sebelumnya halaman ter-autentikasi bisa tersimpan di cache browser dan berpotensi tampil ke pengguna lain pada perangkat bersama. Kini navigasi selalu mengambil dari jaringan; offline hanya menampilkan halaman offline.
+- Versi service worker mengikuti versi rilis agar cache lama otomatis dibersihkan tiap update.
+
+#### Perbaikan Lain
+
+- **Fix: Email Kerja karyawan** tidak tersimpan saat tambah/edit karyawan (field tidak terbaca oleh controller meskipun kolom & konfigurasi model sudah benar). Kini tersimpan pada create maupun edit.
+- **Bersih-bersih**: menghapus kode lama yang sudah tidak terpakai (modul baseline/tracking per-section yang tak lagi memiliki rute dan memanggil fungsi yang sudah tidak ada).
 
 ---
 
