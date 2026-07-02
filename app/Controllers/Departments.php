@@ -85,10 +85,15 @@ class Departments extends BaseController
 
         $menuModel->saveMenuAccess($id, $menuData);
         // Akses menu dept berubah → paksa semua user di dept ini login ulang.
+        $affected = db_connect()->table('users')->where('department_id', $id)->countAllResults();
         db_connect()->table('users')->where('department_id', $id)->update(['perms_changed_at' => date('Y-m-d H:i:s')]);
         ActivityLog::write('update', 'department', (string)$id, $name);
 
-        return redirect()->to('/departments')->with('success', 'Departemen berhasil diperbarui.');
+        $msg = 'Departemen berhasil diperbarui.';
+        if ($affected > 0) {
+            $msg .= ' Perubahan akses baru berlaku setelah ' . $affected . ' user di dept ini login ulang.';
+        }
+        return redirect()->to('/departments')->with('success', $msg);
     }
 
     public function delete(int $id)
