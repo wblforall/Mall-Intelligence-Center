@@ -275,11 +275,6 @@ body { min-height: 100vh; }
             <i class="bi bi-arrow-left-right"></i> Compare
         </a>
         <?php endif; ?>
-        <?php if ($canViewTraffic && $canEditTraffic): // input kendaraan butuh akses penuh ?>
-        <a href="<?= base_url('traffic/vehicles') ?>" class="nav-link <?= str_starts_with(uri_string(), 'traffic/vehicles') ? 'active' : '' ?>">
-            <i class="bi bi-car-front"></i> Input Kendaraan
-        </a>
-        <?php endif; ?>
         <?php
         $canImportTraffic = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
             || (session()->get('role_perms')['can_import_traffic'] ?? false);

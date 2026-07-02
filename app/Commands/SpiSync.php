@@ -5,17 +5,18 @@ namespace App\Commands;
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 use App\Services\SpiReportingService;
-use App\Models\DailyVehicleModel;
 use App\Libraries\ActivityLog;
 
 /**
- * Sinkronkan salinan lokal data parkir SPI (Hybrid sync) + opsional isi daily_vehicles.
+ * Sinkronkan salinan lokal data parkir SPI (Hybrid sync).
  *
  *   php spark mic:spi-sync                        # 7 hari terakhir
  *   php spark mic:spi-sync --from 2023-01-01      # backfill sejak 2023 s/d hari ini
  *   php spark mic:spi-sync --from 2026-06-01 --to 2026-06-17
- *   php spark mic:spi-sync --fill-vehicles        # ikut isi daily_vehicles (tanggal kosong)
- *   php spark mic:spi-sync --fill-vehicles --force   # timpa daily_vehicles yang sudah ada
+ *
+ * daily_vehicles (sumber kendaraan Event Summary) kini SELALU dicerminkan
+ * otomatis dari spi_vehicle_daily untuk rentang yang disync — menggantikan
+ * input manual "Input Kendaraan" yang sudah dihapus.
  *
  * Catatan opsi: gunakan SPASI (--from 2023-01-01), bukan tanda sama dengan.
  * Cron harian: 0 8 * * *  (SPI update jam 7 pagi → kita tarik jam 8 pagi).
@@ -24,21 +25,17 @@ class SpiSync extends BaseCommand
 {
     protected $group       = 'MIC';
     protected $name        = 'mic:spi-sync';
-    protected $description  = 'Tarik salinan data parkir SPI ke tabel lokal (+ opsi isi daily_vehicles).';
-    protected $usage        = 'mic:spi-sync [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--fill-vehicles] [--force]';
+    protected $description  = 'Tarik salinan data parkir SPI ke tabel lokal (+ cermin daily_vehicles).';
+    protected $usage        = 'mic:spi-sync [--from YYYY-MM-DD] [--to YYYY-MM-DD]';
     protected $options      = [
         '--from'           => 'Tanggal mulai (default: 7 hari lalu)',
         '--to'             => 'Tanggal akhir (default: hari ini)',
-        '--fill-vehicles'  => 'Isi juga tabel MIC daily_vehicles',
-        '--force'          => 'Timpa daily_vehicles yang sudah ada (default: hanya yang kosong)',
     ];
 
     public function run(array $params)
     {
         $from = CLI::getOption('from') ?: date('Y-m-d', strtotime('-7 days'));
         $to   = CLI::getOption('to')   ?: date('Y-m-d');
-        $fillVeh = (bool) CLI::getOption('fill-vehicles');
-        $force   = (bool) CLI::getOption('force');
 
         if ($from > $to) { [$from, $to] = [$to, $from]; }
 
@@ -49,7 +46,6 @@ class SpiSync extends BaseCommand
         }
 
         $db   = \Config\Database::connect();
-        $vehM = new DailyVehicleModel();
         $now  = date('Y-m-d H:i:s');
 
         $totQty = 0; $totInc = 0; $totVeh = 0;
@@ -63,16 +59,14 @@ class SpiSync extends BaseCommand
 
             $qty  = $spi->fetchDailyQty($mStart, $mEnd);
             $inc  = $spi->fetchDailyIncome($mStart, $mEnd);
-            $pass = $fillVeh ? $spi->fetchDailyPass($mStart, $mEnd) : [];
 
             foreach ($qty as $r) {
                 if (! $r['tanggal']) { continue; }
+                // Kolom *_free diisi belakangan dari statistik (lebih lengkap); di sini default 0.
                 $db->table('spi_vehicle_daily')->replace([
                     'tanggal' => $r['tanggal'], 'mobil' => $r['mobil'], 'motor' => $r['motor'],
                     'box' => $r['box'], 'truck' => $r['truck'], 'taxi' => $r['taxi'], 'bus' => $r['bus'],
                     'total' => $r['total'],
-                    'mobil_free' => $pass[$r['tanggal']]['mobil'] ?? 0,
-                    'motor_free' => $pass[$r['tanggal']]['motor'] ?? 0,
                     'updated_at' => $now,
                 ]);
                 $totQty++;
@@ -85,28 +79,6 @@ class SpiSync extends BaseCommand
                     'total' => $r['total'], 'updated_at' => $now,
                 ]);
                 $totInc++;
-            }
-
-            // Isi daily_vehicles MIC (casual → kolom utama, pass → *_free)
-            if ($fillVeh) {
-                foreach ($qty as $r) {
-                    $tgl = $r['tanggal']; if (! $tgl) { continue; }
-                    $exist = $vehM->where('tanggal', $tgl)->first();
-                    if ($exist && ! $force) { continue; }
-                    $row = [
-                        'tanggal'          => $tgl,
-                        'total_mobil'      => $r['mobil'],
-                        'total_motor'      => $r['motor'],
-                        'total_mobil_box'  => $r['box'],
-                        'total_truck'      => $r['truck'],
-                        'total_bus'        => $r['bus'],
-                        'total_mobil_free' => $pass[$tgl]['mobil'] ?? 0,
-                        'total_motor_free' => $pass[$tgl]['motor'] ?? 0,
-                    ];
-                    if ($exist) { $vehM->update($exist['id'], $row); }
-                    else        { $vehM->insert($row); }
-                    $totVeh++;
-                }
             }
 
             $cursor = date('Y-m-01', strtotime($cursor . ' +1 month'));
@@ -158,6 +130,24 @@ class SpiSync extends BaseCommand
             ]);
             if ($upd) { $totFree++; }
         }
+
+        // ── Cermin spi_vehicle_daily → daily_vehicles (sumber kendaraan Event Summary) ──
+        // Selalu upsert untuk rentang yang disync agar data terbaru ikut ter-refresh.
+        // Kolom *_free authoritatif dari spi_vehicle_daily (sudah difinalisasi di atas).
+        $db->query(
+            'INSERT INTO daily_vehicles
+                (tanggal, total_mobil, total_motor, total_mobil_box, total_truck, total_bus,
+                 total_mobil_free, total_motor_free, created_at, updated_at)
+             SELECT tanggal, mobil, motor, box, truck, bus, mobil_free, motor_free, ?, ?
+             FROM spi_vehicle_daily WHERE tanggal >= ? AND tanggal <= ?
+             ON DUPLICATE KEY UPDATE
+                total_mobil = VALUES(total_mobil), total_motor = VALUES(total_motor),
+                total_mobil_box = VALUES(total_mobil_box), total_truck = VALUES(total_truck),
+                total_bus = VALUES(total_bus), total_mobil_free = VALUES(total_mobil_free),
+                total_motor_free = VALUES(total_motor_free), updated_at = VALUES(updated_at)',
+            [$now, $now, $from, $to]
+        );
+        $totVeh = (int) $db->table('spi_vehicle_daily')->where('tanggal >=', $from)->where('tanggal <=', $to)->countAllResults();
 
         CLI::write("Selesai. qty={$totQty} income={$totInc} bulanan={$totMon} daily_vehicles={$totVeh} payment={$totPay} free={$totFree} durasi={$totDur}.", 'green');
         try {

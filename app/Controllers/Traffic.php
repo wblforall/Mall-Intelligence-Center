@@ -1076,59 +1076,6 @@ class Traffic extends BaseController
         return redirect()->to('/traffic')->with('success', "Data traffic {$mall} tanggal {$tanggal} berhasil disimpan.");
     }
 
-    public function vehicles(string $tanggal = '')
-    {
-        // Input kendaraan butuh akses penuh (view + edit); inputter pejalan-only ditolak.
-        if (! $this->canEditMenu('traffic') || ! $this->canViewMenu('traffic')) {
-            return redirect()->to('/traffic')->with('error', 'Akses ditolak.');
-        }
-
-        $tanggal    = $tanggal ?: date('Y-m-d');
-        $vehicleRow = (new DailyVehicleModel())->getByDate($tanggal);
-
-        return view('traffic/vehicles', [
-            'user'       => $this->currentUser(),
-            'tanggal'    => $tanggal,
-            'vehicleRow' => $vehicleRow,
-        ]);
-    }
-
-    public function saveVehicles()
-    {
-        if (! $this->canEditMenu('traffic') || ! $this->canViewMenu('traffic')) {
-            return redirect()->to('/traffic/vehicles')->with('error', 'Akses ditolak.');
-        }
-
-        $post    = $this->request->getPost();
-        $tanggal = $post['tanggal'];
-        $userId  = $this->currentUser()['id'];
-
-        $vehicleModel = new DailyVehicleModel();
-        $existing     = $vehicleModel->getByDate($tanggal);
-        $vehicleData  = [
-            'tanggal'         => $tanggal,
-            'total_mobil'     => (int)($post['total_mobil']     ?? 0),
-            'total_motor'     => (int)($post['total_motor']     ?? 0),
-            'total_mobil_box'  => (int)($post['total_mobil_box']  ?? 0),
-            'total_truck'      => (int)($post['total_truck']      ?? 0),
-            'total_bus'        => (int)($post['total_bus']        ?? 0),
-            'total_mobil_free' => (int)($post['total_mobil_free'] ?? 0),
-            'total_motor_free' => (int)($post['total_motor_free'] ?? 0),
-            'created_by'       => $userId,
-        ];
-
-        if ($existing) {
-            ActivityLog::captureBefore($existing);
-            $vehicleModel->update($existing['id'], $vehicleData);
-            ActivityLog::captureAfter($vehicleData);
-        } else {
-            $vehicleModel->insert($vehicleData);
-        }
-
-        ActivityLog::write('update', 'vehicles', $tanggal, "Kendaraan — {$tanggal}", $vehicleData);
-        return redirect()->to('/traffic/vehicles/' . $tanggal)->with('success', "Data kendaraan tanggal {$tanggal} berhasil disimpan.");
-    }
-
     public function importForm()
     {
         if (! $this->can('can_import_traffic')) {

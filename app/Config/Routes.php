@@ -307,9 +307,7 @@ $routes->get('traffic/input/(:alpha)', 'Traffic::form/$1', ['filter' => 'auth'])
 $routes->post('traffic/save', 'Traffic::save', ['filter' => 'auth']);
 $routes->post('traffic/save-cell', 'Traffic::saveCell', ['filter' => 'auth']);
 $routes->post('traffic/delete/(:alpha)/(:any)', 'Traffic::delete/$1/$2', ['filter' => 'auth']);
-$routes->get('traffic/vehicles/(:any)',       'Traffic::vehicles/$1',    ['filter' => 'auth']);
-$routes->get('traffic/vehicles',              'Traffic::vehicles',        ['filter' => 'auth']);
-$routes->post('traffic/vehicles/save',        'Traffic::saveVehicles',    ['filter' => 'auth']);
+// Input Kendaraan manual dihapus (v2.15.x) — daily_vehicles kini dicerminkan otomatis dari SPI (mic:spi-sync).
 
 // Parkir — dashboard read-only dari SPI. Satu halaman Live gabungan (field digate),
 // Summary terpisah per domain, Compare periode.
