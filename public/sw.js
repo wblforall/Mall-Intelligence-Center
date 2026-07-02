@@ -1,12 +1,12 @@
 /* Mall Intelligence Center — Service Worker
  * Strategi konservatif agar tidak mengganggu app dinamis (CI4):
- *  - Navigasi (HTML)  : network-first, fallback ke halaman offline saat tidak ada koneksi.
+ *  - Navigasi (HTML)  : selalu network; HTML tidak di-cache (data per-user/sensitif),
+ *                       fallback ke halaman offline hanya saat tidak ada koneksi.
  *  - Aset statis lokal: stale-while-revalidate (css/js/img/font milik origin sendiri).
  *  - Selain GET        : selalu lewat jaringan, tidak pernah di-cache.
  */
-const VERSION    = 'mic-v1';
+const VERSION      = 'mic-v2.15.0';   // samakan dengan versi rilis agar cache lama otomatis dibersihkan
 const STATIC_CACHE = `${VERSION}-static`;
-const PAGE_CACHE   = `${VERSION}-pages`;
 
 // Path relatif terhadap lokasi sw.js (folder public/).
 const OFFLINE_URL = 'offline.html';
@@ -46,16 +46,11 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navigasi halaman → network-first, fallback offline.
+  // Navigasi halaman → selalu network, JANGAN cache HTML (data per-user & sensitif).
+  // Saat offline, tampilkan halaman offline — bukan salinan halaman lama.
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(PAGE_CACHE).then((c) => c.put(req, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match(req).then((hit) => hit || caches.match(OFFLINE_URL)))
+      fetch(req).catch(() => caches.match(OFFLINE_URL))
     );
     return;
   }

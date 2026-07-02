@@ -227,8 +227,10 @@ function salinLaporan(btn) {
             items.forEach((d, idx) => {
                 const pct = d.progress ? ' | ' + d.progress + '%' : '';
                 lines.push((idx + 1) + '. ' + d.judul + ' (' + d.status + pct + ')');
-                if (d.catatan)  lines.push(fmtBlock(d.catatan, '   ', '   '));
-                if (d.hambatan) lines.push(fmtBlock(d.hambatan, '   ⚠️ ', '   '));
+                const catatan  = fmtBlock(d.catatan, '   ', '   ');
+                const hambatan = fmtBlock(d.hambatan, '   ⚠️ ', '   ');
+                if (catatan)  lines.push(catatan);
+                if (hambatan) lines.push(hambatan);
                 if (d.target)   lines.push('   Target: ' + d.target);
             });
         }
