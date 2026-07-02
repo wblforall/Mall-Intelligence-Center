@@ -192,7 +192,8 @@ $insightDef = [
 
     <!-- KPI Cards -->
     <?php
-    $profit    = $totalRevenue - $totalBudget;
+    // Post-event = angka aktual. Profit pakai biaya REALISASI, bukan budget rencana.
+    $profit    = $totalRevenue - $totalBudgetReal;
     $profitPos = $profit >= 0;
     $realPct   = $totalBudget > 0 ? min(100, round($totalBudgetReal / $totalBudget * 100, 1)) : 0;
     $realColor = $totalBudgetReal > $totalBudget ? '#ef4444' : ($realPct >= 80 ? '#f59e0b' : '#10b981');
@@ -229,9 +230,55 @@ $insightDef = [
                 <?= $profitPos ? '' : '−' ?>Rp <?= number_format(abs($profit), 0, ',', '.') ?>
             </div>
             <div class="kpi-sub" style="color:<?= $profitPos ? '#2563eb' : '#dc2626' ?>">
-                <?= ($marginPct >= 0 ? '+' : '') ?><?= $marginPct ?>% dari revenue
+                <?= ($marginPct >= 0 ? '+' : '') ?><?= $marginPct ?>% margin · Revenue − Realisasi
             </div>
         </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- PERFORMA TRAFFIC & KENDARAAN                 -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <span>Performa Event — Traffic &amp; Kendaraan</span>
+            <span class="badge"><?= number_format($trafficTotal, 0, ',', '.') ?> pengunjung</span>
+        </div>
+        <?php if ($trafficTotal == 0 && $vehGrandTotal == 0): ?>
+        <div class="empty">Belum ada data traffic / kendaraan untuk periode event ini.</div>
+        <?php else: ?>
+        <div style="display:flex;gap:28px;flex-wrap:wrap;padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e8ecf0">
+            <div class="stat-item"><div class="stat-val text-blue"><?= number_format($trafficTotal, 0, ',', '.') ?></div><div class="stat-lbl">Total Pengunjung</div></div>
+            <div class="stat-item"><div class="stat-val"><?= number_format($trafficAvg, 0, ',', '.') ?></div><div class="stat-lbl">Rata-rata / Hari</div></div>
+            <?php if ($peakDate): ?>
+            <div class="stat-item"><div class="stat-val text-green"><?= number_format($peakVal, 0, ',', '.') ?></div><div class="stat-lbl">Puncak — <?= date('d M', strtotime($peakDate)) ?></div></div>
+            <?php endif; ?>
+            <div class="stat-item"><div class="stat-val text-blue"><?= number_format($vehGrandTotal, 0, ',', '.') ?></div><div class="stat-lbl">Total Kendaraan</div></div>
+        </div>
+        <table>
+        <thead><tr>
+            <th>Tanggal</th>
+            <th style="text-align:right">Pengunjung</th>
+            <?php foreach ($vehActiveTypes as $lbl): ?><th style="text-align:right"><?= esc($lbl) ?></th><?php endforeach; ?>
+            <th style="text-align:right">Total Kendaraan</th>
+        </tr></thead>
+        <tbody>
+        <?php foreach ($perfDaily as $row): ?>
+        <tr>
+            <td style="font-weight:600;color:#1e3a5f;white-space:nowrap"><?= date('D, d M Y', strtotime($row['date'])) ?></td>
+            <td style="text-align:right"><?= $row['pengunjung'] ? number_format($row['pengunjung'], 0, ',', '.') : '—' ?></td>
+            <?php foreach (array_keys($vehActiveTypes) as $k): ?><td style="text-align:right"><?= $row['counts'][$k] ? number_format($row['counts'][$k], 0, ',', '.') : '—' ?></td><?php endforeach; ?>
+            <td style="text-align:right;font-weight:600"><?= $row['vehTotal'] ? number_format($row['vehTotal'], 0, ',', '.') : '—' ?></td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+        <tfoot><tr>
+            <td>Total</td>
+            <td style="text-align:right"><?= number_format($trafficTotal, 0, ',', '.') ?></td>
+            <?php foreach (array_keys($vehActiveTypes) as $k): ?><td style="text-align:right"><?= number_format($vehTypeTotals[$k], 0, ',', '.') ?></td><?php endforeach; ?>
+            <td style="text-align:right"><?= number_format($vehGrandTotal, 0, ',', '.') ?></td>
+        </tr></tfoot>
+        </table>
+        <?php endif; ?>
     </div>
 
     <!-- ═══════════════════════════════════════════ -->

@@ -546,7 +546,9 @@ class EventSummary extends BaseController
         }
         $contentRealisasiTotal  = array_sum(array_map(fn($g) => array_sum(array_column($g, 'nilai')), $contentRealisasiByItem));
         $creativeRealisasiTotal = (new EventCreativeRealisasiModel())->getTotalByEvent($eventId);
-        $totalBudgetReal        = $loyaltyBudgetReal + $contentRealisasiTotal + $creativeRealisasiTotal;
+        // Realisasi VM/dekorasi — sebelumnya terlewat dari total (Total Budget sudah termasuk VM).
+        $vmRealisasiTotal       = array_sum(array_map(fn($r) => (int) ($r['total'] ?? 0), $vmRealisasi));
+        $totalBudgetReal        = $loyaltyBudgetReal + $contentRealisasiTotal + $creativeRealisasiTotal + $vmRealisasiTotal;
 
         // KPI — Revenue
         $exhibitorModel   = new EventExhibitorModel();
@@ -563,6 +565,48 @@ class EventSummary extends BaseController
 
         // Locations
         $eventLocations = (new EventLocationModel())->getEventLocations($eventId);
+
+        // ── Performa Traffic & Kendaraan selama event (outcome post-event) ──
+        $evEnd2       = date('Y-m-d', strtotime($event['start_date'] . ' +' . ($event['event_days'] - 1) . ' days'));
+        $trafficModel = new DailyTrafficModel();
+        $vehicleModel = new DailyVehicleModel();
+        $mallsForTraffic = $event['mall'] === 'keduanya' ? ['ewalk', 'pentacity'] : [$event['mall']];
+        $trafficByDate = [];
+        foreach ($mallsForTraffic as $m) {
+            foreach ($trafficModel->getDailyTotals($event['start_date'], $evEnd2, $m) as $t) {
+                $trafficByDate[$t['tanggal']] = ($trafficByDate[$t['tanggal']] ?? 0) + (int) $t['total'];
+            }
+        }
+        $vehTypeMeta = [
+            'mobil'      => ['label' => 'Mobil',      'col' => 'total_mobil'],
+            'motor'      => ['label' => 'Motor',      'col' => 'total_motor'],
+            'mobil_box'  => ['label' => 'Mobil Box',  'col' => 'total_mobil_box'],
+            'truck'      => ['label' => 'Truck',      'col' => 'total_truck'],
+            'bus'        => ['label' => 'Bus',        'col' => 'total_bus'],
+            'mobil_free' => ['label' => 'Mobil Free', 'col' => 'total_mobil_free'],
+            'motor_free' => ['label' => 'Motor Free', 'col' => 'total_motor_free'],
+        ];
+        $vehByDate = [];
+        foreach ($vehicleModel->getDailyTotals($event['start_date'], $evEnd2) as $v) {
+            foreach ($vehTypeMeta as $k => $meta) { $vehByDate[$v['tanggal']][$k] = (int) ($v[$meta['col']] ?? 0); }
+        }
+        $perfDaily = [];
+        $vehTypeTotals = array_fill_keys(array_keys($vehTypeMeta), 0);
+        $trafficTotal = 0; $peakDate = null; $peakVal = 0;
+        for ($i = 0; $i < $event['event_days']; $i++) {
+            $d    = date('Y-m-d', strtotime($event['start_date'] . " +{$i} days"));
+            $peng = $trafficByDate[$d] ?? 0; $trafficTotal += $peng;
+            if ($peng > $peakVal) { $peakVal = $peng; $peakDate = $d; }
+            $counts = []; $vtot = 0;
+            foreach ($vehTypeMeta as $k => $meta) {
+                $c = $vehByDate[$d][$k] ?? 0; $counts[$k] = $c; $vtot += $c; $vehTypeTotals[$k] += $c;
+            }
+            $perfDaily[] = ['date' => $d, 'pengunjung' => $peng, 'counts' => $counts, 'vehTotal' => $vtot];
+        }
+        $vehActiveTypes = [];
+        foreach ($vehTypeMeta as $k => $meta) { if ($vehTypeTotals[$k] > 0) { $vehActiveTypes[$k] = $meta['label']; } }
+        $vehGrandTotal = array_sum($vehTypeTotals);
+        $trafficAvg    = $event['event_days'] > 0 ? (int) round($trafficTotal / $event['event_days']) : 0;
 
         return view('summary/post_event', [
             'event'                  => $event,
@@ -600,6 +644,14 @@ class EventSummary extends BaseController
             'tgtExNilai'             => $tgtExNilai,
             'pctExJumlah'            => $pctExJumlah,
             'pctExNilai'             => $pctExNilai,
+            'perfDaily'              => $perfDaily,
+            'vehActiveTypes'         => $vehActiveTypes,
+            'vehTypeTotals'          => $vehTypeTotals,
+            'vehGrandTotal'          => $vehGrandTotal,
+            'trafficTotal'           => $trafficTotal,
+            'trafficAvg'             => $trafficAvg,
+            'peakDate'               => $peakDate,
+            'peakVal'                => $peakVal,
         ]);
     }
 
