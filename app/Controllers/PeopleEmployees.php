@@ -41,6 +41,7 @@ class PeopleEmployees extends BaseController
     {
         $f = fn($k) => trim($post[$k] ?? '') ?: null;
         return [
+            'email_kerja'        => $f('email_kerja'),
             'nik_ktp'            => $f('nik_ktp'),
             'status_kontrak'     => $f('status_kontrak'),
             'tanggal_akhir_kontrak' => $f('tanggal_akhir_kontrak'),
