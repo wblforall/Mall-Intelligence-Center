@@ -13,6 +13,8 @@ use App\Libraries\ActivityLog;
  *   php spark mic:spi-sync                        # 7 hari terakhir
  *   php spark mic:spi-sync --from 2023-01-01      # backfill sejak 2023 s/d hari ini
  *   php spark mic:spi-sync --from 2026-06-01 --to 2026-06-17
+ *   php spark mic:spi-sync --mirror-only --from 2023-01-01   # backfill daily_vehicles
+ *                                                 # dari salinan lokal, TANPA hit SPI (instan)
  *
  * daily_vehicles (sumber kendaraan Event Summary) kini SELALU dicerminkan
  * otomatis dari spi_vehicle_daily untuk rentang yang disync — menggantikan
@@ -26,10 +28,11 @@ class SpiSync extends BaseCommand
     protected $group       = 'MIC';
     protected $name        = 'mic:spi-sync';
     protected $description  = 'Tarik salinan data parkir SPI ke tabel lokal (+ cermin daily_vehicles).';
-    protected $usage        = 'mic:spi-sync [--from YYYY-MM-DD] [--to YYYY-MM-DD]';
+    protected $usage        = 'mic:spi-sync [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--mirror-only]';
     protected $options      = [
         '--from'           => 'Tanggal mulai (default: 7 hari lalu)',
         '--to'             => 'Tanggal akhir (default: hari ini)',
+        '--mirror-only'    => 'Hanya cermin spi_vehicle_daily → daily_vehicles (tanpa hit SPI)',
     ];
 
     public function run(array $params)
@@ -39,14 +42,21 @@ class SpiSync extends BaseCommand
 
         if ($from > $to) { [$from, $to] = [$to, $from]; }
 
+        $db   = \Config\Database::connect();
+        $now  = date('Y-m-d H:i:s');
+
+        // Mode backfill lokal: cermin daily_vehicles dari spi_vehicle_daily, tanpa hit SPI.
+        if (CLI::getOption('mirror-only')) {
+            $n = $this->mirrorVehicles($db, $from, $to, $now);
+            CLI::write("Mirror lokal selesai. daily_vehicles={$n} ({$from}..{$to}).", 'green');
+            return;
+        }
+
         $spi = new SpiReportingService();
         if (! $spi->ping()) {
             CLI::error('Gagal login ke SPI. Periksa kredensial SPI_* di .env.');
             return;
         }
-
-        $db   = \Config\Database::connect();
-        $now  = date('Y-m-d H:i:s');
 
         $totQty = 0; $totInc = 0; $totVeh = 0;
 
@@ -131,23 +141,8 @@ class SpiSync extends BaseCommand
             if ($upd) { $totFree++; }
         }
 
-        // ── Cermin spi_vehicle_daily → daily_vehicles (sumber kendaraan Event Summary) ──
-        // Selalu upsert untuk rentang yang disync agar data terbaru ikut ter-refresh.
-        // Kolom *_free authoritatif dari spi_vehicle_daily (sudah difinalisasi di atas).
-        $db->query(
-            'INSERT INTO daily_vehicles
-                (tanggal, total_mobil, total_motor, total_mobil_box, total_truck, total_bus,
-                 total_mobil_free, total_motor_free, created_at, updated_at)
-             SELECT tanggal, mobil, motor, box, truck, bus, mobil_free, motor_free, ?, ?
-             FROM spi_vehicle_daily WHERE tanggal >= ? AND tanggal <= ?
-             ON DUPLICATE KEY UPDATE
-                total_mobil = VALUES(total_mobil), total_motor = VALUES(total_motor),
-                total_mobil_box = VALUES(total_mobil_box), total_truck = VALUES(total_truck),
-                total_bus = VALUES(total_bus), total_mobil_free = VALUES(total_mobil_free),
-                total_motor_free = VALUES(total_motor_free), updated_at = VALUES(updated_at)',
-            [$now, $now, $from, $to]
-        );
-        $totVeh = (int) $db->table('spi_vehicle_daily')->where('tanggal >=', $from)->where('tanggal <=', $to)->countAllResults();
+        // Cermin spi_vehicle_daily → daily_vehicles (sumber kendaraan Event Summary).
+        $totVeh = $this->mirrorVehicles($db, $from, $to, $now);
 
         CLI::write("Selesai. qty={$totQty} income={$totInc} bulanan={$totMon} daily_vehicles={$totVeh} payment={$totPay} free={$totFree} durasi={$totDur}.", 'green');
         try {
@@ -167,5 +162,28 @@ class SpiSync extends BaseCommand
             if ($ts) { $out[date('Y-m', $ts)] = $p['value']; }
         }
         return $out;
+    }
+
+    /**
+     * Cermin spi_vehicle_daily → daily_vehicles untuk rentang [from..to] (upsert per tanggal).
+     * Kolom *_free authoritatif dari spi_vehicle_daily. Return jumlah baris sumber.
+     */
+    private function mirrorVehicles($db, string $from, string $to, string $now): int
+    {
+        $db->query(
+            'INSERT INTO daily_vehicles
+                (tanggal, total_mobil, total_motor, total_mobil_box, total_truck, total_bus,
+                 total_mobil_free, total_motor_free, created_at, updated_at)
+             SELECT tanggal, mobil, motor, box, truck, bus, mobil_free, motor_free, ?, ?
+             FROM spi_vehicle_daily WHERE tanggal >= ? AND tanggal <= ?
+             ON DUPLICATE KEY UPDATE
+                total_mobil = VALUES(total_mobil), total_motor = VALUES(total_motor),
+                total_mobil_box = VALUES(total_mobil_box), total_truck = VALUES(total_truck),
+                total_bus = VALUES(total_bus), total_mobil_free = VALUES(total_mobil_free),
+                total_motor_free = VALUES(total_motor_free), updated_at = VALUES(updated_at)',
+            [$now, $now, $from, $to]
+        );
+        return (int) $db->table('spi_vehicle_daily')
+            ->where('tanggal >=', $from)->where('tanggal <=', $to)->countAllResults();
     }
 }

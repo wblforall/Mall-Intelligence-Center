@@ -50,27 +50,16 @@ class ParkingRevenue extends BaseController
             ? $db->table('spi_income_monthly')->where('bulan >=', substr($monStart, 0, 7))
                 ->orderBy('bulan', 'ASC')->get()->getResultArray()
             : [];
-        if ($monRows) {
-            foreach ($monRows as $r) {
-                $label = date('M Y', strtotime($r['bulan'] . '-01'));
-                $c = (int) $r['casual']; $m = (int) $r['member'];
-                $casual[] = ['label' => $label, 'value' => $c];
-                $member[] = ['label' => $label, 'value' => $m];
-                $total[]  = ['label' => $label, 'value' => $c + $m];
-                if ($r['bulan'] >= $pStartMon && $r['bulan'] <= $pEndMon) {
-                    $perCasual += $c; $perMember += $m;
-                }
-            }
-        } else { // fallback live (lambat, ter-cache)
-            $casual = $spi->fetchMonthlyIncome($monStart, date('Y-m-t'), 0);
-            $member = $spi->fetchMonthlyIncome($monStart, date('Y-m-t'), 1);
-            foreach ($casual as $i => $c) {
-                $mv = $member[$i]['value'] ?? 0;
-                $total[] = ['label' => $c['label'], 'value' => $c['value'] + $mv];
-                $ym = date('Y-m', strtotime('1 ' . $c['label']));
-                if ($ym >= $pStartMon && $ym <= $pEndMon) {
-                    $perCasual += $c['value']; $perMember += $mv;
-                }
+        // DB-only (read-only dashboard). Data diisi cron mic:spi-sync; tak ada fetch live
+        // di halaman interaktif agar tidak pernah hang saat SPI lambat/proxy mati.
+        foreach ($monRows as $r) {
+            $label = date('M Y', strtotime($r['bulan'] . '-01'));
+            $c = (int) $r['casual']; $m = (int) $r['member'];
+            $casual[] = ['label' => $label, 'value' => $c];
+            $member[] = ['label' => $label, 'value' => $m];
+            $total[]  = ['label' => $label, 'value' => $c + $m];
+            if ($r['bulan'] >= $pStartMon && $r['bulan'] <= $pEndMon) {
+                $perCasual += $c; $perMember += $m;
             }
         }
         $perTotal  = $perCasual + $perMember;            // KPI periode terpilih
@@ -83,16 +72,12 @@ class ParkingRevenue extends BaseController
             ? $db->table('spi_income_daily')->where('tanggal >=', $start)->where('tanggal <=', $end)
                 ->orderBy('tanggal', 'ASC')->get()->getResultArray()
             : [];
-        if ($dayRows) {
-            $daily = array_map(fn($r) => [
-                'tanggal' => $r['tanggal'],
-                'mobil' => (int) $r['mobil'], 'motor' => (int) $r['motor'], 'box' => (int) $r['box'],
-                'truck' => (int) $r['truck'], 'taxi' => (int) $r['taxi'], 'bus' => (int) $r['bus'],
-                'total' => (int) $r['total'],
-            ], $dayRows);
-        } else {
-            $daily = $spi->fetchDailyIncome($start, $end);
-        }
+        $daily = array_map(fn($r) => [
+            'tanggal' => $r['tanggal'],
+            'mobil' => (int) $r['mobil'], 'motor' => (int) $r['motor'], 'box' => (int) $r['box'],
+            'truck' => (int) $r['truck'], 'taxi' => (int) $r['taxi'], 'bus' => (int) $r['bus'],
+            'total' => (int) $r['total'],
+        ], $dayRows);
         $byType = array_fill_keys($types, 0);
         $sum    = 0;
         foreach ($daily as $row) {
