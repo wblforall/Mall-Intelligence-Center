@@ -316,30 +316,70 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
 <div class="card mb-4 anim-fade-up" id="training" style="animation-delay:.25s">
 <div class="card-header d-flex align-items-center justify-content-between">
     <h6 class="mb-0 fw-semibold"><i class="bi bi-mortarboard me-2"></i>Riwayat Training</h6>
-    <span class="badge bg-secondary"><?= count($trainings) ?></span>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-secondary"><?= count($trainings) + count($employeeTrainings) ?></span>
+        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addTrainingModal">
+            <i class="bi bi-plus-lg me-1"></i> Tambah
+        </button>
+    </div>
 </div>
-<?php if (empty($trainings)): ?>
-<div class="card-body text-center py-3 text-muted small">Belum ada riwayat training.</div>
+<?php if (empty($trainings) && empty($employeeTrainings)): ?>
+<div class="card-body text-center py-3 text-muted small">Belum ada riwayat training. Klik <strong>Tambah</strong> untuk input training lama / eksternal.</div>
 <?php else: ?>
 <div class="table-responsive">
 <table class="table table-sm mb-0 align-middle">
     <thead><tr>
-        <th>Program</th><th>Tipe</th><th>Vendor</th><th>Tanggal</th>
-        <th class="text-center">Kehadiran</th><th class="text-center">Pre</th><th class="text-center">Post</th>
+        <th>Training</th><th>Tipe</th><th>Penyelenggara</th><th>Tanggal</th>
+        <th class="text-center">Keterangan</th><th style="width:36px"></th>
     </tr></thead>
     <tbody>
+    <?php /* ── Input manual (eksternal / lama) ── */ ?>
+    <?php foreach ($employeeTrainings as $t):
+        $tgl = $t['tanggal_mulai'] ? date('d M Y', strtotime($t['tanggal_mulai'])) : '—';
+        if ($t['tanggal_selesai'] && $t['tanggal_selesai'] !== $t['tanggal_mulai']) $tgl .= ' – ' . date('d M Y', strtotime($t['tanggal_selesai']));
+    ?>
+    <tr>
+        <td class="fw-medium" style="font-size:.83rem">
+            <?= esc($t['nama']) ?>
+            <span class="badge bg-light text-secondary border" style="font-size:.6rem">Manual</span>
+        </td>
+        <td><span class="badge bg-<?= $t['tipe'] === 'internal' ? 'secondary' : 'primary' ?>" style="font-size:.65rem"><?= ucfirst($t['tipe']) ?></span></td>
+        <td class="text-muted" style="font-size:.8rem"><?= esc($t['penyelenggara'] ?: '—') ?></td>
+        <td style="font-size:.8rem"><?= $tgl ?></td>
+        <td class="text-center" style="font-size:.8rem">
+            <?php if ($t['sertifikat_file']): ?>
+            <a href="<?= base_url('people/trainings/' . $t['id'] . '/view') ?>" target="_blank" class="text-decoration-none"><i class="bi bi-paperclip"></i> Sertifikat</a>
+            <?php endif; ?>
+            <?php if ($t['catatan']): ?><div class="text-muted" style="font-size:.72rem"><?= esc($t['catatan']) ?></div><?php endif; ?>
+            <?php if (! $t['sertifikat_file'] && ! $t['catatan']): ?>—<?php endif; ?>
+        </td>
+        <td class="text-center">
+            <form method="POST" action="<?= base_url('people/employees/' . $employee['id'] . '/trainings/' . $t['id'] . '/delete') ?>" onsubmit="return confirm('Hapus riwayat training ini?')">
+                <button class="btn btn-sm btn-link text-danger p-0" title="Hapus"><i class="bi bi-trash"></i></button>
+            </form>
+        </td>
+    </tr>
+    <?php endforeach; ?>
+    <?php /* ── Dari program internal (peserta) — read-only ── */ ?>
     <?php foreach ($trainings as $t):
         $kehadiranColor = ['registered'=>'secondary','hadir'=>'success','tidak_hadir'=>'danger','dibatalkan'=>'warning'][$t['status_kehadiran']] ?? 'secondary';
         $kehadiranLabel = ['registered'=>'Terdaftar','hadir'=>'Hadir','tidak_hadir'=>'Tdk Hadir','dibatalkan'=>'Batal'][$t['status_kehadiran']] ?? '-';
     ?>
     <tr>
-        <td class="fw-medium" style="font-size:.83rem"><?= esc($t['nama']) ?></td>
+        <td class="fw-medium" style="font-size:.83rem">
+            <?= esc($t['nama']) ?>
+            <span class="badge bg-info-subtle text-info-emphasis border" style="font-size:.6rem">Program</span>
+        </td>
         <td><span class="badge bg-<?= $t['tipe'] === 'internal' ? 'secondary' : 'primary' ?>" style="font-size:.65rem"><?= ucfirst($t['tipe']) ?></span></td>
         <td class="text-muted" style="font-size:.8rem"><?= esc($t['vendor'] ?? '—') ?></td>
         <td style="font-size:.8rem"><?= $t['tanggal_mulai'] ? date('d M Y', strtotime($t['tanggal_mulai'])) : '—' ?></td>
-        <td class="text-center"><span class="badge bg-<?= $kehadiranColor ?>" style="font-size:.65rem"><?= $kehadiranLabel ?></span></td>
-        <td class="text-center" style="font-size:.83rem"><?= $t['pre_test'] !== null ? $t['pre_test'] : '—' ?></td>
-        <td class="text-center" style="font-size:.83rem"><?= $t['post_test'] !== null ? $t['post_test'] : '—' ?></td>
+        <td class="text-center" style="font-size:.8rem">
+            <span class="badge bg-<?= $kehadiranColor ?>" style="font-size:.65rem"><?= $kehadiranLabel ?></span>
+            <?php if ($t['pre_test'] !== null || $t['post_test'] !== null): ?>
+            <div class="text-muted" style="font-size:.72rem">Pre <?= $t['pre_test'] !== null ? $t['pre_test'] : '—' ?> · Post <?= $t['post_test'] !== null ? $t['post_test'] : '—' ?></div>
+            <?php endif; ?>
+        </td>
+        <td></td>
     </tr>
     <?php endforeach; ?>
     </tbody>
@@ -347,6 +387,52 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
 </div>
 <?php endif; ?>
 </div>
+
+<!-- Add Training Modal -->
+<div class="modal fade" id="addTrainingModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+<form method="POST" action="<?= base_url('people/employees/' . $employee['id'] . '/trainings/add') ?>" enctype="multipart/form-data">
+<?= csrf_field() ?>
+<div class="modal-header"><h5 class="modal-title fw-semibold">Tambah Riwayat Training</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-body">
+    <div class="mb-2">
+        <label class="form-label small fw-semibold">Nama Training <span class="text-danger">*</span></label>
+        <input type="text" name="nama" class="form-control" required placeholder="mis. Excel Advanced, K3 Dasar">
+    </div>
+    <div class="row g-2">
+        <div class="col-6 mb-2">
+            <label class="form-label small fw-semibold">Tipe</label>
+            <select name="tipe" class="form-select">
+                <option value="eksternal" selected>Eksternal</option>
+                <option value="internal">Internal</option>
+            </select>
+        </div>
+        <div class="col-6 mb-2">
+            <label class="form-label small fw-semibold">Penyelenggara</label>
+            <input type="text" name="penyelenggara" class="form-control" placeholder="mis. Great Edu">
+        </div>
+    </div>
+    <div class="row g-2">
+        <div class="col-6 mb-2">
+            <label class="form-label small fw-semibold">Tanggal Mulai</label>
+            <input type="date" name="tanggal_mulai" class="form-control">
+        </div>
+        <div class="col-6 mb-2">
+            <label class="form-label small fw-semibold">Tanggal Selesai</label>
+            <input type="date" name="tanggal_selesai" class="form-control">
+        </div>
+    </div>
+    <div class="mb-2">
+        <label class="form-label small fw-semibold">Sertifikat <span class="text-muted fw-normal">(opsional — PDF/gambar)</span></label>
+        <input type="file" name="sertifikat" class="form-control" accept=".pdf,.png,.jpg,.jpeg">
+    </div>
+    <div class="mb-1">
+        <label class="form-label small fw-semibold">Catatan</label>
+        <textarea name="catatan" class="form-control" rows="2"></textarea>
+    </div>
+</div>
+<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary">Simpan</button></div>
+</form>
+</div></div></div>
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">

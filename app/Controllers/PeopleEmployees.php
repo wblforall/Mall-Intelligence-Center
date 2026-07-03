@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\EmployeeModel;
 use App\Models\EmployeePositionModel;
 use App\Models\EmployeeCertificateModel;
+use App\Models\EmployeeTrainingModel;
 use App\Models\TrainingProgramModel;
 use App\Models\DepartmentModel;
 use App\Models\DivisionModel;
@@ -444,6 +445,7 @@ class PeopleEmployees extends BaseController
             'positions'         => $positions,
             'certificates'      => $certificates,
             'trainings'         => (new TrainingProgramModel())->getByEmployee($id),
+            'employeeTrainings' => (new EmployeeTrainingModel())->getByEmployee($id),
             'departments'       => $departments,
             'divisions'         => (new DivisionModel())->orderBy('nama')->findAll(),
             'jabatanMap'        => (new JabatanModel())->getAllAsMap(),
@@ -688,5 +690,83 @@ class PeopleEmployees extends BaseController
 
         ActivityLog::write('delete', 'employee_certificate', (string)$cid, $cert['nama_sertifikat'] ?? '', ['employee_id' => $id]);
         return redirect()->to('/people/employees/' . $id . '#certificates')->with('success', 'Sertifikat dihapus.');
+    }
+
+    // ── Riwayat Training manual (eksternal / lama) ──────────────────────────
+    public function storeTraining(int $id)
+    {
+        if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $post = $this->request->getPost();
+        $nama = trim($post['nama'] ?? '');
+        if ($nama === '') return redirect()->back()->with('error', 'Nama training wajib diisi.');
+
+        $fileName = null;
+        $fileOrig = null;
+        $file = $this->request->getFile('sertifikat');
+        if ($file && $file->isValid() && ! $file->hasMoved()) {
+            if ($err = $this->validateUpload($file, self::MIME_DOC, 10)) {
+                return redirect()->back()->with('error', $err);
+            }
+            $uploadPath = WRITEPATH . 'uploads/certificates/';
+            if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
+            $fileName = 'train_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
+            $fileOrig = $file->getClientName();
+            $file->move($uploadPath, $fileName);
+        }
+
+        (new EmployeeTrainingModel())->insert([
+            'employee_id'         => $id,
+            'nama'                => $nama,
+            'tipe'                => ($post['tipe'] ?? '') === 'internal' ? 'internal' : 'eksternal',
+            'penyelenggara'       => trim($post['penyelenggara'] ?? '') ?: null,
+            'tanggal_mulai'       => ($post['tanggal_mulai'] ?? '') ?: null,
+            'tanggal_selesai'     => ($post['tanggal_selesai'] ?? '') ?: null,
+            'sertifikat_file'     => $fileName,
+            'sertifikat_original' => $fileOrig,
+            'catatan'             => trim($post['catatan'] ?? '') ?: null,
+        ]);
+
+        ActivityLog::write('create', 'employee_training', (string)$id, $nama);
+        return redirect()->to('/people/employees/' . $id . '#training')->with('success', 'Riwayat training ditambahkan.');
+    }
+
+    public function deleteTraining(int $id, int $tid)
+    {
+        if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        $model = new EmployeeTrainingModel();
+        $row   = $model->find($tid);
+        $model->delete($tid);
+
+        if ($row && $row['sertifikat_file']) {
+            $path = WRITEPATH . 'uploads/certificates/' . $row['sertifikat_file'];
+            if (file_exists($path)) unlink($path);
+        }
+
+        ActivityLog::write('delete', 'employee_training', (string)$tid, $row['nama'] ?? '', ['employee_id' => $id]);
+        return redirect()->to('/people/employees/' . $id . '#training')->with('success', 'Riwayat training dihapus.');
+    }
+
+    public function viewTraining(int $tid)
+    {
+        $row = (new EmployeeTrainingModel())->find($tid);
+        if (! $row || empty($row['sertifikat_file'])) return $this->response->setStatusCode(404)->setBody('Tidak ditemukan.');
+
+        $allowed = $this->canManageRequests();
+        if (! $allowed) {
+            $emp = (new EmployeeModel())->find($row['employee_id']);
+            $allowed = $emp && ! empty($emp['user_id']) && (int) $emp['user_id'] === (int) session()->get('user_id');
+        }
+        if (! $allowed) return $this->response->setStatusCode(403)->setBody('Akses ditolak.');
+
+        $path = WRITEPATH . 'uploads/certificates/' . basename($row['sertifikat_file']);
+        if (! is_file($path)) return $this->response->setStatusCode(404)->setBody('File tidak ditemukan.');
+
+        $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = ['pdf' => 'application/pdf', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg'][$ext] ?? 'application/octet-stream';
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'inline; filename="' . basename($row['sertifikat_file']) . '"')
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setBody(file_get_contents($path));
     }
 }

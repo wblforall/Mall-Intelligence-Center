@@ -493,6 +493,7 @@ $routes->post('people/change-requests/(:num)/approve', 'PeopleEmployees::approve
 $routes->post('people/change-requests/(:num)/reject',  'PeopleEmployees::rejectChange/$1',  ['filter' => 'auth']);
 $routes->get('people/photo/(:segment)',                     'PeopleEmployees::viewPhoto/$1',      ['filter' => 'auth']);
 $routes->get('people/certificates/(:num)/view',             'PeopleEmployees::viewCertificate/$1', ['filter' => 'auth']);
+$routes->get('people/trainings/(:num)/view',                'PeopleEmployees::viewTraining/$1',   ['filter' => 'auth']);
 $routes->get('people/documents/(:num)/view',                'PeopleEmployees::viewDocument/$1',   ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/documents/upload',   'PeopleEmployees::uploadDocument/$1', ['filter' => 'auth']);
 $routes->post('people/documents/(:num)/approve',            'PeopleEmployees::approveDocument/$1', ['filter' => 'auth']);
@@ -571,6 +572,8 @@ $routes->post('people/employees/(:num)/positions/add',                    'Peopl
 $routes->post('people/employees/(:num)/positions/(:num)/delete',           'PeopleEmployees::deletePosition/$1/$2', ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/certificates/add',                 'PeopleEmployees::storeCertificate/$1',  ['filter' => 'auth']);
 $routes->post('people/employees/(:num)/certificates/(:num)/delete',        'PeopleEmployees::deleteCertificate/$1/$2', ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/trainings/add',                    'PeopleEmployees::storeTraining/$1',     ['filter' => 'auth']);
+$routes->post('people/employees/(:num)/trainings/(:num)/delete',           'PeopleEmployees::deleteTraining/$1/$2',  ['filter' => 'auth']);
 
 // Profile
 $routes->get('profile', 'Users::profile', ['filter' => 'auth']);
