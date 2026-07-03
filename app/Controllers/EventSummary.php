@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Libraries\ActivityLog;
 use App\Models\EventModel;
 use App\Models\EventBudgetModel;
 use App\Models\EventExhibitorModel;
@@ -321,6 +322,7 @@ class EventSummary extends BaseController
 
         return view('summary/index', [
             'user'                  => $this->currentUser(),
+            'canEditSummary'        => $this->canEditMenu('summary'),
             'event'                 => $event,
             'startDate'             => $startDate,
             'endDate'               => $endDate,
@@ -609,8 +611,16 @@ class EventSummary extends BaseController
         $vehGrandTotal = array_sum($vehTypeTotals);
         $trafficAvg    = $event['event_days'] > 0 ? (int) round($trafficTotal / $event['event_days']) : 0;
 
+        // Nama pengisi evaluasi (untuk footer naratif laporan)
+        $evalBy = null;
+        if (! empty($event['eval_updated_by'])) {
+            $row = \Config\Database::connect()->table('users')->select('name')->where('id', $event['eval_updated_by'])->get()->getRowArray();
+            $evalBy = $row['name'] ?? null;
+        }
+
         return view('summary/post_event', [
             'event'                  => $event,
+            'evalUpdatedByName'      => $evalBy,
             'eventLocations'         => $eventLocations,
             'rundown'                => $rundown,
             'vmItems'                => $vmItems,
@@ -654,6 +664,29 @@ class EventSummary extends BaseController
             'peakDate'               => $peakDate,
             'peakVal'                => $peakVal,
         ]);
+    }
+
+    public function saveEvaluation(int $eventId)
+    {
+        if (! $this->canEditMenu('summary')) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        $model = new EventModel();
+        $event = $model->find($eventId);
+        if (! $event) return redirect()->to('/events')->with('error', 'Event tidak ditemukan.');
+
+        $post = $this->request->getPost();
+        $model->update($eventId, [
+            'eval_kesimpulan'  => trim($post['eval_kesimpulan'] ?? '') ?: null,
+            'eval_pencapaian'  => trim($post['eval_pencapaian'] ?? '') ?: null,
+            'eval_kendala'     => trim($post['eval_kendala'] ?? '') ?: null,
+            'eval_rekomendasi' => trim($post['eval_rekomendasi'] ?? '') ?: null,
+            'eval_updated_at'  => date('Y-m-d H:i:s'),
+            'eval_updated_by'  => (int) ($this->currentUser()['id'] ?? 0) ?: null,
+        ]);
+
+        ActivityLog::write('update', 'event', (string)$eventId, $event['name'] . ' — evaluasi post event');
+        return redirect()->to('events/' . $eventId . '/summary#evaluasi')->with('success', 'Evaluasi post event disimpan.');
     }
 
     public function budget(int $eventId)

@@ -1065,6 +1065,37 @@ $insightDef = [
         <?php endif; ?>
     </div>
 
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- KESIMPULAN & EVALUASI                       -->
+    <!-- ═══════════════════════════════════════════ -->
+    <?php
+    $evalItems = [
+        'eval_kesimpulan'  => 'Kesimpulan',
+        'eval_pencapaian'  => 'Pencapaian / Yang Berjalan Baik',
+        'eval_kendala'     => 'Kendala / Hambatan',
+        'eval_rekomendasi' => 'Rekomendasi',
+    ];
+    $adaEval = false;
+    foreach (array_keys($evalItems) as $k) { if (! empty($event[$k])) { $adaEval = true; break; } }
+    ?>
+    <?php if ($adaEval): ?>
+    <div class="section">
+        <div class="section-header"><span>Kesimpulan &amp; Evaluasi</span></div>
+        <div style="padding:4px 2px">
+        <?php foreach ($evalItems as $key => $label): if (empty($event[$key])) continue; ?>
+            <div class="sub-header" style="margin-top:8px"><?= $label ?></div>
+            <div style="padding:8px 12px;font-size:9.5pt;line-height:1.5;white-space:pre-line"><?= nl2br(esc($event[$key])) ?></div>
+        <?php endforeach; ?>
+        </div>
+        <?php if (! empty($event['eval_updated_at'])): ?>
+        <div style="margin-top:14px;padding:6px 12px;font-size:8.5pt;color:#666;display:flex;justify-content:space-between">
+            <span>Disusun oleh: <strong><?= esc($evalUpdatedByName ?: '—') ?></strong></span>
+            <span><?= date('d F Y, H:i', strtotime($event['eval_updated_at'])) ?></span>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <div class="doc-footer">
         <span>Dicetak: <?= date('d F Y, H:i') ?></span>
         <span>Laporan Post Event — <?= esc($event['name']) ?></span>

@@ -8,7 +8,7 @@ class EventModel extends Model
 {
     protected $table         = 'events';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name', 'tema', 'content', 'mall', 'start_date', 'event_days', 'status', 'created_by', 'approval_status', 'approved_by', 'approved_at', 'rejection_reason'];
+    protected $allowedFields = ['name', 'tema', 'content', 'mall', 'start_date', 'event_days', 'status', 'created_by', 'approval_status', 'approved_by', 'approved_at', 'rejection_reason', 'eval_kesimpulan', 'eval_pencapaian', 'eval_kendala', 'eval_rekomendasi', 'eval_updated_at', 'eval_updated_by'];
     protected $useTimestamps = true;
 
     protected $afterFind = ['applyAutoStatus'];

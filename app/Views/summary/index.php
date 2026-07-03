@@ -927,6 +927,54 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
 </div><!-- /col right -->
 </div><!-- /cards row -->
 
+<!-- ── Kesimpulan & Evaluasi Post Event ── -->
+<div class="card mb-4 anim-fade-up" id="evaluasi" style="animation-delay:.3s">
+<div class="card-header d-flex align-items-center justify-content-between">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-journal-text me-2"></i>Kesimpulan &amp; Evaluasi Post Event</h6>
+    <?php if (! empty($event['eval_updated_at'])): ?>
+    <small class="text-muted">Terakhir diperbarui <?= date('d M Y H:i', strtotime($event['eval_updated_at'])) ?></small>
+    <?php endif; ?>
+</div>
+<div class="card-body">
+    <?php $evalFields = [
+        'eval_kesimpulan'  => ['Kesimpulan', 'Ringkasan hasil event secara keseluruhan…'],
+        'eval_pencapaian'  => ['Pencapaian / Yang Berjalan Baik', 'Hal-hal yang tercapai & berjalan baik…'],
+        'eval_kendala'     => ['Kendala / Hambatan', 'Kendala yang dihadapi selama event…'],
+        'eval_rekomendasi' => ['Rekomendasi', 'Saran & rekomendasi untuk event berikutnya…'],
+    ]; ?>
+    <?php if (! empty($canEditSummary)): ?>
+    <form method="POST" action="<?= base_url('events/' . $event['id'] . '/summary/evaluation') ?>">
+        <?= csrf_field() ?>
+        <div class="row g-3">
+        <?php foreach ($evalFields as $key => [$label, $ph]): ?>
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold"><?= $label ?></label>
+                <textarea name="<?= $key ?>" class="form-control" rows="4" placeholder="<?= $ph ?>"><?= esc($event[$key] ?? '') ?></textarea>
+            </div>
+        <?php endforeach; ?>
+        </div>
+        <div class="text-end mt-3">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Simpan Evaluasi</button>
+        </div>
+    </form>
+    <?php else: ?>
+        <?php $adaEval = false; foreach (array_keys($evalFields) as $k) { if (! empty($event[$k])) $adaEval = true; } ?>
+        <?php if (! $adaEval): ?>
+        <p class="text-muted small mb-0">Belum ada evaluasi.</p>
+        <?php else: ?>
+        <div class="row g-3">
+        <?php foreach ($evalFields as $key => [$label, $ph]): if (empty($event[$key])) continue; ?>
+            <div class="col-md-6">
+                <div class="small fw-semibold text-muted mb-1"><?= $label ?></div>
+                <div style="white-space:pre-line;font-size:.9rem"><?= esc($event[$key]) ?></div>
+            </div>
+        <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    <?php endif; ?>
+</div>
+</div>
+
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>

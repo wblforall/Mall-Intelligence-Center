@@ -94,6 +94,7 @@ $routes->get('events/monthly-summary', 'EventSummary::monthly', ['filter' => 'au
 $routes->get('events/(:num)/summary', 'EventSummary::index/$1', ['filter' => 'auth']);
 $routes->get('events/(:num)/summary/technical-meeting', 'EventSummary::technicalMeeting/$1', ['filter' => 'auth']);
 $routes->get('events/(:num)/summary/post-event', 'EventSummary::postEvent/$1', ['filter' => 'auth']);
+$routes->post('events/(:num)/summary/evaluation', 'EventSummary::saveEvaluation/$1', ['filter' => 'auth']);
 $routes->get('events/(:num)/budget', 'EventSummary::budget/$1', ['filter' => 'auth']);
 
 // Other Cost
