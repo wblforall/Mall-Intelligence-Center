@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.16.0** (Juli 2026)
+> Versi saat ini: **v2.17.0** (Juli 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,24 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.17.0
+
+**Tanggal Rilis:** 3 Juli 2026
+
+### Perubahan dari v2.16.0
+
+#### People — Riwayat Training per Karyawan
+
+- Fitur baru **input riwayat training langsung di profil karyawan** — untuk training **eksternal** atau training **lama** yang terjadi sebelum modul Training (berbasis program) dibuat. Tidak perlu membuat program dulu.
+- Di profil karyawan, kartu **Riwayat Training** kini punya tombol **Tambah**: isi nama training, tipe (eksternal/internal), penyelenggara, tanggal, unggah **sertifikat** (opsional), dan catatan.
+- Kartu Riwayat Training **menggabungkan dua sumber**: peserta **program internal** (dari modul Training, badge "Program", read-only + kehadiran & nilai pre/post) dan **input manual** (badge "Manual", bisa dihapus, sertifikat bisa dibuka).
+
+#### Perbaikan — Simpan Data Karyawan
+
+- Fix **crash "Whoops!"** saat menambah/mengedit karyawan bila form tidak mengirim salah satu field (mis. dropdown **Divisi** kosong/nonaktif pada departemen tanpa divisi). Sebelumnya proses simpan gagal total — termasuk field lain seperti Email Kerja ikut tak tersimpan. Kini seluruh input ditangani dengan aman.
 
 ---
 
