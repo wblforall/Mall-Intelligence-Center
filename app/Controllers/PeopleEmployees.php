@@ -479,8 +479,8 @@ class PeopleEmployees extends BaseController
             $file->move($uploadPath, $fotoName);
         }
 
-        $jabatanId = $post['jabatan_id'] !== '' ? (int)$post['jabatan_id'] : null;
-        $atasanId  = $post['atasan_id']  !== '' ? (int)$post['atasan_id']  : null;
+        $jabatanId = ($post['jabatan_id'] ?? '') !== '' ? (int)$post['jabatan_id'] : null;
+        $atasanId  = ($post['atasan_id'] ?? '')  !== '' ? (int)$post['atasan_id']  : null;
         $jabatanNama = trim($post['jabatan'] ?? '') ?: null;
         if ($jabatanId) {
             $jab = (new JabatanModel())->find($jabatanId);
@@ -489,12 +489,12 @@ class PeopleEmployees extends BaseController
 
         $newId = $model->insert(array_merge([
             'nik'           => trim($post['nik'] ?? '') ?: null,
-            'nama'          => trim($post['nama']),
-            'jenis_kelamin' => $post['jenis_kelamin'] ?: null,
-            'tanggal_lahir' => $post['tanggal_lahir'] ?: null,
-            'tanggal_masuk' => $post['tanggal_masuk'],
-            'dept_id'       => $post['dept_id'] ?: null,
-            'division_id'   => $post['division_id'] ?: null,
+            'nama'          => trim($post['nama'] ?? ''),
+            'jenis_kelamin' => ($post['jenis_kelamin'] ?? '') ?: null,
+            'tanggal_lahir' => ($post['tanggal_lahir'] ?? '') ?: null,
+            'tanggal_masuk' => $post['tanggal_masuk'] ?? null,
+            'dept_id'       => ($post['dept_id'] ?? '') ?: null,
+            'division_id'   => ($post['division_id'] ?? '') ?: null,
             'jabatan'       => $jabatanNama,
             'jabatan_id'    => $jabatanId,
             'atasan_id'     => $atasanId,
@@ -510,12 +510,12 @@ class PeopleEmployees extends BaseController
             (new EmployeePositionModel())->insert([
                 'employee_id'   => $newId,
                 'jabatan'       => $jabatanNama,
-                'dept_id'       => $post['dept_id'] ?: null,
-                'tanggal_mulai' => $post['tanggal_masuk'],
+                'dept_id'       => ($post['dept_id'] ?? '') ?: null,
+                'tanggal_mulai' => $post['tanggal_masuk'] ?? null,
             ]);
         }
 
-        ActivityLog::write('create', 'employee', (string)$newId, trim($post['nama']));
+        ActivityLog::write('create', 'employee', (string)$newId, trim($post['nama'] ?? ''));
         return redirect()->to('/people/employees/' . $newId)->with('success', 'Karyawan berhasil ditambahkan.');
     }
 
@@ -540,8 +540,8 @@ class PeopleEmployees extends BaseController
             $file->move($uploadPath, $fotoName);
         }
 
-        $jabatanId = $post['jabatan_id'] !== '' ? (int)$post['jabatan_id'] : null;
-        $atasanId  = $post['atasan_id']  !== '' ? (int)$post['atasan_id']  : null;
+        $jabatanId = ($post['jabatan_id'] ?? '') !== '' ? (int)$post['jabatan_id'] : null;
+        $atasanId  = ($post['atasan_id'] ?? '')  !== '' ? (int)$post['atasan_id']  : null;
         $jabatanNama = trim($post['jabatan'] ?? '') ?: null;
         if ($jabatanId) {
             $jab = (new JabatanModel())->find($jabatanId);
@@ -551,12 +551,12 @@ class PeopleEmployees extends BaseController
         ActivityLog::captureBefore($employee);
         $employeeData = [
             'nik'           => trim($post['nik'] ?? '') ?: null,
-            'nama'          => trim($post['nama']),
-            'jenis_kelamin' => $post['jenis_kelamin'] ?: null,
-            'tanggal_lahir' => $post['tanggal_lahir'] ?: null,
-            'tanggal_masuk' => $post['tanggal_masuk'],
-            'dept_id'       => $post['dept_id'] ?: null,
-            'division_id'   => $post['division_id'] ?: null,
+            'nama'          => trim($post['nama'] ?? ''),
+            'jenis_kelamin' => ($post['jenis_kelamin'] ?? '') ?: null,
+            'tanggal_lahir' => ($post['tanggal_lahir'] ?? '') ?: null,
+            'tanggal_masuk' => $post['tanggal_masuk'] ?? null,
+            'dept_id'       => ($post['dept_id'] ?? '') ?: null,
+            'division_id'   => ($post['division_id'] ?? '') ?: null,
             'jabatan'       => $jabatanNama,
             'jabatan_id'    => $jabatanId,
             'atasan_id'     => $atasanId,
@@ -569,7 +569,7 @@ class PeopleEmployees extends BaseController
         $model->update($id, $employeeData);
         ActivityLog::captureAfter($employeeData);
 
-        ActivityLog::write('update', 'employee', (string)$id, trim($post['nama']));
+        ActivityLog::write('update', 'employee', (string)$id, trim($post['nama'] ?? ''));
         return redirect()->to('/people/employees/' . $id)->with('success', 'Data karyawan diperbarui.');
     }
 
