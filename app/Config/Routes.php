@@ -559,6 +559,18 @@ $routes->post('people/competencies/import/parse',                 'PeopleCompete
 $routes->get('people/competencies/import/preview',                'PeopleCompetencies::importPreview',   ['filter' => 'auth']);
 $routes->post('people/competencies/import/confirm',               'PeopleCompetencies::importConfirm',   ['filter' => 'auth']);
 
+// People Development — Talent Portfolio (9-Box)
+$routes->get('people/talent',                          'TalentPortfolio::index',          ['filter' => 'auth']);
+$routes->get('people/talent/input',                    'TalentPortfolio::input',          ['filter' => 'auth']);
+$routes->post('people/talent/(:num)/save',             'TalentPortfolio::save/$1',         ['filter' => 'auth']);
+$routes->get('people/talent/periods',                  'TalentPortfolio::periods',        ['filter' => 'auth']);
+$routes->post('people/talent/periods/create',          'TalentPortfolio::createPeriod',   ['filter' => 'auth']);
+$routes->post('people/talent/periods/(:num)/activate', 'TalentPortfolio::activatePeriod/$1', ['filter' => 'auth']);
+$routes->post('people/talent/periods/(:num)/lock',     'TalentPortfolio::lockPeriod/$1',   ['filter' => 'auth']);
+$routes->get('people/talent/viewers',                  'TalentPortfolio::viewers',        ['filter' => 'auth']);
+$routes->post('people/talent/viewers/add',             'TalentPortfolio::addViewer',      ['filter' => 'auth']);
+$routes->post('people/talent/viewers/(:num)/remove',   'TalentPortfolio::removeViewer/$1', ['filter' => 'auth']);
+
 // People Development — Employees
 $routes->get('people/hr-dashboard',                                       'HrDashboard::index',                 ['filter' => 'auth']);
 $routes->get('people/employees',                                          'PeopleEmployees::index',             ['filter' => 'auth']);

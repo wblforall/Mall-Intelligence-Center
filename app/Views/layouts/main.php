@@ -452,6 +452,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('people/eei') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/eei') ? 'active' : '' ?>">
             <i class="bi bi-heart-pulse-fill"></i> EEI Survey
         </a>
+        <a href="<?= base_url('people/talent') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/talent') ? 'active' : '' ?>">
+            <i class="bi bi-grid-3x3-gap-fill"></i> Talent Portfolio
+        </a>
         <?php if (! $_canHr): ?>
         <a href="<?= base_url('people/employees') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/employees') ? 'active' : '' ?>">
             <i class="bi bi-person-vcard-fill"></i> Data Karyawan

@@ -19,6 +19,13 @@ class TalentPlacementModel extends Model
         return $this->where('period_id', $periodId)->where('employee_id', $employeeId)->first();
     }
 
+    /** ID karyawan dalam cakupan penilaian (untuk generate placement saat aktivasi periode). */
+    public function eligibleIds(string $cutoff): array
+    {
+        $rows = $this->scopeBuilder($cutoff)->select('e.id')->get()->getResultArray();
+        return array_map('intval', array_column($rows, 'id'));
+    }
+
     /**
      * Builder karyawan yang MASUK CAKUPAN penilaian:
      * aktif, bukan outsource, BUKAN GM (deputy & bawahnya termasuk), bukan probation < 6 bln.
