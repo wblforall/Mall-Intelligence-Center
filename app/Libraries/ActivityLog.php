@@ -96,6 +96,9 @@ class ActivityLog
         'training_program'              => 'Program Training',
         'training_participant'          => 'Peserta Training',
         'training_budget'               => 'Budget Training',
+        'talent_placement'              => 'Penempatan Talent',
+        'talent_period'                 => 'Periode Talent',
+        'talent_viewer'                 => 'Viewer Talent',
         // Lainnya
         'theme_period'                  => 'Tema Periode',
         'stock_voucher'                 => 'Stok Voucher (Kode)',

@@ -65,6 +65,7 @@ $rows = array_merge(
                 <div class="fw-semibold"><?= esc($eName) ?>
                     <?php if ($r['_hr']): ?><span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">Perlu HR (rantai putus)</span><?php endif; ?>
                     <?php if (($r['status'] ?? '') === 'in_review'): ?><span class="badge bg-info ms-1" style="font-size:.6rem">Review</span><?php endif; ?>
+                    <?php if (! empty($r['periode'])): ?><span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-calendar2-range me-1"></i><?= esc($r['periode']) ?></span><?php endif; ?>
                 </div>
                 <small class="text-muted"><?= esc($r['jabatan'] ?? '—') ?></small>
             </div>

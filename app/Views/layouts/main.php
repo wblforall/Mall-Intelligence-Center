@@ -452,9 +452,6 @@ body { min-height: 100vh; }
         <a href="<?= base_url('people/eei') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/eei') ? 'active' : '' ?>">
             <i class="bi bi-heart-pulse-fill"></i> EEI Survey
         </a>
-        <a href="<?= base_url('people/talent') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/talent') ? 'active' : '' ?>">
-            <i class="bi bi-grid-3x3-gap-fill"></i> Talent Portfolio
-        </a>
         <?php if (! $_canHr): ?>
         <a href="<?= base_url('people/employees') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/employees') ? 'active' : '' ?>">
             <i class="bi bi-person-vcard-fill"></i> Data Karyawan
@@ -465,6 +462,47 @@ body { min-height: 100vh; }
         <a href="<?= base_url('people/change-requests') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/change-requests') ? 'active' : '' ?>">
             <i class="bi bi-pencil-square"></i> Pengajuan Data
             <?php if (($_changeReqCount ?? 0) > 0): ?><span class="badge bg-danger ms-auto"><?= $_changeReqCount ?></span><?php endif; ?>
+        </a>
+        <?php endif; ?>
+        <?php endif; ?>
+
+        <?php
+        // ── Talent Portfolio: akses BUKAN via menu dept — viewer list (admin-managed),
+        //    inbox penilai (rantai atasan), atau HR. Link harus tampil utk penilai
+        //    walau dept-nya tak punya akses People Development.
+        $_talUid    = (int) session()->get('user_id');
+        $_talDb     = db_connect();
+        $_talViewer = false; $_talInbox = 0;
+        $_canHrEdit = $_isAdmin || ($_deptMenusPd['hr_main']['can_edit'] ?? false);
+        if ($_talDb->tableExists('talent_placements')) { // guard: sebelum migrate, jangan fatal-kan layout
+            if (! $_isAdmin) {
+                $_talViewer = $_talDb->table('talent_viewers')->where('user_id', $_talUid)->countAllResults() > 0;
+            }
+            $_talInbox = $_talDb->table('talent_placements tp')
+                ->join('talent_periods pr', 'pr.id = tp.period_id')
+                ->where('tp.current_actor_id', $_talUid)
+                ->whereIn('tp.status', ['input', 'in_review'])
+                ->where('pr.status', 'active')
+                ->countAllResults();
+        }
+        $_talMap = $_isAdmin || $_talViewer;
+        if ($_talMap || $_talInbox > 0 || $_canHrEdit):
+        ?>
+        <div class="nav-label">Talent</div>
+        <?php if ($_talMap): ?>
+        <a href="<?= base_url('people/talent') ?>" class="nav-link <?= uri_string() === 'people/talent' ? 'active' : '' ?>">
+            <i class="bi bi-grid-3x3-gap-fill"></i> Talent Portfolio
+        </a>
+        <?php endif; ?>
+        <?php if ($_talInbox > 0 || $_canHrEdit): ?>
+        <a href="<?= base_url('people/talent/input') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/talent/input') ? 'active' : '' ?>">
+            <i class="bi bi-clipboard-check-fill"></i> Penilaian Talent
+            <?php if ($_talInbox > 0): ?><span class="badge bg-danger ms-auto"><?= $_talInbox ?></span><?php endif; ?>
+        </a>
+        <?php endif; ?>
+        <?php if ($_canHrEdit): ?>
+        <a href="<?= base_url('people/talent/periods') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/talent/periods') || str_starts_with(uri_string(), 'people/talent/viewers') ? 'active' : '' ?>">
+            <i class="bi bi-calendar2-range"></i> Periode Talent
         </a>
         <?php endif; ?>
         <?php endif; ?>

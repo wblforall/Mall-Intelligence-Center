@@ -2,7 +2,7 @@
 <?= $this->section('content') ?>
 
 <?php
-// Metadata 9 sel: label + warna (bg subtle)
+// Metadata presentasi 9 sel: label + warna. (Data sudah dikelompokkan di controller.)
 $cellMeta = [
     '3_1' => ['Trusted Professional', '#e7f6ec', '#1c7a44'],
     '3_2' => ['High Performer',       '#e7f6ec', '#1c7a44'],
@@ -14,29 +14,19 @@ $cellMeta = [
     '1_2' => ['Inconsistent',          '#fdf0e3', '#9a5a1a'],
     '1_3' => ['Enigma',                '#fdf0e3', '#9a5a1a'],
 ];
-$quad = [ // 4-box
+$quadMeta = [ // 4-box
     'H_H' => ['Future Leader', '#e2eefc', '#1c5fa8'],
     'H_L' => ['Solid Performer', '#e7f6ec', '#1c7a44'],
     'L_H' => ['Need Coaching', '#e2eefc', '#1c5fa8'],
     'L_L' => ['Exit Decision', '#fdeaea', '#a12a2a'],
 ];
-// Kelompokkan grid
-$cells = []; $unplaced = []; $total = 0; $placed = 0;
-foreach ($grid as $g) {
-    $total++;
-    if ($g['performance'] === null || $g['potential'] === null) { $unplaced[] = $g; continue; }
-    $placed++;
-    $cells[(int)$g['performance']][(int)$g['potential']][] = $g;
-}
-$quadCells = [];
-foreach ($grid as $g) {
-    if ($g['performance'] === null || $g['potential'] === null) continue;
-    $qk = ((int)$g['performance'] >= 2 ? 'H' : 'L') . '_' . ((int)$g['potential'] >= 2 ? 'H' : 'L');
-    $quadCells[$qk][] = $g;
-}
-$chip = function($g) {
-    $ini = strtoupper(mb_substr($g['nama'], 0, 1));
-    return '<span class="tal-chip" title="' . esc($g['jabatan'] ?? '', 'attr') . '"><span class="tal-ini">' . esc($ini) . '</span>' . esc($g['nama']) . '</span>';
+$chip = function ($g) {
+    $ini      = strtoupper(mb_substr($g['nama'], 0, 1));
+    $verified = ($g['status'] ?? '') === 'verified';
+    $cls      = $verified ? 'tal-chip' : 'tal-chip tal-draft';
+    $title    = esc(($g['jabatan'] ?? ''), 'attr') . ($verified ? '' : ' — BELUM diverifikasi (draft)');
+    $mark     = $verified ? '<span class="tal-ok">✓</span>' : '';
+    return '<span class="' . $cls . '" title="' . $title . '"><span class="tal-ini">' . esc($ini) . '</span>' . esc($g['nama']) . $mark . '</span>';
 };
 ?>
 
@@ -45,6 +35,8 @@ $chip = function($g) {
 .tal-cell { border-radius:10px; padding:8px 10px; min-height:120px; border:1px solid rgba(0,0,0,.06); }
 .tal-cell .cell-title { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; margin-bottom:6px; display:flex; justify-content:space-between; }
 .tal-chip { display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,.85); border:1px solid rgba(0,0,0,.08); border-radius:20px; padding:1px 9px 1px 2px; font-size:.72rem; margin:2px 3px 2px 0; color:#222; }
+.tal-chip.tal-draft { opacity:.55; border-style:dashed; }
+.tal-ok { color:#1c7a44; font-weight:700; }
 .tal-ini { width:18px; height:18px; border-radius:50%; background:#16324f; color:#fff; font-size:.62rem; display:inline-flex; align-items:center; justify-content:center; font-weight:700; }
 .axis-y { writing-mode:vertical-rl; transform:rotate(180deg); font-weight:700; color:#16324f; font-size:.8rem; text-align:center; letter-spacing:.05em; }
 .axis-x { text-align:center; font-weight:700; color:#16324f; font-size:.8rem; letter-spacing:.05em; margin-top:6px; }
@@ -87,7 +79,7 @@ $chip = function($g) {
     </div>
     <div class="col-md-3">
         <label class="form-label small fw-semibold mb-1">Unit</label>
-        <select name="fid" class="form-select form-select-sm" id="fid_dept" style="<?= $ftype==='jabatan'?'display:none':'' ?>">
+        <select name="fid" class="form-select form-select-sm" id="fid_dept" style="<?= $ftype==='jabatan'?'display:none':'' ?>" <?= $ftype==='jabatan'?'disabled':'' ?>>
             <option value="">— pilih departemen —</option>
             <?php foreach ($depts as $d): ?><option value="<?= $d['id'] ?>" <?= $ftype==='dept'&&$fid==$d['id']?'selected':'' ?>><?= esc($d['name']) ?></option><?php endforeach; ?>
         </select>
@@ -116,9 +108,12 @@ function toggleF(){var t=document.getElementById('ftype').value;
 <?php else: ?>
 
 <!-- Distribusi + toggle -->
-<div class="d-flex align-items-center justify-content-between mb-2">
+<div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
     <div class="small text-muted"><strong><?= $placed ?></strong> dari <strong><?= $total ?></strong> karyawan sudah dinilai
-        <?php if (count($unplaced)): ?>· <span class="text-warning"><?= count($unplaced) ?> belum ditempatkan</span><?php endif; ?></div>
+        <?php if (count($unplaced)): ?>· <span class="text-warning"><?= count($unplaced) ?> belum ditempatkan</span><?php endif; ?>
+        · <span class="tal-chip" style="vertical-align:middle"><span class="tal-ini">A</span>Terverifikasi <span class="tal-ok">✓</span></span>
+        <span class="tal-chip tal-draft" style="vertical-align:middle"><span class="tal-ini">B</span>Draft</span>
+    </div>
     <div class="btn-group btn-group-sm" role="group">
         <input type="radio" class="btn-check" name="viewmode" id="vm9" checked onchange="setMode(9)">
         <label class="btn btn-outline-secondary" for="vm9">9-Box</label>
@@ -154,7 +149,7 @@ function toggleF(){var t=document.getElementById('ftype').value;
     <div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <?php foreach ([['H_L','H_H'],['L_L','L_H']] as $rowq): foreach ($rowq as $qk):
-            $m = $quad[$qk]; $list = $quadCells[$qk] ?? []; ?>
+            $m = $quadMeta[$qk]; $list = $quadCells[$qk] ?? []; ?>
             <div class="tal-cell" style="background:<?= $m[1] ?>;min-height:150px">
                 <div class="cell-title" style="color:<?= $m[2] ?>"><span><?= $m[0] ?></span><span><?= count($list) ?></span></div>
                 <div><?php foreach ($list as $g) echo $chip($g); ?></div>
