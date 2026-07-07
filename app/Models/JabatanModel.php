@@ -45,12 +45,14 @@ class JabatanModel extends Model
     public function getAllAsMap(): array
     {
         $rows = $this->orderBy('grade')->orderBy('nama')->findAll();
-        $map  = ['_div' => []]; // division-level jabatans keyed by division_id
+        $map  = ['_div' => [], '_company' => []]; // _div: division-level; _company: no dept/division (GM, Direktur)
         foreach ($rows as $r) {
             if ($r['dept_id']) {
                 $map[$r['dept_id']][] = ['id' => $r['id'], 'nama' => $r['nama'], 'grade' => $r['grade']];
             } elseif ($r['division_id']) {
                 $map['_div'][$r['division_id']][] = ['id' => $r['id'], 'nama' => $r['nama'], 'grade' => $r['grade']];
+            } else {
+                $map['_company'][] = ['id' => $r['id'], 'nama' => $r['nama'], 'grade' => $r['grade']];
             }
         }
         return $map;
