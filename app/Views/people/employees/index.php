@@ -366,7 +366,7 @@ function loadJabatans(deptSelectId, divSelectId, jabSelectId, selectedJabId = 0)
     jabSel.innerHTML = '<option value="">— Pilih Jabatan —</option>';
     const deptJabs    = deptId ? (jabatanMap[deptId] ?? []) : [];
     const divJabs     = divId  ? (jabatanMap['_div']?.[divId] ?? []) : [];
-    const companyJabs = jabatanMap['_company'] ?? [];
+    const companyJabs = (!deptId && !divId) ? (jabatanMap['_company'] ?? []) : [];
     const all = [...deptJabs, ...divJabs, ...companyJabs].sort((a,b) => a.grade - b.grade || a.nama.localeCompare(b.nama));
     all.forEach(j => {
         const opt = document.createElement('option');
