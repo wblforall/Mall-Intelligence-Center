@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.17.0** (Juli 2026)
+> Versi saat ini: **v2.18.0** (Juli 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,31 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.18.0
+
+**Tanggal Rilis:** 7 Juli 2026
+
+### Perubahan dari v2.17.0
+
+#### People — Talent Portfolio 9-Box
+
+- Fitur baru **Talent Portfolio** berbasis matriks **9-Box (Performance × Potential)** — penilaian posisi karyawan pada skala 1–3 untuk dua dimensi, menghasilkan 9 kuadran (mis. Star, Core, Low Performer).
+- Input talent berjenjang: **atasan langsung** mengisi penilaian karyawan di bawahnya, menggunakan rantai atasan yang sama dengan appraisal. Admin dapat melihat seluruh peta talent.
+- Inbox berjenjang: notifikasi karyawan belum dinilai muncul di dashboard atasan masing-masing.
+- Akses halaman talent dikelola via `talent_viewers` (role admin).
+
+#### People — Perbaikan Input Karyawan
+
+- **Fix dropdown jabatan** tidak menampilkan posisi company-level (General Manager, Direktur, Sekretaris GM) saat tambah/edit karyawan. Posisi tanpa dept/divisi kini muncul otomatis di dropdown bila dept & divisi tidak dipilih, dan tersembunyi bila dept/divisi dipilih.
+
+#### People — Perbaikan Manajemen Akun
+
+- **Fix akun tidak bisa dibuat ulang** setelah akun karyawan dihapus dari menu Users. Sebelumnya `user_id` di tabel `employees` tidak di-clear saat akun dihapus, sehingga sistem menganggap karyawan masih punya akun.
+- **Fix email notifikasi akun**: `setFrom()` kini dipanggil eksplisit agar header pengirim konsisten, ditambah log debug bila SMTP gagal kirim.
+- Teks email notifikasi: dihapus frasa "oleh HR" — cukup "Akun login Anda untuk sistem Mall Intelligence Center telah dibuat."
 
 ---
 
