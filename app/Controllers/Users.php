@@ -132,6 +132,7 @@ class Users extends BaseController
         }
         $user = (new UserModel())->find($id);
         (new UserModel())->delete($id);
+        (new \App\Models\EmployeeModel())->where('user_id', $id)->set(['user_id' => null])->update();
         ActivityLog::write('delete', 'user', (string)$id, $user['name'] ?? '', [
             'email' => $user['email'] ?? '', 'role' => $user['role'] ?? '',
         ]);
