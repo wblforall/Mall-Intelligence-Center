@@ -792,9 +792,10 @@ function loadJabatans(deptSelectId, divSelectId, jabSelectId, selectedJabId = 0)
     const divId  = document.getElementById(divSelectId).value;
     const jabSel = document.getElementById(jabSelectId);
     jabSel.innerHTML = '<option value="">— Pilih Jabatan —</option>';
-    const deptJabs = deptId ? (jabatanMap[deptId] ?? []) : [];
-    const divJabs  = divId  ? (jabatanMap['_div']?.[divId] ?? []) : [];
-    const all = [...deptJabs, ...divJabs].sort((a,b) => a.grade - b.grade || a.nama.localeCompare(b.nama));
+    const deptJabs    = deptId ? (jabatanMap[deptId] ?? []) : [];
+    const divJabs     = divId  ? (jabatanMap['_div']?.[divId] ?? []) : [];
+    const companyJabs = jabatanMap['_company'] ?? [];
+    const all = [...deptJabs, ...divJabs, ...companyJabs].sort((a,b) => a.grade - b.grade || a.nama.localeCompare(b.nama));
     all.forEach(j => {
         const opt = document.createElement('option');
         opt.value = j.id;

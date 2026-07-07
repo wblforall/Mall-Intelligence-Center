@@ -396,5 +396,10 @@ function filterTable() {
 searchInput.addEventListener('input', filterTable);
 filterDept.addEventListener('change', filterTable);
 filterStatus.addEventListener('change', filterTable);
+
+// Populate jabatan on modal open so company-level jabatans (GM, Direktur) appear even without selecting dept
+document.getElementById('addModal').addEventListener('shown.bs.modal', () => {
+    loadJabatans('addDeptId', 'addDivId', 'addJabatanId');
+});
 </script>
 <?= $this->endSection() ?>
