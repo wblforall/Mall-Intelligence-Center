@@ -111,7 +111,7 @@ class PeopleEmployees extends BaseController
                 . '<div style="padding:24px">'
                 . '<h2 style="color:#0f172a;margin-top:0">Akun Login Anda</h2>'
                 . '<p>Halo <strong>' . esc($nama) . '</strong>,</p>'
-                . '<p>Akun login Anda untuk sistem <strong>Mall Intelligence Center</strong> telah dibuat oleh HR. Berikut kredensial awal Anda:</p>'
+                . '<p>Akun login Anda untuk sistem <strong>Mall Intelligence Center</strong> telah dibuat. Berikut kredensial awal Anda:</p>'
                 . '<table style="border-collapse:collapse;margin:12px 0">'
                 . '<tr><td style="padding:6px 12px;background:#f1f5f9"><strong>Email</strong></td><td style="padding:6px 12px;background:#f8fafc">' . esc($to) . '</td></tr>'
                 . '<tr><td style="padding:6px 12px;background:#f1f5f9"><strong>Password awal</strong></td><td style="padding:6px 12px;background:#f8fafc"><code>' . esc($pass) . '</code></td></tr>'
