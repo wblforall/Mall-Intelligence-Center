@@ -122,12 +122,18 @@ class PeopleEmployees extends BaseController
                 . '</div>'   // tutup padding content
                 . '</div>';  // tutup kartu luar
 
+            $cfg = config('Email');
             $emailer = \Config\Services::email();
+            $emailer->setFrom($cfg->fromEmail, $cfg->fromName);
             $emailer->setTo($to);
             $emailer->setSubject('Akun Login Anda — Mall Intelligence Center');
             $emailer->setMailType('html');
             $emailer->setMessage($html);
-            return (bool) $emailer->send();
+            $ok = (bool) $emailer->send();
+            if (! $ok) {
+                log_message('error', 'Gagal kirim email akun ke ' . $to . ': ' . $emailer->printDebugger(['headers', 'subject', 'body']));
+            }
+            return $ok;
         } catch (\Throwable $e) {
             log_message('error', 'Gagal kirim email akun: ' . $e->getMessage());
             return false;
