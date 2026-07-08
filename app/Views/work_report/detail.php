@@ -75,26 +75,35 @@ $statusLabel = [
     </div>
 </div>
 
-<!-- Komentar Deputy -->
-<div class="col-12 col-lg-5">
+<!-- Komunikasi dengan Deputy (dua arah) -->
+<div class="col-12 col-lg-5" id="komentar">
     <div class="card">
         <div class="card-header py-2">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-left-text me-2 text-primary"></i>Komentar Deputy</h6>
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-left-text me-2 text-primary"></i>Komunikasi dengan Deputy</h6>
         </div>
         <div class="list-group list-group-flush">
         <?php if (empty($comments)): ?>
-            <div class="list-group-item text-muted small py-3 text-center">Belum ada komentar dari Deputy.</div>
+            <div class="list-group-item text-muted small py-3 text-center">Belum ada komunikasi. Kirim komentar/pertanyaan ke Deputy di bawah.</div>
         <?php else: ?>
-            <?php foreach ($comments as $c): ?>
-            <div class="list-group-item py-2">
+            <?php foreach ($comments as $c): $mine = (int) ($c['author_id'] ?? 0) === (int) $empId; ?>
+            <div class="list-group-item py-2 <?= $mine ? 'bg-primary-subtle' : '' ?>">
                 <div class="d-flex justify-content-between mb-1">
-                    <small class="fw-semibold"><?= esc($c['author_name'] ?? '—') ?></small>
+                    <small class="fw-semibold"><?= esc($c['author_name'] ?? '—') ?><?= $mine ? ' <span class="text-primary">(Anda)</span>' : '' ?></small>
                     <small class="text-muted"><?= date('d M Y H:i', strtotime($c['created_at'])) ?></small>
                 </div>
                 <div class="small"><?= nl2br(esc($c['body'])) ?></div>
             </div>
             <?php endforeach; ?>
         <?php endif; ?>
+        </div>
+        <div class="card-footer py-2">
+            <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/comment') ?>">
+                <?= csrf_field() ?>
+                <div class="input-group input-group-sm">
+                    <input type="text" name="body" class="form-control" placeholder="Tulis komentar ke Deputy…" required>
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-send me-1"></i>Kirim</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

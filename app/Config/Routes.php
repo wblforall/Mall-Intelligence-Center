@@ -695,6 +695,7 @@ $routes->post('work-report/store',                        'WorkReportCtrl::store
 $routes->post('work-report/(:num)/edit',                  'WorkReportCtrl::edit/$1',                  ['filter' => 'auth']);
 $routes->post('work-report/(:num)/delete',                'WorkReportCtrl::delete/$1',                ['filter' => 'auth']);
 $routes->post('work-report/(:num)/update',                'WorkReportCtrl::addUpdate/$1',             ['filter' => 'auth']);
+$routes->post('work-report/(:num)/comment',               'WorkReportCtrl::addComment/$1',            ['filter' => 'auth']);
 $routes->get ('work-report/(:num)/detail',                'WorkReportCtrl::detail/$1',                ['filter' => 'auth']);
 
 $routes->get ('work-report/division',                     'WorkReportDeputyCtrl::index',              ['filter' => 'auth']);

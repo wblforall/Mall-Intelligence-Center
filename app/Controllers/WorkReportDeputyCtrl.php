@@ -79,6 +79,39 @@ class WorkReportDeputyCtrl extends BaseController
             }
         }
 
+        // Badge "Balasan Dept Head": komentar dept_deputy dari SELAIN Deputy sendiri
+        // (mis. balasan Dept Head) yang lebih baru dari last_read_comment_at Deputy.
+        $deptReplyUnread = [];
+        if ($initiativeIds) {
+            $myEmpId  = (int) $emp['id'];
+            $readsC   = $db->table('work_initiative_reads')
+                ->whereIn('initiative_id', $initiativeIds)
+                ->where('user_id', session()->get('user_id'))
+                ->get()->getResultArray();
+            $readMapC = array_column($readsC, 'last_read_comment_at', 'initiative_id');
+
+            $rowsC = $db->table('work_initiative_comments')
+                ->select('initiative_id, MAX(created_at) AS latest_at, COUNT(*) AS total')
+                ->where('visibility', 'dept_deputy')
+                ->where('author_id !=', $myEmpId)
+                ->whereIn('initiative_id', $initiativeIds)
+                ->groupBy('initiative_id')
+                ->get()->getResultArray();
+            foreach ($rowsC as $r) {
+                $lastRead = $readMapC[$r['initiative_id']] ?? null;
+                if (! $lastRead || $r['latest_at'] > $lastRead) {
+                    $deptReplyUnread[$r['initiative_id']] = $lastRead
+                        ? $db->table('work_initiative_comments')
+                            ->where('initiative_id', $r['initiative_id'])
+                            ->where('visibility', 'dept_deputy')
+                            ->where('author_id !=', $myEmpId)
+                            ->where('created_at >', $lastRead)
+                            ->countAllResults()
+                        : (int) $r['total'];
+                }
+            }
+        }
+
         // Kelompokkan per dept
         $byDept = [];
         foreach ($items as $item) {
@@ -96,6 +129,8 @@ class WorkReportDeputyCtrl extends BaseController
             'divisi'          => $divisi,
             'emp'             => $emp,
             'gmUnread' => $gmUnread,
+            'deptReplyUnread' => $deptReplyUnread,
+            'canFlag'  => $this->isCurator($emp),
         ]);
     }
 
@@ -186,8 +221,10 @@ class WorkReportDeputyCtrl extends BaseController
 
         $emp  = $this->currentEmployee();
         $item = $this->m->find($id);
-        if (! $item || ! $this->isDeputy($emp)) {
-            return redirect()->to('/work-report/division')->with('error', 'Akses ditolak.');
+        // Flag = state bersama per-program kerja → hanya Deputy GM asli (grade 3) /
+        // admin yang boleh. Manajer divisi (view-only Deputy) tidak boleh flag.
+        if (! $item || ! $this->isCurator($emp)) {
+            return redirect()->to('/work-report/division')->with('error', 'Hanya Deputy GM yang dapat mem-flag program kerja ke GM.');
         }
 
         if ((int) $item['divisi_id'] !== (int) $emp['divisi_id'] && ! $this->isAdmin()) {
@@ -283,17 +320,18 @@ class WorkReportDeputyCtrl extends BaseController
             ->where('is_outsource', 0)
             ->get()->getResultArray();
 
-        // Mark GM thread as read
+        // Tandai terbaca: thread GM ↔ Deputy DAN komunikasi dept ↔ Deputy (balasan Dept Head).
         $uid = (int) session()->get('user_id');
+        $now = date('Y-m-d H:i:s');
         $existing = $db->table('work_initiative_reads')
             ->where('initiative_id', $id)->where('user_id', $uid)->get()->getRowArray();
         if ($existing) {
             $db->table('work_initiative_reads')
                 ->where('initiative_id', $id)->where('user_id', $uid)
-                ->update(['last_read_gm_at' => date('Y-m-d H:i:s')]);
+                ->update(['last_read_gm_at' => $now, 'last_read_comment_at' => $now]);
         } else {
             $db->table('work_initiative_reads')
-                ->insert(['initiative_id' => $id, 'user_id' => $uid, 'last_read_gm_at' => date('Y-m-d H:i:s')]);
+                ->insert(['initiative_id' => $id, 'user_id' => $uid, 'last_read_gm_at' => $now, 'last_read_comment_at' => $now]);
         }
 
         return view('work_report/deputy_detail', [
@@ -304,6 +342,7 @@ class WorkReportDeputyCtrl extends BaseController
             'isFlagged'    => $isFlagged,
             'emp'          => $emp,
             'depts'        => $depts,
+            'canFlag'      => $this->isCurator($emp),
         ]);
     }
 
@@ -327,8 +366,19 @@ class WorkReportDeputyCtrl extends BaseController
             ->get()->getRowArray();
     }
 
-    private function isDeputy(array $emp): bool
+    // View se-divisi + komentar: Deputy GM (grade 3) ATAU manajer divisi (punya
+    // divisi, tanpa dept).
+    private function isDeputy(?array $emp): bool
     {
-        return (int) ($emp['grade'] ?? 99) === 3;
+        if (! $emp) return false;
+        if ((int) ($emp['grade'] ?? 99) === 3) return true;
+        return empty($emp['dept_id']) && ! empty($emp['divisi_id']);
+    }
+
+    // Kurator (boleh flag ke GM): HANYA Deputy GM asli (grade 3). Manajer divisi
+    // view-only tidak mengubah flag karena flag = state bersama per-program kerja.
+    private function isCurator(?array $emp): bool
+    {
+        return $emp && (int) ($emp['grade'] ?? 99) === 3;
     }
 }

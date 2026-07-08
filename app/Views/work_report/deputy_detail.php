@@ -18,12 +18,16 @@ $statusLabel = [
         <small class="text-muted"><?= esc($item['dept_name'] ?? '') ?></small>
     </div>
     <div class="ms-auto d-flex gap-2 flex-wrap">
+        <?php if ($canFlag ?? true): ?>
         <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/flag') ?>">
             <?= csrf_field() ?>
             <button type="submit" class="btn btn-sm <?= $isFlagged ? 'btn-warning' : 'btn-outline-secondary' ?>">
                 <i class="bi bi-flag<?= $isFlagged ? '-fill' : '' ?> me-1"></i><?= $isFlagged ? 'Tampil di GM' : 'Flag ke GM' ?>
             </button>
         </form>
+        <?php elseif ($isFlagged): ?>
+        <span class="badge bg-warning text-dark align-self-center"><i class="bi bi-flag-fill me-1"></i>Tampil di GM</span>
+        <?php endif; ?>
         <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEdit">
             <i class="bi bi-pencil me-1"></i>Edit
         </button>

@@ -64,6 +64,9 @@ ksort($grouped);
                     <?= $gmUnread[$item['id']] ?>
                 </span>
                 <?php endif; ?>
+                <?php if (! empty($deptReplyUnread[$item['id']])): ?>
+                <span class="badge rounded-pill bg-primary" style="font-size:.63rem"><i class="bi bi-reply-fill me-1"></i><?= $deptReplyUnread[$item['id']] ?> balasan Dept</span>
+                <?php endif; ?>
                 <?php if (! empty($item['assigned_to_dept_id'])): ?>
                 <span class="badge bg-info-subtle text-info" style="font-size:.63rem"><i class="bi bi-person-badge me-1"></i>Dari Deputy</span>
                 <?php endif; ?>
@@ -100,13 +103,17 @@ ksort($grouped);
         </div>
 
         <div class="d-flex flex-column gap-1 align-items-end flex-shrink-0">
-            <!-- Flag/Unflag -->
+            <!-- Flag/Unflag (hanya Deputy GM asli; manajer divisi lihat status saja) -->
+            <?php if ($canFlag ?? true): ?>
             <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/flag') ?>">
                 <?= csrf_field() ?>
                 <button type="submit" class="btn btn-sm <?= $isFlagged ? 'btn-warning' : 'btn-outline-secondary' ?>" style="font-size:.68rem">
                     <i class="bi bi-flag<?= $isFlagged ? '-fill' : '' ?> me-1"></i><?= $isFlagged ? 'Batalkan Flag' : 'Flag ke GM' ?>
                 </button>
             </form>
+            <?php elseif ($isFlagged): ?>
+            <span class="badge bg-warning text-dark" style="font-size:.62rem"><i class="bi bi-flag-fill me-1"></i>Tampil di GM</span>
+            <?php endif; ?>
             <!-- Komentar ke Dept -->
             <button class="btn btn-sm btn-outline-primary" style="font-size:.68rem"
                 data-bs-toggle="collapse" data-bs-target="#commentForm<?= $item['id'] ?>">

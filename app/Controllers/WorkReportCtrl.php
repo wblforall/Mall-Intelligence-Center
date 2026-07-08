@@ -74,8 +74,10 @@ class WorkReportCtrl extends BaseController
             $histories[$it['id']] = $this->mu->historyFor((int) $it['id']);
         }
 
-        // Badge unread: komentar Deputy (dept_deputy) yang belum Dept Head baca
+        // Badge unread: komentar dari Deputy (dept_deputy) yang belum Dept Head baca.
+        // Kecualikan komentar Dept Head sendiri (thread dua-arah) agar tak jadi badge sendiri.
         $initiativeIds = array_column($items, 'id');
+        $myEmpId       = (int) $emp['id'];
         $commentUnread = [];
         if ($initiativeIds) {
             $uid = (int) session()->get('user_id');
@@ -88,6 +90,7 @@ class WorkReportCtrl extends BaseController
             $rows = $db->table('work_initiative_comments')
                 ->select('initiative_id, MAX(created_at) AS latest_at, COUNT(*) AS total')
                 ->where('visibility', 'dept_deputy')
+                ->where('author_id !=', $myEmpId)
                 ->whereIn('initiative_id', $initiativeIds)
                 ->groupBy('initiative_id')
                 ->get()->getResultArray();
@@ -98,6 +101,7 @@ class WorkReportCtrl extends BaseController
                         ? $db->table('work_initiative_comments')
                             ->where('initiative_id', $r['initiative_id'])
                             ->where('visibility', 'dept_deputy')
+                            ->where('author_id !=', $myEmpId)
                             ->where('created_at >', $lastRead)
                             ->countAllResults()
                         : (int) $r['total'];
@@ -237,6 +241,37 @@ class WorkReportCtrl extends BaseController
         return redirect()->to('/work-report')->with('success', 'Update progress disimpan.');
     }
 
+    // ── Komentar Dept Head → Deputy (thread dua-arah dept_deputy) ────────
+    public function addComment(int $id): \CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $emp  = $this->currentEmployee();
+        $item = $this->m->find($id);
+        if (! $item || ! $this->canAccessItem($item, $emp)) {
+            return redirect()->to('/work-report')->with('error', 'Akses ditolak.');
+        }
+
+        $body = trim($this->request->getPost('body') ?? '');
+        if ($body === '') {
+            return redirect()->to('/work-report/' . $id . '/detail')->with('error', 'Komentar tidak boleh kosong.');
+        }
+
+        $this->mc->insert([
+            'initiative_id' => $id,
+            'parent_id'     => null,
+            'body'          => $body,
+            'author_id'     => (int) $emp['id'],
+            'visibility'    => 'dept_deputy',
+            'created_at'    => date('Y-m-d H:i:s'),
+        ]);
+        ActivityLog::write('create', 'work_initiative', (string) $id, 'Komentar ke Deputy: ' . $item['judul']);
+
+        return redirect()->to('/work-report/' . $id . '/detail#komentar')->with('success', 'Komentar terkirim ke Deputy.');
+    }
+
     // ── Detail: history update + komentar Deputy ─────────────────────────
     public function detail(int $id): string|\CodeIgniter\HTTP\RedirectResponse
     {
@@ -339,8 +374,10 @@ class WorkReportCtrl extends BaseController
 
     private function isDeputy(array $emp): bool
     {
-        $grade = (int) ($emp['grade'] ?? 99);
-        return $grade === 3; // grade 3 = Deputy GM
+        // Deputy GM (grade 3) ATAU manajer tingkat divisi: punya divisi tapi tanpa
+        // departemen (mis. Senior Manager pembina divisi) → dapat view se-divisi.
+        if ((int) ($emp['grade'] ?? 99) === 3) return true;
+        return empty($emp['dept_id']) && ! empty($emp['divisi_id']);
     }
 
     private function canAccessItem(array $item, ?array $emp): bool
