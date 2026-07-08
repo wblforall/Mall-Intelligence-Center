@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.18.0** (Juli 2026)
+> Versi saat ini: **v2.19.0** (Juli 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -13,9 +13,22 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 
 ---
 
-## Versi 2.18.0
+## Versi 2.19.0
 
-**Tanggal Rilis:** 7 Juli 2026
+**Tanggal Rilis:** 8 Juli 2026
+
+### Perubahan dari v2.18.0
+
+#### Progress Report — Akses Manajer Divisi (tanpa departemen)
+
+- Karyawan yang membawahi **divisi tanpa departemen** (mis. Senior Manager pembina divisi) kini otomatis mendapat **tampilan Progress Report se-divisi** — melihat seluruh program kerja dari semua departemen di bawah divisinya, sebelumnya tidak punya halaman yang sesuai (selalu ditolak "belum terhubung ke departemen").
+- Manajer divisi tersebut dapat **melihat dan berkomentar**, tetapi **tidak dapat mem-flag** program kerja ke GM — flag tetap hak **Deputy GM** karena flag adalah status bersama per-program kerja (agar tidak saling menimpa). Bagi manajer divisi, tombol flag diganti indikator status **"Tampil di GM"** yang bersifat baca-saja.
+
+#### Progress Report — Komunikasi Dua Arah Dept Head ↔ Deputy
+
+- **Dept Head kini bisa membalas/berkomentar kepada Deputy GM**, tidak lagi hanya membaca. Panel di halaman detail program kerja menjadi **"Komunikasi dengan Deputy"** dengan kolom kirim komentar; komentar milik sendiri ditandai **"(Anda)"**.
+- Deputy GM menerima **badge notifikasi "balasan Dept"** pada halaman divisi saat Dept Head mengirim komentar baru; badge otomatis hilang setelah thread dibuka.
+- Perhitungan notifikasi diperbaiki agar komentar milik sendiri tidak terhitung sebagai pesan belum dibaca.
 
 ### Perubahan dari v2.17.0
 
