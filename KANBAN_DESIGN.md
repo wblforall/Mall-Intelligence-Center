@@ -395,3 +395,30 @@ Tiap fase = rilis mandiri yang langsung bisa dipakai.
 - Cover image kartu, watcher/subscribe kartu, template board, komentar edit-history — skip dulu.
 - Real-time websocket — diganti polling (§5.1).
 - Reminder due-date via **email** — hanya in-app (bisa ditambah nanti).
+
+---
+
+## 13. Posisi terhadap Modul Lain & Strategi Integrasi (hasil brainstorm 2026-07-11)
+
+**Prinsip altitude:** modul MIC lain = **kata benda (data/record)**; Progress Report = **laporan program ke atas**; Boards = **lapisan tugas horizontal (kata kerja)**. Boards **menempel** ke kata benda mana pun, **tidak menggantikan/mengubah**-nya.
+
+**Keputusan inti: STANDALONE DULU, integrasi opsional & belakangan.**
+- Boards dibangun berdiri sendiri (Fase 1–3) — **tak menyentuh** tabel/alur modul lain. Semua modul existing tetap jalan apa adanya.
+- Integrasi (tie-in) = **Fase 4, opsional**, hanya di titik yang pain-nya nyata (mis. dobel-input Trello). Bukan syarat.
+
+**Mekanisme tautan (rekomendasi): polymorphic context** — `board.context_type` + `context_id` (mis. `event` / `work_initiative` / dst) → satu mekanisme, bisa nempel ke apa saja tanpa nambah kolom tiap modul. (Kolom `event_id`/`dept_id` yang sudah ada di §2.1 bisa dilebur ke context ini saat fase integrasi.)
+
+**Korelasi & prioritas tie-in per modul:**
+| Modul | Korelasi | Rencana |
+|---|---|---|
+| **Event** | 🟢 Kuat — event = proyek besar | Board per event (kolom Content/Creative/VM/Sponsor/Loyalty/Logistik). Prioritas tie-in #1 |
+| **Progress Report** | 🟢 Kuat — program kerja ⟶ board task | Link `work_initiatives.board_id` + tombol "Pecah/Buka Papan" + %-turunan opsional (B-lite, lihat catatan) |
+| **Sponsorship** | 🟡 Peluang pipeline (CRM: Prospek→Nego→Kontrak→Aktif) | Data deal tetap di modul; board = view pipeline opsional |
+| **Creative** | 🟡 Overlap — Media Promo Request sudah alur draft→pending→approved→done | **Jangan di-merge** (ada gate approval). Board utk tugas produksi, terpisah dari alur request |
+| **Loyalty** | ⚪ Lemah — lebih konfigurasi/data | Prioritas rendah |
+
+**Prinsip anti-duplikasi ("apa masuk mana"):** modul menyimpan **data & alur domain khususnya** (approval promo, status deal, module-completion event); Boards menambah **koordinasi tugas** di atasnya. Jangan paksa alur domain ber-gate masuk board generik.
+
+**%-turunan Progress Report (B-lite, opsional):** program yang punya board tampilkan penyelesaian board ("8/12 kartu · 67%") sebagai **petunjuk**; Dept Head boleh "Pakai angka board" atau tetap manual (bukan penimpa otomatis). Butuh 1 penanda kolom "Done" per board. Drill-down: yang boleh lihat program kerja → boleh lihat board tautannya read-only.
+
+**Payoff:** karena Boards horizontal, dashboard **"Kartu Saya"** mengumpulkan tugas lintas domain (event/creative/sponsor/program) dalam satu tempat — nilai yang hilang bila tiap modul bikin task-list sendiri.
