@@ -11,12 +11,12 @@ $statusLabel = [
 ];
 ?>
 
-<div class="d-flex align-items-center justify-content-between mb-4">
+<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-4">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report — Divisi</h4>
         <small class="text-muted"><?= esc($divisi['nama'] ?? '') ?></small>
     </div>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAdd">
+    <button class="btn btn-primary btn-sm text-nowrap flex-shrink-0" data-bs-toggle="modal" data-bs-target="#modalAdd">
         <i class="bi bi-plus-lg me-1"></i>Tambah Program Kerja
     </button>
 </div>
@@ -46,8 +46,8 @@ ksort($grouped);
     $overdue = ! empty($item['target_selesai']) && $item['target_selesai'] < date('Y-m-d') && $st !== 'done' && $st !== 'cancelled';
 ?>
 <div class="list-group-item py-2" id="initiative-<?= $item['id'] ?>">
-    <div class="d-flex align-items-start gap-2">
-        <div class="flex-grow-1">
+    <div class="d-flex flex-column flex-md-row align-items-start gap-2">
+        <div class="flex-grow-1 w-100">
             <div class="d-flex align-items-center gap-1 flex-wrap mb-1">
                 <span class="fw-semibold small"><?= esc($item['judul']) ?></span>
                 <?php if ($info): ?>
@@ -102,7 +102,7 @@ ksort($grouped);
             </div>
         </div>
 
-        <div class="d-flex flex-column gap-1 align-items-end flex-shrink-0">
+        <div class="d-flex flex-row flex-md-column gap-1 align-items-start align-items-md-end flex-shrink-0 flex-wrap">
             <!-- Flag/Unflag (hanya Deputy GM asli; manajer divisi lihat status saja) -->
             <?php if ($canFlag ?? true): ?>
             <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/flag') ?>">

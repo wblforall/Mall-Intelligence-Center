@@ -11,17 +11,17 @@ $statusLabel = [
 ];
 ?>
 
-<div class="d-flex align-items-center justify-content-between mb-4">
+<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-4">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report</h4>
         <small class="text-muted">Ringkasan yang dikurasi Deputy per Divisi</small>
     </div>
     <?php if (! empty($byDivisi)): ?>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary btn-sm" onclick="togglePilihSemua(this)" id="btnPilihSemua">
+    <div class="d-flex gap-2 flex-shrink-0">
+        <button class="btn btn-outline-secondary btn-sm text-nowrap flex-fill flex-sm-grow-0" onclick="togglePilihSemua(this)" id="btnPilihSemua">
             <i class="bi bi-check2-square me-1"></i>Pilih Semua
         </button>
-        <button class="btn btn-success btn-sm" onclick="salinLaporan(this)" id="btnSalin">
+        <button class="btn btn-success btn-sm text-nowrap flex-fill flex-sm-grow-0" onclick="salinLaporan(this)" id="btnSalin">
             <i class="bi bi-clipboard me-1"></i>Salin Laporan
         </button>
     </div>
@@ -98,7 +98,8 @@ foreach ($divisiItems as $item) {
                     <?php if (! empty($item['created_by_name'])): ?><span class="text-muted"><i class="bi bi-pencil me-1"></i><?= esc($item['created_by_name']) ?></span><?php endif; ?>
                     <?php if (! empty($item['pic_name'])): ?><span><i class="bi bi-person-check me-1"></i>PIC: <?= esc($item['pic_name']) ?></span><?php endif; ?>
                     <?php if (! empty($item['target_selesai'])): ?><span><i class="bi bi-calendar-check me-1"></i><?= date('d M Y', strtotime($item['target_selesai'])) ?></span><?php endif; ?>
-                    <?php if (! empty($item['deputy_name'])): ?><span><i class="bi bi-person-badge me-1 text-primary"></i>Dikurasi: <?= esc($item['deputy_name']) ?></span><?php endif; ?>
+                    <?php if (! empty($item['deputy_name'])): ?><span><i class="bi bi-person-badge me-1 text-primary"></i>Dikurasi: <?= esc($item['deputy_name']) ?></span>
+                    <?php elseif (empty($item['is_flagged_gm'])): ?><span class="text-warning"><i class="bi bi-robot me-1"></i>Otomatis · divisi tanpa Deputy</span><?php endif; ?>
                 </div>
             </div>
         </div>

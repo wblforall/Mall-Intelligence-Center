@@ -29,7 +29,8 @@ class WorkReportGmCtrl extends BaseController
             return redirect()->to('/work-report')->with('error', 'Halaman ini hanya untuk GM.');
         }
 
-        $items = $this->m->forGm();
+        // Opsi C: divisi tanpa Deputy → program kerjanya otomatis tampil (tanpa flag).
+        $items = $this->m->forGm($this->m->divisionsWithDeputy());
 
         // Kelompokkan per divisi
         $byDivisi = [];

@@ -71,10 +71,12 @@ class WorkInitiativeModel extends Model
             ->findAll();
     }
 
-    // Inisiatif yang di-flag untuk GM (semua divisi)
-    public function forGm(): array
+    // Untuk GM: program kerja yang di-flag Deputy, ATAU (Opsi C) program kerja dari
+    // divisi yang TIDAK punya Deputy GM → otomatis tampil tanpa perlu di-flag.
+    // $deputyDivisionIds = daftar id divisi yang punya Deputy efektif (dihitung di controller).
+    public function forGm(array $deputyDivisionIds = []): array
     {
-        return $this->select('work_initiatives.*, d.name AS dept_name, dv.nama AS divisi_name,
+        $b = $this->select('work_initiatives.*, d.name AS dept_name, dv.nama AS divisi_name,
                 e.nama AS pic_name,
                 cb.nama AS created_by_name,
                 ad.name AS assigned_dept_name,
@@ -84,23 +86,51 @@ class WorkInitiativeModel extends Model
                 u_latest.hambatan AS latest_hambatan,
                 u_latest.created_at AS latest_updated_at,
                 f.flagged_at, f.flagged_by,
+                (f.id IS NOT NULL) AS is_flagged_gm,
                 dep_emp.nama AS deputy_name')
             ->join('departments d', 'd.id = work_initiatives.dept_id', 'left')
             ->join('divisions dv', 'dv.id = work_initiatives.divisi_id', 'left')
             ->join('employees e', 'e.id = work_initiatives.pic_employee_id', 'left')
             ->join('employees cb', 'cb.id = work_initiatives.created_by', 'left')
             ->join('departments ad', 'ad.id = work_initiatives.assigned_to_dept_id', 'left')
-            ->join('work_initiative_flags f', 'f.initiative_id = work_initiatives.id AND f.is_active = 1', 'inner')
+            ->join('work_initiative_flags f', 'f.initiative_id = work_initiatives.id AND f.is_active = 1', 'left')
             ->join('users u_dep', 'u_dep.id = f.flagged_by', 'left')
             ->join('employees dep_emp', 'dep_emp.user_id = u_dep.id', 'left')
             ->join('work_initiative_updates u_latest',
                 'u_latest.id = (SELECT id FROM work_initiative_updates WHERE initiative_id = work_initiatives.id ORDER BY created_at DESC LIMIT 1)',
                 'left')
-            ->where('work_initiatives.is_active', 1)
-            ->orderBy('dv.nama')
+            ->where('work_initiatives.is_active', 1);
+
+        // Tampilkan: yang di-flag ATAU dari divisi tanpa Deputy. Bila TIDAK ada satupun
+        // divisi ber-Deputy, seluruh program kerja tampil (semua divisi = tanpa Deputy).
+        if (! empty($deputyDivisionIds)) {
+            $ids = implode(',', array_map('intval', $deputyDivisionIds));
+            $b->groupStart()
+                ->where('f.id IS NOT NULL')
+                ->orWhere("(work_initiatives.divisi_id IS NULL OR work_initiatives.divisi_id NOT IN ($ids))")
+              ->groupEnd();
+        }
+
+        return $b->orderBy('dv.nama')
             ->orderBy('d.name')
             ->orderBy('work_initiatives.created_at', 'DESC')
             ->findAll();
+    }
+
+    // Daftar id divisi yang punya Deputy GM efektif (karyawan aktif grade-3 + akun aktif).
+    public function divisionsWithDeputy(): array
+    {
+        $rows = $this->db->table('employees e')
+            ->select('COALESCE(e.division_id, d.division_id) AS divid')
+            ->join('jabatans j', 'j.id = e.jabatan_id', 'left')
+            ->join('departments d', 'd.id = e.dept_id', 'left')
+            ->join('users u', 'u.id = e.user_id', 'inner')
+            ->where('e.status', 'aktif')
+            ->where('j.grade', 3)
+            ->where('u.is_active', 1)
+            ->groupBy('divid')
+            ->get()->getResultArray();
+        return array_values(array_filter(array_map(fn($r) => (int) $r['divid'], $rows)));
     }
 
     // Semua inisiatif aktif (untuk Admin — lintas dept & divisi)
