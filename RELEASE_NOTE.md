@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.19.0** (Juli 2026)
+> Versi saat ini: **v2.20.0** (Juli 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -13,9 +13,24 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 
 ---
 
-## Versi 2.19.0
+## Versi 2.20.0
 
-**Tanggal Rilis:** 8 Juli 2026
+**Tanggal Rilis:** 11 Juli 2026
+
+### Perubahan dari v2.19.0
+
+#### Progress Report — Eskalasi ke GM tanpa Deputy
+
+- Program kerja dari **divisi yang belum punya Deputy GM** kini **otomatis tampil di halaman GM** (ditandai *"Otomatis · divisi tanpa Deputy"*), sehingga laporan tak lagi "nyangkut" saat sebuah divisi belum memiliki Deputy GM.
+- Divisi yang sudah punya Deputy GM tetap melalui proses kurasi seperti biasa (Deputy yang memilih/flag program kerja mana yang ditampilkan ke GM). Perilaku lama tidak berubah.
+
+#### Progress Report — Perbaikan Tampilan Mobile
+
+- Seluruh halaman Progress Report (Dept Head, Deputy GM, GM) dirapikan untuk layar ponsel: tombol aksi (Tambah Program Kerja, Pilih Semua, Salin Laporan, Flag, Komentar, Detail) tak lagi berdesakan/terpotong, dan kartu program kerja lebih lega dibaca.
+
+#### Dokumentasi & Perencanaan
+
+- Disusun **dokumen desain modul "Boards"** (papan tugas kolaboratif ala Trello) beserta diagram ERD, sebagai fondasi pengembangan mendatang. Modul ini dirancang berdiri sendiri dan tidak memengaruhi modul yang sudah ada.
 
 ### Perubahan dari v2.18.0
 
