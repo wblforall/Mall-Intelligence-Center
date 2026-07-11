@@ -114,7 +114,7 @@ ${ssPair('pwa_app_desktop', 'mob_pwa_app', 'Tampilan desktop', 'Tampilan mobile 
 <p style="text-align:justify">Setelah MIC terinstall sebagai PWA, beberapa fitur tambahan tersedia yang tidak ada saat membuka di browser biasa.</p>
 
 <h3>Mode Offline</h3>
-<p style="text-align:justify">Saat perangkat kehilangan koneksi internet, MIC menampilkan halaman offline khusus yang memberi tahu pengguna bahwa koneksi terputus. Halaman ini secara otomatis melakukan pengecekan ulang setiap beberapa detik dan langsung melanjutkan sesi begitu koneksi kembali — tanpa perlu reload manual.</p>
+<p style="text-align:justify">Saat perangkat kehilangan koneksi internet, MIC menampilkan halaman offline khusus yang memberi tahu pengguna bahwa koneksi terputus. Halaman ini secara otomatis melakukan pengecekan ulang setiap beberapa detik dan langsung melanjutkan sesi begitu koneksi kembali — tanpa perlu reload manual. Tersedia juga tombol <span class="btn-ref">Coba lagi</span> bila ingin memuat ulang secara manual.</p>
 
 ${ssOnly('pwa_offline', 'Halaman offline MIC — tampil otomatis saat koneksi terputus')}
 

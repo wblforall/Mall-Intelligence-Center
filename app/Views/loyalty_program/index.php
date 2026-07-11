@@ -37,7 +37,7 @@ $allClosed        = array_filter($programs, fn($p) => $p['status'] === 'inactive
 ?>
 
 <!-- Header -->
-<div class="d-flex align-items-center gap-2 mb-4 fade-up" style="animation-delay:.05s">
+<div class="d-flex align-items-center gap-2 mb-4 fade-up flex-wrap" style="animation-delay:.05s">
     <div class="rounded-2 d-flex align-items-center justify-content-center flex-shrink-0"
          style="width:36px;height:36px;background:rgba(99,102,241,.15)">
         <i class="bi bi-star-fill" style="color:var(--bs-primary);font-size:1rem"></i>
@@ -46,11 +46,11 @@ $allClosed        = array_filter($programs, fn($p) => $p['status'] === 'inactive
         <h4 class="fw-bold mb-0">Program Loyalty</h4>
         <small class="text-muted">Standalone &amp; dari event — Member, e-Voucher &amp; Hadiah</small>
     </div>
-    <div class="d-flex gap-2 ms-auto align-items-center">
+    <div class="d-flex gap-2 ms-md-auto align-items-center flex-wrap">
         <div class="position-relative">
             <i class="bi bi-search position-absolute" style="left:.6rem;top:50%;transform:translateY(-50%);font-size:.8rem;color:#94a3b8"></i>
             <input type="text" id="progSearch" class="form-control form-control-sm" placeholder="Cari program..."
-                   style="width:200px;padding-left:1.9rem" autocomplete="off">
+                   style="width:200px;max-width:58vw;padding-left:1.9rem" autocomplete="off">
         </div>
         <a href="<?= base_url('loyalty/summary') ?>" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-bar-chart-line me-1"></i>Summary Bulanan

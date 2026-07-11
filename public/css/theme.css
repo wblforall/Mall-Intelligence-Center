@@ -936,3 +936,12 @@ code        { color: #f8829a; background: rgba(232,65,90,.15); padding: .1rem .3
 [data-theme="light"] .sidebar .btn-logout:hover { color: #dc2626 !important; }
 [data-theme="light"] .sidebar .btn-logout       { color: #94a3b8 !important; }
 [data-theme="light"] .sidebar .btn-logout:hover { color: #dc2626 !important; }
+
+/* ── Mobile: angka Rupiah KPI jangan patah di tengah ── */
+@media (max-width: 575.98px) {
+    [data-count-rp] {
+        white-space: nowrap;
+        font-size: clamp(.9rem, 4.6vw, 1.25rem) !important;
+        font-variant-numeric: tabular-nums;
+    }
+}

@@ -72,7 +72,7 @@ $deltaBadge = function (float $cur, float $prev): string {
 <!-- Month Navigator -->
 <div class="card mb-4 fade-up" style="animation-delay:.12s">
     <div class="card-body py-2">
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
             <a href="?bulan=<?= $prevBulan ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-left"></i></a>
             <select class="form-select form-select-sm w-auto" onchange="location.href='?bulan='+this.value">
                 <?php foreach ($monthList as $m):
@@ -83,14 +83,14 @@ $deltaBadge = function (float $cur, float $prev): string {
                 <?php endforeach; ?>
             </select>
             <a href="?bulan=<?= $nextBulan ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>
-            <span class="ms-2 fw-semibold"><?= $bulanLabel ?></span>
+            <span class="fw-semibold d-none d-md-inline ms-md-2"><?= $bulanLabel ?></span>
             <a href="?bulan=<?= date('Y-m') ?>" class="btn btn-sm btn-outline-primary ms-auto">Bulan Ini</a>
-            <span id="analisaWarn" class="badge bg-warning-subtle text-warning-emphasis" style="font-size:.7rem;display:none">
-                <i class="bi bi-exclamation-triangle me-1"></i><span id="analisaWarnCount">0</span> program belum ada analisa
-            </span>
             <a href="<?= base_url('loyalty/summary/print?bulan='.$bulan) ?>" target="_blank" id="btnCetak" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-printer me-1"></i>Cetak Laporan
             </a>
+            <span id="analisaWarn" class="badge bg-warning-subtle text-warning-emphasis text-wrap" style="font-size:.7rem;display:none">
+                <i class="bi bi-exclamation-triangle me-1"></i><span id="analisaWarnCount">0</span> program belum ada analisa
+            </span>
         </div>
     </div>
 </div>

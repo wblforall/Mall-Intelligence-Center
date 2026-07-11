@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" href="<?= base_url('img/apple-touch-icon.png') ?>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link href="<?= base_url('css/theme.css') ?>" rel="stylesheet">
+<link href="<?= base_url('css/theme.css') ?>?v=2.20.0" rel="stylesheet">
 <style>
 :root { --sidebar-width: 248px; }
 body { min-height: 100vh; }
@@ -625,10 +625,10 @@ body { min-height: 100vh; }
                 <i class="bi bi-list"></i>
             </button>
             <?php if (isset($event)): ?>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0 small">
-                    <li class="breadcrumb-item"><a href="<?= base_url('events') ?>">Events</a></li>
-                    <li class="breadcrumb-item active"><?= esc($event['name']) ?></li>
+            <nav aria-label="breadcrumb" class="min-w-0">
+                <ol class="breadcrumb mb-0 small flex-nowrap">
+                    <li class="breadcrumb-item flex-shrink-0"><a href="<?= base_url('events') ?>">Events</a></li>
+                    <li class="breadcrumb-item active text-truncate" style="max-width:46vw"><?= esc($event['name']) ?></li>
                 </ol>
             </nav>
             <?php endif; ?>

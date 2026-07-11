@@ -41,12 +41,12 @@ $rp = fn($v) => 'Rp ' . number_format((int)$v, 0, ',', '.');
 ?>
 
 <!-- Header & Navigator -->
-<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up flex-wrap gap-2" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-vector-pen me-2 text-primary"></i>Summary Bulanan — Creative &amp; Design</h4>
         <div class="text-muted small mt-1"><?= $bulanLabel ?> · <?= $totalItems ?> item · <?= $activeCount ?> aktif bulan ini</div>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
         <a href="?bulan=<?= $prevBulan ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-left"></i></a>
         <form method="GET">
             <input type="month" name="bulan" value="<?= $bulan ?>" class="form-control form-control-sm" style="width:150px" onchange="this.form.submit()">
