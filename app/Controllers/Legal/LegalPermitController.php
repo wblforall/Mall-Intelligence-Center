@@ -53,7 +53,7 @@ class LegalPermitController extends BaseController
         $data['created_by'] = session()->get('user_id');
 
         $id = $this->model->insert($data);
-        ActivityLog::write('legal', 'create', $id, $data['nama_izin']);
+        ActivityLog::write('create', 'legal', $id, $data['nama_izin']);
         return redirect()->to('/legal/permits/' . $id)->with('success', 'Perizinan berhasil disimpan.');
     }
 
@@ -91,7 +91,7 @@ class LegalPermitController extends BaseController
         $data['tanggal_berakhir'] = $data['tanggal_berakhir'] ?: null;
 
         $this->model->update($id, $data);
-        ActivityLog::write('legal', 'update', $id, $data['nama_izin']);
+        ActivityLog::write('update', 'legal', $id, $data['nama_izin']);
         return redirect()->to('/legal/permits/' . $id)->with('success', 'Perizinan diperbarui.');
     }
 
@@ -107,7 +107,7 @@ class LegalPermitController extends BaseController
             $docModel->deleteWithFile($doc['id']);
         }
         $this->model->delete($id);
-        ActivityLog::write('legal', 'delete', $id, $permit['nama_izin']);
+        ActivityLog::write('delete', 'legal', $id, $permit['nama_izin']);
         return redirect()->to('/legal/permits')->with('success', 'Perizinan dihapus.');
     }
 }

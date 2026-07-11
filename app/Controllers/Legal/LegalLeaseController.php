@@ -54,7 +54,7 @@ class LegalLeaseController extends BaseController
         $data['created_by']  = session()->get('user_id');
 
         $id = $this->model->insert($data);
-        ActivityLog::write('legal', 'create', $id, $data['tenant_name']);
+        ActivityLog::write('create', 'legal', $id, $data['tenant_name']);
         return redirect()->to('/legal/leases/' . $id)->with('success', 'Perjanjian sewa berhasil disimpan.');
     }
 
@@ -93,7 +93,7 @@ class LegalLeaseController extends BaseController
         $data['unit_no']    = $data['unit_no'] ?: null;
 
         $this->model->update($id, $data);
-        ActivityLog::write('legal', 'update', $id, $data['tenant_name']);
+        ActivityLog::write('update', 'legal', $id, $data['tenant_name']);
         return redirect()->to('/legal/leases/' . $id)->with('success', 'Perjanjian sewa diperbarui.');
     }
 
@@ -109,7 +109,7 @@ class LegalLeaseController extends BaseController
             $docModel->deleteWithFile($doc['id']);
         }
         $this->model->delete($id);
-        ActivityLog::write('legal', 'delete', $id, $lease['tenant_name']);
+        ActivityLog::write('delete', 'legal', $id, $lease['tenant_name']);
         return redirect()->to('/legal/leases')->with('success', 'Perjanjian sewa dihapus.');
     }
 }

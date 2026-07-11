@@ -130,7 +130,7 @@ class LegalController extends BaseController
             'uploaded_at'  => date('Y-m-d H:i:s'),
         ]);
 
-        ActivityLog::write('legal', 'upload_doc', $entityId, $name ?: $filename);
+        ActivityLog::write('create', 'legal', (string) $entityId, 'Upload dokumen: ' . ($name ?: $filename));
         return redirect()->back()->with('success', 'Dokumen berhasil diupload.');
     }
 
@@ -138,7 +138,7 @@ class LegalController extends BaseController
     {
         if (! $this->canEditMenu('legal')) return redirect()->back()->with('error', 'Akses ditolak.');
         (new LegalDocumentModel())->deleteWithFile($id);
-        ActivityLog::write('legal', 'delete_doc', $id, 'Dokumen #' . $id);
+        ActivityLog::write('delete', 'legal', (string) $id, 'Hapus dokumen #' . $id);
         return redirect()->back()->with('success', 'Dokumen dihapus.');
     }
 

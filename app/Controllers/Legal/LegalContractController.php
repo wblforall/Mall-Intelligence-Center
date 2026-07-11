@@ -54,7 +54,7 @@ class LegalContractController extends BaseController
         $data['created_by']    = session()->get('user_id');
 
         $id = $this->model->insert($data);
-        ActivityLog::write('legal', 'create', $id, $data['nama_vendor']);
+        ActivityLog::write('create', 'legal', $id, $data['nama_vendor']);
         return redirect()->to('/legal/contracts/' . $id)->with('success', 'Kontrak berhasil disimpan.');
     }
 
@@ -93,7 +93,7 @@ class LegalContractController extends BaseController
         $data['nilai_kontrak'] = $data['nilai_kontrak'] ? str_replace([',', '.', ' '], '', $data['nilai_kontrak']) : null;
 
         $this->model->update($id, $data);
-        ActivityLog::write('legal', 'update', $id, $data['nama_vendor']);
+        ActivityLog::write('update', 'legal', $id, $data['nama_vendor']);
         return redirect()->to('/legal/contracts/' . $id)->with('success', 'Kontrak diperbarui.');
     }
 
@@ -109,7 +109,7 @@ class LegalContractController extends BaseController
             $docModel->deleteWithFile($doc['id']);
         }
         $this->model->delete($id);
-        ActivityLog::write('legal', 'delete', $id, $contract['nama_vendor']);
+        ActivityLog::write('delete', 'legal', $id, $contract['nama_vendor']);
         return redirect()->to('/legal/contracts')->with('success', 'Kontrak dihapus.');
     }
 }

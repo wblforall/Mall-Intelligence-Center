@@ -67,7 +67,7 @@ $mallLabel   = [1=>'eWalk', 2=>'Pentacity'];
                         </div>
                         <div class="col-md-3">
                             <div class="text-muted small text-uppercase">Status</div>
-                            <span class="badge bg-<?= $statusBadge[$permit['status']] ?>-subtle text-<?= $statusBadge[$permit['status']] ?>"><?= $statusLabel[$permit['status']] ?></span>
+                            <span class="badge bg-<?= $statusBadge[$permit['status']] ?? 'secondary' ?>-subtle text-<?= $statusBadge[$permit['status']] ?? 'secondary' ?>"><?= $statusLabel[$permit['status']] ?? esc($permit['status'] ?: '—') ?></span>
                         </div>
                         <?php if ($permit['catatan']): ?>
                         <div class="col-12">
