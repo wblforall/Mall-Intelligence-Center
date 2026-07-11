@@ -945,3 +945,47 @@ code        { color: #f8829a; background: rgba(232,65,90,.15); padding: .1rem .3
         font-variant-numeric: tabular-nums;
     }
 }
+
+/* ── Mobile: pola tabel → kartu (.table-cardify, ≤576px) ──────────────
+   Pakai: tambahkan class table-cardify pada <table>, data-label pada tiap <td>,
+   cardify-title utk sel judul, cardify-hide utk sel yang disembunyikan,
+   cardify-actions utk sel tombol aksi. Desktop tidak berubah. */
+@media (max-width: 575.98px) {
+    .table-cardify thead { display: none; }
+    .table-cardify tbody tr {
+        display: block;
+        border: 1px solid var(--card-border) !important;
+        border-radius: 10px;
+        padding: .65rem .85rem;
+        margin-bottom: .7rem;
+        background: var(--card-bg);
+    }
+    .table-cardify tbody tr:last-child { margin-bottom: .2rem; }
+    .table-cardify tbody td {
+        display: flex; justify-content: space-between; align-items: baseline;
+        gap: .75rem; border: 0 !important; padding: .2rem 0 !important;
+        background: transparent !important; text-align: right;
+        width: auto !important; white-space: normal;
+    }
+    .table-cardify tbody td::before {
+        content: attr(data-label);
+        font-size: .66rem; font-weight: 600; color: var(--bs-secondary-color, #94a3b8);
+        text-transform: uppercase; letter-spacing: .05em;
+        flex-shrink: 0; text-align: left;
+    }
+    .table-cardify tbody td:not([data-label])::before,
+    .table-cardify tbody td[data-label=""]::before { display: none; }
+    .table-cardify tbody td.cardify-title {
+        display: block; text-align: left; font-size: .92rem;
+        padding-bottom: .4rem !important; margin-bottom: .35rem;
+        border-bottom: 1px solid var(--card-border) !important;
+    }
+    .table-cardify tbody td.cardify-hide { display: none !important; }
+    .table-cardify tbody td.cardify-actions {
+        justify-content: flex-end; padding-top: .5rem !important;
+    }
+    /* baris warning/danger (mis. event overdue) tetap kelihatan lewat aksen kiri */
+    .table-cardify tbody tr.table-danger,
+    .table-cardify tbody tr.table-warning { border-left: 4px solid var(--bs-danger) !important; }
+    .table-cardify tbody tr.table-warning { border-left-color: var(--bs-warning) !important; }
+}

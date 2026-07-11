@@ -19,7 +19,7 @@ $isDeleted = $scope === 'deleted';
 <?php endif; ?>
 <div class="card">
 <div class="table-responsive">
-<table class="table table-sm align-middle mb-0" style="font-size:.78rem">
+<table class="table table-sm align-middle mb-0 table-cardify" style="font-size:.78rem">
 <thead>
 <tr>
     <th>Program Kerja</th>
@@ -36,27 +36,27 @@ $isDeleted = $scope === 'deleted';
     $info = $st ? ($statusLabel[$st] ?? null) : null;
 ?>
 <tr>
-    <td>
+    <td class="cardify-title">
         <div class="fw-semibold"><?= esc($item['judul']) ?></div>
         <?php if (! empty($item['created_by_name'])): ?>
         <div class="text-muted" style="font-size:.68rem">Dibuat: <?= esc($item['created_by_name']) ?></div>
         <?php endif; ?>
     </td>
     <?php if (! empty($showOrg)): ?>
-    <td style="font-size:.72rem">
+    <td style="font-size:.72rem" data-label="Divisi / Dept">
         <?= esc($item['divisi_name'] ?? '—') ?><br>
         <span class="text-muted"><?= esc($item['dept_name'] ?? 'Program Level Divisi') ?></span>
     </td>
     <?php endif; ?>
-    <td>
+    <td data-label="Status">
         <?php if ($info): ?>
         <span class="badge <?= $info['badge'] ?>" style="font-size:.65rem"><?= $info['label'] ?></span>
         <?php else: ?>
         <span class="badge bg-secondary" style="font-size:.65rem">Belum ada</span>
         <?php endif; ?>
     </td>
-    <td><?= esc($item['pic_name'] ?? '—') ?></td>
-    <td style="font-size:.72rem">
+    <td data-label="PIC"><?= esc($item['pic_name'] ?? '—') ?></td>
+    <td style="font-size:.72rem" data-label="<?= $isDeleted ? 'Dihapus' : 'Diarsipkan' ?>">
         <?php if ($isDeleted): ?>
             <?= ! empty($item['deleted_at']) ? date('d M Y H:i', strtotime($item['deleted_at'])) : '—' ?><br>
             <span class="text-muted">oleh <?= esc($item['deleted_by_name'] ?? '—') ?></span>
@@ -67,7 +67,7 @@ $isDeleted = $scope === 'deleted';
             <span class="badge bg-secondary-subtle text-secondary" style="font-size:.65rem"><i class="bi bi-magic me-1"></i>Otomatis (&gt;<?= \App\Models\WorkInitiativeModel::AUTO_ARCHIVE_DAYS ?> hari selesai)</span>
         <?php endif; ?>
     </td>
-    <td class="text-end">
+    <td class="text-end cardify-actions">
         <?php if (! empty($detailBase)): ?>
         <a href="<?= $detailBase . '/' . $item['id'] . '/detail' ?>" class="btn btn-outline-info btn-sm py-0 px-1" style="font-size:.7rem" title="Riwayat">
             <i class="bi bi-clock-history"></i>

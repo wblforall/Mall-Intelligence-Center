@@ -89,7 +89,7 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
 <div class="card anim-fade-up" style="animation-delay:.2s">
 <div class="card-body p-0">
 <div class="table-responsive">
-<table class="table table-hover align-middle mb-0" id="empTable">
+<table class="table table-hover align-middle mb-0 table-cardify" id="empTable">
 <thead>
 <tr>
     <th class="ps-3" style="width:36px"></th>
@@ -112,25 +112,25 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
 <?php foreach ($employees as $e): ?>
 <tr data-nama="<?= esc(strtolower($e['nama'])) ?>" data-nik="<?= esc(strtolower($e['nik'] ?? '')) ?>"
     data-dept="<?= esc($e['dept_name'] ?? '') ?>" data-status="<?= esc($e['status']) ?>">
-    <td class="ps-3">
+    <td class="ps-3 cardify-hide">
         <?php if ($e['foto']): ?>
         <img src="<?= base_url('people/photo/' . $e['foto']) ?>" class="emp-avatar">
         <?php else: ?>
         <div class="emp-avatar-placeholder"><?= strtoupper(substr($e['nama'], 0, 1)) ?></div>
         <?php endif; ?>
     </td>
-    <td class="fw-semibold"><?= esc($e['nama']) ?></td>
-    <td class="small text-muted"><?= esc($e['nik'] ?? '—') ?></td>
-    <td class="small"><?= esc($e['dept_name'] ?? '—') ?></td>
-    <td class="small"><?= esc($e['jabatan'] ?? '—') ?></td>
-    <td class="small text-muted"><?= $e['masa_kerja'] ?></td>
-    <td class="text-center">
+    <td class="fw-semibold cardify-title"><?= esc($e['nama']) ?></td>
+    <td class="small text-muted" data-label="NIK"><?= esc($e['nik'] ?? '—') ?></td>
+    <td class="small" data-label="Departemen"><?= esc($e['dept_name'] ?? '—') ?></td>
+    <td class="small" data-label="Jabatan"><?= esc($e['jabatan'] ?? '—') ?></td>
+    <td class="small text-muted" data-label="Masa Kerja"><?= $e['masa_kerja'] ?></td>
+    <td class="text-center" data-label="Status">
         <?php $sc = ['aktif'=>'success','resign'=>'secondary','cuti_panjang'=>'warning','pensiun'=>'info']; ?>
         <span class="badge bg-<?= $sc[$e['status']] ?? 'secondary' ?>-subtle text-<?= $sc[$e['status']] ?? 'secondary' ?> small">
             <?= ucfirst(str_replace('_', ' ', $e['status'])) ?>
         </span>
     </td>
-    <td>
+    <td class="cardify-actions">
         <a href="<?= base_url('people/employees/'.$e['id']) ?>" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-eye"></i>
         </a>

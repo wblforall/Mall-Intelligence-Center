@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-clipboard-check me-2"></i>Penilaian Talent</h4>
         <small class="text-muted">Nilai Performance &amp; Potential bawahan, lalu teruskan ke atasan berikut / verifikasi.</small>

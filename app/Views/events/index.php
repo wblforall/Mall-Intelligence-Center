@@ -68,7 +68,7 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
         </div>
         <?php else: ?>
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 table-cardify">
                 <thead><tr>
                     <th style="width:36px"><input type="checkbox" id="checkAll" title="Pilih semua"></th>
                     <th>#</th><th>Event</th><th>Tema</th><th>Mall</th><th>Periode</th><th>Status</th>
@@ -83,12 +83,12 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
                 <?php $isRejected = ($e['approval_status'] ?? 'approved') === 'rejected' ?>
                 <tr class="<?= $e['status'] === 'waiting_data' ? 'table-warning' : ($isPending ? 'table-info' : ($isRejected ? 'table-danger' : '')) ?> anim-fade-up"
                     style="animation-delay:<?= (.22 + $i * .06) ?>s"><?php /* staggered row entrance */ ?>
-                    <td><input type="checkbox" class="evt-check" value="<?= $e['id'] ?>"></td>
-                    <td class="text-muted small"><?= $i + 1 ?></td>
-                    <td class="fw-medium"><?= esc($e['name']) ?></td>
-                    <td class="small text-muted"><?= esc($e['tema'] ?? '—') ?></td>
-                    <td><span class="badge bg-secondary-subtle text-secondary"><?= $mallLabels[$e['mall']] ?? esc($e['mall']) ?></span></td>
-                    <td class="small">
+                    <td class="cardify-hide"><input type="checkbox" class="evt-check" value="<?= $e['id'] ?>"></td>
+                    <td class="text-muted small cardify-hide"><?= $i + 1 ?></td>
+                    <td class="fw-medium cardify-title"><?= esc($e['name']) ?></td>
+                    <td class="small text-muted" data-label="Tema"><?= esc($e['tema'] ?? '—') ?></td>
+                    <td data-label="Mall"><span class="badge bg-secondary-subtle text-secondary"><?= $mallLabels[$e['mall']] ?? esc($e['mall']) ?></span></td>
+                    <td class="small" data-label="Periode">
                         <?php if ($e['start_date']): ?>
                         <?php $endDate = date('Y-m-d', strtotime($e['start_date'] . ' +' . ($e['event_days'] - 1) . ' days')) ?>
                         <?= date('d M Y', strtotime($e['start_date'])) ?>
@@ -98,14 +98,14 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
                         <div class="text-muted" style="font-size:.72rem"><?= $e['event_days'] ?> hari</div>
                         <?php else: ?>—<?php endif; ?>
                     </td>
-                    <td>
+                    <td data-label="Status">
                         <span class="badge bg-<?= $sc ?>-subtle text-<?= $sc ?>"><?= $sl ?></span>
                         <?php if ($e['status'] === 'waiting_data'): ?>
                         <i class="bi bi-exclamation-circle text-warning ms-1" title="Data belum lengkap"></i>
                         <?php endif; ?>
                     </td>
                     <?php if ($canApprove ?? false): ?>
-                    <td>
+                    <td data-label="Approval">
                         <?php if ($isPending): ?>
                         <span class="badge bg-info text-white">Pending</span>
                         <?php elseif ($isRejected): ?>
@@ -115,7 +115,7 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
                         <?php endif; ?>
                     </td>
                     <?php endif; ?>
-                    <td>
+                    <td class="cardify-actions">
                         <a href="<?= base_url('events/'.$e['id'].'/summary') ?>" class="btn btn-sm <?= $isPending ? 'btn-outline-info' : 'btn-primary' ?> me-1"
                            title="<?= $isPending ? 'Buka & Review' : 'Lihat Summary' ?>">
                             <i class="bi bi-<?= $isPending ? 'eye' : 'speedometer2' ?>"></i>

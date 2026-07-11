@@ -38,19 +38,19 @@ if ($creativeBudget > 0)  $allocItems[] = ['label' => 'Creative & Design', 'amou
                 <?php if ($totalBudget > 0): ?>
                 <div class="mt-2 pt-2 border-top" style="font-size:.72rem">
                     <?php if ($deptBudgetTotal > 0): ?>
-                    <div class="d-flex justify-content-between text-muted"><span><i class="bi bi-buildings me-1"></i>Departemen</span><span>Rp <?= number_format($deptBudgetTotal,0,',','.') ?></span></div>
+                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-buildings me-1"></i>Departemen</span><span>Rp <?= number_format($deptBudgetTotal,0,',','.') ?></span></div>
                     <?php endif; ?>
                     <?php if ($loyaltyBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted"><span><i class="bi bi-star me-1"></i>Loyalty</span><span>Rp <?= number_format($loyaltyBudget,0,',','.') ?></span></div>
+                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-star me-1"></i>Loyalty</span><span>Rp <?= number_format($loyaltyBudget,0,',','.') ?></span></div>
                     <?php endif; ?>
                     <?php if ($vmBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted"><span><i class="bi bi-palette me-1"></i>VM</span><span>Rp <?= number_format($vmBudget,0,',','.') ?></span></div>
+                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-palette me-1"></i>VM</span><span>Rp <?= number_format($vmBudget,0,',','.') ?></span></div>
                     <?php endif; ?>
                     <?php if ($contentBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted"><span><i class="bi bi-collection-play me-1"></i>Content</span><span>Rp <?= number_format($contentBudget,0,',','.') ?></span></div>
+                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-collection-play me-1"></i>Content</span><span>Rp <?= number_format($contentBudget,0,',','.') ?></span></div>
                     <?php endif; ?>
                     <?php if ($creativeBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted"><span><i class="bi bi-brush me-1"></i>Creative</span><span>Rp <?= number_format($creativeBudget,0,',','.') ?></span></div>
+                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-brush me-1"></i>Creative</span><span>Rp <?= number_format($creativeBudget,0,',','.') ?></span></div>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>

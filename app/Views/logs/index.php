@@ -93,7 +93,7 @@ $moduleBadge = [
 <tr>
     <th style="width:150px">Waktu</th>
     <th style="width:140px">User</th>
-    <th style="width:130px">IP / Komputer</th>
+    <th style="width:130px" class="d-none d-md-table-cell">IP / Komputer</th>
     <th style="width:110px">Aksi</th>
     <th style="width:90px">Modul</th>
     <th>Target / Keterangan</th>
@@ -117,7 +117,7 @@ $moduleBadge = [
         <div class="small fw-medium"><?= esc($log['user_name']) ?></div>
         <div style="font-size:.7rem" class="text-muted"><?= esc($log['user_role']) ?></div>
     </td>
-    <td class="small text-muted">
+    <td class="small text-muted d-none d-md-table-cell">
         <div><?= esc($log['ip_address'] ?? '—') ?></div>
         <?php if (!empty($log['computer_name']) && $log['computer_name'] !== $log['ip_address']): ?>
         <div style="font-size:.7rem"><?= esc($log['computer_name']) ?></div>

@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-eye me-2"></i>Viewer Talent Portfolio</h4>
         <small class="text-muted">Daftar user yang boleh melihat peta 9-box penuh. Dikelola admin. Data ini sensitif.</small>

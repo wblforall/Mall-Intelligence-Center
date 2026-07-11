@@ -3,7 +3,7 @@
 <?php $isEdit = $lease !== null; ?>
 <div class="container-fluid py-4">
     <div class="mb-3">
-        <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small">
+        <nav aria-label="breadcrumb" class="d-none d-md-block"><ol class="breadcrumb mb-1 small">
             <li class="breadcrumb-item"><a href="<?= base_url('legal') ?>">Legal</a></li>
             <li class="breadcrumb-item"><a href="<?= base_url('legal/leases') ?>">Perjanjian Sewa</a></li>
             <li class="breadcrumb-item active"><?= $title ?></li>

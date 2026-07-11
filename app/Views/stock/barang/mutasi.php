@@ -53,7 +53,7 @@ $judulBulan  = $bulanNama[(int)$bln] . ' ' . $thn;
 <div class="card mb-3">
 <div class="card-header fw-semibold py-2">Rekap <?= $judulBulan ?></div>
 <div class="card-body p-0">
-<table class="table table-sm align-middle mb-0">
+<table class="table table-sm align-middle mb-0 table-cardify">
 <thead class="table-light">
 <tr>
     <th class="ps-3">Barang</th>
@@ -67,13 +67,13 @@ $judulBulan  = $bulanNama[(int)$bln] . ' ' . $thn;
     $net = $r['masuk'] - $r['keluar'];
 ?>
 <tr>
-    <td class="ps-3 fw-semibold small"><?= esc($r['nama']) ?></td>
-    <td class="text-center">
+    <td class="ps-3 fw-semibold small cardify-title"><?= esc($r['nama']) ?></td>
+    <td class="text-center" data-label="Total Masuk">
         <?php if ($r['masuk']): ?>
         <span class="badge bg-success-subtle text-success border fw-semibold">+<?= number_format($r['masuk']) ?> <?= esc($r['satuan']) ?></span>
         <?php else: ?><span class="text-muted">—</span><?php endif; ?>
     </td>
-    <td class="text-center">
+    <td class="text-center" data-label="Total Keluar">
         <?php if ($r['keluar']): ?>
         <span class="badge bg-danger-subtle text-danger border fw-semibold">-<?= number_format($r['keluar']) ?> <?= esc($r['satuan']) ?></span>
         <?php else: ?><span class="text-muted">—</span><?php endif; ?>
@@ -96,7 +96,7 @@ $judulBulan  = $bulanNama[(int)$bln] . ' ' . $thn;
 </div>
 <div class="card-body p-0">
 <div class="table-responsive">
-<table class="table table-sm table-hover align-middle mb-0">
+<table class="table table-sm table-hover align-middle mb-0 table-cardify">
 <thead class="table-light">
 <tr>
     <th class="ps-3">Tanggal</th>
@@ -111,20 +111,20 @@ $judulBulan  = $bulanNama[(int)$bln] . ' ' . $thn;
 <tbody>
 <?php foreach ($logs as $log): ?>
 <tr>
-    <td class="ps-3 text-muted small"><?= date('d M Y', strtotime($log['tanggal'])) ?></td>
-    <td class="fw-semibold small"><?= esc($log['nama_barang']) ?></td>
-    <td class="text-center">
+    <td class="ps-3 text-muted small" data-label="Tanggal"><?= date('d M Y', strtotime($log['tanggal'])) ?></td>
+    <td class="fw-semibold small cardify-title"><?= esc($log['nama_barang']) ?></td>
+    <td class="text-center" data-label="Tipe">
         <span class="badge bg-<?= $log['tipe'] === 'masuk' ? 'success' : 'danger' ?>">
             <?= $log['tipe'] === 'masuk' ? '↑ Masuk' : '↓ Keluar' ?>
         </span>
     </td>
-    <td class="text-end fw-semibold <?= $log['tipe'] === 'masuk' ? 'text-success' : 'text-danger' ?>">
+    <td class="text-end fw-semibold <?= $log['tipe'] === 'masuk' ? 'text-success' : 'text-danger' ?>" data-label="Jumlah">
         <?= ($log['tipe'] === 'masuk' ? '+' : '-') . number_format($log['jumlah']) ?>
         <span class="text-muted fw-normal small"><?= esc($log['satuan']) ?></span>
     </td>
-    <td class="text-center small"><?= number_format($log['stok_sebelum']) ?></td>
-    <td class="text-center small"><?= number_format($log['stok_sesudah']) ?></td>
-    <td class="small text-muted">
+    <td class="text-center small" data-label="Stok Sebelum"><?= number_format($log['stok_sebelum']) ?></td>
+    <td class="text-center small" data-label="Stok Sesudah"><?= number_format($log['stok_sesudah']) ?></td>
+    <td class="small text-muted" data-label="Keterangan">
         <?php
         $ket = $log['catatan'] ?? '';
         if (!$ket && $log['referensi_tipe']) {

@@ -9,7 +9,7 @@
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <h4 class="fw-bold mb-0"><i class="bi bi-megaphone me-2"></i>Media Promo</h4>
     <div class="d-flex gap-2">
         <a href="<?= base_url('creative/media-promo/print?bulan='.date('Y-m')) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">

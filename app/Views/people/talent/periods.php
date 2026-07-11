@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-calendar2-range me-2"></i>Periode Talent Review</h4>
         <small class="text-muted">Buat periode, aktifkan (generate penilaian), lalu kunci saat selesai.</small>

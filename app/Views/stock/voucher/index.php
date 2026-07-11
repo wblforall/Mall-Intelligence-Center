@@ -47,7 +47,7 @@
 <?php if (! empty($batch['kodes'])): ?>
 <div class="card-body p-0">
 <div style="max-height:240px;overflow-y:auto">
-<table class="table table-sm table-hover mb-0 small">
+<table class="table table-sm table-hover mb-0 small table-cardify">
 <thead class="table-light sticky-top">
     <tr>
         <th>Kode</th>
@@ -61,20 +61,20 @@
 <tbody>
 <?php foreach ($batch['kodes'] as $kode): ?>
 <tr>
-    <td class="font-monospace"><?= esc($kode['kode']) ?></td>
-    <td>
+    <td class="font-monospace cardify-title"><?= esc($kode['kode']) ?></td>
+    <td data-label="Status">
         <span class="badge bg-<?= $kode['status'] === 'available' ? 'success' : ($kode['status'] === 'assigned' ? 'primary' : 'secondary') ?>">
             <?= $kode['status'] ?>
         </span>
     </td>
-    <td>
+    <td data-label="Penerima">
         <?= esc($kode['nama_penerima'] ?? '—') ?>
         <?php if ($kode['status'] === 'assigned' && !empty($assignedBy[$kode['id']])): ?>
         <div class="text-muted" style="font-size:.72rem"><i class="bi bi-person me-1"></i>oleh <?= esc($assignedBy[$kode['id']]) ?></div>
         <?php endif; ?>
     </td>
-    <td><?= $kode['assigned_at'] ? date('d M Y', strtotime($kode['assigned_at'])) : '—' ?></td>
-    <td>
+    <td data-label="Tgl Assign"><?= $kode['assigned_at'] ? date('d M Y', strtotime($kode['assigned_at'])) : '—' ?></td>
+    <td data-label="Program">
         <?php if ($kode['program_type'] === 'manual'): ?>
         <span class="badge bg-secondary">Manual</span>
         <?php elseif ($kode['program_type']):

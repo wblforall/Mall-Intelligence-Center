@@ -59,7 +59,7 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
     <div class="card-body p-0">
     <div class="px-3 pt-2 small text-muted">Menampilkan <span id="fCount"><?= count($users) ?></span> dari <?= count($users) ?> user</div>
     <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table table-hover mb-0 table-cardify">
         <thead><tr><th>#</th><th>Nama</th><th>Email</th><th>Role</th><th>Departemen</th><th>Status</th><th>Last Login</th><th>Aksi</th></tr></thead>
         <tbody>
         <?php foreach ($users as $i => $u): ?>
@@ -73,18 +73,18 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
             data-role="<?= $u['role_id'] ?? '' ?>"
             data-dept="<?= $u['department_id'] ?? '' ?>"
             data-status="<?= $u['is_active'] ? '1' : '0' ?>">
-            <td class="text-muted small row-num"><?= $i+1 ?></td>
-            <td class="fw-medium"><?= esc($u['name']) ?></td>
-            <td><?= esc($u['email']) ?></td>
-            <td><span class="badge bg-<?= $roleColor ?>-subtle text-<?= $roleColor ?>"><?= esc($roleName) ?></span></td>
-            <td>
+            <td class="text-muted small row-num cardify-hide"><?= $i+1 ?></td>
+            <td class="fw-medium cardify-title"><?= esc($u['name']) ?></td>
+            <td data-label="Email" style="word-break:break-all"><?= esc($u['email']) ?></td>
+            <td data-label="Role"><span class="badge bg-<?= $roleColor ?>-subtle text-<?= $roleColor ?>"><?= esc($roleName) ?></span></td>
+            <td data-label="Departemen">
                 <?php if ($u['department_id'] && isset($deptMap[$u['department_id']])): ?>
                 <span class="badge bg-info-subtle text-info"><?= esc($deptMap[$u['department_id']]) ?></span>
                 <?php else: ?>
                 <span class="text-muted small">—</span>
                 <?php endif; ?>
             </td>
-            <td>
+            <td data-label="Status">
                 <?= $u['is_active']
                     ? '<span class="badge bg-success-subtle text-success">Aktif</span>'
                     : '<span class="badge bg-danger-subtle text-danger">Nonaktif</span>' ?>
@@ -96,7 +96,7 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
                 </span>
                 <?php endif; ?>
             </td>
-            <td>
+            <td data-label="Last Login">
                 <?php
                 $lastLog = $loginLogs[$u['id']][0] ?? null;
                 if ($lastLog): ?>
@@ -111,7 +111,7 @@ foreach ($roles as $r) { $roleMap[$r['id']] = $r; }
                 <span class="text-muted small">—</span>
                 <?php endif; ?>
             </td>
-            <td>
+            <td class="cardify-actions">
                 <button class="btn btn-sm btn-outline-info login-hist-btn me-1"
                     title="Riwayat Login"
                     data-uid="<?= $u['id'] ?>"

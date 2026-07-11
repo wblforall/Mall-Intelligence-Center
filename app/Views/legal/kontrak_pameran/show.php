@@ -22,7 +22,7 @@ if ($row['tanggal_mulai'] && $row['tanggal_selesai']) {
 
 <div class="container-fluid py-4">
     <div class="mb-3">
-        <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small">
+        <nav aria-label="breadcrumb" class="d-none d-md-block"><ol class="breadcrumb mb-1 small">
             <li class="breadcrumb-item"><a href="<?= base_url('legal') ?>">Legal</a></li>
             <li class="breadcrumb-item"><a href="<?= base_url('legal/kontrak-pameran') ?>">Kontrak Sewa Pameran</a></li>
             <li class="breadcrumb-item active"><?= esc($row['nomor_kontrak']) ?></li>

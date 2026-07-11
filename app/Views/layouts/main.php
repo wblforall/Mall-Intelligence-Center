@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" href="<?= base_url('img/apple-touch-icon.png') ?>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link href="<?= base_url('css/theme.css') ?>?v=2.20.0" rel="stylesheet">
+<link href="<?= base_url('css/theme.css') ?>?v=2.20.1" rel="stylesheet">
 <style>
 :root { --sidebar-width: 248px; }
 body { min-height: 100vh; }
@@ -625,16 +625,16 @@ body { min-height: 100vh; }
                 <i class="bi bi-list"></i>
             </button>
             <?php if (isset($event)): ?>
-            <nav aria-label="breadcrumb" class="min-w-0">
+            <nav aria-label="breadcrumb" class="min-w-0 overflow-hidden flex-grow-1">
                 <ol class="breadcrumb mb-0 small flex-nowrap">
                     <li class="breadcrumb-item flex-shrink-0"><a href="<?= base_url('events') ?>">Events</a></li>
-                    <li class="breadcrumb-item active text-truncate" style="max-width:46vw"><?= esc($event['name']) ?></li>
+                    <li class="breadcrumb-item active text-truncate" style="max-width:26vw"><?= esc($event['name']) ?></li>
                 </ol>
             </nav>
             <?php endif; ?>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-secondary"><?= ucfirst($currentRole) ?></span>
+            <span class="badge bg-secondary d-none d-sm-inline-block"><?= ucfirst($currentRole) ?></span>
             <div class="dropdown">
                 <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown">
                     <i class="bi bi-person-circle me-1"></i><?= esc($currentUser) ?>

@@ -66,7 +66,7 @@
                 <th>Titik</th>
                 <th>Materi</th>
                 <th>Slot</th>
-                <th>Area</th>
+                <th class="d-none d-sm-table-cell">Area</th>
                 <th></th>
             </tr>
         </thead>
@@ -85,11 +85,11 @@
             <td>
                 <div class="fw-semibold"><?= esc($u['nama_materi']) ?></div>
                 <?php if ($u['deskripsi_materi']): ?>
-                <div class="text-muted" style="font-size:.72rem"><?= esc($u['deskripsi_materi']) ?></div>
+                <div class="text-muted d-none d-sm-block" style="font-size:.72rem"><?= esc($u['deskripsi_materi']) ?></div>
                 <?php endif; ?>
             </td>
             <td><?= $u['slot_number'] ? 'Slot '.$u['slot_number'] : '—' ?></td>
-            <td class="text-muted"><?= esc($u['spot_area'] ?? '—') ?></td>
+            <td class="text-muted d-none d-sm-table-cell"><?= esc($u['spot_area'] ?? '—') ?></td>
             <td>
                 <span class="badge bg-<?= $tipeBadge[$u['spot_tipe']] ?? 'secondary' ?>" style="font-size:.65rem">
                     <?= $tipeLabel[$u['spot_tipe']] ?? $u['spot_tipe'] ?>

@@ -10,7 +10,7 @@ $mallLabel   = [1 => 'eWalk', 2 => 'Pentacity'];
 <div class="container-fluid py-4">
     <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
-            <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small">
+            <nav aria-label="breadcrumb" class="d-none d-md-block"><ol class="breadcrumb mb-1 small">
                 <li class="breadcrumb-item"><a href="<?= base_url('legal') ?>">Legal</a></li>
                 <li class="breadcrumb-item active">Kontrak Sewa Pameran</li>
             </ol></nav>

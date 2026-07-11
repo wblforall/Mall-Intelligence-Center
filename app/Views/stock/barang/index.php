@@ -16,7 +16,7 @@
 
 <div class="card">
 <div class="card-body p-0">
-<table class="table table-hover mb-0 align-middle">
+<table class="table table-hover mb-0 align-middle table-cardify">
 <thead class="table-light">
     <tr>
         <th>Nama Barang</th>
@@ -34,32 +34,32 @@
 <tr><td colspan="8" class="text-center text-muted py-4">Belum ada data barang.</td></tr>
 <?php else: foreach ($items as $item): ?>
 <tr>
-    <td>
+    <td class="cardify-title">
         <div class="fw-semibold"><?= esc($item['nama_barang']) ?></div>
         <?php if ($item['catatan']): ?><div class="small text-muted"><?= esc($item['catatan']) ?></div><?php endif; ?>
     </td>
-    <td><?= esc($item['satuan']) ?></td>
-    <td class="text-end">Rp <?= number_format($item['nilai_satuan']) ?></td>
-    <td class="text-center"><?= number_format($item['stok_awal']) ?></td>
-    <td class="text-center">
+    <td data-label="Satuan"><?= esc($item['satuan']) ?></td>
+    <td class="text-end" data-label="Nilai Satuan">Rp <?= number_format($item['nilai_satuan']) ?></td>
+    <td class="text-center" data-label="Stok Awal"><?= number_format($item['stok_awal']) ?></td>
+    <td class="text-center" data-label="Stok Tersedia">
         <span class="badge bg-<?= $item['stok_tersedia'] > 0 ? 'success' : 'danger' ?>">
             <?= number_format($item['stok_tersedia']) ?>
         </span>
     </td>
     <?php $reserved = (int)($item['stok_reserved'] ?? 0); $bebas = max(0, (int)$item['stok_tersedia'] - $reserved); ?>
-    <td class="text-center">
+    <td class="text-center" data-label="Reserved">
         <?php if ($reserved > 0): ?>
         <span class="badge bg-warning text-dark"><?= number_format($reserved) ?></span>
         <?php else: ?>
         <span class="text-muted small">—</span>
         <?php endif; ?>
     </td>
-    <td class="text-center">
+    <td class="text-center" data-label="Bebas">
         <span class="badge bg-<?= $bebas > 0 ? 'info' : 'secondary' ?> text-dark">
             <?= number_format($bebas) ?>
         </span>
     </td>
-    <td class="text-center">
+    <td class="text-center cardify-actions">
         <div class="d-flex gap-1 justify-content-center">
             <button class="btn btn-sm btn-outline-success" title="Tambah Stok"
                 onclick="openTambahStok(<?= $item['id'] ?>, '<?= esc($item['nama_barang']) ?>', <?= $item['stok_tersedia'] ?>)">

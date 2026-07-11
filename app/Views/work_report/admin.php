@@ -96,7 +96,7 @@ $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dih
     <small class="text-muted"><?= count($items) ?> program kerja</small>
 </div>
 <div class="table-responsive">
-<table class="table table-sm align-middle mb-0" style="font-size:.78rem">
+<table class="table table-sm align-middle mb-0 table-cardify" style="font-size:.78rem">
 <thead>
 <tr>
     <th style="width:30%">Program Kerja</th>
@@ -119,7 +119,7 @@ $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dih
         : null;
 ?>
 <tr class="<?= $overdue ? 'table-danger' : ($noUpdate ? 'table-warning' : '') ?>">
-    <td>
+    <td class="cardify-title">
         <div class="fw-semibold"><?= esc($item['judul']) ?></div>
         <?php if (! empty($item['latest_hambatan'])): ?>
         <div class="text-warning-emphasis" style="font-size:.7rem"><i class="bi bi-cone-striped me-1"></i><?= esc(mb_substr($item['latest_hambatan'], 0, 60)) ?></div>
@@ -128,7 +128,7 @@ $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dih
         <span class="badge bg-info-subtle text-info" style="font-size:.6rem">Dari Deputy</span>
         <?php endif; ?>
     </td>
-    <td>
+    <td data-label="Status">
         <?php if ($info): ?>
         <span class="badge <?= $info['badge'] ?>" style="font-size:.65rem"><?= $info['label'] ?></span>
         <?php elseif ($noUpdate): ?>
@@ -136,9 +136,9 @@ $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dih
         <?php endif; ?>
         <?php if ($overdue): ?><br><span class="badge bg-danger" style="font-size:.6rem">Terlambat</span><?php endif; ?>
     </td>
-    <td>
+    <td data-label="Progress">
         <?php if ($item['latest_progress'] !== null): ?>
-        <div class="progress" style="height:6px">
+        <div class="progress" style="height:6px;min-width:70px">
             <div class="progress-bar <?= (int)$item['latest_progress'] >= 100 ? 'bg-success' : ((int)$item['latest_progress'] >= 60 ? 'bg-primary' : 'bg-warning') ?>"
                 style="width:<?= $item['latest_progress'] ?>%"></div>
         </div>
@@ -147,13 +147,13 @@ $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dih
         <span class="text-muted">—</span>
         <?php endif; ?>
     </td>
-    <td><?= esc($item['pic_name'] ?? '—') ?></td>
-    <td>
+    <td data-label="PIC"><?= esc($item['pic_name'] ?? '—') ?></td>
+    <td data-label="Target Selesai">
         <?php if (! empty($item['target_selesai'])): ?>
         <span <?= $overdue ? 'class="text-danger fw-semibold"' : '' ?>><?= date('d M Y', strtotime($item['target_selesai'])) ?></span>
         <?php else: ?>—<?php endif; ?>
     </td>
-    <td>
+    <td data-label="Update Terakhir">
         <?php if (! empty($item['latest_updated_at'])): ?>
         <?= date('d M Y', strtotime($item['latest_updated_at'])) ?>
         <?php if ($staleWeeks >= 2): ?>
@@ -163,7 +163,7 @@ $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dih
         <span class="text-danger">Belum pernah</span>
         <?php endif; ?>
     </td>
-    <td class="text-center">
+    <td class="text-center" data-label="Flag GM">
         <?php if ((int)($item['is_flagged'] ?? 0)): ?>
         <i class="bi bi-flag-fill text-warning"></i>
         <?php else: ?>

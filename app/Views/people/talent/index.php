@@ -43,7 +43,7 @@ $chip = function ($g) {
 .col-lbl { text-align:center; font-size:.68rem; font-weight:600; color:#64748b; text-transform:uppercase; }
 </style>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-grid-3x3-gap me-2"></i>Talent Portfolio — 9-Box</h4>
         <small class="text-muted">Performance × Potential. Pilih periode &amp; unit untuk menampilkan peta.</small>

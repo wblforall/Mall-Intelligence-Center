@@ -150,11 +150,11 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
     $canEditProg  = $canEdit && ! $isLocked;
 ?>
 <div class="card mb-3 fade-up" id="program-<?= $pid ?>" style="animation-delay:.1s">
-    <div class="card-header d-flex align-items-center gap-2 py-2">
+    <div class="card-header d-flex align-items-center gap-2 py-2 flex-wrap">
         <i class="bi bi-trophy-fill text-warning"></i>
         <span class="fw-semibold"><?= esc($prog['nama_program']) ?></span>
         <?php if ($prog['tanggal_mulai']): ?>
-        <small class="text-muted">
+        <small class="text-muted text-nowrap">
             <?= date('d M Y', strtotime($prog['tanggal_mulai'])) ?>
             <?php if ($prog['tanggal_selesai']): ?>– <?= date('d M Y', strtotime($prog['tanggal_selesai'])) ?><?php endif; ?>
         </small>
