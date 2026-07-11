@@ -99,12 +99,25 @@ body { min-height: 100vh; }
     <div class="nav-section flex-grow-1">
 
         <?php
+        // Mirror persis canViewMenu()/canEditMenu() di BaseController:
+        // admin → grant per-user (user_menus, additive) → dept_menus.
+        $_navIsAdmin   = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+        $_navUserMenus = session()->get('user_menus');
+        $_navDeptMenus = session()->get('dept_menus');
+        $navCanView = function (string $key) use ($_navIsAdmin, $_navUserMenus, $_navDeptMenus): bool {
+            if ($_navIsAdmin) return true;
+            if (isset($_navUserMenus[$key]) && $_navUserMenus[$key]['can_view']) return true;
+            if ($_navDeptMenus === null) return false;
+            return isset($_navDeptMenus[$key]) && $_navDeptMenus[$key]['can_view'];
+        };
+        $navCanEdit = function (string $key) use ($_navIsAdmin, $_navUserMenus, $_navDeptMenus): bool {
+            if ($_navIsAdmin) return true;
+            if (isset($_navUserMenus[$key]) && $_navUserMenus[$key]['can_edit']) return true;
+            if ($_navDeptMenus === null) return false;
+            return isset($_navDeptMenus[$key]) && $_navDeptMenus[$key]['can_edit'];
+        };
         // Inputter traffic-only (mis. Security: can_edit tanpa can_view) tidak punya akses dashboard.
-        $_dmMain     = session()->get('dept_menus');
-        $_isAdminM   = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
-        $_inputOnly  = ! $_isAdminM && is_array($_dmMain)
-            && ! ($_dmMain['traffic']['can_view'] ?? false)
-            && ($_dmMain['traffic']['can_edit'] ?? false);
+        $_inputOnly = ! $_navIsAdmin && ! $navCanView('traffic') && $navCanEdit('traffic');
         if (! $_inputOnly):
         ?>
         <div class="nav-label">Main</div>
@@ -121,10 +134,7 @@ body { min-height: 100vh; }
         </a>
         <?php endif; ?>
         <?php
-        $_deptMenusE = session()->get('dept_menus');
-        $_canSeeEvents = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || ($_deptMenusE !== null && ($_deptMenusE['events']['can_view'] ?? false));
-        if ($_canSeeEvents):
+        if ($navCanView('events')):
             $_eventsOpen = str_starts_with(uri_string(), 'events') && ! isset($event);
         ?>
         <a href="<?= base_url('events') ?>" class="nav-link <?= str_starts_with(uri_string(), 'events') && !isset($event) && ! str_starts_with(uri_string(), 'events/monthly-summary') ? 'active' : '' ?>"
@@ -145,10 +155,7 @@ body { min-height: 100vh; }
         </div>
         <?php endif; ?>
         <?php
-        $_deptMenusL = session()->get('dept_menus');
-        $_canSeeLoyalty = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || ($_deptMenusL !== null && ($_deptMenusL['loyalty_main']['can_view'] ?? false));
-        if ($_canSeeLoyalty):
+        if ($navCanView('loyalty_main')):
             $_loyaltyOpen = str_starts_with(uri_string(), 'loyalty') || str_starts_with(uri_string(), 'stock/');
         ?>
         <a href="<?= base_url('loyalty') ?>" class="nav-link"
@@ -179,10 +186,7 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $_deptMenusSp = session()->get('dept_menus');
-        $_canSeeSponsor = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || ($_deptMenusSp !== null && ($_deptMenusSp['sponsorship_main']['can_view'] ?? false));
-        if ($_canSeeSponsor):
+        if ($navCanView('sponsorship_main')):
             $_sponsorOpen = str_starts_with(uri_string(), 'sponsorship');
         ?>
         <a href="<?= base_url('sponsorship') ?>" class="nav-link"
@@ -202,10 +206,7 @@ body { min-height: 100vh; }
 
         <?php
         $_creativeMainOpen = (str_starts_with(uri_string(), 'creative') || str_starts_with(uri_string(), 'creative/media-promo')) && !isset($event);
-        $_deptMenusC = session()->get('dept_menus');
-        $_canSeeCreativeMain = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || ($_deptMenusC !== null && ($_deptMenusC['creative_main']['can_view'] ?? false));
-        if ($_canSeeCreativeMain):
+        if ($navCanView('creative_main')):
         ?>
         <a href="<?= base_url('creative') ?>" class="nav-link"
            data-bs-toggle="collapse" data-bs-target="#creativeSubmenu" aria-expanded="<?= $_creativeMainOpen ? 'true' : 'false' ?>">
@@ -235,11 +236,8 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $deptMenusNav  = session()->get('dept_menus');
-        $canSeeVM = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-            || ($deptMenusNav !== null && ($deptMenusNav['vm_main']['can_view'] ?? false));
         $_vmOpen = str_starts_with(uri_string(), 'vm') && ! isset($event);
-        if ($canSeeVM):
+        if ($navCanView('vm_main')):
         ?>
         <a href="<?= base_url('vm') ?>" class="nav-link"
            data-bs-toggle="collapse" data-bs-target="#vmSubmenu" aria-expanded="<?= $_vmOpen ? 'true' : 'false' ?>">
@@ -257,9 +255,8 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $_isAdminNav    = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
-        $canViewTraffic = $_isAdminNav || ($deptMenusNav !== null && ($deptMenusNav['traffic']['can_view'] ?? false));
-        $canEditTraffic = $_isAdminNav || ($deptMenusNav !== null && ($deptMenusNav['traffic']['can_edit'] ?? false));
+        $canViewTraffic = $navCanView('traffic');
+        $canEditTraffic = $navCanEdit('traffic');
         $canSeeTraffic  = $canViewTraffic || $canEditTraffic; // inputter (edit-only, mis. Security) tetap lihat menu
         if ($canSeeTraffic):
         ?>
@@ -286,19 +283,9 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $_isAdminPk    = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
-        $_userMenusPk  = session()->get('user_menus');
-        // Mirror persis canViewMenu(): admin → grant per-user (user_menus) → dept_menus.
-        // Non-admin tanpa dept = tidak punya akses (kecuali grant per-user).
-        $pkCanView = function (string $key) use ($_isAdminPk, $_userMenusPk, $deptMenusNav) {
-            if ($_isAdminPk) return true;
-            if (isset($_userMenusPk[$key]) && $_userMenusPk[$key]['can_view']) return true;
-            if ($deptMenusNav === null) return false;
-            return isset($deptMenusNav[$key]) && $deptMenusNav[$key]['can_view'];
-        };
-        $canViewPkLive = $pkCanView('parking_live');
-        $canViewPkVeh  = $pkCanView('parking_vehicles');
-        $canViewPkRev  = $pkCanView('parking_revenue');
+        $canViewPkLive = $navCanView('parking_live');
+        $canViewPkVeh  = $navCanView('parking_vehicles');
+        $canViewPkRev  = $navCanView('parking_revenue');
         $canViewPkData = $canViewPkVeh || $canViewPkRev; // analisa butuh traffic/revenue
         if ($canViewPkLive || $canViewPkData):
         ?>
@@ -333,11 +320,10 @@ body { min-height: 100vh; }
 
         <?php if (isset($event)):
             $isAdmin    = ($currentRole === 'admin');
-            $deptMenus  = session()->get('dept_menus');
-            $canSeeMenu = function(string $key) use ($isAdmin, $deptMenus): bool {
+            $canSeeMenu = function(string $key) use ($isAdmin, $_navDeptMenus, $navCanView): bool {
                 if ($isAdmin) return true;
-                if ($deptMenus === null) return true;
-                return isset($deptMenus[$key]) && $deptMenus[$key]['can_view'];
+                if ($_navDeptMenus === null) return true; // tanpa dept: submenu event tetap tampil (perilaku lama)
+                return $navCanView($key);
             };
             $uri = uri_string();
         ?>
@@ -396,10 +382,9 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $_isAdmin = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
-        $_deptMenusPd = session()->get('dept_menus');
-        $_canViewPd   = $_isAdmin || ($_deptMenusPd !== null && ($_deptMenusPd['people_dev']['can_view'] ?? false));
-        $_canHr       = $_isAdmin || ($_deptMenusPd['hr_main']['can_view'] ?? false);
+        $_isAdmin   = $_navIsAdmin;
+        $_canViewPd = $navCanView('people_dev');
+        $_canHr     = $navCanView('hr_main');
         // Data Karyawan, Struktur Organisasi & Pengajuan Data: dipakai HR; bila user PD-only, ditampilkan di section PD agar tetap punya akses.
         ?>
 
@@ -473,7 +458,7 @@ body { min-height: 100vh; }
         $_talUid    = (int) session()->get('user_id');
         $_talDb     = db_connect();
         $_talViewer = false; $_talInbox = 0;
-        $_canHrEdit = $_isAdmin || ($_deptMenusPd['hr_main']['can_edit'] ?? false);
+        $_canHrEdit = $navCanEdit('hr_main');
         if ($_talDb->tableExists('talent_placements')) { // guard: sebelum migrate, jangan fatal-kan layout
             if (! $_isAdmin) {
                 $_talViewer = $_talDb->table('talent_viewers')->where('user_id', $_talUid)->countAllResults() > 0;
@@ -525,10 +510,7 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $_isAdminLegal  = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
-        $_deptMenusLegal = session()->get('dept_menus');
-        $_canViewLegal   = $_isAdminLegal || ($_deptMenusLegal !== null && ($_deptMenusLegal['legal']['can_view'] ?? false));
-        if ($_canViewLegal):
+        if ($navCanView('legal')):
         ?>
         <div class="nav-label">Legal</div>
         <a href="<?= base_url('legal') ?>" class="nav-link <?= uri_string() === 'legal' ? 'active' : '' ?>">
@@ -561,12 +543,7 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        $_deptMenusWR = session()->get('dept_menus');
-        $_userMenusWR = session()->get('user_menus');
-        $_canViewWR   = session()->get('role_is_admin') || session()->get('user_role') === 'admin'
-                     || ($_deptMenusWR['work_report']['can_view'] ?? false)
-                     || ($_userMenusWR['work_report']['can_view'] ?? false);
-        if ($_canViewWR):
+        if ($navCanView('work_report')):
         ?>
         <div class="nav-label">Progress Report</div>
         <a href="<?= base_url('work-report') ?>" class="nav-link <?= str_starts_with(uri_string(), 'work-report') ? 'active' : '' ?>">
