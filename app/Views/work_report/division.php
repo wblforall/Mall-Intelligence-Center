@@ -16,26 +16,51 @@ $statusLabel = [
         <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report — Divisi</h4>
         <small class="text-muted"><?= esc($divisi['nama'] ?? '') ?></small>
     </div>
-    <button class="btn btn-primary btn-sm text-nowrap flex-shrink-0" data-bs-toggle="modal" data-bs-target="#modalAdd">
-        <i class="bi bi-plus-lg me-1"></i>Tambah Program Kerja
-    </button>
+    <div class="d-flex gap-2 flex-shrink-0 flex-wrap">
+        <a href="<?= base_url('work-report/dashboard') ?>" class="btn btn-outline-primary btn-sm text-nowrap">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+        </a>
+        <button class="btn btn-primary btn-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#modalAdd">
+            <i class="bi bi-plus-lg me-1"></i>Tambah Program Kerja
+        </button>
+    </div>
 </div>
 
+<?= view('work_report/_scope_tabs', [
+    'scope'       => $scope ?? 'active',
+    'scopeCounts' => $scopeCounts ?? [],
+    'tabBase'     => base_url('work-report/division'),
+]) ?>
+
+<?php if (($scope ?? 'active') !== 'active'): ?>
+<?= view('work_report/_scope_list', [
+    'items'        => $items,
+    'scope'        => $scope,
+    'statusLabel'  => $statusLabel,
+    'showOrg'      => true,
+    'canRestore'   => false,
+    'canUnarchive' => true,
+    'detailBase'   => base_url('work-report/division'),
+]) ?>
+<?php else: ?>
 
 <?php
-// Kelompokkan per dept
+// Kelompokkan per dept. Program tanpa dept = program level divisi (milik Deputy) — paling atas.
 $grouped = [];
 foreach ($items as $item) {
-    $key = $item['dept_name'] ?? 'Tanpa Departemen';
+    $key = $item['dept_name'] ?? 'Program Level Divisi';
     $grouped[$key][] = $item;
 }
 ksort($grouped);
+if (isset($grouped['Program Level Divisi'])) {
+    $grouped = ['Program Level Divisi' => $grouped['Program Level Divisi']] + $grouped;
+}
 ?>
 
 <?php foreach ($grouped as $deptName => $deptItems): ?>
 <div class="card mb-3">
 <div class="card-header d-flex align-items-center justify-content-between py-2">
-    <h6 class="mb-0 fw-semibold"><i class="bi bi-building me-2 text-muted"></i><?= esc($deptName) ?></h6>
+    <h6 class="mb-0 fw-semibold"><i class="bi <?= $deptName === 'Program Level Divisi' ? 'bi-layers' : 'bi-building' ?> me-2 text-muted"></i><?= esc($deptName) ?></h6>
     <small class="text-muted"><?= count($deptItems) ?> program kerja</small>
 </div>
 <div class="list-group list-group-flush">
@@ -123,6 +148,14 @@ ksort($grouped);
             <a href="<?= base_url('work-report/division/' . $item['id'] . '/detail') ?>" class="btn btn-sm btn-outline-info" style="font-size:.68rem">
                 <i class="bi bi-eye me-1"></i>Detail
             </a>
+            <!-- Arsipkan -->
+            <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/archive') ?>"
+                  onsubmit="return confirm('Arsipkan program kerja ini? Program pindah ke tab Arsip.')">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-sm btn-outline-warning" style="font-size:.68rem">
+                    <i class="bi bi-archive me-1"></i>Arsipkan
+                </button>
+            </form>
         </div>
     </div>
 
@@ -149,6 +182,8 @@ ksort($grouped);
     Belum ada program kerja di divisi ini.
 </div>
 <?php endif; ?>
+
+<?php endif; // scope active ?>
 
 <!-- Modal Tambah -->
 <div class="modal fade" id="modalAdd" tabindex="-1">

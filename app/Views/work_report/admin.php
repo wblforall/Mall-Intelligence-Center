@@ -11,12 +11,25 @@ $statusLabel = [
 ];
 ?>
 
+<?php
+$scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dihapus'];
+?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report — Admin</h4>
-        <small class="text-muted"><?= $total ?> program kerja aktif</small>
+        <small class="text-muted"><?= $total ?> program kerja <?= $scopeNoun[$scope ?? 'active'] ?? 'aktif' ?></small>
     </div>
+    <a href="<?= base_url('work-report/dashboard') ?>" class="btn btn-outline-primary btn-sm text-nowrap">
+        <i class="bi bi-speedometer2 me-1"></i>Dashboard
+    </a>
 </div>
+
+<?= view('work_report/_scope_tabs', [
+    'scope'       => $scope ?? 'active',
+    'scopeCounts' => $scopeCounts ?? [],
+    'tabBase'     => base_url('work-report/admin'),
+    'tabQuery'    => array_filter(['divisi_id' => $filterDiv, 'dept_id' => $filterDept]),
+]) ?>
 
 <!-- Filter -->
 <form method="GET" action="<?= base_url('work-report/admin') ?>" class="card mb-4">
@@ -41,16 +54,29 @@ $statusLabel = [
         </select>
     </div>
     <div class="col-12 col-sm-auto">
+        <?php if (($scope ?? 'active') !== 'active'): ?>
+        <input type="hidden" name="tab" value="<?= esc($scope) ?>">
+        <?php endif; ?>
         <button type="submit" class="btn btn-primary btn-sm">Filter</button>
         <?php if ($filterDiv || $filterDept): ?>
-        <a href="<?= base_url('work-report/admin') ?>" class="btn btn-outline-secondary btn-sm ms-1">Reset</a>
+        <a href="<?= base_url('work-report/admin' . (($scope ?? 'active') !== 'active' ? '?tab=' . $scope : '')) ?>" class="btn btn-outline-secondary btn-sm ms-1">Reset</a>
         <?php endif; ?>
     </div>
 </div>
 </div>
 </form>
 
-<?php if (empty($grouped)): ?>
+<?php if (($scope ?? 'active') !== 'active'): ?>
+<?= view('work_report/_scope_list', [
+    'items'        => $items,
+    'scope'        => $scope,
+    'statusLabel'  => $statusLabel,
+    'showOrg'      => true,
+    'canRestore'   => $scope === 'deleted',
+    'canUnarchive' => true,
+    'detailBase'   => base_url('work-report'),
+]) ?>
+<?php elseif (empty($grouped)): ?>
 <div class="text-center text-muted py-5">
     <i class="bi bi-inbox fs-1 d-block mb-2"></i>
     Tidak ada program kerja ditemukan.
@@ -66,7 +92,7 @@ $statusLabel = [
 <?php foreach ($deptGroups as $deptName => $items): ?>
 <div class="card mb-3">
 <div class="card-header py-2 d-flex align-items-center justify-content-between">
-    <span class="fw-semibold small"><i class="bi bi-building me-2 text-muted"></i><?= esc($deptName) ?></span>
+    <span class="fw-semibold small"><i class="bi <?= $deptName === 'Program Level Divisi' ? 'bi-layers' : 'bi-building' ?> me-2 text-muted"></i><?= esc($deptName) ?></span>
     <small class="text-muted"><?= count($items) ?> program kerja</small>
 </div>
 <div class="table-responsive">

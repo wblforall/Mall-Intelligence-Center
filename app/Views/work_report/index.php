@@ -16,13 +16,33 @@ $statusLabel = [
         <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report</h4>
         <small class="text-muted"><?= esc($deptInfo['name'] ?? '') ?></small>
     </div>
-    <button class="btn btn-primary btn-sm text-nowrap flex-shrink-0" data-bs-toggle="modal" data-bs-target="#modalAdd">
-        <i class="bi bi-plus-lg me-1"></i>Tambah Program Kerja
-    </button>
+    <div class="d-flex gap-2 flex-shrink-0 flex-wrap">
+        <a href="<?= base_url('work-report/dashboard') ?>" class="btn btn-outline-primary btn-sm text-nowrap">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+        </a>
+        <button class="btn btn-primary btn-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#modalAdd">
+            <i class="bi bi-plus-lg me-1"></i>Tambah Program Kerja
+        </button>
+    </div>
 </div>
 
+<?= view('work_report/_scope_tabs', [
+    'scope'       => $scope ?? 'active',
+    'scopeCounts' => $scopeCounts ?? [],
+    'tabBase'     => base_url('work-report'),
+]) ?>
 
-<?php if (empty($items)): ?>
+<?php if (($scope ?? 'active') !== 'active'): ?>
+<?= view('work_report/_scope_list', [
+    'items'        => $items,
+    'scope'        => $scope,
+    'statusLabel'  => $statusLabel,
+    'showOrg'      => false,
+    'canRestore'   => false,
+    'canUnarchive' => true,
+    'detailBase'   => base_url('work-report'),
+]) ?>
+<?php elseif (empty($items)): ?>
 <div class="text-center text-muted py-5">
     <i class="bi bi-inbox fs-1 d-block mb-2"></i>
     Belum ada program kerja. Klik <strong>Tambah Program Kerja</strong> untuk memulai.
@@ -104,6 +124,7 @@ $statusLabel = [
                 <i class="bi bi-cone-striped me-1"></i><?= nl2br(esc($first['hambatan'])) ?>
             </div>
             <?php endif; ?>
+            <?= view('work_report/_update_images', ['images' => $first['images'] ?? []]) ?>
         </div>
         <!-- Update sebelumnya — collapsible -->
         <?php if (! empty($rest)): ?>
@@ -126,6 +147,7 @@ $statusLabel = [
                 <i class="bi bi-cone-striped me-1"></i><?= nl2br(esc($h['hambatan'])) ?>
             </div>
             <?php endif; ?>
+            <?= view('work_report/_update_images', ['images' => $h['images'] ?? []]) ?>
         </div>
         <?php endforeach; ?>
         </div>
@@ -144,7 +166,7 @@ $statusLabel = [
             <i class="bi bi-pencil-square me-1"></i>Update Progress
         </button>
         <div class="collapse mt-2" id="updateForm<?= $item['id'] ?>">
-            <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/update') ?>">
+            <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/update') ?>" enctype="multipart/form-data">
                 <?= csrf_field() ?>
                 <div class="row g-2">
                     <div class="col-12 col-sm-4">
@@ -166,6 +188,10 @@ $statusLabel = [
                     </div>
                     <div class="col-12">
                         <textarea name="hambatan" class="form-control form-control-sm" placeholder="Hambatan (kosongkan jika tidak ada)" rows="3"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <input type="file" name="images[]" class="form-control form-control-sm" accept="image/*" multiple>
+                        <div class="form-text" style="font-size:.65rem">Foto bukti (opsional) — khusus gambar, maks 5 foto @ 5MB.</div>
                     </div>
                     <div class="col-12 text-end">
                         <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
@@ -215,10 +241,16 @@ $statusLabel = [
         </div>
     </div>
     <div class="d-flex gap-2 mt-3 justify-content-between">
-        <button type="button" class="btn btn-outline-danger btn-sm"
-            onclick="if(confirm('Hapus program kerja ini?')) document.getElementById('delForm<?= $item['id'] ?>').submit()">
-            <i class="bi bi-trash me-1"></i>Hapus
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                onclick="if(confirm('Hapus program kerja ini? Program pindah ke tab Dihapus.')) document.getElementById('delForm<?= $item['id'] ?>').submit()">
+                <i class="bi bi-trash me-1"></i>Hapus
+            </button>
+            <button type="button" class="btn btn-outline-warning btn-sm"
+                onclick="if(confirm('Arsipkan program kerja ini? Program pindah ke tab Arsip.')) document.getElementById('arcForm<?= $item['id'] ?>').submit()">
+                <i class="bi bi-archive me-1"></i>Arsipkan
+            </button>
+        </div>
         <div class="d-flex gap-2">
             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
             <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
@@ -226,6 +258,9 @@ $statusLabel = [
     </div>
 </form>
 <form id="delForm<?= $item['id'] ?>" method="POST" action="<?= base_url('work-report/' . $item['id'] . '/delete') ?>" class="d-none">
+    <?= csrf_field() ?>
+</form>
+<form id="arcForm<?= $item['id'] ?>" method="POST" action="<?= base_url('work-report/' . $item['id'] . '/archive') ?>" class="d-none">
     <?= csrf_field() ?>
 </form>
 </div>

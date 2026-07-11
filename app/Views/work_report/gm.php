@@ -16,16 +16,19 @@ $statusLabel = [
         <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report</h4>
         <small class="text-muted">Ringkasan yang dikurasi Deputy per Divisi</small>
     </div>
-    <?php if (! empty($byDivisi)): ?>
-    <div class="d-flex gap-2 flex-shrink-0">
+    <div class="d-flex gap-2 flex-shrink-0 flex-wrap">
+        <a href="<?= base_url('work-report/dashboard') ?>" class="btn btn-outline-primary btn-sm text-nowrap flex-fill flex-sm-grow-0">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+        </a>
+        <?php if (! empty($byDivisi)): ?>
         <button class="btn btn-outline-secondary btn-sm text-nowrap flex-fill flex-sm-grow-0" onclick="togglePilihSemua(this)" id="btnPilihSemua">
             <i class="bi bi-check2-square me-1"></i>Pilih Semua
         </button>
         <button class="btn btn-success btn-sm text-nowrap flex-fill flex-sm-grow-0" onclick="salinLaporan(this)" id="btnSalin">
             <i class="bi bi-clipboard me-1"></i>Salin Laporan
         </button>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 </div>
 
 
@@ -50,18 +53,22 @@ $statusLabel = [
 <div class="card-body p-0">
 
 <?php
-// Kelompokkan per dept dalam divisi
+// Kelompokkan per dept dalam divisi. Program tanpa dept = program level divisi
+// (buatan Deputy tanpa assign ke dept) — selalu tampil paling atas.
 $byDept = [];
 foreach ($divisiItems as $item) {
-    $key = $item['dept_name'] ?? 'Tanpa Dept';
+    $key = $item['dept_name'] ?? 'Program Level Divisi';
     $byDept[$key][] = $item;
+}
+if (isset($byDept['Program Level Divisi'])) {
+    $byDept = ['Program Level Divisi' => $byDept['Program Level Divisi']] + $byDept;
 }
 ?>
 
 <?php foreach ($byDept as $deptName => $deptItems): ?>
 <div class="px-3 pt-3 pb-1">
     <div class="text-muted fw-semibold mb-2" style="font-size:.73rem;text-transform:uppercase;letter-spacing:.06em">
-        <i class="bi bi-building me-1"></i><?= esc($deptName) ?>
+        <i class="bi <?= $deptName === 'Program Level Divisi' ? 'bi-layers' : 'bi-building' ?> me-1"></i><?= esc($deptName) ?>
     </div>
 
     <?php foreach ($deptItems as $item):

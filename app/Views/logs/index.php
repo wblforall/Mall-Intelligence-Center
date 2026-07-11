@@ -28,7 +28,7 @@
         <label class="form-label small fw-semibold mb-1">Aksi</label>
         <select name="action" class="form-select form-select-sm">
             <option value="">Semua aksi</option>
-            <?php foreach (['login','logout','login_failed','create','update','delete'] as $a): ?>
+            <?php foreach (['login','logout','login_failed','create','update','delete','archive','unarchive','restore'] as $a): ?>
             <option value="<?= $a ?>" <?= $filters['action'] === $a ? 'selected' : '' ?>><?= ucfirst($a) ?></option>
             <?php endforeach; ?>
         </select>
@@ -71,6 +71,9 @@ $actionBadge = [
     'update'       => ['bg' => 'var(--c-action-update-bg)', 'color' => 'var(--c-action-update-fg)', 'icon' => 'pencil'],
     'delete'       => ['bg' => 'var(--c-action-delete-bg)', 'color' => 'var(--c-action-delete-fg)', 'icon' => 'trash'],
     'upload'       => ['bg' => 'var(--c-action-upload-bg)', 'color' => 'var(--c-action-upload-fg)', 'icon' => 'upload'],
+    'archive'      => ['bg' => 'var(--c-action-update-bg)', 'color' => 'var(--c-action-update-fg)', 'icon' => 'archive'],
+    'unarchive'    => ['bg' => 'var(--c-action-update-bg)', 'color' => 'var(--c-action-update-fg)', 'icon' => 'archive-fill'],
+    'restore'      => ['bg' => 'var(--c-action-create-bg)', 'color' => 'var(--c-action-create-fg)', 'icon' => 'arrow-counterclockwise'],
 ];
 $moduleBadge = [
     'auth'    => 'secondary',

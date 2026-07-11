@@ -58,7 +58,13 @@ class WorkReportCtrl extends BaseController
         }
 
         $deptId = (int) $emp['dept_id'];
-        $items  = $this->m->forDeptHead($deptId);
+        $tab    = (string) $this->request->getGet('tab');
+        $scope  = in_array($tab, ['archived', 'deleted'], true) ? $tab : 'active';
+        $items  = $this->m->forDeptHead($deptId, $scope);
+        $counts = [];
+        foreach (['active', 'archived', 'deleted'] as $s) {
+            $counts[$s] = $s === $scope ? count($items) : count($this->m->forDeptHead($deptId, $s));
+        }
         $db     = \Config\Database::connect();
 
         $deptInfo  = $db->table('departments')->where('id', $deptId)->get()->getRowArray();
@@ -116,6 +122,8 @@ class WorkReportCtrl extends BaseController
             'deptInfo'       => $deptInfo,
             'employees'      => $employees,
             'empId'          => (int) $emp['id'],
+            'scope'          => $scope,
+            'scopeCounts'    => $counts,
         ]);
     }
 
@@ -196,14 +204,90 @@ class WorkReportCtrl extends BaseController
         if (! $item) return redirect()->to('/work-report')->with('error', 'Inisiatif tidak ditemukan.');
 
         // Hanya boleh hapus jika created_by user ini
-        if ((int) $item['created_by'] !== (int) $emp['id'] && ! $this->isAdmin()) {
+        if ((int) $item['created_by'] !== (int) ($emp['id'] ?? 0) && ! $this->isAdmin()) {
             return redirect()->to('/work-report')->with('error', 'Hanya pembuat inisiatif yang bisa menghapus.');
         }
 
-        $this->m->update($id, ['is_active' => 0]);
-        ActivityLog::write('delete', 'work_initiative', (string) $id, $item['judul']);
+        $this->m->update($id, [
+            'is_active'  => 0,
+            'deleted_at' => date('Y-m-d H:i:s'),
+            'deleted_by' => (int) session()->get('user_id'),
+        ]);
+        ActivityLog::write('delete', 'work_initiative', (string) $id, $item['judul'], [
+            'dihapus_oleh' => session()->get('name'),
+        ]);
 
-        return redirect()->to('/work-report')->with('success', 'Inisiatif dihapus.');
+        return redirect()->to('/work-report')->with('success', 'Program kerja dipindahkan ke tab Dihapus.');
+    }
+
+    // ── Arsip / batal arsip / pulihkan ───────────────────────────────────
+    public function archive(int $id): \CodeIgniter\HTTP\RedirectResponse
+    {
+        return $this->setArchived($id, true);
+    }
+
+    public function unarchive(int $id): \CodeIgniter\HTTP\RedirectResponse
+    {
+        return $this->setArchived($id, false);
+    }
+
+    private function setArchived(int $id, bool $archive): \CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $item = $this->m->find($id);
+        if (! $item || ! $item['is_active']) {
+            return redirect()->back()->with('error', 'Program kerja tidak ditemukan.');
+        }
+        if (! $this->canManageItem($item)) {
+            return redirect()->back()->with('error', 'Anda tidak berhak mengarsipkan program kerja ini.');
+        }
+
+        $this->m->update($id, [
+            'archived_at' => $archive ? date('Y-m-d H:i:s') : null,
+            'archived_by' => $archive ? (int) session()->get('user_id') : null,
+        ]);
+        ActivityLog::write($archive ? 'archive' : 'unarchive', 'work_initiative', (string) $id, $item['judul']);
+
+        return redirect()->back()->with('success', $archive ? 'Program kerja diarsipkan.' : 'Program kerja dikembalikan dari arsip.');
+    }
+
+    // Pulihkan program yang dihapus (admin only) — kembali ke daftar aktif.
+    public function restore(int $id): \CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->isAdmin()) {
+            return redirect()->to('/work-report')->with('error', 'Hanya admin yang bisa memulihkan.');
+        }
+
+        $item = $this->m->find($id);
+        if (! $item || $item['is_active']) {
+            return redirect()->back()->with('error', 'Program kerja tidak ditemukan di tab Dihapus.');
+        }
+
+        $this->m->update($id, [
+            'is_active'  => 1,
+            'deleted_at' => null,
+            'deleted_by' => null,
+        ]);
+        ActivityLog::write('restore', 'work_initiative', (string) $id, $item['judul']);
+
+        return redirect()->back()->with('success', 'Program kerja dipulihkan.');
+    }
+
+    // Boleh kelola arsip: admin, pembuat, dept head pemilik program, atau
+    // Deputy/manajer divisi untuk program di divisinya.
+    private function canManageItem(array $item): bool
+    {
+        if ($this->isAdmin()) return true;
+        $emp = $this->currentEmployee();
+        if (! $emp) return false;
+        if ((int) $item['created_by'] === (int) $emp['id']) return true;
+        if ($this->canAccessItem($item, $emp)) return true;
+        return $this->isDeputy($emp)
+            && (int) ($item['divisi_id'] ?? 0) === (int) ($emp['divisi_id'] ?? 0)
+            && (int) ($item['divisi_id'] ?? 0) !== 0;
     }
 
     // ── Tambah update status (Senin report) ──────────────────────────────
@@ -225,8 +309,22 @@ class WorkReportCtrl extends BaseController
             return redirect()->to('/work-report')->with('error', 'Status tidak valid.');
         }
 
+        // Validasi foto bukti dulu (khusus gambar) sebelum ada yang disimpan.
+        $images = array_filter(
+            $this->request->getFileMultiple('images') ?? [],
+            fn($f) => $f && $f->getError() !== UPLOAD_ERR_NO_FILE
+        );
+        if (count($images) > 5) {
+            return redirect()->to('/work-report')->with('error', 'Maksimal 5 foto per update.');
+        }
+        foreach ($images as $file) {
+            if ($err = $this->validateUpload($file, self::MIME_IMAGE, 5)) {
+                return redirect()->to('/work-report')->with('error', 'Foto bukti: ' . $err);
+            }
+        }
+
         $pct = $this->request->getPost('progress_pct');
-        $this->mu->insert([
+        $updateId = $this->mu->insert([
             'initiative_id' => $id,
             'status'        => $status,
             'progress_pct'  => ($pct !== '' && $pct !== null) ? max(0, min(100, (int) $pct)) : null,
@@ -236,7 +334,25 @@ class WorkReportCtrl extends BaseController
             'created_at'    => date('Y-m-d H:i:s'),
         ]);
 
-        ActivityLog::write('update', 'work_initiative', (string) $id, 'Update status: ' . $status);
+        if ($images) {
+            $uploadPath = FCPATH . 'uploads/work_report/' . $id . '/';
+            if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
+            $db = \Config\Database::connect();
+            foreach ($images as $file) {
+                $name = 'upd_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
+                $file->move($uploadPath, $name);
+                $db->table('work_initiative_update_images')->insert([
+                    'update_id'     => (int) $updateId,
+                    'initiative_id' => $id,
+                    'file_name'     => $name,
+                    'original_name' => $file->getClientName(),
+                    'created_at'    => date('Y-m-d H:i:s'),
+                ]);
+            }
+        }
+
+        ActivityLog::write('update', 'work_initiative', (string) $id, 'Update status: ' . $status,
+            $images ? ['foto' => count($images)] : []);
 
         return redirect()->to('/work-report')->with('success', 'Update progress disimpan.');
     }
@@ -323,27 +439,157 @@ class WorkReportCtrl extends BaseController
         $db      = \Config\Database::connect();
         $divisiId = (int) ($this->request->getGet('divisi_id') ?? 0) ?: null;
         $deptId   = (int) ($this->request->getGet('dept_id') ?? 0) ?: null;
+        $tab      = (string) $this->request->getGet('tab');
+        $scope    = in_array($tab, ['archived', 'deleted'], true) ? $tab : 'active';
 
-        $items    = $this->m->forAdmin($divisiId, $deptId);
+        $items    = $this->m->forAdmin($divisiId, $deptId, $scope);
+        $counts   = [];
+        foreach (['active', 'archived', 'deleted'] as $s) {
+            $counts[$s] = $s === $scope ? count($items) : count($this->m->forAdmin($divisiId, $deptId, $s));
+        }
         $divisis  = $db->table('divisions')->orderBy('nama')->get()->getResultArray();
         $depts    = $db->table('departments')->where('is_outsource', 0)->orderBy('name')->get()->getResultArray();
 
-        // Kelompokkan per divisi → dept
+        // Kelompokkan per divisi → dept. Program tanpa dept = program level divisi
+        // (dibuat Deputy tanpa assign ke dept) — selalu tampil paling atas di divisinya.
         $grouped = [];
         foreach ($items as $item) {
             $div  = $item['divisi_name'] ?? 'Tanpa Divisi';
-            $dept = $item['dept_name']   ?? 'Tanpa Dept';
+            $dept = $item['dept_name']   ?? 'Program Level Divisi';
             $grouped[$div][$dept][] = $item;
         }
         ksort($grouped);
+        foreach ($grouped as $div => $deptGroups) {
+            if (isset($deptGroups['Program Level Divisi'])) {
+                $grouped[$div] = ['Program Level Divisi' => $deptGroups['Program Level Divisi']]
+                    + $deptGroups;
+            }
+        }
 
         return view('work_report/admin', [
-            'grouped'    => $grouped,
-            'divisis'    => $divisis,
-            'depts'      => $depts,
-            'filterDiv'  => $divisiId,
-            'filterDept' => $deptId,
-            'total'      => count($items),
+            'items'       => $items,
+            'grouped'     => $grouped,
+            'divisis'     => $divisis,
+            'depts'       => $depts,
+            'filterDiv'   => $divisiId,
+            'filterDept'  => $deptId,
+            'total'       => count($items),
+            'scope'       => $scope,
+            'scopeCounts' => $counts,
+        ]);
+    }
+
+    // ── Dashboard rekap (admin & GM semua divisi; Deputy divisinya) ──────
+    public function dashboard(): string|\CodeIgniter\HTTP\RedirectResponse
+    {
+        if (! $this->canViewMenu('work_report')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $emp      = $this->currentEmployee();
+        $isAdmin  = $this->isAdmin();
+        $isGm     = $emp && $this->isGm($emp);
+        $isDeputy = $emp && $this->isDeputy($emp);
+        $isDeptHead = $emp && ! empty($emp['dept_id']);
+        if (! $isAdmin && ! $isGm && ! $isDeputy && ! $isDeptHead) {
+            return redirect()->to('/work-report')->with('error', 'Akun belum terhubung ke karyawan atau departemen.');
+        }
+
+        // Scope: admin & GM semua divisi (bisa filter); Deputy divisinya; Dept Head dept-nya.
+        $divisiId = null;
+        $deptId   = null;
+        if ($isAdmin || $isGm) {
+            $divisiId = (int) ($this->request->getGet('divisi_id') ?? 0) ?: null;
+        } elseif ($isDeputy) {
+            $divisiId = (int) $emp['divisi_id'];
+        } else {
+            $deptId = (int) $emp['dept_id'];
+        }
+
+        $items = $this->m->forAdmin($divisiId, $deptId, 'active');
+        $today = date('Y-m-d');
+
+        // ── Stat & agregat per divisi + freshness per dept — sekali loop ──
+        $stat = ['total' => count($items), 'on_track' => 0, 'at_risk' => 0, 'delayed' => 0,
+                 'done' => 0, 'cancelled' => 0, 'no_update' => 0, 'overdue' => 0, 'stale7' => 0];
+        $byDivisi = [];
+        $byDept   = [];
+        foreach ($items as $it) {
+            $st = $it['latest_status'] ?? null;
+            if ($st === null) $stat['no_update']++;
+            elseif (isset($stat[$st])) $stat[$st]++;
+
+            $overdue = ! empty($it['target_selesai']) && $it['target_selesai'] < $today
+                && $st !== 'done' && $st !== 'cancelled';
+            if ($overdue) $stat['overdue']++;
+
+            $stale7 = ! empty($it['latest_updated_at'])
+                && strtotime($it['latest_updated_at']) < strtotime('-7 days')
+                && $st !== 'done' && $st !== 'cancelled';
+            if ($stale7) $stat['stale7']++;
+
+            $dv = $it['divisi_name'] ?? 'Tanpa Divisi';
+            if (! isset($byDivisi[$dv])) {
+                $byDivisi[$dv] = ['on_track' => 0, 'at_risk' => 0, 'delayed' => 0, 'done' => 0, 'cancelled' => 0, 'no_update' => 0];
+            }
+            $byDivisi[$dv][$st !== null && isset($byDivisi[$dv][$st]) ? $st : 'no_update']++;
+
+            $dpKey = ($it['divisi_name'] ?? '—') . ' · ' . ($it['dept_name'] ?? 'Program Level Divisi');
+            if (! isset($byDept[$dpKey])) {
+                $byDept[$dpKey] = ['divisi' => $it['divisi_name'] ?? '—',
+                                   'dept' => $it['dept_name'] ?? 'Program Level Divisi',
+                                   'total' => 0, 'last_update' => null, 'overdue' => 0];
+            }
+            $byDept[$dpKey]['total']++;
+            if ($overdue) $byDept[$dpKey]['overdue']++;
+            if (! empty($it['latest_updated_at'])
+                && ($byDept[$dpKey]['last_update'] === null || $it['latest_updated_at'] > $byDept[$dpKey]['last_update'])) {
+                $byDept[$dpKey]['last_update'] = $it['latest_updated_at'];
+            }
+        }
+        ksort($byDivisi);
+        ksort($byDept);
+
+        // ── Tren mingguan: update yang dilaporkan per minggu (12 minggu) ──
+        $db   = \Config\Database::connect();
+        $trendQ = $db->table('work_initiative_updates u')
+            ->select("YEARWEEK(u.created_at, 1) AS yw, u.status, COUNT(*) AS c")
+            ->join('work_initiatives wi', 'wi.id = u.initiative_id')
+            ->where('wi.is_active', 1)
+            ->where('u.created_at >=', date('Y-m-d', strtotime('monday this week -11 weeks')));
+        if ($divisiId) $trendQ->where('wi.divisi_id', $divisiId);
+        if ($deptId)   $trendQ->where('wi.dept_id', $deptId);
+        $trendRows = $trendQ->groupBy('yw, u.status')->orderBy('yw')->get()->getResultArray();
+
+        $trendMap = [];
+        foreach ($trendRows as $r) $trendMap[$r['yw']][$r['status']] = (int) $r['c'];
+
+        $weeks = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $mon = strtotime("monday this week -{$i} weeks");
+            $yw  = date('oW', $mon); // ISO year+week, sama dengan YEARWEEK(...,1)
+            $weeks[] = ['label' => date('d M', $mon), 'data' => $trendMap[$yw] ?? []];
+        }
+
+        $divisis = ($isAdmin || $isGm)
+            ? $db->table('divisions')->orderBy('nama')->get()->getResultArray()
+            : [];
+
+        $scopedLabel = null;
+        if (! $isAdmin && ! $isGm) {
+            $scopedLabel = $isDeputy
+                ? ($emp['divisi_name'] ?? '')
+                : ($emp['dept_name'] ?? '');
+        }
+
+        return view('work_report/dashboard', [
+            'stat'      => $stat,
+            'byDivisi'  => $byDivisi,
+            'byDept'    => $byDept,
+            'weeks'     => $weeks,
+            'divisis'   => $divisis,
+            'filterDiv' => $divisiId,
+            'scopedDiv' => $scopedLabel,
         ]);
     }
 

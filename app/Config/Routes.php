@@ -694,6 +694,10 @@ $routes->get ('work-report/admin',                        'WorkReportCtrl::admin
 $routes->post('work-report/store',                        'WorkReportCtrl::store',                    ['filter' => 'auth']);
 $routes->post('work-report/(:num)/edit',                  'WorkReportCtrl::edit/$1',                  ['filter' => 'auth']);
 $routes->post('work-report/(:num)/delete',                'WorkReportCtrl::delete/$1',                ['filter' => 'auth']);
+$routes->post('work-report/(:num)/archive',               'WorkReportCtrl::archive/$1',               ['filter' => 'auth']);
+$routes->post('work-report/(:num)/unarchive',             'WorkReportCtrl::unarchive/$1',             ['filter' => 'auth']);
+$routes->post('work-report/(:num)/restore',               'WorkReportCtrl::restore/$1',               ['filter' => 'auth']);
+$routes->get ('work-report/dashboard',                    'WorkReportCtrl::dashboard',                ['filter' => 'auth']);
 $routes->post('work-report/(:num)/update',                'WorkReportCtrl::addUpdate/$1',             ['filter' => 'auth']);
 $routes->post('work-report/(:num)/comment',               'WorkReportCtrl::addComment/$1',            ['filter' => 'auth']);
 $routes->get ('work-report/(:num)/detail',                'WorkReportCtrl::detail/$1',                ['filter' => 'auth']);

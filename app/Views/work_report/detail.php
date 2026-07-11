@@ -68,6 +68,7 @@ $statusLabel = [
                     <i class="bi bi-cone-striped text-warning me-1"></i><?= nl2br(esc($h['hambatan'])) ?>
                 </div>
                 <?php endif; ?>
+                <?= view('work_report/_update_images', ['images' => $h['images'] ?? []]) ?>
             </div>
             <?php endforeach; ?>
         <?php endif; ?>

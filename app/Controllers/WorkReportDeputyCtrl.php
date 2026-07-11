@@ -43,7 +43,13 @@ class WorkReportDeputyCtrl extends BaseController
             ->orderBy('name')
             ->get()->getResultArray();
 
-        $items = $this->m->forDivision((int) $emp['divisi_id']);
+        $tab   = (string) $this->request->getGet('tab');
+        $scope = in_array($tab, ['archived', 'deleted'], true) ? $tab : 'active';
+        $items = $this->m->forDivision((int) $emp['divisi_id'], $scope);
+        $scopeCounts = [];
+        foreach (['active', 'archived', 'deleted'] as $s) {
+            $scopeCounts[$s] = $s === $scope ? count($items) : count($this->m->forDivision((int) $emp['divisi_id'], $s));
+        }
 
         // Badge "Pesan GM": cek komentar gm_deputy yang lebih baru dari last_read_gm_at
         $initiativeIds = array_column($items, 'id');
@@ -131,6 +137,8 @@ class WorkReportDeputyCtrl extends BaseController
             'gmUnread' => $gmUnread,
             'deptReplyUnread' => $deptReplyUnread,
             'canFlag'  => $this->isCurator($emp),
+            'scope'       => $scope,
+            'scopeCounts' => $scopeCounts,
         ]);
     }
 
