@@ -5,7 +5,7 @@
  *  - Aset statis lokal: stale-while-revalidate (css/js/img/font milik origin sendiri).
  *  - Selain GET        : selalu lewat jaringan, tidak pernah di-cache.
  */
-const VERSION      = 'mic-v2.20.0';   // samakan dengan versi rilis agar cache lama otomatis dibersihkan
+const VERSION      = 'mic-v2.21.0';   // samakan dengan versi rilis agar cache lama otomatis dibersihkan
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Path relatif terhadap lokasi sw.js (folder public/).

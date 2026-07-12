@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.20.0** (Juli 2026)
+> Versi saat ini: **v2.21.0** (Juli 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,51 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.21.0
+
+**Tanggal Rilis:** 12 Juli 2026
+
+### Perubahan dari v2.20.0
+
+#### Progress Report — Dashboard Rekap
+
+- Halaman baru **Dashboard** (`/work-report/dashboard`) untuk semua peran dengan cakupan sesuai jabatan: Admin & GM melihat semua divisi (bisa filter), Deputy melihat divisinya, Dept Head melihat departemennya.
+- Berisi **KPI** (program aktif, status, lewat target, lama tak update), **grafik status per divisi**, **tren update mingguan (12 minggu)**, dan tabel **keaktifan update per departemen**.
+- Angka dashboard dijamin konsisten dengan daftar: program yang di-assign Deputy ke sebuah dept ikut terhitung di dashboard Dept Head, dan grafik tren tidak lagi menghitung program yang sudah diarsipkan.
+
+#### Progress Report — Tab Arsip & Dihapus
+
+- Daftar program kerja kini bertab **Aktif | Arsip | Dihapus**. Program berstatus Selesai/Dibatalkan **otomatis diarsipkan setelah 30 hari** sejak update terakhir; tombol **Arsipkan** tersedia untuk arsip manual.
+- **Hapus terlacak**: program yang dihapus pindah ke tab Dihapus lengkap dengan nama & waktu penghapus; **Admin dapat memulihkan** dan program kembali ke daftar **Aktif**.
+- **Batal Arsip** berlaku juga untuk program yang terarsip otomatis — program benar-benar kembali aktif (tidak langsung tertangkap rule auto lagi) sampai ada update baru.
+- **GM mendapat tab Arsip** — program yang pernah ditampilkan Deputy dan sudah selesai tetap dapat ditelusuri GM, tidak hilang diam-diam setelah 30 hari.
+- **Notifikasi pesan menjangkau arsip**: titik merah pada tab Arsip dan badge *"pesan baru"* di daftar arsip bila ada komentar GM/Deputy/Dept Head yang belum dibaca pada program terarsip.
+
+#### Progress Report — Foto Bukti Update
+
+- Update progress kini bisa melampirkan **foto bukti** (khusus gambar, maksimal 5 foto @ 5 MB) yang tampil pada riwayat update.
+- Penyimpanan dibuat **atomik**: bila upload foto gagal, update tidak tersimpan setengah jadi — pengguna mendapat pesan jelas dan cukup mengulang sekali.
+
+#### Tampilan Mobile — Pola Kartu
+
+- Tabel pada modul Events, Data Karyawan, Stok (barang, voucher, mutasi), Users, dan Progress Report Admin berubah menjadi **kartu** di layar ponsel (≤576 px) agar mudah dibaca tanpa geser horizontal.
+- **Checkbox "Bandingkan Event" tetap tersedia di mobile** (menempel di pojok kartu) — fitur compare tidak lagi hilang di ponsel.
+- Polish kecil menyeluruh: header halaman menyesuaikan lebar, breadcrumb dipangkas rapi, kolom sekunder disembunyikan di layar kecil.
+
+#### Activity Log
+
+- Perbaikan pencatatan log modul **Legal** (argumen tertukar membuat kolom aksi kosong) termasuk perbaikan data lama.
+- Kolom aksi dilonggarkan (ENUM → VARCHAR) sehingga aksi seperti *approve, reject, submit, export, upload, send email* tercatat benar — lengkap dengan **badge warna** dan **opsi filter** barunya di halaman Activity Log.
+
+#### Keandalan & Performa
+
+- Penghitungan jumlah tab (Aktif/Arsip/Dihapus) dan pemuatan riwayat update dioptimalkan (query ringan & batch) — halaman daftar Progress Report lebih hemat query.
+- Dashboard menolak akun Deputy yang belum terhubung ke divisi (sebelumnya berpotensi menampilkan data seluruh divisi).
+
+> Catatan deploy: jalankan `php spark migrate` (5 migrasi baru) dan pastikan folder `public/uploads/work_report/` writable.
 
 ---
 
