@@ -28,7 +28,7 @@
         <label class="form-label small fw-semibold mb-1">Aksi</label>
         <select name="action" class="form-select form-select-sm">
             <option value="">Semua aksi</option>
-            <?php foreach (['login','logout','login_failed','create','update','delete','archive','unarchive','restore'] as $a): ?>
+            <?php foreach (['login','logout','login_failed','create','update','delete','archive','unarchive','restore','approve','reject','submit','export','upload','send_email'] as $a): ?>
             <option value="<?= $a ?>" <?= $filters['action'] === $a ? 'selected' : '' ?>><?= ucfirst($a) ?></option>
             <?php endforeach; ?>
         </select>

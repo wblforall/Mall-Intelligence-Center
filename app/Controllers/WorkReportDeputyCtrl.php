@@ -46,13 +46,18 @@ class WorkReportDeputyCtrl extends BaseController
         $tab   = (string) $this->request->getGet('tab');
         $scope = in_array($tab, ['archived', 'deleted'], true) ? $tab : 'active';
         $items = $this->m->forDivision((int) $emp['divisi_id'], $scope);
-        $scopeCounts = [];
-        foreach (['active', 'archived', 'deleted'] as $s) {
-            $scopeCounts[$s] = $s === $scope ? count($items) : count($this->m->forDivision((int) $emp['divisi_id'], $s));
-        }
+        $scopeCounts = $this->m->scopeCountsForDivision((int) $emp['divisi_id']);
 
-        // Badge "Pesan GM": cek komentar gm_deputy yang lebih baru dari last_read_gm_at
-        $initiativeIds = array_column($items, 'id');
+        // Badge "Pesan GM": cek komentar gm_deputy yang lebih baru dari last_read_gm_at.
+        // Dihitung atas SEMUA item divisi (aktif + arsip) agar catatan GM pada
+        // program yang sudah auto-arsip tetap memunculkan notifikasi.
+        $initiativeIds = array_column(
+            $db->table('work_initiatives')->select('id')
+                ->where('divisi_id', (int) $emp['divisi_id'])
+                ->where('is_active', 1)
+                ->get()->getResultArray(),
+            'id'
+        );
         $gmUnread = [];
         if ($initiativeIds) {
             // Waktu baca terakhir per inisiatif untuk user ini
@@ -118,27 +123,37 @@ class WorkReportDeputyCtrl extends BaseController
             }
         }
 
-        // Kelompokkan per dept
-        $byDept = [];
-        foreach ($items as $item) {
-            $byDept[$item['dept_id']][] = $item;
+        // Gabungan unread per item (badge tab & daftar arsip) + titik merah tab Arsip.
+        $unreadCombined = [];
+        foreach ([$gmUnread, $deptReplyUnread] as $map) {
+            foreach ($map as $iid => $c) $unreadCombined[$iid] = ($unreadCombined[$iid] ?? 0) + $c;
+        }
+        $tabAlerts = [];
+        if ($scope === 'active') {
+            $activeIdSet    = array_flip(array_column($items, 'id'));
+            $archivedUnread = 0;
+            foreach ($unreadCombined as $iid => $c) {
+                if (! isset($activeIdSet[$iid])) $archivedUnread += $c;
+            }
+            if ($archivedUnread) $tabAlerts['archived'] = $archivedUnread;
         }
 
-        // Inisiatif milik Deputy sendiri (tidak punya dept_id dari org — assigned_to_dept_id = null)
-        $ownItems = array_filter($items, fn($i) => (int)$i['created_by'] === (int)$emp['id'] && ! $i['assigned_to_dept_id']);
+        // Kelompokkan per dept — program level divisi (tanpa dept) paling atas.
+        $grouped = $scope === 'active' ? WorkInitiativeModel::groupByDept($items) : [];
 
         return view('work_report/division', [
             'items'           => $items,
-            'byDept'          => $byDept,
-            'ownItems'        => array_values($ownItems),
+            'grouped'         => $grouped,
             'depts'           => $depts,
             'divisi'          => $divisi,
             'emp'             => $emp,
             'gmUnread' => $gmUnread,
             'deptReplyUnread' => $deptReplyUnread,
+            'scopeUnread'     => $unreadCombined,
             'canFlag'  => $this->isCurator($emp),
             'scope'       => $scope,
             'scopeCounts' => $scopeCounts,
+            'tabAlerts'   => $tabAlerts,
         ]);
     }
 

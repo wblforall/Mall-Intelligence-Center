@@ -981,6 +981,15 @@ code        { color: #f8829a; background: rgba(232,65,90,.15); padding: .1rem .3
         border-bottom: 1px solid var(--card-border) !important;
     }
     .table-cardify tbody td.cardify-hide { display: none !important; }
+    /* Checkbox pilih (mis. Compare event) — menempel di pojok kanan-atas kartu,
+       tidak ikut disembunyikan agar fiturnya tetap bisa dipakai di HP. */
+    .table-cardify tbody tr { position: relative; }
+    .table-cardify tbody td.cardify-check {
+        display: block; position: absolute; top: .6rem; right: .85rem;
+        padding: 0 !important; width: auto !important;
+    }
+    .table-cardify tbody td.cardify-check::before { display: none; }
+    .table-cardify tbody tr:has(td.cardify-check) td.cardify-title { padding-right: 2.2rem; }
     .table-cardify tbody td.cardify-actions {
         justify-content: flex-end; padding-top: .5rem !important;
     }

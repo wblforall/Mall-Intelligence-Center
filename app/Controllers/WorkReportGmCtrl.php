@@ -30,15 +30,21 @@ class WorkReportGmCtrl extends BaseController
         }
 
         // Opsi C: divisi tanpa Deputy → program kerjanya otomatis tampil (tanpa flag).
-        $items = $this->m->forGm($this->m->divisionsWithDeputy());
+        // Tab Arsip agar program ter-flag yang auto-arsip (done >30 hari) tetap
+        // bisa dilihat GM — tidak hilang diam-diam dari laporan.
+        $deputyDivs = $this->m->divisionsWithDeputy();
+        $scope      = $this->request->getGet('tab') === 'archived' ? 'archived' : 'active';
+        $items      = $this->m->forGm($deputyDivs, $scope);
+        $scopeCounts = $this->m->scopeCountsForGm($deputyDivs);
 
-        // Kelompokkan per divisi
+        // Kelompokkan per divisi → per dept (program level divisi paling atas)
         $byDivisi = [];
         foreach ($items as $item) {
             $key = $item['divisi_name'] ?? 'Tanpa Divisi';
             $byDivisi[$key][] = $item;
         }
         ksort($byDivisi);
+        $byDeptMap = array_map([WorkInitiativeModel::class, 'groupByDept'], $byDivisi);
 
         // Ambil thread GM ↔ Deputy per inisiatif
         $threads = [];
@@ -97,10 +103,14 @@ class WorkReportGmCtrl extends BaseController
         }
 
         return view('work_report/gm', [
-            'byDivisi' => $byDivisi,
-            'threads'  => $threads,
-            'empId'    => (int) $emp['id'],
-            'gmUnread' => $gmUnread,
+            'byDivisi'    => $byDivisi,
+            'byDeptMap'   => $byDeptMap,
+            'items'       => $items,
+            'threads'     => $threads,
+            'empId'       => (int) $emp['id'],
+            'gmUnread'    => $gmUnread,
+            'scope'       => $scope,
+            'scopeCounts' => $scopeCounts,
         ]);
     }
 

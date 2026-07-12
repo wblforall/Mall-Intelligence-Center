@@ -30,6 +30,7 @@ $statusLabel = [
     'scope'       => $scope ?? 'active',
     'scopeCounts' => $scopeCounts ?? [],
     'tabBase'     => base_url('work-report'),
+    'tabAlerts'   => $tabAlerts ?? [],
 ]) ?>
 
 <?php if (($scope ?? 'active') !== 'active'): ?>
@@ -41,6 +42,7 @@ $statusLabel = [
     'canRestore'   => false,
     'canUnarchive' => true,
     'detailBase'   => base_url('work-report'),
+    'unread'       => $commentUnread ?? [],
 ]) ?>
 <?php elseif (empty($items)): ?>
 <div class="text-center text-muted py-5">

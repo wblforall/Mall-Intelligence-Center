@@ -83,7 +83,7 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
                 <?php $isRejected = ($e['approval_status'] ?? 'approved') === 'rejected' ?>
                 <tr class="<?= $e['status'] === 'waiting_data' ? 'table-warning' : ($isPending ? 'table-info' : ($isRejected ? 'table-danger' : '')) ?> anim-fade-up"
                     style="animation-delay:<?= (.22 + $i * .06) ?>s"><?php /* staggered row entrance */ ?>
-                    <td class="cardify-hide"><input type="checkbox" class="evt-check" value="<?= $e['id'] ?>"></td>
+                    <td class="cardify-check"><input type="checkbox" class="evt-check" value="<?= $e['id'] ?>" title="Pilih untuk dibandingkan"></td>
                     <td class="text-muted small cardify-hide"><?= $i + 1 ?></td>
                     <td class="fw-medium cardify-title"><?= esc($e['name']) ?></td>
                     <td class="small text-muted" data-label="Tema"><?= esc($e['tema'] ?? '—') ?></td>

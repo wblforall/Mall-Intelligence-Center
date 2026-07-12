@@ -20,7 +20,7 @@ $statusLabel = [
         <a href="<?= base_url('work-report/dashboard') ?>" class="btn btn-outline-primary btn-sm text-nowrap flex-fill flex-sm-grow-0">
             <i class="bi bi-speedometer2 me-1"></i>Dashboard
         </a>
-        <?php if (! empty($byDivisi)): ?>
+        <?php if (($scope ?? 'active') === 'active' && ! empty($byDivisi)): ?>
         <button class="btn btn-outline-secondary btn-sm text-nowrap flex-fill flex-sm-grow-0" onclick="togglePilihSemua(this)" id="btnPilihSemua">
             <i class="bi bi-check2-square me-1"></i>Pilih Semua
         </button>
@@ -32,7 +32,24 @@ $statusLabel = [
 </div>
 
 
-<?php if (empty($byDivisi)): ?>
+<?= view('work_report/_scope_tabs', [
+    'scope'       => $scope ?? 'active',
+    'scopeCounts' => $scopeCounts ?? [],
+    'tabBase'     => base_url('work-report/gm'),
+    'tabKeys'     => ['active', 'archived'],
+]) ?>
+
+<?php if (($scope ?? 'active') === 'archived'): ?>
+<?= view('work_report/_scope_list', [
+    'items'        => $items ?? [],
+    'scope'        => 'archived',
+    'statusLabel'  => $statusLabel,
+    'showOrg'      => true,
+    'canRestore'   => false,
+    'canUnarchive' => false,
+    'detailBase'   => '',
+]) ?>
+<?php elseif (empty($byDivisi)): ?>
 <div class="text-center text-muted py-5">
     <i class="bi bi-flag fs-1 d-block mb-2"></i>
     Belum ada program kerja yang ditampilkan Deputy.
@@ -53,22 +70,15 @@ $statusLabel = [
 <div class="card-body p-0">
 
 <?php
-// Kelompokkan per dept dalam divisi. Program tanpa dept = program level divisi
-// (buatan Deputy tanpa assign ke dept) — selalu tampil paling atas.
-$byDept = [];
-foreach ($divisiItems as $item) {
-    $key = $item['dept_name'] ?? 'Program Level Divisi';
-    $byDept[$key][] = $item;
-}
-if (isset($byDept['Program Level Divisi'])) {
-    $byDept = ['Program Level Divisi' => $byDept['Program Level Divisi']] + $byDept;
-}
+// Grouping per dept dilakukan di controller (program level divisi paling atas).
+$byDept = $byDeptMap[$divisiName] ?? [];
+$pld    = \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL;
 ?>
 
 <?php foreach ($byDept as $deptName => $deptItems): ?>
 <div class="px-3 pt-3 pb-1">
     <div class="text-muted fw-semibold mb-2" style="font-size:.73rem;text-transform:uppercase;letter-spacing:.06em">
-        <i class="bi <?= $deptName === 'Program Level Divisi' ? 'bi-layers' : 'bi-building' ?> me-1"></i><?= esc($deptName) ?>
+        <i class="bi <?= $deptName === $pld ? 'bi-layers' : 'bi-building' ?> me-1"></i><?= esc($deptName) ?>
     </div>
 
     <?php foreach ($deptItems as $item):

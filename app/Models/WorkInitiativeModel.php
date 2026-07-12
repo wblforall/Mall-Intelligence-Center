@@ -12,17 +12,23 @@ class WorkInitiativeModel extends Model
     protected $allowedFields = [
         'dept_id', 'divisi_id', 'judul', 'deskripsi', 'pic_employee_id',
         'target_mulai', 'target_selesai', 'assigned_to_dept_id', 'created_by', 'is_active',
-        'archived_at', 'archived_by', 'deleted_at', 'deleted_by',
+        'archived_at', 'archived_by', 'auto_archive_exempt', 'deleted_at', 'deleted_by',
     ];
 
     // Program dianggap arsip bila diarsip manual ATAU auto: status terakhir
     // done/cancelled dan update terakhirnya lebih tua dari 30 hari.
     public const AUTO_ARCHIVE_DAYS = 30;
 
+    // Label grup untuk program buatan Deputy tanpa dept (dept_name NULL).
+    public const DIVISION_LEVEL_LABEL = 'Program Level Divisi';
+
     // COALESCE wajib: u_latest NULL (belum pernah update) harus dievaluasi FALSE,
     // bukan NULL — tanpa ini baris tanpa update hilang dari scope aktif (NOT NULL = NULL).
+    // auto_archive_exempt = penanda Batal Arsip/Pulihkan agar rule auto tidak
+    // langsung menangkap item yang sama lagi (di-reset saat ada update baru).
     private const AUTO_ARCHIVED_SQL = "(work_initiatives.archived_at IS NOT NULL
-        OR (COALESCE(u_latest.status, '') IN ('done','cancelled')
+        OR (work_initiatives.auto_archive_exempt = 0
+            AND COALESCE(u_latest.status, '') IN ('done','cancelled')
             AND u_latest.created_at < DATE_SUB(NOW(), INTERVAL " . self::AUTO_ARCHIVE_DAYS . " DAY)))";
 
     /**
@@ -109,12 +115,13 @@ class WorkInitiativeModel extends Model
     // Untuk GM: program kerja yang di-flag Deputy, ATAU (Opsi C) program kerja dari
     // divisi yang TIDAK punya Deputy GM → otomatis tampil tanpa perlu di-flag.
     // $deputyDivisionIds = daftar id divisi yang punya Deputy efektif (dihitung di controller).
-    public function forGm(array $deputyDivisionIds = []): array
+    public function forGm(array $deputyDivisionIds = [], string $scope = 'active'): array
     {
         $b = $this->select('work_initiatives.*, d.name AS dept_name, dv.nama AS divisi_name,
                 e.nama AS pic_name,
                 cb.nama AS created_by_name,
                 ad.name AS assigned_dept_name,
+                u_arc.name AS archived_by_name,
                 u_latest.status AS latest_status,
                 u_latest.progress_pct AS latest_progress,
                 u_latest.catatan AS latest_catatan,
@@ -131,26 +138,31 @@ class WorkInitiativeModel extends Model
             ->join('work_initiative_flags f', 'f.initiative_id = work_initiatives.id AND f.is_active = 1', 'left')
             ->join('users u_dep', 'u_dep.id = f.flagged_by', 'left')
             ->join('employees dep_emp', 'dep_emp.user_id = u_dep.id', 'left')
+            ->join('users u_arc', 'u_arc.id = work_initiatives.archived_by', 'left')
             ->join('work_initiative_updates u_latest',
                 'u_latest.id = (SELECT id FROM work_initiative_updates WHERE initiative_id = work_initiatives.id ORDER BY created_at DESC LIMIT 1)',
-                'left')
-            ->where('work_initiatives.is_active', 1)
-            ->where('NOT ' . self::AUTO_ARCHIVED_SQL, null, false);
-
-        // Tampilkan: yang di-flag ATAU dari divisi tanpa Deputy. Bila TIDAK ada satupun
-        // divisi ber-Deputy, seluruh program kerja tampil (semua divisi = tanpa Deputy).
-        if (! empty($deputyDivisionIds)) {
-            $ids = implode(',', array_map('intval', $deputyDivisionIds));
-            $b->groupStart()
-                ->where('f.id IS NOT NULL')
-                ->orWhere("(work_initiatives.divisi_id IS NULL OR work_initiatives.divisi_id NOT IN ($ids))")
-              ->groupEnd();
-        }
+                'left');
+        $this->gmVisibility($b, $deputyDivisionIds);
+        $this->applyScope($b, $scope);
 
         return $b->orderBy('dv.nama')
             ->orderBy('d.name')
             ->orderBy('work_initiatives.created_at', 'DESC')
             ->findAll();
+    }
+
+    // Filter tampilan GM: yang di-flag ATAU dari divisi tanpa Deputy. Bila TIDAK ada
+    // satupun divisi ber-Deputy, seluruh program kerja tampil (semua = tanpa Deputy).
+    // Builder harus sudah punya join work_initiative_flags dengan alias f.
+    private function gmVisibility($builder, array $deputyDivisionIds): void
+    {
+        if (! empty($deputyDivisionIds)) {
+            $ids = implode(',', array_map('intval', $deputyDivisionIds));
+            $builder->groupStart()
+                ->where('f.id IS NOT NULL')
+                ->orWhere("(work_initiatives.divisi_id IS NULL OR work_initiatives.divisi_id NOT IN ($ids))")
+              ->groupEnd();
+        }
     }
 
     // Daftar id divisi yang punya Deputy GM efektif (karyawan aktif grade-3 + akun aktif).
@@ -194,10 +206,105 @@ class WorkInitiativeModel extends Model
                 'u_latest.id = (SELECT id FROM work_initiative_updates WHERE initiative_id = work_initiatives.id ORDER BY created_at DESC LIMIT 1)',
                 'left');
 
-        if ($divisiId) $q->where('work_initiatives.divisi_id', $divisiId);
-        if ($deptId)   $q->where('work_initiatives.dept_id', $deptId);
+        $this->orgFilter($q, $divisiId, $deptId);
 
         return $this->applyScope($q, $scope)
             ->orderBy('dv.nama')->orderBy('d.name')->orderBy('work_initiatives.created_at', 'DESC')->findAll();
+    }
+
+    // Filter divisi/dept yang konsisten dengan daftar Dept Head: program yang
+    // di-assign ke sebuah dept (assigned_to_dept_id) ikut terhitung milik dept itu.
+    private function orgFilter($builder, ?int $divisiId, ?int $deptId): void
+    {
+        if ($divisiId) $builder->where('work_initiatives.divisi_id', $divisiId);
+        if ($deptId) {
+            $builder->groupStart()
+                ->where('work_initiatives.dept_id', $deptId)
+                ->orWhere('work_initiatives.assigned_to_dept_id', $deptId)
+            ->groupEnd();
+        }
+    }
+
+    // ── Hitung jumlah per scope (tab Aktif|Arsip|Dihapus) ─────────────────
+    // Query COUNT ringan (hanya join u_latest yang dibutuhkan rule arsip),
+    // bukan findAll penuh — dipakai semua halaman daftar.
+    private function countScope(\Closure $filter, string $scope): int
+    {
+        $b = $this->db->table('work_initiatives')
+            ->join('work_initiative_updates u_latest',
+                'u_latest.id = (SELECT id FROM work_initiative_updates WHERE initiative_id = work_initiatives.id ORDER BY created_at DESC LIMIT 1)',
+                'left');
+        $filter($b);
+        $this->applyScope($b, $scope);
+        return $b->countAllResults();
+    }
+
+    private function scopeCountsWhere(\Closure $filter): array
+    {
+        $counts = [];
+        foreach (['active', 'archived', 'deleted'] as $s) {
+            $counts[$s] = $this->countScope($filter, $s);
+        }
+        return $counts;
+    }
+
+    public function scopeCountsForDeptHead(int $deptId): array
+    {
+        return $this->scopeCountsWhere(fn($b) => $b->groupStart()
+            ->where('work_initiatives.dept_id', $deptId)
+            ->orWhere('work_initiatives.assigned_to_dept_id', $deptId)
+        ->groupEnd());
+    }
+
+    public function scopeCountsForDivision(int $divisiId): array
+    {
+        return $this->scopeCountsWhere(fn($b) => $b->where('work_initiatives.divisi_id', $divisiId));
+    }
+
+    public function scopeCountsForAdmin(?int $divisiId, ?int $deptId): array
+    {
+        return $this->scopeCountsWhere(fn($b) => $this->orgFilter($b, $divisiId, $deptId));
+    }
+
+    public function scopeCountsForGm(array $deputyDivisionIds): array
+    {
+        return $this->scopeCountsWhere(function ($b) use ($deputyDivisionIds) {
+            $b->join('work_initiative_flags f', 'f.initiative_id = work_initiatives.id AND f.is_active = 1', 'left');
+            $this->gmVisibility($b, $deputyDivisionIds);
+        });
+    }
+
+    // ── Tren update mingguan untuk dashboard ─────────────────────────────
+    // Scope 'active' diterapkan pada PROGRAM-nya (exclude arsip manual & auto)
+    // agar chart konsisten dengan KPI tiles yang juga ber-scope aktif.
+    public function weeklyUpdateTrend(?int $divisiId, ?int $deptId, string $since): array
+    {
+        $b = $this->db->table('work_initiative_updates u')
+            ->select('YEARWEEK(u.created_at, 1) AS yw, u.status, COUNT(*) AS c')
+            ->join('work_initiatives', 'work_initiatives.id = u.initiative_id')
+            ->join('work_initiative_updates u_latest',
+                'u_latest.id = (SELECT id FROM work_initiative_updates WHERE initiative_id = work_initiatives.id ORDER BY created_at DESC LIMIT 1)',
+                'left')
+            ->where('u.created_at >=', $since);
+        $this->orgFilter($b, $divisiId, $deptId);
+        $this->applyScope($b, 'active');
+
+        return $b->groupBy('yw, u.status')->orderBy('yw')->get()->getResultArray();
+    }
+
+    // ── Grouping per dept utk tampilan daftar ─────────────────────────────
+    // Program tanpa dept = program level divisi (buatan Deputy tanpa assign) —
+    // selalu dinaikkan ke urutan paling atas.
+    public static function groupByDept(array $items): array
+    {
+        $grouped = [];
+        foreach ($items as $item) {
+            $grouped[$item['dept_name'] ?? self::DIVISION_LEVEL_LABEL][] = $item;
+        }
+        ksort($grouped);
+        if (isset($grouped[self::DIVISION_LEVEL_LABEL])) {
+            $grouped = [self::DIVISION_LEVEL_LABEL => $grouped[self::DIVISION_LEVEL_LABEL]] + $grouped;
+        }
+        return $grouped;
     }
 }

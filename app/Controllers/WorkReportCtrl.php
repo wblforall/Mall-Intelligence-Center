@@ -61,10 +61,7 @@ class WorkReportCtrl extends BaseController
         $tab    = (string) $this->request->getGet('tab');
         $scope  = in_array($tab, ['archived', 'deleted'], true) ? $tab : 'active';
         $items  = $this->m->forDeptHead($deptId, $scope);
-        $counts = [];
-        foreach (['active', 'archived', 'deleted'] as $s) {
-            $counts[$s] = $s === $scope ? count($items) : count($this->m->forDeptHead($deptId, $s));
-        }
+        $counts = $this->m->scopeCountsForDeptHead($deptId);
         $db     = \Config\Database::connect();
 
         $deptInfo  = $db->table('departments')->where('id', $deptId)->get()->getRowArray();
@@ -74,15 +71,22 @@ class WorkReportCtrl extends BaseController
             ->orderBy('nama')
             ->get()->getResultArray();
 
-        // Load history semua update untuk setiap inisiatif
-        $histories = [];
-        foreach ($items as $it) {
-            $histories[$it['id']] = $this->mu->historyFor((int) $it['id']);
-        }
+        // Load history semua update — hanya scope aktif (tab Arsip/Dihapus tidak merendernya)
+        $histories = $scope === 'active'
+            ? $this->mu->historiesForMany(array_column($items, 'id'))
+            : [];
 
         // Badge unread: komentar dari Deputy (dept_deputy) yang belum Dept Head baca.
         // Kecualikan komentar Dept Head sendiri (thread dua-arah) agar tak jadi badge sendiri.
-        $initiativeIds = array_column($items, 'id');
+        // Dihitung atas SEMUA item dept (aktif + arsip) agar komentar pada program
+        // yang sudah auto-arsip tetap memunculkan notifikasi.
+        $initiativeIds = array_column(
+            $db->table('work_initiatives')->select('id')
+                ->where('is_active', 1)
+                ->groupStart()->where('dept_id', $deptId)->orWhere('assigned_to_dept_id', $deptId)->groupEnd()
+                ->get()->getResultArray(),
+            'id'
+        );
         $myEmpId       = (int) $emp['id'];
         $commentUnread = [];
         if ($initiativeIds) {
@@ -115,6 +119,17 @@ class WorkReportCtrl extends BaseController
             }
         }
 
+        // Titik merah di tab Arsip bila ada pesan belum dibaca pada program terarsip.
+        $tabAlerts = [];
+        if ($scope === 'active') {
+            $activeIdSet   = array_flip(array_column($items, 'id'));
+            $archivedUnread = 0;
+            foreach ($commentUnread as $iid => $c) {
+                if (! isset($activeIdSet[$iid])) $archivedUnread += $c;
+            }
+            if ($archivedUnread) $tabAlerts['archived'] = $archivedUnread;
+        }
+
         return view('work_report/index', [
             'items'          => $items,
             'histories'      => $histories,
@@ -124,6 +139,7 @@ class WorkReportCtrl extends BaseController
             'empId'          => (int) $emp['id'],
             'scope'          => $scope,
             'scopeCounts'    => $counts,
+            'tabAlerts'      => $tabAlerts,
         ]);
     }
 
@@ -245,9 +261,13 @@ class WorkReportCtrl extends BaseController
             return redirect()->back()->with('error', 'Anda tidak berhak mengarsipkan program kerja ini.');
         }
 
+        // Batal arsip juga men-set auto_archive_exempt agar item yang memenuhi
+        // rule auto-arsip (done/cancelled >30 hari) benar-benar kembali aktif —
+        // tanpa ini unarchive jadi no-op dan item terkunci di tab Arsip.
         $this->m->update($id, [
-            'archived_at' => $archive ? date('Y-m-d H:i:s') : null,
-            'archived_by' => $archive ? (int) session()->get('user_id') : null,
+            'archived_at'         => $archive ? date('Y-m-d H:i:s') : null,
+            'archived_by'         => $archive ? (int) session()->get('user_id') : null,
+            'auto_archive_exempt' => $archive ? 0 : 1,
         ]);
         ActivityLog::write($archive ? 'archive' : 'unarchive', 'work_initiative', (string) $id, $item['judul']);
 
@@ -266,10 +286,15 @@ class WorkReportCtrl extends BaseController
             return redirect()->back()->with('error', 'Program kerja tidak ditemukan di tab Dihapus.');
         }
 
+        // Bersihkan juga status arsip (manual & auto) — janji "Pulihkan" = kembali
+        // ke daftar AKTIF, bukan mendarat di tab Arsip.
         $this->m->update($id, [
-            'is_active'  => 1,
-            'deleted_at' => null,
-            'deleted_by' => null,
+            'is_active'           => 1,
+            'deleted_at'          => null,
+            'deleted_by'          => null,
+            'archived_at'         => null,
+            'archived_by'         => null,
+            'auto_archive_exempt' => 1,
         ]);
         ActivityLog::write('restore', 'work_initiative', (string) $id, $item['judul']);
 
@@ -323,7 +348,34 @@ class WorkReportCtrl extends BaseController
             }
         }
 
+        // Simpan foto ke disk DULU (sebelum ada tulisan DB) agar kegagalan
+        // mkdir/move tidak meninggalkan row update tanpa foto + error 500
+        // (yang memancing submit ulang → update ganda).
+        $savedFiles = [];   // [nama_file => original_name]
+        $uploadPath = FCPATH . 'uploads/work_report/' . $id . '/';
+        if ($images) {
+            if (! is_dir($uploadPath) && ! @mkdir($uploadPath, 0755, true)) {
+                return redirect()->to('/work-report')
+                    ->with('error', 'Folder upload tidak dapat dibuat — hubungi admin (uploads/work_report).');
+            }
+            try {
+                foreach ($images as $file) {
+                    $name = 'upd_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
+                    $file->move($uploadPath, $name);
+                    $savedFiles[$name] = $file->getClientName();
+                }
+            } catch (\Throwable $e) {
+                foreach (array_keys($savedFiles) as $name) @unlink($uploadPath . $name);
+                log_message('error', 'work_report addUpdate: gagal simpan foto — ' . $e->getMessage());
+                return redirect()->to('/work-report')
+                    ->with('error', 'Gagal menyimpan foto bukti — update TIDAK tersimpan, silakan ulangi.');
+            }
+        }
+
+        // Baris update + baris foto dalam satu transaksi.
+        $db  = \Config\Database::connect();
         $pct = $this->request->getPost('progress_pct');
+        $db->transStart();
         $updateId = $this->mu->insert([
             'initiative_id' => $id,
             'status'        => $status,
@@ -333,26 +385,29 @@ class WorkReportCtrl extends BaseController
             'updated_by'    => (int) $emp['id'],
             'created_at'    => date('Y-m-d H:i:s'),
         ]);
+        foreach ($savedFiles as $name => $originalName) {
+            $db->table('work_initiative_update_images')->insert([
+                'update_id'     => (int) $updateId,
+                'initiative_id' => $id,
+                'file_name'     => $name,
+                'original_name' => $originalName,
+                'created_at'    => date('Y-m-d H:i:s'),
+            ]);
+        }
+        // Update baru me-reset penanda Batal Arsip — rule auto-arsip berjalan
+        // normal lagi dari tanggal update terbaru.
+        if (! empty($item['auto_archive_exempt'])) {
+            $this->m->update($id, ['auto_archive_exempt' => 0]);
+        }
+        $db->transComplete();
 
-        if ($images) {
-            $uploadPath = FCPATH . 'uploads/work_report/' . $id . '/';
-            if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
-            $db = \Config\Database::connect();
-            foreach ($images as $file) {
-                $name = 'upd_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
-                $file->move($uploadPath, $name);
-                $db->table('work_initiative_update_images')->insert([
-                    'update_id'     => (int) $updateId,
-                    'initiative_id' => $id,
-                    'file_name'     => $name,
-                    'original_name' => $file->getClientName(),
-                    'created_at'    => date('Y-m-d H:i:s'),
-                ]);
-            }
+        if ($db->transStatus() === false) {
+            foreach (array_keys($savedFiles) as $name) @unlink($uploadPath . $name);
+            return redirect()->to('/work-report')->with('error', 'Gagal menyimpan update — silakan ulangi.');
         }
 
         ActivityLog::write('update', 'work_initiative', (string) $id, 'Update status: ' . $status,
-            $images ? ['foto' => count($images)] : []);
+            $savedFiles ? ['foto' => count($savedFiles)] : []);
 
         return redirect()->to('/work-report')->with('success', 'Update progress disimpan.');
     }
@@ -425,7 +480,7 @@ class WorkReportCtrl extends BaseController
             'deptInfo' => $deptInfo,
             'history'  => $history,
             'comments' => $comments,
-            'empId'    => (int) $emp['id'],
+            'empId'    => (int) ($emp['id'] ?? 0), // admin bisa tanpa record employee
         ]);
     }
 
@@ -443,27 +498,18 @@ class WorkReportCtrl extends BaseController
         $scope    = in_array($tab, ['archived', 'deleted'], true) ? $tab : 'active';
 
         $items    = $this->m->forAdmin($divisiId, $deptId, $scope);
-        $counts   = [];
-        foreach (['active', 'archived', 'deleted'] as $s) {
-            $counts[$s] = $s === $scope ? count($items) : count($this->m->forAdmin($divisiId, $deptId, $s));
-        }
+        $counts   = $this->m->scopeCountsForAdmin($divisiId, $deptId);
         $divisis  = $db->table('divisions')->orderBy('nama')->get()->getResultArray();
         $depts    = $db->table('departments')->where('is_outsource', 0)->orderBy('name')->get()->getResultArray();
 
-        // Kelompokkan per divisi → dept. Program tanpa dept = program level divisi
-        // (dibuat Deputy tanpa assign ke dept) — selalu tampil paling atas di divisinya.
+        // Kelompokkan per divisi → dept (hanya dipakai tampilan scope aktif).
         $grouped = [];
-        foreach ($items as $item) {
-            $div  = $item['divisi_name'] ?? 'Tanpa Divisi';
-            $dept = $item['dept_name']   ?? 'Program Level Divisi';
-            $grouped[$div][$dept][] = $item;
-        }
-        ksort($grouped);
-        foreach ($grouped as $div => $deptGroups) {
-            if (isset($deptGroups['Program Level Divisi'])) {
-                $grouped[$div] = ['Program Level Divisi' => $deptGroups['Program Level Divisi']]
-                    + $deptGroups;
+        if ($scope === 'active') {
+            foreach ($items as $item) {
+                $grouped[$item['divisi_name'] ?? 'Tanpa Divisi'][] = $item;
             }
+            ksort($grouped);
+            $grouped = array_map([WorkInitiativeModel::class, 'groupByDept'], $grouped);
         }
 
         return view('work_report/admin', [
@@ -501,7 +547,13 @@ class WorkReportCtrl extends BaseController
         if ($isAdmin || $isGm) {
             $divisiId = (int) ($this->request->getGet('divisi_id') ?? 0) ?: null;
         } elseif ($isDeputy) {
-            $divisiId = (int) $emp['divisi_id'];
+            // Tanpa guard ini, divisi_id NULL → 0 → forAdmin tanpa filter →
+            // Deputy melihat data SEMUA divisi (kebocoran scope).
+            $divisiId = (int) ($emp['divisi_id'] ?? 0);
+            if ($divisiId <= 0) {
+                return redirect()->to('/work-report')
+                    ->with('error', 'Akun Deputy belum terhubung ke divisi — hubungi admin.');
+            }
         } else {
             $deptId = (int) $emp['dept_id'];
         }
@@ -534,10 +586,10 @@ class WorkReportCtrl extends BaseController
             }
             $byDivisi[$dv][$st !== null && isset($byDivisi[$dv][$st]) ? $st : 'no_update']++;
 
-            $dpKey = ($it['divisi_name'] ?? '—') . ' · ' . ($it['dept_name'] ?? 'Program Level Divisi');
+            $dpKey = ($it['divisi_name'] ?? '—') . ' · ' . ($it['dept_name'] ?? WorkInitiativeModel::DIVISION_LEVEL_LABEL);
             if (! isset($byDept[$dpKey])) {
                 $byDept[$dpKey] = ['divisi' => $it['divisi_name'] ?? '—',
-                                   'dept' => $it['dept_name'] ?? 'Program Level Divisi',
+                                   'dept' => $it['dept_name'] ?? WorkInitiativeModel::DIVISION_LEVEL_LABEL,
                                    'total' => 0, 'last_update' => null, 'overdue' => 0];
             }
             $byDept[$dpKey]['total']++;
@@ -551,15 +603,11 @@ class WorkReportCtrl extends BaseController
         ksort($byDept);
 
         // ── Tren mingguan: update yang dilaporkan per minggu (12 minggu) ──
-        $db   = \Config\Database::connect();
-        $trendQ = $db->table('work_initiative_updates u')
-            ->select("YEARWEEK(u.created_at, 1) AS yw, u.status, COUNT(*) AS c")
-            ->join('work_initiatives wi', 'wi.id = u.initiative_id')
-            ->where('wi.is_active', 1)
-            ->where('u.created_at >=', date('Y-m-d', strtotime('monday this week -11 weeks')));
-        if ($divisiId) $trendQ->where('wi.divisi_id', $divisiId);
-        if ($deptId)   $trendQ->where('wi.dept_id', $deptId);
-        $trendRows = $trendQ->groupBy('yw, u.status')->orderBy('yw')->get()->getResultArray();
+        // Via model agar scope-nya (exclude arsip) & filter dept konsisten dgn KPI.
+        $db        = \Config\Database::connect();
+        $trendRows = $this->m->weeklyUpdateTrend(
+            $divisiId, $deptId, date('Y-m-d', strtotime('monday this week -11 weeks'))
+        );
 
         $trendMap = [];
         foreach ($trendRows as $r) $trendMap[$r['yw']][$r['status']] = (int) $r['c'];

@@ -4,9 +4,11 @@
  * Param: $items, $scope ('archived'|'deleted'), $statusLabel,
  *        $showOrg (bool — tampilkan kolom divisi/dept, utk admin & deputy),
  *        $canRestore (bool — admin, tab dihapus), $canUnarchive (bool),
- *        $detailBase (url prefix halaman detail, tanpa trailing slash).
+ *        $detailBase (url prefix halaman detail, tanpa trailing slash),
+ *        $unread (array opsional — initiative_id => jumlah pesan belum dibaca).
  */
 $isDeleted = $scope === 'deleted';
+$unread    = $unread ?? [];
 ?>
 <?php if (empty($items)): ?>
 <div class="text-center text-muted py-5">
@@ -37,7 +39,12 @@ $isDeleted = $scope === 'deleted';
 ?>
 <tr>
     <td class="cardify-title">
-        <div class="fw-semibold"><?= esc($item['judul']) ?></div>
+        <div class="fw-semibold">
+            <?= esc($item['judul']) ?>
+            <?php if (! empty($unread[$item['id']])): ?>
+            <span class="badge rounded-pill bg-danger ms-1" style="font-size:.62rem" title="Pesan belum dibaca"><?= $unread[$item['id']] ?> pesan baru</span>
+            <?php endif; ?>
+        </div>
         <?php if (! empty($item['created_by_name'])): ?>
         <div class="text-muted" style="font-size:.68rem">Dibuat: <?= esc($item['created_by_name']) ?></div>
         <?php endif; ?>
@@ -45,7 +52,7 @@ $isDeleted = $scope === 'deleted';
     <?php if (! empty($showOrg)): ?>
     <td style="font-size:.72rem" data-label="Divisi / Dept">
         <?= esc($item['divisi_name'] ?? '—') ?><br>
-        <span class="text-muted"><?= esc($item['dept_name'] ?? 'Program Level Divisi') ?></span>
+        <span class="text-muted"><?= esc($item['dept_name'] ?? \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL) ?></span>
     </td>
     <?php endif; ?>
     <td data-label="Status">
@@ -73,7 +80,8 @@ $isDeleted = $scope === 'deleted';
             <i class="bi bi-clock-history"></i>
         </a>
         <?php endif; ?>
-        <?php if (! $isDeleted && ! empty($canUnarchive) && ! empty($item['archived_at'])): ?>
+        <?php /* Tampil juga untuk item auto-arsip (archived_at kosong) — jalur pemulihan satu-satunya */ ?>
+        <?php if (! $isDeleted && ! empty($canUnarchive)): ?>
         <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/unarchive') ?>" class="d-inline"
               onsubmit="return confirm('Kembalikan program ini ke daftar aktif?')">
             <?= csrf_field() ?>

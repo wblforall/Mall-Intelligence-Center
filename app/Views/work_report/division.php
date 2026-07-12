@@ -30,6 +30,7 @@ $statusLabel = [
     'scope'       => $scope ?? 'active',
     'scopeCounts' => $scopeCounts ?? [],
     'tabBase'     => base_url('work-report/division'),
+    'tabAlerts'   => $tabAlerts ?? [],
 ]) ?>
 
 <?php if (($scope ?? 'active') !== 'active'): ?>
@@ -41,26 +42,15 @@ $statusLabel = [
     'canRestore'   => false,
     'canUnarchive' => true,
     'detailBase'   => base_url('work-report/division'),
+    'unread'       => $scopeUnread ?? [],
 ]) ?>
 <?php else: ?>
 
-<?php
-// Kelompokkan per dept. Program tanpa dept = program level divisi (milik Deputy) — paling atas.
-$grouped = [];
-foreach ($items as $item) {
-    $key = $item['dept_name'] ?? 'Program Level Divisi';
-    $grouped[$key][] = $item;
-}
-ksort($grouped);
-if (isset($grouped['Program Level Divisi'])) {
-    $grouped = ['Program Level Divisi' => $grouped['Program Level Divisi']] + $grouped;
-}
-?>
-
+<?php $pld = \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL; // grouping dilakukan di controller ?>
 <?php foreach ($grouped as $deptName => $deptItems): ?>
 <div class="card mb-3">
 <div class="card-header d-flex align-items-center justify-content-between py-2">
-    <h6 class="mb-0 fw-semibold"><i class="bi <?= $deptName === 'Program Level Divisi' ? 'bi-layers' : 'bi-building' ?> me-2 text-muted"></i><?= esc($deptName) ?></h6>
+    <h6 class="mb-0 fw-semibold"><i class="bi <?= $deptName === $pld ? 'bi-layers' : 'bi-building' ?> me-2 text-muted"></i><?= esc($deptName) ?></h6>
     <small class="text-muted"><?= count($deptItems) ?> program kerja</small>
 </div>
 <div class="list-group list-group-flush">

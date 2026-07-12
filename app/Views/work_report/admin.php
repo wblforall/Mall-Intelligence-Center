@@ -92,7 +92,7 @@ $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dih
 <?php foreach ($deptGroups as $deptName => $items): ?>
 <div class="card mb-3">
 <div class="card-header py-2 d-flex align-items-center justify-content-between">
-    <span class="fw-semibold small"><i class="bi <?= $deptName === 'Program Level Divisi' ? 'bi-layers' : 'bi-building' ?> me-2 text-muted"></i><?= esc($deptName) ?></span>
+    <span class="fw-semibold small"><i class="bi <?= $deptName === \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL ? 'bi-layers' : 'bi-building' ?> me-2 text-muted"></i><?= esc($deptName) ?></span>
     <small class="text-muted"><?= count($items) ?> program kerja</small>
 </div>
 <div class="table-responsive">
