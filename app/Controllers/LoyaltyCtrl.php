@@ -247,6 +247,7 @@ class LoyaltyCtrl extends BaseController
         }
         $name = 'lr_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $this->safeExt($file);
         $file->move(FCPATH . 'uploads/loyalty-realisasi', $name);
+        $name = \App\Libraries\ImageCompressor::normalizeUpload(FCPATH . 'uploads/loyalty-realisasi', $name);
         return [$name, null];
     }
 

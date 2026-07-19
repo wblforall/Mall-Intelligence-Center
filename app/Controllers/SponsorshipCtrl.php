@@ -365,7 +365,7 @@ class SponsorshipCtrl extends BaseController
             'created_by' => $this->currentUser()['id'],
         ]);
         if (! $insertId) return redirect()->back()->with('error', 'Gagal menyimpan realisasi.');
-        if ($pendingFile) $pendingFile->move($uploadDir, $pendingName);
+        if ($pendingFile) { $pendingFile->move($uploadDir, $pendingName); \App\Libraries\ImageCompressor::compress($uploadDir . '/' . $pendingName); }
 
         ActivityLog::write('create', 'sponsorship_realisasi', (string)$insertId, $post['tanggal'] ?? '', ['program_id' => $programId, 'sponsor_id' => $sponsorId, 'nilai' => $nilai]);
         return redirect()->to('/sponsorship#program-' . $programId)->with('success', 'Realisasi berhasil disimpan.');

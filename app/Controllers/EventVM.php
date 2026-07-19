@@ -119,6 +119,7 @@ class EventVM extends BaseController
             $fotoName = 'real_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $fotoOrig = $file->getClientName();
             $file->move($uploadPath, $fotoName);
+            \App\Libraries\ImageCompressor::compress($uploadPath . '/' . $fotoName);
         }
 
         $jumlah = (int)str_replace([',', '.', ' '], '', $post['jumlah'] ?? 0);

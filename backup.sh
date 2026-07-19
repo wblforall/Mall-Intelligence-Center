@@ -11,10 +11,10 @@ mysqldump "$DB_NAME" > "$BACKUP_DIR/mic_db_${TIMESTAMP}.sql" 2>&1
 # Backup uploads
 tar -czf "$BACKUP_DIR/mic_uploads_${TIMESTAMP}.tar.gz" "$UPLOADS_DIR" 2>&1
 
-# Hapus backup DB lebih dari 30 hari
-find "$BACKUP_DIR" -name "mic_db_*.sql" -mtime +30 -delete
+# Hapus backup DB lebih dari 10 hari
+find "$BACKUP_DIR" -name "mic_db_*.sql" -mtime +10 -delete
 
-# Hapus backup uploads lebih dari 30 hari
-find "$BACKUP_DIR" -name "mic_uploads_*.tar.gz" -mtime +30 -delete
+# Hapus backup uploads lebih dari 10 hari
+find "$BACKUP_DIR" -name "mic_uploads_*.tar.gz" -mtime +10 -delete
 
 echo "[$(date '+%Y-%m-%d %H:%M')] Backup selesai: mic_db_${TIMESTAMP}.sql + mic_uploads_${TIMESTAMP}.tar.gz"

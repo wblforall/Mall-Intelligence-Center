@@ -559,6 +559,7 @@ $user = $this->currentUser();
         ]);
         if (! $fileId) return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'Gagal menyimpan file.');
         $file->move($dir, $name);
+        \App\Libraries\ImageCompressor::compress($dir . '/' . $name);
 
         ActivityLog::write('upload', 'creative_standalone', (string)$id, $name, []);
 
@@ -664,7 +665,7 @@ $user = $this->currentUser();
             'created_by'                    => $this->currentUser()['id'],
         ]);
         if (! $rid) return redirect()->back()->with('error', 'Gagal menyimpan realisasi.');
-        foreach ($pendingMoves as [$f, $d, $n]) { $f->move($d, $n); }
+        foreach ($pendingMoves as [$f, $d, $n]) { $f->move($d, $n); \App\Libraries\ImageCompressor::compress($d . '/' . $n); }
 
         ActivityLog::write('create', 'creative_standalone_realisasi', (string)$id, $post['tanggal'], []);
 
@@ -736,7 +737,7 @@ $user = $this->currentUser();
             'created_by'       => $this->currentUser()['id'],
         ]);
         if (! $iid) return redirect()->back()->with('error', 'Gagal menyimpan insight.');
-        if ($file && $file->isValid() && !$file->hasMoved() && $fileName) { $file->move($dir, $fileName); }
+        if ($file && $file->isValid() && !$file->hasMoved() && $fileName) { $file->move($dir, $fileName); \App\Libraries\ImageCompressor::compress($dir . '/' . $fileName); }
 
         ActivityLog::write('create', 'creative_standalone_insight', (string)$id, $post['tanggal'], []);
 

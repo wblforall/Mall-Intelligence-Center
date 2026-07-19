@@ -300,6 +300,7 @@ class LegalReviewController extends BaseController
         $destDir  = FCPATH . 'uploads/legal_reviews/';
         if (! is_dir($destDir)) mkdir($destDir, 0755, true);
         $file->move($destDir, $filename);
+        \App\Libraries\ImageCompressor::compress($destDir . '/' . $filename);
 
         $this->vModel->insert([
             'review_id'         => $reviewId,

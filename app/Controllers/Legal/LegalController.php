@@ -119,6 +119,7 @@ class LegalController extends BaseController
         $destDir  = FCPATH . 'uploads/legal/';
         if (! is_dir($destDir)) mkdir($destDir, 0755, true);
         $file->move($destDir, $filename);
+        \App\Libraries\ImageCompressor::compress($destDir . '/' . $filename);
 
         (new LegalDocumentModel())->insert([
             'entity_type'  => $type,

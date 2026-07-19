@@ -272,6 +272,7 @@ class PeopleEmployees extends BaseController
         if (! is_dir($dir)) mkdir($dir, 0775, true);
         $newName = 'doc_' . $employeeId . '_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
         $file->move($dir, $newName);
+        \App\Libraries\ImageCompressor::compress($dir . '/' . $newName);
 
         (new EmployeeDocumentModel())->insert([
             'employee_id'  => $employeeId, 'jenis' => $jenis, 'nama_dokumen' => $nama,
@@ -485,6 +486,7 @@ class PeopleEmployees extends BaseController
             if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
             $fotoName = 'emp_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $file->move($uploadPath, $fotoName);
+            \App\Libraries\ImageCompressor::compress($uploadPath . '/' . $fotoName);
         }
 
         $jabatanId = ($post['jabatan_id'] ?? '') !== '' ? (int)$post['jabatan_id'] : null;
@@ -546,6 +548,7 @@ class PeopleEmployees extends BaseController
             if ($fotoName && file_exists($uploadPath . $fotoName)) unlink($uploadPath . $fotoName);
             $fotoName = 'emp_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $file->move($uploadPath, $fotoName);
+            \App\Libraries\ImageCompressor::compress($uploadPath . '/' . $fotoName);
         }
 
         $jabatanId = ($post['jabatan_id'] ?? '') !== '' ? (int)$post['jabatan_id'] : null;
@@ -665,6 +668,7 @@ class PeopleEmployees extends BaseController
             $fileName = 'cert_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $fileOrig = $file->getClientName();
             $file->move($uploadPath, $fileName);
+            \App\Libraries\ImageCompressor::compress($uploadPath . '/' . $fileName);
         }
 
         (new EmployeeCertificateModel())->insert([
@@ -718,6 +722,7 @@ class PeopleEmployees extends BaseController
             $fileName = 'train_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
             $fileOrig = $file->getClientName();
             $file->move($uploadPath, $fileName);
+            \App\Libraries\ImageCompressor::compress($uploadPath . '/' . $fileName);
         }
 
         (new EmployeeTrainingModel())->insert([

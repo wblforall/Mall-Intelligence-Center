@@ -228,6 +228,7 @@ class EventContent extends BaseController
             }
             $name = 'foto_' . $itemId . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($foto);
             $foto->move($uploadDir, $name);
+            \App\Libraries\ImageCompressor::compress($uploadDir . '/' . $name);
             $fileFoto = $name;
         }
 
@@ -238,6 +239,7 @@ class EventContent extends BaseController
             }
             $name = 'terima_' . $itemId . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($terima);
             $terima->move($uploadDir, $name);
+            \App\Libraries\ImageCompressor::compress($uploadDir . '/' . $name);
             $fileTerima = $name;
         }
 

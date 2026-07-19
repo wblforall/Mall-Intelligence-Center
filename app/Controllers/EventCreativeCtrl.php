@@ -200,6 +200,7 @@ class EventCreativeCtrl extends BaseController
         $name     = 'creative_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
         $origName = $file->getClientName();
         $file->move($this->uploadDir($eventId), $name);
+        \App\Libraries\ImageCompressor::compress($this->uploadDir($eventId) . '/' . $name);
 
         (new EventCreativeFileModel())->insert([
             'creative_item_id' => $id,
@@ -310,6 +311,7 @@ class EventCreativeCtrl extends BaseController
         }
         foreach ($pendingMoves as [$f, $dir, $name]) {
             $f->move($dir, $name);
+            \App\Libraries\ImageCompressor::compress($dir . '/' . $name);
         }
 
         ActivityLog::write('update', 'creative', (string) $eventId, 'Tambah realisasi creative');
@@ -348,6 +350,7 @@ class EventCreativeCtrl extends BaseController
             $fileName = 'insight_' . $id . '_' . time() . '_' . random_int(100, 999) . '.' . $this->safeExt($file);
             $origName = $file->getClientName();
             $file->move($this->uploadDir($eventId), $fileName);
+            \App\Libraries\ImageCompressor::compress($this->uploadDir($eventId) . '/' . $fileName);
         }
 
         (new EventCreativeInsightModel())->insert([

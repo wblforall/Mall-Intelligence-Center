@@ -192,6 +192,7 @@ class VMStandalone extends BaseController
             $fotoName = 'real_' . time() . '_' . $file->getRandomName();
             $fotoOrig = $file->getClientName();
             $file->move($uploadPath, $fotoName);
+            \App\Libraries\ImageCompressor::compress($uploadPath . '/' . $fotoName);
         }
 
         $jumlah = (int)str_replace([',', '.', ' '], '', $post['jumlah'] ?? 0);

@@ -245,6 +245,7 @@ class Users extends BaseController
         if (! is_dir($dir)) mkdir($dir, 0775, true);
         $newName = 'doc_' . $employeeId . '_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
         $file->move($dir, $newName);
+        \App\Libraries\ImageCompressor::compress($dir . '/' . $newName);
 
         (new \App\Models\EmployeeDocumentModel())->insert([
             'employee_id'  => $employeeId,
@@ -294,6 +295,7 @@ class Users extends BaseController
                 if (! is_dir($dir)) mkdir($dir, 0775, true);
                 $name = 'req_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $file->getExtension();
                 $file->move($dir, $name);
+                \App\Libraries\ImageCompressor::compress($dir . '/' . $name);
                 $reqModel->insert([
                     'employee_id' => $emp['id'], 'requested_by' => $id, 'field' => 'foto',
                     'label' => 'Foto Profil', 'value_old' => $emp['foto'] ?? '', 'value_new' => $name, 'status' => 'pending',

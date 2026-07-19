@@ -362,6 +362,7 @@ class WorkReportCtrl extends BaseController
                 foreach ($images as $file) {
                     $name = 'upd_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
                     $file->move($uploadPath, $name);
+                    $name = \App\Libraries\ImageCompressor::normalizeUpload($uploadPath, $name);
                     $savedFiles[$name] = $file->getClientName();
                 }
             } catch (\Throwable $e) {
