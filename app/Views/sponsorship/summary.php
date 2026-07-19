@@ -41,7 +41,10 @@ $bulanLabel = function(string $ym): string {
         <h4 class="fw-bold mb-0">Summary Sponsorship</h4>
         <small class="text-muted">Trend bulanan, realisasi per program, dan breakdown sponsor</small>
     </div>
-    <div class="ms-auto">
+    <div class="ms-auto d-flex gap-2 flex-wrap">
+        <a href="<?= base_url('sponsorship/summary/print?bulan=' . $bulan) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-printer me-1"></i>Laporan Bulanan
+        </a>
         <a href="<?= base_url('sponsorship') ?>" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Kembali ke Deal
         </a>

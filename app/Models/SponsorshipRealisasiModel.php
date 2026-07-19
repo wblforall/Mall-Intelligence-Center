@@ -77,6 +77,21 @@ class SponsorshipRealisasiModel extends Model
         return $map;
     }
 
+    // Kumulatif s/d bulan tertentu per program (untuk laporan bulanan)
+    public function getCumulativeByPrograms(string $upToMonth, array $programIds): array
+    {
+        if (empty($programIds)) return [];
+        $rows = $this->db->table('sponsorship_realisasi')
+            ->select('program_id, SUM(nilai) as total_nilai')
+            ->whereIn('program_id', $programIds)
+            ->where("DATE_FORMAT(tanggal, '%Y-%m') <=", $upToMonth)
+            ->groupBy('program_id')
+            ->get()->getResultArray();
+        $map = [];
+        foreach ($rows as $r) { $map[(int)$r['program_id']] = (int)$r['total_nilai']; }
+        return $map;
+    }
+
     // Daily rows for chart
     public function getDailyForMonth(string $bulan, array $programIds): array
     {

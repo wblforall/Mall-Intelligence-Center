@@ -269,6 +269,7 @@ $routes->get('stock/voucher/(:num)/available-kodes', 'StockVoucherCtrl::getAvail
 $routes->get('sponsorship', 'SponsorshipCtrl::index', ['filter' => 'auth']);
 $routes->get('sponsorship/(:num)/file/(:segment)', 'SponsorshipCtrl::viewFile/$1/$2', ['filter' => 'auth']);
 $routes->get('sponsorship/summary', 'SponsorshipCtrl::summary', ['filter' => 'auth']);
+$routes->get('sponsorship/summary/print', 'SponsorshipCtrl::printSummary', ['filter' => 'auth']);
 $routes->post('sponsorship/add', 'SponsorshipCtrl::storeProgram', ['filter' => 'auth']);
 $routes->post('sponsorship/(:num)/edit', 'SponsorshipCtrl::updateProgram/$1', ['filter' => 'auth']);
 $routes->post('sponsorship/(:num)/delete', 'SponsorshipCtrl::deleteProgram/$1', ['filter' => 'auth']);

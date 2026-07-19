@@ -36,4 +36,23 @@ class EventSponsorModel extends Model
         ", [$eventId])->getRow();
         return (int)($row->total ?? 0);
     }
+
+    /**
+     * Agregat sponsor per event (utk Laporan Bulanan Sponsorship):
+     * satu baris per event yang punya sponsor — nama event, mall, tanggal
+     * mulai, jumlah sponsor, total nilai cash & barang.
+     */
+    public function getEventAggregates(): array
+    {
+        return $this->db->table('event_sponsors s')
+            ->select("s.event_id, e.name AS event_name, e.mall AS event_mall,
+                e.start_date AS event_start_date,
+                COUNT(*) AS jumlah_sponsor,
+                SUM(CASE WHEN s.jenis = 'cash'   THEN s.nilai ELSE 0 END) AS total_cash,
+                SUM(CASE WHEN s.jenis = 'barang' THEN s.nilai ELSE 0 END) AS total_barang")
+            ->join('events e', 'e.id = s.event_id')
+            ->groupBy('s.event_id, e.name, e.mall, e.start_date')
+            ->orderBy('e.start_date', 'DESC')
+            ->get()->getResultArray();
+    }
 }

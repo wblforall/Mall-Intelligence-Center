@@ -10,7 +10,7 @@ class SponsorshipProgramModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'nama_program', 'tanggal_mulai', 'tanggal_selesai', 'deskripsi',
+        'nama_program', 'mall', 'tanggal_mulai', 'tanggal_selesai', 'deskripsi',
         'target_sponsor', 'target_nilai', 'budget',
         'status', 'locked', 'locked_by', 'locked_at',
         'eval_status', 'eval_kendala', 'eval_rekomendasi',

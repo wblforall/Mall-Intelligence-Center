@@ -7,6 +7,8 @@ use App\Models\SponsorshipSponsorModel;
 use App\Models\SponsorshipSponsorItemModel;
 use App\Models\SponsorshipRealisasiModel;
 use App\Models\SponsorshipSummaryAnalysisModel;
+use App\Models\EventSponsorModel;
+use App\Models\EventSponsorRealisasiModel;
 use App\Libraries\ActivityLog;
 
 class SponsorshipCtrl extends BaseController
@@ -122,6 +124,7 @@ class SponsorshipCtrl extends BaseController
         $model = new SponsorshipProgramModel();
         $model->insert([
             'nama_program'    => trim($post['nama_program']),
+            'mall'            => in_array($post['mall'] ?? '', ['ewalk', 'pentacity', 'both']) ? $post['mall'] : null,
             'tanggal_mulai'   => $post['tanggal_mulai']   ?: null,
             'tanggal_selesai' => $post['tanggal_selesai'] ?: null,
             'deskripsi'       => trim($post['deskripsi'] ?? '') ?: null,
@@ -145,6 +148,7 @@ class SponsorshipCtrl extends BaseController
         ActivityLog::captureBefore($progModel->find($id));
         $progData = [
             'nama_program'    => trim($post['nama_program']),
+            'mall'            => in_array($post['mall'] ?? '', ['ewalk', 'pentacity', 'both']) ? $post['mall'] : null,
             'tanggal_mulai'   => $post['tanggal_mulai']   ?: null,
             'tanggal_selesai' => $post['tanggal_selesai'] ?: null,
             'deskripsi'       => trim($post['deskripsi'] ?? '') ?: null,
@@ -473,6 +477,162 @@ class SponsorshipCtrl extends BaseController
             'analisaMap'       => $analisaMap,
             'prevAnalisaMap'   => $prevAnalisaMap,
             'canEdit'          => $this->canEditMenu('sponsorship_main'),
+        ]);
+    }
+
+    // ── Laporan Bulanan (print) ───────────────────────────────────────────────
+    public function printSummary()
+    {
+        if (! $this->canViewMenu('sponsorship_main')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $bulan = $this->request->getGet('bulan') ?: date('Y-m');
+        if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+        $prevBulan = date('Y-m', strtotime($bulan . '-01 -1 month'));
+
+        // ── Standalone ────────────────────────────────────────────────────
+        $programs   = (new SponsorshipProgramModel())->getAll();
+        $programIds = array_column($programs, 'id');
+
+        $realModel = new SponsorshipRealisasiModel();
+        $spModel   = new SponsorshipSponsorModel();
+
+        $monthlyReal  = $realModel->getMonthlyByPrograms($bulan, $programIds);
+        $prevReal     = $realModel->getMonthlyByPrograms($prevBulan, $programIds);
+        $cumReal      = $realModel->getCumulativeByPrograms($bulan, $programIds);
+        $committedMap = $spModel->getCommittedByPrograms($programIds);
+        $sponsorsMap  = $spModel->getByPrograms($programIds);
+
+        // Pipeline per program (jumlah sponsor per status deal)
+        $pipelineMap = [];
+        $pipelineTotal = ['prospek' => 0, 'negosiasi' => 0, 'terkonfirmasi' => 0, 'lunas' => 0, 'batal' => 0];
+        foreach ($sponsorsMap as $pid => $rows) {
+            foreach ($rows as $sp) {
+                $st = $sp['status_deal'] ?? 'prospek';
+                $pipelineMap[$pid][$st] = ($pipelineMap[$pid][$st] ?? 0) + 1;
+                if (isset($pipelineTotal[$st])) $pipelineTotal[$st]++;
+            }
+        }
+
+        // ── Per-event ─────────────────────────────────────────────────────
+        $evModel   = new EventSponsorModel();
+        $evrModel  = new EventSponsorRealisasiModel();
+        $eventAggs = $evModel->getEventAggregates();
+        $eventIds  = array_column($eventAggs, 'event_id');
+
+        $evMonthly = $evrModel->getMonthlyByEvents($bulan, $eventIds);
+        $evPrev    = $evrModel->getMonthlyByEvents($prevBulan, $eventIds);
+        $evCum     = $evrModel->getCumulativeByEvents($bulan, $eventIds);
+
+        // ── KPI bulan terpilih ────────────────────────────────────────────
+        $kpiSponsorDeal = array_sum(array_column($committedMap, 'total_sponsor'))
+                        + array_sum(array_map(fn($e) => (int)$e['jumlah_sponsor'], $eventAggs));
+        $kpiKomitmen    = array_sum(array_column($committedMap, 'total_nilai'))
+                        + array_sum(array_map(fn($e) => (int)$e['total_cash'] + (int)$e['total_barang'], $eventAggs));
+        $kpiRealisasi     = array_sum($monthlyReal) + array_sum($evMonthly);
+        $kpiRealisasiPrev = array_sum($prevReal)    + array_sum($evPrev);
+        $kpiKumulatif     = array_sum($cumReal)     + array_sum($evCum);
+
+        $targetNilaiAktif = array_sum(array_map(
+            fn($p) => $p['status'] === 'active' ? (int)($p['target_nilai'] ?? 0) : 0, $programs));
+        $capaianPct = $targetNilaiAktif > 0 ? round(array_sum($cumReal) / $targetNilaiAktif * 100, 1) : 0;
+
+        // ── Program baru per mall (mulai di bulan terpilih) ───────────────
+        $mallCounts = ['ewalk' => 0, 'pentacity' => 0, 'both' => 0, 'unset' => 0];
+        foreach ($programs as $p) {
+            if (substr((string)($p['tanggal_mulai'] ?? ''), 0, 7) !== $bulan) continue;
+            $mall = $p['mall'] ?? '';
+            $mallCounts[isset($mallCounts[$mall]) ? $mall : 'unset']++;
+        }
+        foreach ($eventAggs as $e) {
+            if (substr((string)($e['event_start_date'] ?? ''), 0, 7) !== $bulan) continue;
+            $mall = $e['event_mall'] ?? '';
+            $mallCounts[isset($mallCounts[$mall]) ? $mall : 'unset']++;
+        }
+
+        // ── Tren 6 bulan & aktivitas harian utk grafik ────────────────────
+        $trendMap = [];
+        foreach ($realModel->getAllMonthlyTotals($programIds) as $r) {
+            $trendMap[$r['bulan']] = ($trendMap[$r['bulan']] ?? 0) + (int)$r['total_nilai'];
+        }
+        foreach ($evrModel->getAllMonthlyTotals($eventIds) as $r) {
+            $trendMap[$r['bulan']] = ($trendMap[$r['bulan']] ?? 0) + (int)$r['total_nilai'];
+        }
+        $trendMonths = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = date('Y-m', strtotime($bulan . '-01 -' . $i . ' month'));
+            $trendMonths[] = ['bulan' => $m, 'total_nilai' => (int)($trendMap[$m] ?? 0)];
+        }
+
+        $daysInMonth = (int)date('t', strtotime($bulan . '-01'));
+        $dailyNilai  = array_fill(0, $daysInMonth, 0);
+        foreach (array_merge(
+            $realModel->getDailyForMonth($bulan, $programIds),
+            $evrModel->getDailyForMonth($bulan, $eventIds)
+        ) as $row) {
+            $dailyNilai[(int)date('j', strtotime($row['tanggal'])) - 1] += (int)$row['nilai'];
+        }
+
+        // ── Insight otomatis (rule-based) ─────────────────────────────────
+        $fmtRp    = fn($n) => 'Rp ' . number_format($n, 0, ',', '.');
+        $fmtDelta = function (int $now, int $prev) use ($fmtRp): string {
+            if ($prev <= 0) return $now > 0 ? 'naik dari 0 bulan lalu' : 'sama dengan bulan lalu (0)';
+            $pct = round(($now - $prev) / $prev * 100);
+            return ($pct >= 0 ? 'naik ' : 'turun ') . abs($pct) . '% dari bulan lalu (' . $fmtRp($prev) . ')';
+        };
+
+        $topName = null; $topVal = 0; $noActivity = 0;
+        foreach ($programs as $p) {
+            $val = (int)($monthlyReal[$p['id']] ?? 0);
+            if ($val > $topVal) { $topVal = $val; $topName = $p['nama_program']; }
+            if ($val === 0 && $p['status'] === 'active') $noActivity++;
+        }
+        foreach ($eventAggs as $e) {
+            $val = (int)($evMonthly[$e['event_id']] ?? 0);
+            if ($val > $topVal) { $topVal = $val; $topName = 'Event ' . $e['event_name']; }
+        }
+
+        $outstanding = max(0, $kpiKomitmen - $kpiKumulatif);
+        $insights   = [];
+        $insights[] = 'Penerimaan sponsorship bulan ini ' . $fmtRp($kpiRealisasi) . ' — ' . $fmtDelta($kpiRealisasi, $kpiRealisasiPrev) . '.';
+        $insights[] = 'Komitmen deal (terkonfirmasi + lunas) ' . $fmtRp($kpiKomitmen) . ' dari ' . number_format($kpiSponsorDeal) . ' sponsor; realisasi kumulatif ' . $fmtRp($kpiKumulatif)
+            . ($outstanding > 0 ? ' — sisa komitmen belum cair ' . $fmtRp($outstanding) . '.' : '.');
+        if ($pipelineTotal['prospek'] + $pipelineTotal['negosiasi'] > 0) {
+            $insights[] = 'Pipeline berjalan: ' . $pipelineTotal['prospek'] . ' prospek dan ' . $pipelineTotal['negosiasi'] . ' dalam negosiasi — potensi tambahan penerimaan.';
+        }
+        if ($topName) $insights[] = 'Penerimaan terbesar bulan ini: ' . $topName . ' (' . $fmtRp($topVal) . ').';
+        if ($noActivity > 0) $insights[] = $noActivity . ' program aktif belum mencatat penerimaan bulan ini — perlu ditindaklanjuti.';
+        if ($targetNilaiAktif > 0) $insights[] = 'Capaian kumulatif vs target program aktif: ' . $capaianPct . '% dari ' . $fmtRp($targetNilaiAktif) . '.';
+
+        return view('sponsorship/print_summary', [
+            'bulan'          => $bulan,
+            'prevBulan'      => $prevBulan,
+            'programs'       => $programs,
+            'monthlyReal'    => $monthlyReal,
+            'prevReal'       => $prevReal,
+            'cumReal'        => $cumReal,
+            'committedMap'   => $committedMap,
+            'pipelineMap'    => $pipelineMap,
+            'pipelineTotal'  => $pipelineTotal,
+            'eventAggs'      => $eventAggs,
+            'evMonthly'      => $evMonthly,
+            'evPrev'         => $evPrev,
+            'evCum'          => $evCum,
+            'kpiSponsorDeal' => $kpiSponsorDeal,
+            'kpiKomitmen'    => $kpiKomitmen,
+            'kpiRealisasi'   => $kpiRealisasi,
+            'kpiKumulatif'   => $kpiKumulatif,
+            'targetNilaiAktif' => $targetNilaiAktif,
+            'capaianPct'     => $capaianPct,
+            'mallCounts'     => $mallCounts,
+            'trendMonths'    => $trendMonths,
+            'dailyNilai'     => $dailyNilai,
+            'insights'       => $insights,
+            'analisaMap'     => (new SponsorshipSummaryAnalysisModel())->getMapByMonth($bulan),
+            'signatories'    => \App\Libraries\ReportSignatories::resolve('sponsorship_main'),
+            'printedBy'      => $this->currentUser()['name'] ?? '',
+            'printedAt'      => date('d M Y H:i'),
         ]);
     }
 

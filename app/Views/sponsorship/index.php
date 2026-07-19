@@ -185,6 +185,7 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                         data-bs-target="#editProgramModal"
                         data-id="<?= $pid ?>"
                         data-nama="<?= esc($prog['nama_program'], 'attr') ?>"
+                        data-mall="<?= esc($prog['mall'] ?? '', 'attr') ?>"
                         data-mulai="<?= $prog['tanggal_mulai'] ?? '' ?>"
                         data-selesai="<?= $prog['tanggal_selesai'] ?? '' ?>"
                         data-deskripsi="<?= esc($prog['deskripsi'] ?? '', 'attr') ?>"
@@ -439,6 +440,16 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                             <label class="form-label small fw-semibold">Nama Program <span class="text-danger">*</span></label>
                             <input type="text" name="nama_program" class="form-control form-control-sm" required>
                         </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Mall</label>
+                            <select name="mall" class="form-select form-select-sm">
+                                <option value="">— Pilih Mall —</option>
+                                <option value="ewalk">eWalk</option>
+                                <option value="pentacity">Pentacity</option>
+                                <option value="both">Keduanya</option>
+                            </select>
+                            <div class="form-text" style="font-size:.68rem">Dipakai untuk rekap program per mall di Laporan Bulanan</div>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Tanggal Mulai</label>
                             <input type="date" name="tanggal_mulai" class="form-control form-control-sm">
@@ -489,6 +500,15 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
                         <div class="col-12">
                             <label class="form-label small fw-semibold">Nama Program <span class="text-danger">*</span></label>
                             <input type="text" name="nama_program" id="ep_nama" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Mall</label>
+                            <select name="mall" id="ep_mall" class="form-select form-select-sm">
+                                <option value="">— Pilih Mall —</option>
+                                <option value="ewalk">eWalk</option>
+                                <option value="pentacity">Pentacity</option>
+                                <option value="both">Keduanya</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Tanggal Mulai</label>
@@ -794,6 +814,7 @@ document.addEventListener('input', function(e) {
 document.getElementById('editProgramModal').addEventListener('show.bs.modal', function(e) {
     const b = e.relatedTarget;
     this.querySelector('#ep_nama').value          = b.dataset.nama || '';
+    this.querySelector('#ep_mall').value          = b.dataset.mall || '';
     this.querySelector('#ep_mulai').value         = b.dataset.mulai || '';
     this.querySelector('#ep_selesai').value       = b.dataset.selesai || '';
     this.querySelector('#ep_deskripsi').value     = b.dataset.deskripsi || '';
