@@ -24,6 +24,6 @@ rm -f "$CNF"
 UP=(); for d in writable/uploads public/uploads; do [ -d "$APP_DIR/$d" ] && UP+=("$d"); done
 tar -czf "$BACKUP_DIR/mic_uploads_${TIMESTAMP}.tar.gz" -C "$APP_DIR" "${UP[@]}" 2>>"$LOG"
 
-find "$BACKUP_DIR" -name "mic_db_*.sql" -mtime +10 -delete
+find "$BACKUP_DIR" -name "mic_db_*.sql" -mtime +30 -delete
 find "$BACKUP_DIR" -name "mic_uploads_*.tar.gz" -mtime +10 -delete
 echo "[$(date '+%Y-%m-%d %H:%M')] DB: $DB_OK | uploads: ${UP[*]}" >> "$LOG"
