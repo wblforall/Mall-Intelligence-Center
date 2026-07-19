@@ -20,7 +20,7 @@ class EventLoyaltyModel extends Model
     public function getAllWithEvent(): array
     {
         return $this->db->table('event_loyalty_programs elp')
-            ->select('elp.*, e.name as event_name, e.start_date as event_start_date, ec.id as completion_id')
+            ->select('elp.*, e.name as event_name, e.start_date as event_start_date, e.mall as event_mall, ec.id as completion_id')
             ->join('events e', 'e.id = elp.event_id')
             ->join('event_completions ec', "ec.event_id = elp.event_id AND ec.module = 'loyalty'", 'left')
             ->orderBy('e.start_date', 'DESC')

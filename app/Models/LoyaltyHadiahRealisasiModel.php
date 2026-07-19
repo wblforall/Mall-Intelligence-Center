@@ -45,6 +45,21 @@ class LoyaltyHadiahRealisasiModel extends Model
         return $result;
     }
 
+    // Kumulatif s/d bulan tertentu, keyed by item_id (untuk laporan bulanan)
+    public function getCumulativeByItems(string $upToMonth, array $itemIds): array
+    {
+        if (empty($itemIds)) return [];
+        $rows = $this->db->table('loyalty_hadiah_realisasi')
+            ->select('item_id, SUM(jumlah_dibagikan) as total_dibagikan')
+            ->whereIn('item_id', $itemIds)
+            ->where("DATE_FORMAT(tanggal, '%Y-%m') <=", $upToMonth)
+            ->groupBy('item_id')
+            ->get()->getResultArray();
+        $result = [];
+        foreach ($rows as $r) { $result[$r['item_id']] = (int)$r['total_dibagikan']; }
+        return $result;
+    }
+
     // All monthly totals for given items (for trend)
     public function getAllMonthlyTotals(array $itemIds): array
     {

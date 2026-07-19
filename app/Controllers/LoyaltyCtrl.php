@@ -458,6 +458,7 @@ class LoyaltyCtrl extends BaseController
         $progModel->insert([
             'nama_program'    => $post['nama_program'],
             'jenis'           => $jenis,
+            'mall'            => in_array($post['mall'] ?? '', ['ewalk', 'pentacity', 'both']) ? $post['mall'] : null,
             'tenant_id'       => $tenantId,
             'tanggal_mulai'   => $post['tanggal_mulai']  ?? null ?: null,
             'tanggal_selesai' => $post['tanggal_selesai'] ?? null ?: null,
@@ -486,6 +487,7 @@ class LoyaltyCtrl extends BaseController
         $loyaltyData = [
             'nama_program'    => $post['nama_program'],
             'jenis'           => $jenis,
+            'mall'            => in_array($post['mall'] ?? '', ['ewalk', 'pentacity', 'both']) ? $post['mall'] : null,
             'tenant_id'       => $tenantId,
             'tanggal_mulai'   => $post['tanggal_mulai']  ?? null ?: null,
             'tanggal_selesai' => $post['tanggal_selesai'] ?? null ?: null,
@@ -1095,23 +1097,257 @@ class LoyaltyCtrl extends BaseController
         }
         foreach (array_merge($hMonthly, $ehMonthly) as $n) { $kpiHadiah += (int)$n; }
 
+        // ── Pembanding bulan lalu & kumulatif per program (program multi-bulan) ──
+        $prevBulan = date('Y-m', strtotime($bulan . '-01 -1 month'));
+
+        $aggVoucherByProgram = function (array $itemsGrouped, array $perItem): array {
+            $out = [];
+            foreach ($itemsGrouped as $progId => $items) {
+                $out[$progId] = ['total_tersebar' => 0, 'total_terpakai' => 0];
+                foreach ($items as $vi) {
+                    $vd = $perItem[$vi['id']] ?? null;
+                    if ($vd) {
+                        $out[$progId]['total_tersebar'] += (int)$vd['total_tersebar'];
+                        $out[$progId]['total_terpakai'] += (int)$vd['total_terpakai'];
+                    }
+                }
+            }
+            return $out;
+        };
+        $aggHadiahByProgram = function (array $itemsGrouped, array $perItem): array {
+            $out = [];
+            foreach ($itemsGrouped as $progId => $items) {
+                $out[$progId] = 0;
+                foreach ($items as $hi) { $out[$progId] += (int)($perItem[$hi['id']] ?? 0); }
+            }
+            return $out;
+        };
+
+        $prevMonthlyData = [];
+        foreach ($sModel->getMonthlyByPrograms($prevBulan, $standaloneIds) as $id => $d) { $prevMonthlyData['s_' . $id] = $d; }
+        foreach ($eModel->getMonthlyByPrograms($prevBulan, $eventIds) as $id => $d)      { $prevMonthlyData['e_' . $id] = $d; }
+
+        $cumulativeData = [];
+        foreach ($sModel->getCumulativeByPrograms($bulan, $standaloneIds) as $id => $d) { $cumulativeData['s_' . $id] = $d; }
+        foreach ($eModel->getCumulativeByPrograms($bulan, $eventIds) as $id => $d)      { $cumulativeData['e_' . $id] = $d; }
+
+        $vPrevM  = $vrModel->getMonthlyByItems($prevBulan, $allVoucherIds);
+        $evPrevM = $evrModel->getMonthlyByItems($prevBulan, $allEvoucherIds);
+        $hPrevM  = $hrModel->getMonthlyByItems($prevBulan, $allHadiahIds);
+        $ehPrevM = $ehrModel->getMonthlyByItems($prevBulan, $allEhadiahIds);
+
+        $prevVoucherByProgram   = $aggVoucherByProgram($voucherItemsGrouped,  $vPrevM);
+        $prevEvoucherByProgram  = $aggVoucherByProgram($evoucherItemsGrouped, $evPrevM);
+        $prevHadiahByProgram    = $aggHadiahByProgram($hadiahItemsGrouped,    $hPrevM);
+        $prevEhadiahByProgram   = $aggHadiahByProgram($ehadiahItemsGrouped,   $ehPrevM);
+
+        $voucherCumByProgram    = $aggVoucherByProgram($voucherItemsGrouped,  $vrModel->getCumulativeByItems($bulan, $allVoucherIds));
+        $evoucherCumByProgram   = $aggVoucherByProgram($evoucherItemsGrouped, $evrModel->getCumulativeByItems($bulan, $allEvoucherIds));
+        $hadiahCumByProgram     = $aggHadiahByProgram($hadiahItemsGrouped,    $hrModel->getCumulativeByItems($bulan, $allHadiahIds));
+        $ehadiahCumByProgram    = $aggHadiahByProgram($ehadiahItemsGrouped,   $ehrModel->getCumulativeByItems($bulan, $allEhadiahIds));
+
+        // ── Nilai realisasi (Rp) & serapan budget bulan ini ──────────────
+        $voucherNilai = $evoucherNilai = $hadiahNilai = $ehadiahNilai = [];
+        foreach ($voucherItemsGrouped as $items)  foreach ($items as $vi) $voucherNilai[$vi['id']]  = (float)($vi['nilai_voucher'] ?? 0);
+        foreach ($evoucherItemsGrouped as $items) foreach ($items as $vi) $evoucherNilai[$vi['id']] = (float)($vi['nilai_voucher'] ?? 0);
+        foreach ($hadiahItemsGrouped as $items)   foreach ($items as $hi) $hadiahNilai[$hi['id']]   = (float)($hi['nilai_satuan'] ?? 0);
+        foreach ($ehadiahItemsGrouped as $items)  foreach ($items as $hi) $ehadiahNilai[$hi['id']]  = (float)($hi['nilai_satuan'] ?? 0);
+
+        $nilaiRealisasi = 0.0;
+        foreach ($vMonthly  as $id => $d) $nilaiRealisasi += (int)($d['total_terpakai'] ?? 0) * ($voucherNilai[$id]  ?? 0);
+        foreach ($evMonthly as $id => $d) $nilaiRealisasi += (int)($d['total_terpakai'] ?? 0) * ($evoucherNilai[$id] ?? 0);
+        foreach ($hMonthly  as $id => $n) $nilaiRealisasi += (int)$n * ($hadiahNilai[$id]  ?? 0);
+        foreach ($ehMonthly as $id => $n) $nilaiRealisasi += (int)$n * ($ehadiahNilai[$id] ?? 0);
+        $totalBudgetActive = array_sum(array_column(array_filter($programs, fn($p) => $p['status'] === 'active'), 'budget'));
+        $serapanPct        = $totalBudgetActive > 0 ? round($nilaiRealisasi / $totalBudgetActive * 100, 1) : 0;
+
+        // ── Program baru per mall (mulai di bulan terpilih) ───────────────
+        $mallCounts = ['ewalk' => 0, 'pentacity' => 0, 'both' => 0, 'unset' => 0];
+        foreach ($programs as $p) {
+            $mulai = $p['source'] === 'standalone' ? ($p['tanggal_mulai'] ?? '') : ($p['event_start_date'] ?? '');
+            if (! $mulai || substr($mulai, 0, 7) !== $bulan) continue;
+            $mall = $p['source'] === 'standalone' ? ($p['mall'] ?? '') : ($p['event_mall'] ?? '');
+            $mallCounts[isset($mallCounts[$mall]) ? $mall : 'unset']++;
+        }
+
+        // ── Tren 6 bulan terakhir (s/d bulan terpilih) untuk grafik ───────
+        $empty = ['total_jumlah' => 0, 'total_member_aktif' => 0, 'total_tersebar' => 0, 'total_terpakai' => 0, 'total_hadiah' => 0];
+        $trendMap = [];
+        $addTo = function (string $m, string $k, int $v) use (&$trendMap, $empty) {
+            if (! isset($trendMap[$m])) $trendMap[$m] = $empty;
+            $trendMap[$m][$k] += $v;
+        };
+        foreach ($sModel->getAllMonthlyTotals($standaloneIds) as $r) { $addTo($r['bulan'], 'total_jumlah', (int)$r['total_jumlah']); $addTo($r['bulan'], 'total_member_aktif', (int)($r['total_member_aktif'] ?? 0)); }
+        foreach ($eModel->getAllMonthlyTotals($eventIds) as $r)      { $addTo($r['bulan'], 'total_jumlah', (int)$r['total_jumlah']); $addTo($r['bulan'], 'total_member_aktif', (int)($r['total_member_aktif'] ?? 0)); }
+        foreach ($vrModel->getAllMonthlyTotals($allVoucherIds) as $r)   { $addTo($r['bulan'], 'total_tersebar', (int)$r['total_tersebar']); $addTo($r['bulan'], 'total_terpakai', (int)$r['total_terpakai']); }
+        foreach ($evrModel->getAllMonthlyTotals($allEvoucherIds) as $r) { $addTo($r['bulan'], 'total_tersebar', (int)$r['total_tersebar']); $addTo($r['bulan'], 'total_terpakai', (int)$r['total_terpakai']); }
+        foreach ($hrModel->getAllMonthlyTotals($allHadiahIds) as $r)    { $addTo($r['bulan'], 'total_hadiah', (int)$r['total_dibagikan']); }
+        foreach ($ehrModel->getAllMonthlyTotals($allEhadiahIds) as $r)  { $addTo($r['bulan'], 'total_hadiah', (int)$r['total_dibagikan']); }
+
+        $trendMonths = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = date('Y-m', strtotime($bulan . '-01 -' . $i . ' month'));
+            $trendMonths[] = ['bulan' => $m] + ($trendMap[$m] ?? $empty);
+        }
+
+        // ── Aktivitas harian bulan terpilih untuk grafik ──────────────────
+        $daysInMonth   = (int)date('t', strtotime($bulan . '-01'));
+        $dailyMember   = array_fill(0, $daysInMonth, 0);
+        $dailyTersebar = array_fill(0, $daysInMonth, 0);
+        $dailyTerpakai = array_fill(0, $daysInMonth, 0);
+        foreach (array_merge($sModel->getDailyForMonth($bulan, $standaloneIds), $eModel->getDailyForMonth($bulan, $eventIds)) as $row) {
+            $dailyMember[(int)date('j', strtotime($row['tanggal'])) - 1] += (int)$row['jumlah'];
+        }
+        foreach (array_merge($vrModel->getDailyForMonth($bulan, $allVoucherIds), $evrModel->getDailyForMonth($bulan, $allEvoucherIds)) as $row) {
+            $idx = (int)date('j', strtotime($row['tanggal'])) - 1;
+            $dailyTersebar[$idx] += (int)$row['tersebar'];
+            $dailyTerpakai[$idx] += (int)$row['terpakai'];
+        }
+
+        // ── Insight otomatis (rule-based) untuk blok Analisa ──────────────
+        $kpiMemberPrev = $kpiTerpakaiPrev = $kpiTersebarPrev = $kpiHadiahPrev = 0;
+        foreach ($prevMonthlyData as $d) { $kpiMemberPrev += (int)($d['total_jumlah'] ?? 0); }
+        foreach (array_merge($vPrevM, $evPrevM) as $d) { $kpiTersebarPrev += (int)$d['total_tersebar']; $kpiTerpakaiPrev += (int)$d['total_terpakai']; }
+        foreach (array_merge($hPrevM, $ehPrevM) as $n) { $kpiHadiahPrev += (int)$n; }
+
+        $fmtDelta = function (int $now, int $prev): string {
+            if ($prev <= 0) return $now > 0 ? 'naik dari 0 bulan lalu' : 'sama dengan bulan lalu (0)';
+            $pct = round(($now - $prev) / $prev * 100);
+            return ($pct >= 0 ? 'naik ' : 'turun ') . abs($pct) . '% dari bulan lalu (' . number_format($prev) . ')';
+        };
+
+        // Program paling aktif bulan ini (skor = member + voucher terpakai + hadiah)
+        $topName = null; $topScore = 0;
+        $noActivity = 0;
+        foreach ($programs as $p) {
+            $key   = ($p['source'] === 'standalone' ? 's_' : 'e_') . $p['id'];
+            $vd    = $p['source'] === 'standalone' ? ($voucherByProgram[$p['id']] ?? []) : ($evoucherByProgram[$p['id']] ?? []);
+            $score = (int)(($monthlyData[$key]['total_jumlah'] ?? 0))
+                   + (int)($vd['total_terpakai'] ?? 0)
+                   + (int)($p['source'] === 'standalone' ? ($hadiahByProgram[$p['id']] ?? 0) : ($ehadiahByProgram[$p['id']] ?? 0));
+            if ($score > $topScore) { $topScore = $score; $topName = $p['nama_program'] ?? null; }
+            if ($score === 0 && (int)(($monthlyData[$key]['total_member_aktif'] ?? 0)) === 0 && $p['status'] === 'active') $noActivity++;
+        }
+
+        $insights = [];
+        $insights[] = 'Akuisisi member baru bulan ini ' . number_format($kpiMember) . ' — ' . $fmtDelta($kpiMember, $kpiMemberPrev) . '.';
+        $insights[] = 'Voucher terpakai ' . number_format($kpiTerpakai) . ' (' . $fmtDelta($kpiTerpakai, $kpiTerpakaiPrev) . '); hadiah dibagikan ' . number_format($kpiHadiah) . ' (' . $fmtDelta($kpiHadiah, $kpiHadiahPrev) . ').';
+        if ($topName) $insights[] = 'Program paling aktif bulan ini: ' . $topName . '.';
+        if ($noActivity > 0) $insights[] = $noActivity . ' program berstatus aktif belum mencatat realisasi apa pun bulan ini — perlu ditindaklanjuti.';
+        $insights[] = 'Nilai realisasi bulan ini Rp ' . number_format($nilaiRealisasi, 0, ',', '.')
+            . ($totalBudgetActive > 0 ? ' (' . $serapanPct . '% dari total budget program aktif).' : '.');
+
         return view('loyalty_program/print_summary', [
+            'trendMonths'       => $trendMonths,
+            'dailyMember'       => $dailyMember,
+            'dailyTersebar'     => $dailyTersebar,
+            'dailyTerpakai'     => $dailyTerpakai,
+            'insights'          => $insights,
             'bulan'             => $bulan,
+            'prevBulan'         => $prevBulan,
             'programs'          => $programs,
             'monthlyData'       => $monthlyData,
             'voucherByProgram'  => $voucherByProgram,
             'evoucherByProgram' => $evoucherByProgram,
             'hadiahByProgram'   => $hadiahByProgram,
             'ehadiahByProgram'  => $ehadiahByProgram,
+            'prevMonthlyData'      => $prevMonthlyData,
+            'prevVoucherByProgram' => $prevVoucherByProgram,
+            'prevEvoucherByProgram'=> $prevEvoucherByProgram,
+            'prevHadiahByProgram'  => $prevHadiahByProgram,
+            'prevEhadiahByProgram' => $prevEhadiahByProgram,
+            'cumulativeData'       => $cumulativeData,
+            'voucherCumByProgram'  => $voucherCumByProgram,
+            'evoucherCumByProgram' => $evoucherCumByProgram,
+            'hadiahCumByProgram'   => $hadiahCumByProgram,
+            'ehadiahCumByProgram'  => $ehadiahCumByProgram,
+            'mallCounts'        => $mallCounts,
+            'nilaiRealisasi'    => $nilaiRealisasi,
+            'serapanPct'        => $serapanPct,
+            'totalBudgetActive' => $totalBudgetActive,
             'kpiMember'         => $kpiMember,
             'kpiMemberAktif'    => $kpiMemberAktif,
             'kpiTersebar'       => $kpiTersebar,
             'kpiTerpakai'       => $kpiTerpakai,
             'kpiHadiah'         => $kpiHadiah,
             'analisaMap'        => (new LoyaltySummaryAnalysisModel())->getMapByMonth($bulan),
+            'signatories'       => $this->reportSignatories(),
             'printedBy'         => $this->currentUser()['name'] ?? '',
             'printedAt'         => date('d M Y H:i'),
         ]);
+    }
+
+    /**
+     * Penandatangan laporan bulanan:
+     * Disusun = Dept Head dept penyusun (jabatan grade terendah di dept),
+     * Diperiksa = Deputy GM (grade 3) divisi dept tsb, Mengetahui = GM.
+     * Dept penyusun = dept karyawan si pencetak; bila pencetak admin / tidak
+     * terhubung ke karyawan ber-dept, fallback ke dept pemilik hak edit menu
+     * loyalty_main (department_menu_access) — agar laporan tetap bertanda tangan.
+     */
+    private function reportSignatories(): array
+    {
+        $db  = db_connect();
+        $uid = (int) session()->get('user_id');
+
+        $pick = fn(?array $row) => $row ? ['nama' => $row['nama'], 'jabatan' => $row['jabatan_nama']] : null;
+
+        $me = $db->table('employees e')
+            ->select('e.dept_id')
+            ->where('e.user_id', $uid)
+            ->get()->getRowArray();
+
+        $deptId = (int) ($me['dept_id'] ?? 0);
+        if (! $deptId) {
+            $own = $db->table('department_menu_access')
+                ->select('department_id')
+                ->where('menu_key', 'loyalty_main')
+                ->where('can_edit', 1)
+                ->get(1)->getRowArray();
+            $deptId = (int) ($own['department_id'] ?? 0);
+        }
+
+        $deptHead = null;
+        $deputy   = null;
+        if ($deptId) {
+            $deptHead = $db->table('employees e')
+                ->select('e.nama, j.nama AS jabatan_nama')
+                ->join('jabatans j', 'j.id = e.jabatan_id')
+                ->where('e.dept_id', $deptId)
+                ->where('e.status', 'aktif')
+                ->orderBy('j.grade', 'ASC')
+                ->get(1)->getRowArray();
+
+            $divisiId = (int) ($db->table('departments')->select('division_id')
+                ->where('id', $deptId)->get()->getRowArray()['division_id'] ?? 0);
+            if ($divisiId) {
+                $deputy = $db->table('employees e')
+                    ->select('e.nama, j.nama AS jabatan_nama')
+                    ->join('jabatans j', 'j.id = e.jabatan_id')
+                    ->join('departments d', 'd.id = e.dept_id', 'left')
+                    ->where('j.grade', 3)
+                    ->where('e.status', 'aktif')
+                    ->groupStart()
+                        ->where('e.division_id', $divisiId)
+                        ->orWhere('d.division_id', $divisiId)
+                    ->groupEnd()
+                    ->get(1)->getRowArray();
+            }
+        }
+
+        $gm = $db->table('employees e')
+            ->select('e.nama, j.nama AS jabatan_nama')
+            ->join('jabatans j', 'j.id = e.jabatan_id')
+            ->where('LOWER(j.nama) LIKE', '%general manager%')
+            ->where('e.status', 'aktif')
+            ->orderBy('j.grade', 'ASC')
+            ->get(1)->getRowArray();
+
+        return [
+            'disusun'   => $pick($deptHead),
+            'diperiksa' => $pick($deputy),
+            'mengetahui'=> $pick($gm),
+        ];
     }
 
     // ── Master Tenant ─────────────────────────────────────────────────────────

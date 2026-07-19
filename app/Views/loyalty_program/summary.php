@@ -86,7 +86,7 @@ $deltaBadge = function (float $cur, float $prev): string {
             <span class="fw-semibold d-none d-md-inline ms-md-2"><?= $bulanLabel ?></span>
             <a href="?bulan=<?= date('Y-m') ?>" class="btn btn-sm btn-outline-primary ms-auto">Bulan Ini</a>
             <a href="<?= base_url('loyalty/summary/print?bulan='.$bulan) ?>" target="_blank" id="btnCetak" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-printer me-1"></i>Cetak Laporan
+                <i class="bi bi-printer me-1"></i>Laporan Bulanan
             </a>
             <span id="analisaWarn" class="badge bg-warning-subtle text-warning-emphasis text-wrap" style="font-size:.7rem;display:none">
                 <i class="bi bi-exclamation-triangle me-1"></i><span id="analisaWarnCount">0</span> program belum ada analisa

@@ -266,6 +266,7 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
                                 data-jenis="<?= esc($p['jenis'] ?? 'internal', 'attr') ?>"
                                 data-tenant-id="<?= (int)($p['tenant_id'] ?? 0) ?>"
                                 data-nama="<?= esc($p['nama_program'], 'attr') ?>"
+                                data-mall="<?= esc($p['mall'] ?? '', 'attr') ?>"
                                 data-tanggal-mulai="<?= $p['tanggal_mulai'] ?? '' ?>"
                                 data-tanggal-selesai="<?= $p['tanggal_selesai'] ?? '' ?>"
                                 data-jam-mulai="<?= substr($p['jam_mulai'] ?? '', 0, 5) ?>"
@@ -1176,6 +1177,16 @@ $cntClosed     = count($allClosed);
         <input type="text" name="nama_program" class="form-control" required>
     </div>
     <div class="mb-3">
+        <label class="form-label small fw-semibold">Mall</label>
+        <select name="mall" class="form-select form-select-sm">
+            <option value="">— Pilih Mall —</option>
+            <option value="ewalk">eWalk</option>
+            <option value="pentacity">Pentacity</option>
+            <option value="both">Keduanya</option>
+        </select>
+        <div class="form-text">Dipakai untuk rekap program per mall di Laporan Bulanan</div>
+    </div>
+    <div class="mb-3">
         <label class="form-label small fw-semibold">Periode</label>
         <div class="row g-2">
             <div class="col-6">
@@ -1258,6 +1269,15 @@ $cntClosed     = count($allClosed);
     <div class="mb-3">
         <label class="form-label small fw-semibold">Nama Program</label>
         <input type="text" name="nama_program" id="editNama" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Mall</label>
+        <select name="mall" id="editMall" class="form-select form-select-sm">
+            <option value="">— Pilih Mall —</option>
+            <option value="ewalk">eWalk</option>
+            <option value="pentacity">Pentacity</option>
+            <option value="both">Keduanya</option>
+        </select>
     </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Periode</label>
@@ -1577,6 +1597,7 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
         if (editTenantSel) editTenantSel.value = this.dataset.tenantId || '';
         document.getElementById('editNamaTenantWrap').classList.toggle('d-none', jenis !== 'tenant');
         document.getElementById('editNama').value           = this.dataset.nama;
+        document.getElementById('editMall').value           = this.dataset.mall || '';
         document.getElementById('editTanggalMulai').value   = this.dataset.tanggalMulai;
         document.getElementById('editTanggalSelesai').value = this.dataset.tanggalSelesai;
         document.getElementById('editJamMulai').value       = this.dataset.jamMulai;

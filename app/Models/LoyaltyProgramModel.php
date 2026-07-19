@@ -10,7 +10,7 @@ class LoyaltyProgramModel extends Model
     protected $primaryKey    = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'nama_program', 'jenis', 'tenant_id',
+        'nama_program', 'jenis', 'mall', 'tenant_id',
         'tanggal_mulai', 'tanggal_selesai', 'jam_mulai', 'jam_selesai',
         'mekanisme', 'target_type', 'target_peserta', 'target_member_aktif', 'target_penyerapan', 'total_voucher',
         'nilai_voucher', 'biaya_per_member',
