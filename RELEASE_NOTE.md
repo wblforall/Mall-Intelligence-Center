@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.21.0** (Juli 2026)
+> Versi saat ini: **v2.22.0** (Juli 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,34 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.22.0
+
+**Tanggal Rilis:** 20 Juli 2026
+
+### Perubahan dari v2.21.0
+
+#### Laporan Bulanan — 5 Modul (Cetak Resmi)
+
+Laporan bulanan format formal siap cetak (A4 landscape) untuk alur pelaporan **Dept Head → Deputy GM → GM**, masing-masing dengan KPI, **ringkasan analisa otomatis**, grafik tren 6 bulan & harian, dan **kolom tanda tangan otomatis** dari data karyawan:
+
+- **Program Loyalty** (Summary → Laporan Bulanan) — KPI member/voucher/hadiah + nilai realisasi vs budget, rekap program baru per mall, pembanding bulan lalu & kumulatif vs target untuk program multi-bulan.
+- **Sponsorship** (Summary → Laporan Bulanan) — sponsor deal, nilai komitmen vs penerimaan (sisa komitmen belum cair), pipeline P/N/K/L/B, capaian target, tabel Support Event.
+- **Traffic Pengunjung** (Summary → Laporan Bulanan) — total per mall + komposisi, weekday vs weekend, per jam, per pintu, **traffic selama event berlangsung**, rekap harian.
+- **Pendapatan Parkir** dan **Traffic Kendaraan Parkir** (halaman Summary masing-masing) — **dua laporan terpisah sesuai pelapornya**: pendapatan (per jenis, casual vs member, metode pembayaran) dan kendaraan (bayar vs langganan, lama parkir, gate tersibuk). Dilengkapi peringatan otomatis bila ada hari tanpa data SPI.
+
+#### Tanda Tangan Laporan
+
+- Penandatangan ditentukan **dept pemilik modul** (bukan siapa yang mencetak): Disusun = Dept Head, Diperiksa = **Senior Manager divisi & Deputy GM berdampingan** (satu kolom, bila divisi punya Senior Manager), Mengetahui = GM.
+- Program loyalty & sponsorship standalone kini punya pilihan **Mall** (eWalk/Pentacity/Keduanya) di form — dasar rekap program per mall di laporan.
+
+#### Navigasi — Sidebar Accordion
+
+- Sidebar kini **accordion per section**: judul section bisa dibuka/tutup, section halaman aktif otomatis terbuka, dan pilihan tiap user diingat browser — daftar menu admin yang semula ~50 baris kini ringkas tanpa scroll.
+
+> Catatan deploy: jalankan `php spark migrate` (2 migrasi kolom `mall` di loyalty & sponsorship).
 
 ---
 
