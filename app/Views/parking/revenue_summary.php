@@ -24,6 +24,9 @@ $fmtDate = fn($d) => date('d M Y', strtotime($d));
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2">
         <?= $this->include('parking/_syncbtn') ?>
+        <a href="<?= base_url('parking/revenue/laporan-bulanan') ?>?bulan=<?= date('Y-m', strtotime($start)) ?>" target="_blank" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-file-earmark-text"></i> Laporan Bulanan
+        </a>
         <a href="<?= base_url('parking/compare') ?>" class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-left-right"></i> Compare</a>
     </div>
 </div>
