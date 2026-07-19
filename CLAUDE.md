@@ -84,6 +84,15 @@ Item content bertipe `'program'` memicu `EventRundownModel::syncFromContentItem(
 
 Semua operasi create/update/delete harus memanggil `ActivityLog::write()`. Log disimpan ke tabel `activity_logs` dan bersifat append-only.
 
+### Laporan Bulanan (print formal)
+
+Lima modul punya laporan bulanan siap cetak (`?bulan=YYYY-MM`, tombol di halaman Summary): Loyalty (`loyalty/summary/print`), Sponsorship (`sponsorship/summary/print`), Traffic (`traffic/laporan-bulanan`), Parkir Pendapatan (`parking/revenue/laporan-bulanan`), Parkir Kendaraan (`parking/vehicles/laporan-bulanan`).
+
+Saat menambah laporan modul baru, ikuti pola baku:
+- View standalone A4 landscape **font 11px**; pakai partial bersama `app/Views/_laporan/_style.php` (CSS + aturan page-break: `tbody.prog-block` per item, thead berulang) dan `_laporan/_ttd.php` (blok tanda tangan).
+- Tanda tangan via `App\Libraries\ReportSignatories::resolve(menuKey)` — dept penyusun = **dept pemilik modul** (pemegang `can_edit` di `department_menu_access`, non-outsource), bukan dept si pencetak. Disusun = Dept Head, Diperiksa = Senior Manager divisi (grade 4, bila ada) berdampingan Deputy GM (grade 3) dalam satu kolom, Mengetahui = GM.
+- Struktur isi: KPI (delta vs bulan lalu) → rekap per mall → Ringkasan Analisa (insight rule-based) + 2 grafik Chart.js (`animation:false`, palet CVD-safe) → tabel detail (pembanding `lalu · kum` untuk periode multi-bulan) → ttd.
+
 ---
 
 ## Struktur Database
