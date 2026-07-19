@@ -131,7 +131,13 @@ class SpiSync extends BaseCommand
                 'updated_at' => $now,
             ]);
             $totDur++;
+            // Jangan timpa langganan/free yang sudah terisi dengan 0: statistik.php
+            // sering "menggugurkan" data Pass hari lama (window bergulir) → kembalikan 0
+            // dan menghapus nilai valid. Lewati update free bila hasil parse semuanya 0.
             $f = $d['free'];
+            $freeSum = (int) $f['mobil'] + (int) $f['motor'] + (int) $f['box']
+                     + (int) $f['truck'] + (int) $f['taxi'] + (int) $f['bus'];
+            if ($freeSum === 0) { continue; }
             $upd = $db->table('spi_vehicle_daily')->where('tanggal', $tgl)->update([
                 'mobil_free' => (int) $f['mobil'], 'motor_free' => (int) $f['motor'],
                 'box_free'   => (int) $f['box'],   'truck_free' => (int) $f['truck'],
