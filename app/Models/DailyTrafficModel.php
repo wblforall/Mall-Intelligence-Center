@@ -112,6 +112,27 @@ class DailyTrafficModel extends Model
         return (int)($builder->get()->getRow()->total ?? 0);
     }
 
+    /**
+     * Total pengunjung per bulan per mall dalam rentang bulan (inklusif) —
+     * untuk grafik tren Laporan Bulanan. Return: [bulan => ['ewalk'=>n,'pentacity'=>n]]
+     */
+    public function getMonthlyTotalsByMall(string $fromMonth, string $toMonth): array
+    {
+        $rows = $this->db->table('daily_traffic')
+            ->select("DATE_FORMAT(tanggal, '%Y-%m') AS bulan, mall, SUM(jumlah_pengunjung) AS total")
+            ->where("DATE_FORMAT(tanggal, '%Y-%m') >=", $fromMonth)
+            ->where("DATE_FORMAT(tanggal, '%Y-%m') <=", $toMonth)
+            ->groupBy('bulan, mall')
+            ->orderBy('bulan')
+            ->get()->getResultArray();
+
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$r['bulan']][$r['mall']] = (int)$r['total'];
+        }
+        return $map;
+    }
+
     public function getByHour(string $startDate, string $endDate, string $mall = null): array
     {
         $builder = $this->db->table('daily_traffic')

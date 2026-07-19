@@ -298,6 +298,7 @@ $routes->get('traffic/export',         'Traffic::export',        ['filter' => 'a
 $routes->get('traffic/summary',        'Traffic::summary',       ['filter' => 'auth']);
 $routes->get('traffic/export-summary', 'Traffic::exportSummary', ['filter' => 'auth']);
 $routes->get('traffic/print-summary',  'Traffic::printSummary',  ['filter' => 'auth']);
+$routes->get('traffic/laporan-bulanan', 'Traffic::laporanBulanan', ['filter' => 'auth']);
 $routes->get('traffic/print-compare',  'Traffic::printCompare',  ['filter' => 'auth']);
 $routes->get('traffic/import', 'Traffic::importForm', ['filter' => 'auth']);
 $routes->post('traffic/import', 'Traffic::importPreview', ['filter' => 'auth']);

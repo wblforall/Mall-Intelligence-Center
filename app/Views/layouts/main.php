@@ -32,6 +32,15 @@ body { min-height: 100vh; }
 .sidebar .brand-sub   { font-size: .68rem; margin-top: 2px; }
 .sidebar .nav-section { padding: 0 .75rem; margin-top: .5rem; flex: 1 1 0; overflow-y: auto; }
 .sidebar .nav-label   { font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: .8rem .5rem .3rem; }
+/* ── Accordion sidebar: section & subnav modul bisa dibuka/tutup ── */
+.sidebar .nav-label.nav-toggle { display: flex; align-items: center; cursor: pointer; user-select: none; border-radius: .4rem; transition: color .15s; }
+.sidebar .nav-label.nav-toggle:hover { color: var(--bs-emphasis-color, #fff); }
+.sidebar .nav-caret { margin-left: auto; font-size: .6rem; opacity: .55; transition: transform .18s; }
+.sidebar .nav-label.collapsed .nav-caret { transform: rotate(-90deg); }
+.sidebar .nav-group.collapsed { display: none; }
+.sidebar .subnav.collapsed { display: none; }
+.sidebar .subnav-caret { margin-left: auto; padding: 0 .15rem; font-size: .6rem; opacity: .5; cursor: pointer; transition: transform .18s; flex-shrink: 0; }
+.sidebar .subnav-caret.collapsed { transform: rotate(-90deg); }
 .sidebar .nav-link    { padding: .45rem .75rem; border-radius: .5rem; display: flex; align-items: center; gap: .65rem; font-size: .83rem; transition: background .15s, color .15s; margin-bottom: 1px; }
 .sidebar .nav-link i  { width: 16px; text-align: center; font-size: .9rem; flex-shrink: 0; }
 .sidebar .subnav      { margin: 2px 0 4px 0; }
@@ -616,6 +625,75 @@ body { min-height: 100vh; }
     </div>
 
 </div>
+
+<script>
+/* ── Accordion sidebar ────────────────────────────────────────────────
+   Tingkat 1: tiap section (.nav-label) bisa dibuka/tutup — section berisi
+   halaman aktif dipaksa terbuka; pilihan user diingat di localStorage.
+   Tingkat 2: subnav modul (mis. Events/Loyalty di section Main) otomatis
+   tertutup bila tidak memuat halaman aktif; toggle via caret (klik nama
+   modul tetap navigasi). Dijalankan inline agar tanpa kedip. */
+(function () {
+    const nav = document.querySelector('.sidebar .nav-section');
+    if (!nav) return;
+    const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    let store = {};
+    try { store = JSON.parse(localStorage.getItem('micNavSections') || '{}'); } catch (e) {}
+    const save = () => { try { localStorage.setItem('micNavSections', JSON.stringify(store)); } catch (e) {} };
+
+    // ── Tingkat 2: subnav modul (diproses dulu, sebelum node dipindah) ──
+    nav.querySelectorAll(':scope .subnav').forEach(sub => {
+        const parent = sub.previousElementSibling;
+        if (!parent || !parent.classList.contains('nav-link')) return;
+        const isActive = !!sub.querySelector('.nav-link.active') || parent.classList.contains('active');
+        const caret = document.createElement('i');
+        caret.className = 'bi bi-chevron-down subnav-caret' + (isActive ? '' : ' collapsed');
+        parent.appendChild(caret);
+        if (!isActive) sub.classList.add('collapsed');
+        caret.addEventListener('click', function (e) {
+            e.preventDefault(); e.stopPropagation();
+            caret.classList.toggle('collapsed', sub.classList.toggle('collapsed'));
+        });
+    });
+
+    // ── Tingkat 1: kelompokkan section per .nav-label ──
+    const labels = Array.from(nav.querySelectorAll(':scope > .nav-label'));
+    labels.forEach((label, i) => {
+        const group = document.createElement('div');
+        group.className = 'nav-group';
+        const moved = [];
+        let n = label.nextSibling;
+        while (n && !(n.nodeType === 1 && n.classList && n.classList.contains('nav-label'))) {
+            const next = n.nextSibling; moved.push(n); n = next;
+        }
+        label.after(group);
+        moved.forEach(el => group.appendChild(el));
+
+        const key = slug(label.textContent.trim()) || ('sec-' + i);
+        label.classList.add('nav-toggle');
+        label.insertAdjacentHTML('beforeend', '<i class="bi bi-chevron-down nav-caret"></i>');
+
+        // Terbuka bila: memuat halaman aktif · dipilih user · default (Event Ini kontekstual)
+        const hasActive = !!group.querySelector('.nav-link.active');
+        let open = hasActive || (key in store ? !!store[key] : key === 'event-ini');
+        if (!open) { label.classList.add('collapsed'); group.classList.add('collapsed'); }
+
+        label.addEventListener('click', function () {
+            const closed = group.classList.toggle('collapsed');
+            label.classList.toggle('collapsed', closed);
+            store[key] = closed ? 0 : 1;
+            save();
+        });
+    });
+
+    // Tak ada satupun section terbuka (mis. halaman di luar sidebar) → buka yang pertama
+    if (labels.length && !nav.querySelector('.nav-group:not(.collapsed)')) {
+        const l = labels[0];
+        l.classList.remove('collapsed');
+        if (l.nextElementSibling) l.nextElementSibling.classList.remove('collapsed');
+    }
+})();
+</script>
 
 <div class="main-content">
     <canvas id="themeCanvas" style="position:absolute;top:0;left:0;width:100%;height:220px;pointer-events:none;z-index:9;opacity:0;transition:opacity .6s"></canvas>

@@ -24,7 +24,11 @@
         <h4 class="fw-bold mb-0"><i class="bi bi-bar-chart-line me-2"></i>Summary Daily Traffic</h4>
         <small class="text-muted"><?= date('d M Y', strtotime($from)) ?> — <?= date('d M Y', strtotime($to)) ?></small>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="<?= base_url('traffic/laporan-bulanan') ?>?bulan=<?= date('Y-m', strtotime($from)) ?>"
+           target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-file-earmark-text me-1"></i>Laporan Bulanan
+        </a>
         <a href="<?= base_url('traffic/print-summary') ?>?from=<?= $from ?>&to=<?= $to ?>"
            target="_blank" class="btn btn-sm btn-outline-danger">
             <i class="bi bi-printer me-1"></i>Print / PDF

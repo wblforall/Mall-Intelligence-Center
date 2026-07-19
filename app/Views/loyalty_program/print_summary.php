@@ -423,10 +423,20 @@ $signSlot = function (?array $s) {
         Disusun oleh
         <?= $signSlot($sg['disusun'] ?? null) ?>
     </div>
+    <?php if (! empty($sg['diperiksa_sm'])): ?>
+    <div class="sign-box" style="padding-bottom:10px;flex:1.6">
+        Diperiksa oleh
+        <div style="display:flex;gap:14px">
+            <div style="flex:1"><?= $signSlot($sg['diperiksa_sm']) ?></div>
+            <div style="flex:1"><?= $signSlot($sg['diperiksa'] ?? null) ?></div>
+        </div>
+    </div>
+    <?php else: ?>
     <div class="sign-box" style="padding-bottom:10px">
         Diperiksa oleh
         <?= $signSlot($sg['diperiksa'] ?? null) ?>
     </div>
+    <?php endif; ?>
     <div class="sign-box" style="padding-bottom:10px">
         Mengetahui
         <?= $signSlot($sg['mengetahui'] ?? null) ?>

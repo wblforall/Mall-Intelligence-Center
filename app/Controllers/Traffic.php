@@ -444,6 +444,169 @@ class Traffic extends BaseController
         ]);
     }
 
+    // ── Laporan Bulanan (print, format formal — pola loyalty/sponsorship) ──
+    public function laporanBulanan()
+    {
+        if (! $this->canViewMenu('traffic')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $bulan = $this->request->getGet('bulan') ?: date('Y-m');
+        if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+        $from      = $bulan . '-01';
+        $to        = date('Y-m-t', strtotime($from));
+        $prevBulan = date('Y-m', strtotime($from . ' -1 month'));
+        $prevFrom  = $prevBulan . '-01';
+        $prevTo    = date('Y-m-t', strtotime($prevFrom));
+
+        $trafficModel = new DailyTrafficModel();
+        $vehicleModel = new DailyVehicleModel();
+
+        // ── Total & harian bulan terpilih ─────────────────────────────────
+        $totalEwalk   = $trafficModel->getPeriodTotal($from, $to, 'ewalk');
+        $totalPenta   = $trafficModel->getPeriodTotal($from, $to, 'pentacity');
+        $totalVisitor = $totalEwalk + $totalPenta;
+        $vehicles     = $vehicleModel->getPeriodTotals($from, $to);
+
+        $dailyMap    = $trafficModel->getDailyByBothMalls($from, $to);
+        $vehicleMap  = array_column($vehicleModel->getDailyTotals($from, $to), null, 'tanggal');
+
+        $days   = [];
+        $cursor = $from;
+        while ($cursor <= $to) {
+            $ew = (int) ($dailyMap[$cursor]['ewalk']     ?? 0);
+            $pt = (int) ($dailyMap[$cursor]['pentacity'] ?? 0);
+            $days[] = [
+                'tanggal'   => $cursor,
+                'date_fmt'  => date('d/m', strtotime($cursor)),
+                'dow'       => (int) date('N', strtotime($cursor)),
+                'ewalk'     => $ew,
+                'pentacity' => $pt,
+                'total'     => $ew + $pt,
+                'mobil'     => (int) ($vehicleMap[$cursor]['total_mobil'] ?? 0),
+                'motor'     => (int) ($vehicleMap[$cursor]['total_motor'] ?? 0),
+            ];
+            $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'));
+        }
+
+        $activeDays = count(array_filter(array_column($days, 'total'), fn($v) => $v > 0));
+        $avgDaily   = $activeDays > 0 ? (int) round($totalVisitor / $activeDays) : 0;
+        $bestVal    = max(array_column($days, 'total') ?: [0]);
+        $bestIdx    = $bestVal > 0 ? array_search($bestVal, array_column($days, 'total')) : null;
+        $bestDay    = $bestIdx !== null ? date('d M Y', strtotime($days[$bestIdx]['tanggal'])) : null;
+
+        // ── Pembanding bulan kalender sebelumnya ──────────────────────────
+        $prevEwalk   = $trafficModel->getPeriodTotal($prevFrom, $prevTo, 'ewalk');
+        $prevPenta   = $trafficModel->getPeriodTotal($prevFrom, $prevTo, 'pentacity');
+        $prevTotal   = $prevEwalk + $prevPenta;
+        $prevDaily   = $trafficModel->getDailyByBothMalls($prevFrom, $prevTo);
+        $prevActive  = count(array_filter($prevDaily, fn($d) => (($d['ewalk'] ?? 0) + ($d['pentacity'] ?? 0)) > 0));
+        $prevAvg     = $prevActive > 0 ? (int) round($prevTotal / $prevActive) : 0;
+        $changePct   = $prevTotal > 0 ? round(($totalVisitor - $prevTotal) / $prevTotal * 100, 1) : null;
+        $avgChangePct = $prevAvg > 0 ? round(($avgDaily - $prevAvg) / $prevAvg * 100, 1) : null;
+
+        // ── Weekday (Sen–Kam) vs Weekend (Jum–Min) ────────────────────────
+        $buckets = [
+            'wd' => ['ewalk' => 0, 'pentacity' => 0, 'total' => 0, 'days' => 0],
+            'we' => ['ewalk' => 0, 'pentacity' => 0, 'total' => 0, 'days' => 0],
+        ];
+        foreach ($days as $row) {
+            $k = $row['dow'] <= 4 ? 'wd' : 'we';
+            $buckets[$k]['ewalk']     += $row['ewalk'];
+            $buckets[$k]['pentacity'] += $row['pentacity'];
+            $buckets[$k]['total']     += $row['total'];
+            if ($row['total'] > 0) $buckets[$k]['days']++;
+        }
+        $wd = $buckets['wd'];
+        $we = $buckets['we'];
+        $wd['avg'] = $wd['days'] > 0 ? (int) round($wd['total'] / $wd['days']) : 0;
+        $we['avg'] = $we['days'] > 0 ? (int) round($we['total'] / $we['days']) : 0;
+
+        // ── Per pintu & per jam ───────────────────────────────────────────
+        $doorEwalk = $this->mergeDoors($trafficModel->getByDoor($from, $to, 'ewalk'));
+        $doorPenta = $this->mergeDoors($trafficModel->getByDoor($from, $to, 'pentacity'));
+
+        $hourEwalkMap = array_column($trafficModel->getByHour($from, $to, 'ewalk'),     'total', 'jam');
+        $hourPentaMap = array_column($trafficModel->getByHour($from, $to, 'pentacity'), 'total', 'jam');
+        $hours = [];
+        for ($h = 10; $h <= 23; $h++) {
+            $ew = (int) ($hourEwalkMap[$h] ?? 0);
+            $pt = (int) ($hourPentaMap[$h] ?? 0);
+            $hours[] = ['jam' => sprintf('%02d–%02d', $h, $h + 1), 'ewalk' => $ew, 'pentacity' => $pt, 'total' => $ew + $pt];
+        }
+        $peakVal = max(array_column($hours, 'total') ?: [0]);
+        $peakIdx = $peakVal > 0 ? array_search($peakVal, array_column($hours, 'total')) : null;
+
+        // ── Tren 6 bulan terakhir ─────────────────────────────────────────
+        $trendFrom   = date('Y-m', strtotime($from . ' -5 month'));
+        $trendMap    = $trafficModel->getMonthlyTotalsByMall($trendFrom, $bulan);
+        $trendMonths = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = date('Y-m', strtotime($from . ' -' . $i . ' month'));
+            $trendMonths[] = [
+                'bulan'     => $m,
+                'ewalk'     => (int) ($trendMap[$m]['ewalk'] ?? 0),
+                'pentacity' => (int) ($trendMap[$m]['pentacity'] ?? 0),
+            ];
+        }
+
+        // ── Traffic per event yang berlangsung bulan ini ──────────────────
+        $periodEvents  = (new EventModel())->getByPeriod($from, $to);
+        $eventTraffic  = \App\Services\EventFinanceService::getBulkTrafficTotals($periodEvents);
+        $eventVehicles = \App\Services\EventFinanceService::getBulkVehicleTotals($periodEvents);
+
+        // ── Insight otomatis (rule-based) ─────────────────────────────────
+        $fmtDelta = function (?float $pct, int $prev) : string {
+            if ($pct === null) return 'belum ada pembanding bulan lalu';
+            return ($pct >= 0 ? 'naik ' : 'turun ') . abs($pct) . '% dari bulan lalu (' . number_format($prev) . ')';
+        };
+        $insights = [];
+        $insights[] = 'Total pengunjung bulan ini ' . number_format($totalVisitor) . ' — ' . $fmtDelta($changePct, $prevTotal) . '.';
+        $insights[] = 'Rata-rata harian ' . number_format($avgDaily) . ' pengunjung' .
+            ($avgChangePct !== null ? ' (' . ($avgChangePct >= 0 ? 'naik ' : 'turun ') . abs($avgChangePct) . '% vs bulan lalu)' : '') . '.';
+        $insights[] = 'Komposisi: eWalk ' . number_format($totalEwalk) . ' (' . ($totalVisitor > 0 ? round($totalEwalk / $totalVisitor * 100) : 0) . '%) · Pentacity '
+            . number_format($totalPenta) . ' (' . ($totalVisitor > 0 ? round($totalPenta / $totalVisitor * 100) : 0) . '%).';
+        if ($bestDay)          $insights[] = 'Hari teramai: ' . $bestDay . ' (' . number_format($bestVal) . ' pengunjung).';
+        if ($peakIdx !== null) $insights[] = 'Jam puncak: ' . $hours[$peakIdx]['jam'] . ' (total ' . number_format($peakVal) . ' pengunjung sebulan).';
+        if ($we['avg'] > 0 && $wd['avg'] > 0) {
+            $insights[] = 'Rata-rata weekend (Jum–Min) ' . number_format($we['avg']) . '/hari vs weekday (Sen–Kam) ' . number_format($wd['avg'])
+                . '/hari (' . round($we['avg'] / max(1, $wd['avg']) * 100) . '%).';
+        }
+        if (! empty($periodEvents)) $insights[] = count($periodEvents) . ' event berlangsung bulan ini — rincian traffic per event di tabel bawah.';
+
+        return view('traffic/laporan_bulanan', [
+            'bulan'        => $bulan,
+            'prevBulan'    => $prevBulan,
+            'totalVisitor' => $totalVisitor,
+            'totalEwalk'   => $totalEwalk,
+            'totalPenta'   => $totalPenta,
+            'prevTotal'    => $prevTotal,
+            'prevEwalk'    => $prevEwalk,
+            'prevPenta'    => $prevPenta,
+            'changePct'    => $changePct,
+            'avgDaily'     => $avgDaily,
+            'avgChangePct' => $avgChangePct,
+            'bestDay'      => $bestDay,
+            'bestVal'      => $bestVal,
+            'peakHour'     => $peakIdx !== null ? $hours[$peakIdx]['jam'] : null,
+            'vehicles'     => $vehicles,
+            'days'         => $days,
+            'hours'        => $hours,
+            'doorEwalk'    => $doorEwalk,
+            'doorPenta'    => $doorPenta,
+            'wd'           => $wd,
+            'we'           => $we,
+            'trendMonths'  => $trendMonths,
+            'insights'     => $insights,
+            'periodEvents'  => $periodEvents,
+            'eventTraffic'  => $eventTraffic,
+            'eventVehicles' => $eventVehicles,
+            'signatories'  => \App\Libraries\ReportSignatories::resolve('traffic'),
+            'printedBy'    => $this->currentUser()['name'] ?? '',
+            'printedAt'    => date('d M Y H:i'),
+        ]);
+    }
+
     public function printCompare()
     {
         if (! $this->canViewMenu('traffic')) {
