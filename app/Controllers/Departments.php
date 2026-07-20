@@ -98,10 +98,25 @@ class Departments extends BaseController
 
     public function delete(int $id)
     {
-        // Check if any users are assigned
-        $count = (new \App\Models\UserModel())->where('department_id', $id)->countAllResults();
-        if ($count > 0) {
-            return redirect()->to('/departments')->with('error', 'Tidak bisa menghapus departemen yang masih memiliki user.');
+        $db = db_connect();
+
+        // Blokir hapus bila masih ada data yang menaut dept ini — cegah orphan
+        // (mis. kasus dept "Building Maintenance" dihapus tapi karyawan, program
+        // kerja, & riwayat posisi masih menunjuk ke id-nya). Cek field yang benar:
+        // employees.dept_id (bukan users.department_id), + work_initiatives + posisi.
+        $blockers = [
+            'karyawan'      => $db->table('employees')->where('dept_id', $id)->countAllResults(),
+            'program kerja' => $db->table('work_initiatives')->where('dept_id', $id)
+                                  ->orWhere('assigned_to_dept_id', $id)->countAllResults(),
+            'riwayat posisi'=> $db->table('employee_positions')->where('dept_id', $id)->countAllResults(),
+            'user'          => $db->table('users')->where('department_id', $id)->countAllResults(),
+        ];
+        $found = array_filter($blockers);
+        if ($found) {
+            $rincian = implode(', ', array_map(fn($k, $v) => "$v $k", array_keys($found), $found));
+            return redirect()->to('/departments')->with('error',
+                'Tidak bisa menghapus departemen — masih ditaut oleh: ' . $rincian
+                . '. Pindahkan/lepas dulu sebelum menghapus.');
         }
 
         $deptModel = new DepartmentModel();
