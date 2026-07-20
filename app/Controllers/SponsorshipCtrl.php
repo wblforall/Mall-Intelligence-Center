@@ -417,37 +417,54 @@ class SponsorshipCtrl extends BaseController
         $committedMap     = $spModel->getCommittedByPrograms($programIds);
         $allTimeRealMap   = $realModel->getTotalByPrograms($programIds);
 
-        // KPIs for selected month
-        $kpiTerkumpul  = array_sum($monthlyReal);
-        $kpiCommitted  = 0;
-        $kpiSponsor    = 0;
+        // ── Sponsor dari EVENT (ikutkan ke summary; sebelumnya hanya standalone) ──
+        $evModel   = new EventSponsorModel();
+        $evrModel  = new EventSponsorRealisasiModel();
+        $eventAggs = $evModel->getEventAggregates();
+        $eventIds  = array_column($eventAggs, 'event_id');
+        $evMonthly = $evrModel->getMonthlyByEvents($bulan, $eventIds);   // realisasi bulan ini per event
+        $evGrand   = array_sum(array_column($evrModel->getAllMonthlyTotals($eventIds), 'total_nilai'));
+        $evDeal    = 0; $evSponsorCount = 0;
+        foreach ($eventAggs as &$e) {
+            $e['deal']      = (int)$e['total_cash'] + (int)$e['total_barang'];
+            $e['realisasi'] = (int)($evMonthly[$e['event_id']] ?? 0);
+            $evDeal        += $e['deal'];
+            $evSponsorCount += (int)$e['jumlah_sponsor'];
+        }
+        unset($e);
+
+        // KPIs for selected month (standalone + event)
+        $kpiTerkumpul  = array_sum($monthlyReal) + array_sum($evMonthly);
+        $kpiCommitted  = $evDeal;
+        $kpiSponsor    = $evSponsorCount;
         foreach ($programs as $p) {
             $c = $committedMap[$p['id']] ?? [];
             $kpiCommitted += (int)($c['total_nilai']   ?? 0);
             $kpiSponsor   += (int)($c['total_sponsor'] ?? 0);
         }
+        $grandTotal = array_sum($allTimeRealMap) + $evGrand; // all-time terkumpul (standalone + event)
 
-        // All-time monthly trend
-        $allTotals = $realModel->getAllMonthlyTotals($programIds);
+        // All-time monthly trend (standalone + event, digabung per bulan)
+        $monthMap = [];
+        foreach ($realModel->getAllMonthlyTotals($programIds) as $r) { $monthMap[$r['bulan']] = (int)$r['total_nilai']; }
+        foreach ($evrModel->getAllMonthlyTotals($eventIds) as $r)    { $monthMap[$r['bulan']] = ($monthMap[$r['bulan']] ?? 0) + (int)$r['total_nilai']; }
+        ksort($monthMap);
         $currentYear = date('Y');
         $allMonthlyTotals = [];
-        foreach ($allTotals as $row) {
-            if (str_starts_with($row['bulan'], $currentYear)) {
-                $allMonthlyTotals[] = $row;
-            }
+        foreach ($monthMap as $b => $v) {
+            if (str_starts_with($b, $currentYear)) $allMonthlyTotals[] = ['bulan' => $b, 'total_nilai' => $v];
         }
 
-        // Daily chart for selected month
-        $dailyRows   = $realModel->getDailyForMonth($bulan, $programIds);
+        // Daily chart for selected month (standalone + event)
         $daysInMonth = (int)date('t', strtotime($bulan . '-01'));
         $chartDates  = [];
         $dailyNilai  = array_fill(0, $daysInMonth, 0);
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $chartDates[] = str_pad($d, 2, '0', STR_PAD_LEFT);
         }
-        foreach ($dailyRows as $row) {
+        foreach (array_merge($realModel->getDailyForMonth($bulan, $programIds), $evrModel->getDailyForMonth($bulan, $eventIds)) as $row) {
             $idx = (int)date('j', strtotime($row['tanggal'])) - 1;
-            $dailyNilai[$idx] += (int)$row['nilai'];
+            if ($idx >= 0 && $idx < $daysInMonth) $dailyNilai[$idx] += (int)$row['nilai'];
         }
 
         // Per-program sponsor breakdown
@@ -470,6 +487,8 @@ class SponsorshipCtrl extends BaseController
             'kpiTerkumpul'     => $kpiTerkumpul,
             'kpiCommitted'     => $kpiCommitted,
             'kpiSponsor'       => $kpiSponsor,
+            'grandTotal'       => $grandTotal,
+            'eventAggs'        => $eventAggs,
             'allMonthlyTotals' => $allMonthlyTotals,
             'chartDates'       => $chartDates,
             'dailyNilai'       => $dailyNilai,

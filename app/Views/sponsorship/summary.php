@@ -110,9 +110,8 @@ $bulanLabel = function(string $ym): string {
                     <div class="rounded-2 p-1 bg-success-subtle"><i class="bi bi-piggy-bank text-success fs-5"></i></div>
                     <span class="small text-muted">Total Terkumpul (All)</span>
                 </div>
-                <?php $grandTotal = array_sum($allTimeRealMap); ?>
                 <div class="fw-bold fs-5 text-success"><?= smShort($grandTotal) ?></div>
-                <div class="small text-muted">seluruh program</div>
+                <div class="small text-muted">standalone + event</div>
             </div>
         </div>
     </div>
@@ -254,6 +253,62 @@ $bulanLabel = function(string $ym): string {
         </div>
     </div>
 </div>
+
+<!-- Sponsor dari Event (support event) -->
+<?php if (! empty($eventAggs)):
+    $mallLbl = ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity', 'both' => 'eWalk & Pentacity'];
+    $evDealTot = array_sum(array_column($eventAggs, 'deal'));
+    $evRealTot = array_sum(array_column($eventAggs, 'realisasi'));
+?>
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card fade-up">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                    <h6 class="fw-semibold mb-0"><i class="bi bi-calendar-event me-2 text-info"></i>Sponsor dari Event</h6>
+                    <span class="small text-muted"><?= count($eventAggs) ?> event &middot; nilai deal dari modul Sponsorship event</span>
+                </div>
+                <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Event</th>
+                            <th>Mall</th>
+                            <th class="text-center">Sponsor</th>
+                            <th class="text-end">Nilai Deal</th>
+                            <th class="text-end">Realisasi Bulan Ini</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($eventAggs as $e): ?>
+                    <tr>
+                        <td><a href="<?= base_url('events/' . (int)$e['event_id'] . '/sponsors') ?>" class="text-decoration-none fw-semibold"><?= esc($e['event_name']) ?></a></td>
+                        <td class="small text-muted"><?= esc($mallLbl[$e['event_mall']] ?? ucfirst((string)$e['event_mall'])) ?></td>
+                        <td class="text-center"><?= (int)$e['jumlah_sponsor'] ?></td>
+                        <td class="text-end text-primary"><?= smShort((int)$e['deal']) ?>
+                            <?php if ((int)$e['total_cash'] && (int)$e['total_barang']): ?>
+                            <div class="text-muted" style="font-size:.65rem">cash <?= number_format($e['total_cash']) ?> · barang <?= number_format($e['total_barang']) ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-end <?= (int)$e['realisasi'] > 0 ? 'text-warning fw-semibold' : 'text-muted' ?>"><?= (int)$e['realisasi'] > 0 ? smShort((int)$e['realisasi']) : '—' ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                    <tfoot class="table-light fw-semibold">
+                        <tr>
+                            <td colspan="3">Total Event</td>
+                            <td class="text-end text-primary"><?= smShort($evDealTot) ?></td>
+                            <td class="text-end text-warning"><?= $evRealTot > 0 ? smShort($evRealTot) : '—' ?></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
+                <div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Nilai event sudah termasuk di KPI, grafik tren, dan realisasi harian di atas.</div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Per-program sponsor status breakdown -->
 <div class="row g-3 mb-4">
