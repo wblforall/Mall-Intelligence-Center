@@ -545,11 +545,29 @@ class LoyaltyCtrl extends BaseController
         $db->transStart();
         $pm->lock($id, $this->currentUser()['id']);
         if ($evalStatus !== null) {
+            $evalKendala     = ($post['eval_kendala'] ?? '') ?: null;
+            $evalRekomendasi = ($post['eval_rekomendasi'] ?? '') ?: null;
             $pm->update($id, [
                 'eval_status'      => $evalStatus,
-                'eval_kendala'     => ($post['eval_kendala'] ?? '') ?: null,
-                'eval_rekomendasi' => ($post['eval_rekomendasi'] ?? '') ?: null,
+                'eval_kendala'     => $evalKendala,
+                'eval_rekomendasi' => $evalRekomendasi,
             ]);
+
+            // Carry-over evaluasi penutup → analisa bulanan (bulan program berakhir)
+            // agar tak perlu ketik ulang. Hanya isi field yang MASIH kosong —
+            // jangan timpa analisa bulanan yang sudah ditulis manual.
+            $prog  = $pm->find($id);
+            $bulan = substr((string)($prog['tanggal_selesai'] ?? '') ?: date('Y-m-d'), 0, 7);
+            $am    = new LoyaltySummaryAnalysisModel();
+            $cur   = $am->where('bulan', $bulan)->where('source', 's')->where('program_id', $id)->first() ?: [];
+            $statusLabel = ['berhasil' => 'Berhasil', 'sebagian' => 'Sebagian berhasil', 'gagal' => 'Gagal'][$evalStatus] ?? $evalStatus;
+            $am->saveAnalisa(
+                $bulan, 's', $id, '',
+                $this->currentUser()['id'],
+                trim($cur['highlight']     ?? '') ?: ('Evaluasi akhir program: ' . $statusLabel),
+                trim($cur['kendala']       ?? '') ?: (string) $evalKendala,
+                trim($cur['tindak_lanjut'] ?? '') ?: (string) $evalRekomendasi
+            );
         }
         $db->transComplete();
         if (! $db->transStatus()) {
