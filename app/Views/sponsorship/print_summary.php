@@ -38,6 +38,8 @@ tbody.prog-block { break-inside: avoid; page-break-inside: avoid; }
 .kpi-label { font-size: 10px; color: #64748b; margin-bottom: 3px; }
 .kpi-num   { font-size: 15px; font-weight: 700; line-height: 1.15; padding-top: 3px; }
 .kpi-sub   { font-size: 9.5px; color: #94a3b8; margin-top: 2px; }
+.delta-up   { color: #15803d; font-weight: 700; }
+.delta-down { color: #b91c1c; font-weight: 700; }
 .kpi-deal    { border-color: #bfdbfe; background: #eff6ff; }
 .kpi-deal .kpi-num    { color: #1d4ed8; }
 .kpi-komit   { border-color: #c4b5fd; background: #f5f3ff; }
@@ -169,21 +171,31 @@ $eventAggs = array_values(array_filter($eventAggs, function ($e) use ($bulan, $e
 </div>
 
 <!-- ══ KPI ══ -->
+<?php
+// Delta vs bulan lalu (▲/▼ + %) — dipakai di beberapa kartu KPI.
+$deltaPct = function (int $now, int $prev): string {
+    if ($prev <= 0) return $now > 0 ? '<span class="delta-up">▲ baru</span> vs bln lalu' : '';
+    $pct = round(($now - $prev) / $prev * 100);
+    $cls = $pct >= 0 ? 'delta-up' : 'delta-down';
+    return '<span class="' . $cls . '">' . ($pct >= 0 ? '▲' : '▼') . ' ' . abs($pct) . '%</span> vs bln lalu';
+};
+?>
 <div class="kpi-row">
     <div class="kpi-box kpi-deal">
         <div class="kpi-label">Sponsor Deal</div>
         <div class="kpi-num" style="font-size:21px"><?= number_format($kpiSponsorDeal) ?></div>
-        <div class="kpi-sub">terkonfirmasi + lunas (semua program)</div>
+        <div class="kpi-sub"><?php $d = $kpiSponsorDeal - ($prevSponsorDeal ?? 0); ?>
+            <span class="<?= $d >= 0 ? 'delta-up' : 'delta-down' ?>"><?= $d >= 0 ? '+' : '' ?><?= $d ?></span> vs bln lalu (<?= (int)($prevSponsorDeal ?? 0) ?>)</div>
     </div>
     <div class="kpi-box kpi-komit">
         <div class="kpi-label">Nilai Komitmen Deal</div>
         <div class="kpi-num"><?= $rp($kpiKomitmen) ?></div>
-        <div class="kpi-sub">cash + barang, standalone &amp; event</div>
+        <div class="kpi-sub"><?= $deltaPct($kpiKomitmen, (int)($prevKomitmen ?? 0)) ?: 'cash + barang' ?></div>
     </div>
     <div class="kpi-box kpi-real">
         <div class="kpi-label">Penerimaan Bulan Ini</div>
         <div class="kpi-num"><?= $rp($kpiRealisasi) ?></div>
-        <div class="kpi-sub">bulan <?= $bulanLabel ?></div>
+        <div class="kpi-sub"><?= $deltaPct($kpiRealisasi, (int)($kpiRealisasiPrev ?? 0)) ?: 'bulan ' . $bulanLabel ?></div>
     </div>
     <div class="kpi-box kpi-kum">
         <div class="kpi-label">Penerimaan Kumulatif</div>
@@ -193,7 +205,7 @@ $eventAggs = array_values(array_filter($eventAggs, function ($e) use ($bulan, $e
     <div class="kpi-box">
         <div class="kpi-label">Capaian vs Target</div>
         <div class="kpi-num" style="font-size:21px"><?= $targetNilaiAktif > 0 ? $capaianPct . '%' : '—' ?></div>
-        <div class="kpi-sub"><?= $targetNilaiAktif > 0 ? 'target program aktif ' . $rp($targetNilaiAktif) : 'belum ada target nilai' ?></div>
+        <div class="kpi-sub"><?= $targetNilaiAktif > 0 ? 'target program bulan ini ' . $rp($targetNilaiAktif) : 'belum ada target nilai' ?></div>
     </div>
     <div class="kpi-box">
         <div class="kpi-label">Pipeline Berjalan</div>

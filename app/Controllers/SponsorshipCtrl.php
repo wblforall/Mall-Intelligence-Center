@@ -525,12 +525,42 @@ class SponsorshipCtrl extends BaseController
         if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
         $prevBulan = date('Y-m', strtotime($bulan . '-01 -1 month'));
 
-        // ── Standalone ────────────────────────────────────────────────────
-        $programs   = (new SponsorshipProgramModel())->getAll();
-        $programIds = array_column($programs, 'id');
-
+        // ── Model + data mentah (semua program/event, utk tren & filter) ──
         $realModel = new SponsorshipRealisasiModel();
         $spModel   = new SponsorshipSponsorModel();
+        $evModel   = new EventSponsorModel();
+        $evrModel  = new EventSponsorRealisasiModel();
+
+        $allPrograms   = (new SponsorshipProgramModel())->getAll();
+        $allProgramIds = array_column($allPrograms, 'id');
+        $allEventAggs  = $evModel->getEventAggregates();
+        $allEventIds   = array_column($allEventAggs, 'event_id');
+
+        // Program/event RELEVAN ke sebuah bulan: periode overlap bulan itu ATAU
+        // ada penerimaan bulan itu. Laporan hanya menampilkan & menghitung yang
+        // relevan ke $bulan (KPI, pipeline, insight, tabel) — bukan semua program.
+        $relProg = function (string $m) use ($allPrograms, $allProgramIds, $realModel) {
+            $ms = $m . '-01'; $me = date('Y-m-t', strtotime($ms));
+            $realM = $realModel->getMonthlyByPrograms($m, $allProgramIds);
+            return array_values(array_filter($allPrograms, function ($p) use ($ms, $me, $realM) {
+                $mulai = $p['tanggal_mulai'] ?? ''; $selesai = $p['tanggal_selesai'] ?? '';
+                if ($mulai && $mulai <= $me && (empty($selesai) || $selesai >= $ms)) return true;
+                return (int)($realM[$p['id']] ?? 0) > 0;
+            }));
+        };
+        $relEvent = function (string $m) use ($allEventAggs, $allEventIds, $evrModel) {
+            $evM = $evrModel->getMonthlyByEvents($m, $allEventIds);
+            return array_values(array_filter($allEventAggs, function ($e) use ($m, $evM) {
+                if (substr((string)($e['event_start_date'] ?? ''), 0, 7) === $m) return true;
+                return (int)($evM[$e['event_id']] ?? 0) > 0;
+            }));
+        };
+
+        // Scoped ke $bulan
+        $programs   = $relProg($bulan);
+        $programIds = array_column($programs, 'id');
+        $eventAggs  = $relEvent($bulan);
+        $eventIds   = array_column($eventAggs, 'event_id');
 
         $monthlyReal  = $realModel->getMonthlyByPrograms($bulan, $programIds);
         $prevReal     = $realModel->getMonthlyByPrograms($prevBulan, $programIds);
@@ -549,15 +579,20 @@ class SponsorshipCtrl extends BaseController
             }
         }
 
-        // ── Per-event ─────────────────────────────────────────────────────
-        $evModel   = new EventSponsorModel();
-        $evrModel  = new EventSponsorRealisasiModel();
-        $eventAggs = $evModel->getEventAggregates();
-        $eventIds  = array_column($eventAggs, 'event_id');
-
         $evMonthly = $evrModel->getMonthlyByEvents($bulan, $eventIds);
         $evPrev    = $evrModel->getMonthlyByEvents($prevBulan, $eventIds);
         $evCum     = $evrModel->getCumulativeByEvents($bulan, $eventIds);
+
+        // ── Komparasi bulan sebelumnya: program/event relevan ke prevBulan ──
+        $prevPrograms   = $relProg($prevBulan);
+        $prevProgIds    = array_column($prevPrograms, 'id');
+        $prevEvents     = $relEvent($prevBulan);
+        $prevEventIds   = array_column($prevEvents, 'event_id');
+        $prevCommitted  = $spModel->getCommittedByPrograms($prevProgIds);
+        $prevSponsorDeal = array_sum(array_column($prevCommitted, 'total_sponsor'))
+                         + array_sum(array_map(fn($e) => (int)$e['jumlah_sponsor'], $prevEvents));
+        $prevKomitmen    = array_sum(array_column($prevCommitted, 'total_nilai'))
+                         + array_sum(array_map(fn($e) => (int)$e['total_cash'] + (int)$e['total_barang'], $prevEvents));
 
         // ── KPI bulan terpilih ────────────────────────────────────────────
         $kpiSponsorDeal = array_sum(array_column($committedMap, 'total_sponsor'))
@@ -565,11 +600,15 @@ class SponsorshipCtrl extends BaseController
         $kpiKomitmen    = array_sum(array_column($committedMap, 'total_nilai'))
                         + array_sum(array_map(fn($e) => (int)$e['total_cash'] + (int)$e['total_barang'], $eventAggs));
         $kpiRealisasi     = array_sum($monthlyReal) + array_sum($evMonthly);
-        $kpiRealisasiPrev = array_sum($prevReal)    + array_sum($evPrev);
+        // Penerimaan bulan lalu = realisasi bulan lalu dari program yang relevan
+        // BULAN LALU (bukan program bulan ini di bulan lalu) → komparasi adil.
+        $kpiRealisasiPrev = array_sum($realModel->getMonthlyByPrograms($prevBulan, $prevProgIds))
+                          + array_sum($evrModel->getMonthlyByEvents($prevBulan, $prevEventIds));
         $kpiKumulatif     = array_sum($cumReal)     + array_sum($evCum);
 
-        $targetNilaiAktif = array_sum(array_map(
-            fn($p) => $p['status'] === 'active' ? (int)($p['target_nilai'] ?? 0) : 0, $programs));
+        // Target = program relevan bulan ini (bukan hanya yg berstatus active,
+        // karena program bulanan sering sudah inactive namun tetap dilaporkan).
+        $targetNilaiAktif = array_sum(array_map(fn($p) => (int)($p['target_nilai'] ?? 0), $programs));
         $capaianPct = $targetNilaiAktif > 0 ? round(array_sum($cumReal) / $targetNilaiAktif * 100, 1) : 0;
 
         // ── Program baru per mall (mulai di bulan terpilih) ───────────────
@@ -585,12 +624,12 @@ class SponsorshipCtrl extends BaseController
             $mallCounts[isset($mallCounts[$mall]) ? $mall : 'unset']++;
         }
 
-        // ── Tren 6 bulan & aktivitas harian utk grafik ────────────────────
+        // ── Tren 6 bulan (SEMUA program/event — tren lintas program) ──────
         $trendMap = [];
-        foreach ($realModel->getAllMonthlyTotals($programIds) as $r) {
+        foreach ($realModel->getAllMonthlyTotals($allProgramIds) as $r) {
             $trendMap[$r['bulan']] = ($trendMap[$r['bulan']] ?? 0) + (int)$r['total_nilai'];
         }
-        foreach ($evrModel->getAllMonthlyTotals($eventIds) as $r) {
+        foreach ($evrModel->getAllMonthlyTotals($allEventIds) as $r) {
             $trendMap[$r['bulan']] = ($trendMap[$r['bulan']] ?? 0) + (int)$r['total_nilai'];
         }
         $trendMonths = [];
@@ -630,7 +669,9 @@ class SponsorshipCtrl extends BaseController
         $outstanding = max(0, $kpiKomitmen - $kpiKumulatif);
         $insights   = [];
         $insights[] = 'Penerimaan sponsorship bulan ini ' . $fmtRp($kpiRealisasi) . ' — ' . $fmtDelta($kpiRealisasi, $kpiRealisasiPrev) . '.';
-        $insights[] = 'Komitmen deal (terkonfirmasi + lunas) ' . $fmtRp($kpiKomitmen) . ' dari ' . number_format($kpiSponsorDeal) . ' sponsor; realisasi kumulatif ' . $fmtRp($kpiKumulatif)
+        $insights[] = 'Komitmen deal (terkonfirmasi + lunas) ' . $fmtRp($kpiKomitmen) . ' dari ' . number_format($kpiSponsorDeal) . ' sponsor — ' . $fmtDelta($kpiKomitmen, $prevKomitmen)
+            . '; sponsor ' . ($kpiSponsorDeal >= $prevSponsorDeal ? '+' : '') . ($kpiSponsorDeal - $prevSponsorDeal) . ' vs bln lalu (' . $prevSponsorDeal . ').';
+        $insights[] = 'Realisasi kumulatif ' . $fmtRp($kpiKumulatif)
             . ($outstanding > 0 ? ' — sisa komitmen belum cair ' . $fmtRp($outstanding) . '.' : '.');
         if ($pipelineTotal['prospek'] + $pipelineTotal['negosiasi'] > 0) {
             $insights[] = 'Pipeline berjalan: ' . $pipelineTotal['prospek'] . ' prospek dan ' . $pipelineTotal['negosiasi'] . ' dalam negosiasi — potensi tambahan penerimaan.';
@@ -657,6 +698,9 @@ class SponsorshipCtrl extends BaseController
             'kpiKomitmen'    => $kpiKomitmen,
             'kpiRealisasi'   => $kpiRealisasi,
             'kpiKumulatif'   => $kpiKumulatif,
+            'prevSponsorDeal' => $prevSponsorDeal,
+            'prevKomitmen'    => $prevKomitmen,
+            'kpiRealisasiPrev'=> $kpiRealisasiPrev,
             'targetNilaiAktif' => $targetNilaiAktif,
             'capaianPct'     => $capaianPct,
             'mallCounts'     => $mallCounts,
