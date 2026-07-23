@@ -20,10 +20,9 @@ class SponsorshipProgramModel extends Model
     public function getAll(): array
     {
         // Urut per PERIODE program (tanggal_mulai terbaru dulu); yang tak ber-
-        // tanggal ditaruh paling akhir, lalu per nama.
-        return $this->orderBy('tanggal_mulai IS NULL', 'ASC')
-                    ->orderBy('tanggal_mulai', 'DESC')
-                    ->orderBy('nama_program', 'ASC')
+        // tanggal ditaruh paling akhir, lalu per nama. escape=false agar
+        // ekspresi "IS NULL" tidak di-backtick oleh query builder.
+        return $this->orderBy('tanggal_mulai IS NULL ASC, tanggal_mulai DESC, nama_program ASC', '', false)
                     ->findAll();
     }
 
