@@ -19,7 +19,12 @@ class SponsorshipProgramModel extends Model
 
     public function getAll(): array
     {
-        return $this->orderBy('status', 'ASC')->orderBy('nama_program', 'ASC')->findAll();
+        // Urut per PERIODE program (tanggal_mulai terbaru dulu); yang tak ber-
+        // tanggal ditaruh paling akhir, lalu per nama.
+        return $this->orderBy('tanggal_mulai IS NULL', 'ASC')
+                    ->orderBy('tanggal_mulai', 'DESC')
+                    ->orderBy('nama_program', 'ASC')
+                    ->findAll();
     }
 
     public function toggleStatus(int $id): void

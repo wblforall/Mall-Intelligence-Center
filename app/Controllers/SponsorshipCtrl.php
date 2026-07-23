@@ -398,16 +398,7 @@ class SponsorshipCtrl extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
-        $programs   = (new SponsorshipProgramModel())->getAll();
-        // Urutkan per periode program (tanggal_mulai) — bukan status/nama; tanpa
-        // tanggal ditaruh paling akhir. Terbaru di atas agar selaras dropdown bulan.
-        usort($programs, function ($a, $b) {
-            $am = $a['tanggal_mulai'] ?? ''; $bm = $b['tanggal_mulai'] ?? '';
-            if ($am === '' && $bm === '') return strcmp($a['nama_program'], $b['nama_program']);
-            if ($am === '') return 1;
-            if ($bm === '') return -1;
-            return strcmp($bm, $am); // desc: periode terbaru dulu
-        });
+        $programs   = (new SponsorshipProgramModel())->getAll(); // sudah urut per periode
         $programIds = array_column($programs, 'id');
 
         $bulan = $this->request->getGet('bulan') ?: date('Y-m');
