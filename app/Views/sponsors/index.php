@@ -193,9 +193,11 @@
     <div class="row g-2 mb-2">
         <div class="col-md-3">
             <label class="form-label small fw-semibold">Tanggal</label>
+            <?php /* Realisasi = pembayaran sponsor diterima → bisa sebelum event mulai (DP)
+                     atau setelah selesai (pelunasan). Tak dibatasi periode event; hanya
+                     tak boleh masa depan. */ ?>
             <input type="date" name="tanggal" class="form-control form-control-sm"
-                   min="<?= $event['start_date'] ?>"
-                   max="<?= date('Y-m-d', strtotime($event['start_date'] . ' +' . ($event['event_days'] - 1) . ' days')) ?>">
+                   value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>">
         </div>
         <div class="col-md-3">
             <label class="form-label small fw-semibold">Nilai Realisasi (Rp)</label>
