@@ -9,6 +9,7 @@ use App\Models\JabatanModel;
 use App\Libraries\AppraisalConfig;
 use App\Libraries\AppraisalAuthority;
 use App\Libraries\ActivityLog;
+use App\Libraries\SimpleXlsx;
 
 class AppraisalTemplate extends BaseController
 {
@@ -249,6 +250,173 @@ class AppraisalTemplate extends BaseController
 
         ActivityLog::write('update', 'appraisal_template', (string) $id, 'Aspek Kompetensi — ' . ($tpl['nama'] ?? ''));
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Aspek kompetensi disimpan.');
+    }
+
+    // ── Unduh template Excel untuk diisi sebelum import ──────────────────
+    public function downloadImportTemplate(int $id)
+    {
+        if (! $this->canManage()) return redirect()->to('/')->with('error', 'Akses ditolak.');
+        $tpl = (new AppraisalTemplateModel())->find($id);
+        if (! $tpl) return redirect()->to('appraisal/templates')->with('error', 'Template tidak ditemukan.');
+
+        $jab = (new JabatanModel())->find((int) $tpl['jabatan_id']);
+        $namaJab = $jab['nama'] ?? 'Template';
+
+        // Prefill dengan data yang sudah ada (bila sudah terisi) + 1 contoh bila kosong.
+        $kpiModel  = new AppraisalTemplateKpiModel();
+        $compModel = new AppraisalTemplateCompetencyModel();
+        $kpis  = $kpiModel->getByTemplate($id);
+        $comps = $compModel->getByTemplate($id);
+
+        $kpiRows = [['Area Kinerja', 'Indikator (KPI)', 'Unit', 'Bobot (%)', 'Target']];
+        if ($kpis) {
+            foreach ($kpis as $k) {
+                $kpiRows[] = [
+                    AppraisalConfig::areaLabel($k['area']),
+                    (string) $k['indikator'],
+                    AppraisalConfig::unitLabel($k['unit']),
+                    (float) $k['bobot'],
+                    $k['target'] !== null ? (float) $k['target'] : '',
+                ];
+            }
+        } else {
+            $kpiRows[] = ['Pencapaian Target Pekerjaan', 'Contoh: Pencapaian omzet penjualan sesuai target', '%', 40, 100];
+            $kpiRows[] = ['Program Kerja & Pelatihan', 'Contoh: Menyelesaikan program kerja tepat waktu', 'Jumlah Nilai', 30, 4];
+            $kpiRows[] = ['Metode Kerja & Program Improvisasi', 'Contoh: Menerapkan 1 inisiatif improvisasi', 'Jumlah Nilai', 20, 1];
+            $kpiRows[] = ['Pelaporan & Pertanggungjawaban Pekerjaan', 'Contoh: Laporan bulanan tepat waktu', 'Bulan', 10, 12];
+        }
+
+        $compRows = [['Nama Aspek', 'Deskripsi']];
+        if ($comps) {
+            foreach ($comps as $c) $compRows[] = [(string) $c['nama_aspek'], (string) ($c['deskripsi'] ?? '')];
+        } else {
+            foreach (AppraisalConfig::DEFAULT_KOMPETENSI as $c) $compRows[] = [$c['nama_aspek'], $c['deskripsi']];
+        }
+
+        // Sheet petunjuk: daftar nilai valid Area & Unit.
+        $petunjuk = [
+            ['PETUNJUK PENGISIAN', ''],
+            ['', ''],
+            ['1. Isi sheet "KPI" dan "Kompetensi". Jangan ubah baris judul (baris pertama).', ''],
+            ['2. Kolom "Area Kinerja" harus salah satu dari daftar berikut (tulis persis).', ''],
+            ['3. Kolom "Unit" harus salah satu dari daftar berikut (tulis persis).', ''],
+            ['4. Total "Bobot (%)" seluruh KPI sebaiknya 100 (divalidasi saat pengajuan ke HR).', ''],
+            ['5. "Target" boleh dikosongkan. Baris tanpa indikator akan dilewati.', ''],
+            ['6. Saat diimpor, isi lama pada bagian yang Anda isi di Excel akan DIGANTIKAN.', ''],
+            ['', ''],
+            ['DAFTAR AREA KINERJA VALID', ''],
+        ];
+        foreach (AppraisalConfig::AREAS as $label) $petunjuk[] = [$label, ''];
+        $petunjuk[] = ['', ''];
+        $petunjuk[] = ['DAFTAR UNIT VALID', ''];
+        foreach (AppraisalConfig::UNITS as $label) $petunjuk[] = [$label, ''];
+
+        $sheets = [
+            ['name' => 'KPI',        'rows' => $kpiRows],
+            ['name' => 'Kompetensi', 'rows' => $compRows],
+            ['name' => 'Petunjuk',   'rows' => $petunjuk],
+        ];
+        $widths = [
+            'KPI'        => [34, 60, 16, 12, 12],
+            'Kompetensi' => [40, 80],
+            'Petunjuk'   => [70, 4],
+        ];
+        $fname = 'Template Appraisal - ' . preg_replace('/[^A-Za-z0-9 _-]/', '', $namaJab) . '.xlsx';
+        SimpleXlsx::download($fname, $sheets, $widths);
+    }
+
+    // ── Import KPI & Kompetensi dari file Excel ───────────────────────────
+    public function import(int $id)
+    {
+        $tpl = $this->guardEditable($id);
+        if (! is_array($tpl)) return $tpl;
+
+        $file = $this->request->getFile('file');
+        if (! $file || ! $file->isValid()) {
+            return redirect()->to('appraisal/templates/' . $id)->with('error', 'File tidak valid: ' . ($file ? $file->getErrorString() : 'tidak ada file'));
+        }
+        if (strtolower($file->getExtension()) !== 'xlsx' && strtolower($file->getClientExtension()) !== 'xlsx') {
+            return redirect()->to('appraisal/templates/' . $id)->with('error', 'Format harus .xlsx (gunakan template yang diunduh).');
+        }
+
+        $path = $file->getTempName();
+
+        // Peta terbalik label/slug → slug (case-insensitive) untuk area & unit.
+        $areaMap = []; $unitMap = [];
+        foreach (AppraisalConfig::AREAS as $slug => $label) { $areaMap[self::norm($slug)] = $slug; $areaMap[self::norm($label)] = $slug; }
+        foreach (AppraisalConfig::UNITS as $slug => $label) { $unitMap[self::norm($slug)] = $slug; $unitMap[self::norm($label)] = $slug; }
+
+        // ── Sheet KPI (index 0) ──
+        $kpiRows = SimpleXlsx::readRows($path, 0);
+        $kpiParsed = [];
+        foreach ($kpiRows as $ri => $row) {
+            $area = trim((string) ($row[0] ?? ''));
+            $indi = trim((string) ($row[1] ?? ''));
+            // lewati header (baris berlabel "Area..."/"Indikator...")
+            if ($ri === 0 && (stripos($area, 'area') !== false || stripos($indi, 'indikator') !== false)) continue;
+            if ($indi === '') continue; // baris tanpa indikator diabaikan
+            $kpiParsed[] = [
+                'area'   => $areaMap[self::norm($area)] ?? 'pencapaian_target',
+                'indi'   => $indi,
+                'unit'   => $unitMap[self::norm(trim((string) ($row[2] ?? '')))] ?? 'persen',
+                'bobot'  => (float) preg_replace('/[^0-9.\-]/', '', (string) ($row[3] ?? '0')),
+                'target' => trim((string) ($row[4] ?? '')) === '' ? null : (float) preg_replace('/[^0-9.\-]/', '', (string) $row[4]),
+            ];
+        }
+
+        // ── Sheet Kompetensi (index 1) ──
+        $compRows = SimpleXlsx::readRows($path, 1);
+        $compParsed = [];
+        foreach ($compRows as $ri => $row) {
+            $nama = trim((string) ($row[0] ?? ''));
+            $desk = trim((string) ($row[1] ?? ''));
+            if ($ri === 0 && (stripos($nama, 'aspek') !== false || stripos($nama, 'nama') !== false)) continue;
+            if ($nama === '') continue;
+            $compParsed[] = ['nama' => $nama, 'desk' => $desk !== '' ? $desk : null];
+        }
+
+        if (! $kpiParsed && ! $compParsed) {
+            return redirect()->to('appraisal/templates/' . $id)->with('error', 'Tidak ada baris data terbaca. Pastikan sheet "KPI"/"Kompetensi" terisi.');
+        }
+
+        $db = db_connect();
+        $db->transStart();
+
+        if ($kpiParsed) {
+            $kpiModel = new AppraisalTemplateKpiModel();
+            $kpiModel->where('template_id', $id)->delete();
+            $urut = 1;
+            foreach ($kpiParsed as $r) {
+                $kpiModel->insert([
+                    'template_id' => $id, 'area' => $r['area'], 'indikator' => $r['indi'],
+                    'unit' => $r['unit'], 'bobot' => $r['bobot'], 'target' => $r['target'], 'urutan' => $urut++,
+                ]);
+            }
+        }
+        if ($compParsed) {
+            $compModel = new AppraisalTemplateCompetencyModel();
+            $compModel->where('template_id', $id)->delete();
+            $urut = 1;
+            foreach ($compParsed as $r) {
+                $compModel->insert(['template_id' => $id, 'nama_aspek' => $r['nama'], 'deskripsi' => $r['desk'], 'urutan' => $urut++]);
+            }
+        }
+
+        $db->transComplete();
+
+        $totBobot = (new AppraisalTemplateKpiModel())->totalBobot($id);
+        ActivityLog::write('update', 'appraisal_template', (string) $id, 'Import Excel — ' . ($tpl['nama'] ?? ''),
+            ['kpi' => count($kpiParsed), 'kompetensi' => count($compParsed), 'total_bobot' => $totBobot]);
+
+        $msg = 'Import berhasil: ' . count($kpiParsed) . ' KPI, ' . count($compParsed) . ' aspek kompetensi.';
+        if ($kpiParsed && abs($totBobot - 100) > 0.01) $msg .= " Perhatikan: total bobot KPI = {$totBobot} (harus 100 sebelum diajukan).";
+        return redirect()->to('appraisal/templates/' . $id)->with('success', $msg);
+    }
+
+    /** Normalisasi untuk pencocokan label/slug: lowercase, rapatkan spasi. */
+    private static function norm(string $s): string
+    {
+        return strtolower(trim(preg_replace('/\s+/', ' ', $s)));
     }
 
     // ── Submit ke HR ─────────────────────────────────────────────────────

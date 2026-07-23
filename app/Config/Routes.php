@@ -472,6 +472,8 @@ $routes->get('appraisal/templates',                    'AppraisalTemplate::index
 $routes->post('appraisal/templates/create',            'AppraisalTemplate::create',       ['filter' => 'auth']);
 $routes->post('appraisal/templates/copy',              'AppraisalTemplate::copy',         ['filter' => 'auth']);
 $routes->get('appraisal/templates/(:num)',             'AppraisalTemplate::edit/$1',      ['filter' => 'auth']);
+$routes->get('appraisal/templates/(:num)/import-template', 'AppraisalTemplate::downloadImportTemplate/$1', ['filter' => 'auth']);
+$routes->post('appraisal/templates/(:num)/import',      'AppraisalTemplate::import/$1',      ['filter' => 'auth']);
 $routes->post('appraisal/templates/(:num)/kpi/save',   'AppraisalTemplate::saveKpi/$1',    ['filter' => 'auth']);
 $routes->post('appraisal/templates/(:num)/competency/save', 'AppraisalTemplate::saveCompetency/$1', ['filter' => 'auth']);
 $routes->post('appraisal/templates/(:num)/submit',     'AppraisalTemplate::submit/$1',     ['filter' => 'auth']);

@@ -22,6 +22,26 @@ $canEdit = ! $locked && in_array($tpl['status'], ['draft']) ;
 <div class="alert alert-light border py-2 small"><i class="bi bi-lock me-1"></i>Template terkunci (status: <?= $bl ?>). <?= $tpl['status']==='submitted' ? 'Menunggu keputusan HR.' : ($isHr ? 'Klik "Kelola" lagi untuk membuka kembali sebagai draft.' : 'Hanya bisa dilihat.') ?></div>
 <?php endif; ?>
 
+<!-- ── Import Excel ────────────────────────────────────────────────── -->
+<div class="card mb-3 border-primary-subtle">
+<div class="card-body py-2">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <span class="small fw-semibold me-1"><i class="bi bi-file-earmark-excel me-1 text-success"></i>Isi via Excel:</span>
+        <a href="<?= base_url('appraisal/templates/' . $tpl['id'] . '/import-template') ?>" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-download me-1"></i>Unduh Template<?= (! empty($kpis) || ! empty($comps)) ? ' (terisi)' : '' ?>
+        </a>
+        <?php if ($canEdit): ?>
+        <form method="POST" action="<?= base_url('appraisal/templates/' . $tpl['id'] . '/import') ?>" enctype="multipart/form-data" class="d-flex align-items-center gap-2 m-0" onsubmit="return confirm('Import akan MENGGANTIKAN item KPI/kompetensi yang bagiannya terisi di file. Lanjutkan?')">
+            <?= csrf_field() ?>
+            <input type="file" name="file" accept=".xlsx" class="form-control form-control-sm" style="max-width:230px" required>
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload me-1"></i>Import</button>
+        </form>
+        <?php endif; ?>
+    </div>
+    <div class="small text-muted mt-1">Unduh template (berisi contoh + petunjuk), isi di Excel, lalu import. <?= $canEdit ? 'Bagian yang terisi akan menggantikan data yang ada.' : 'Aktif saat status draft.' ?></div>
+</div>
+</div>
+
 <!-- ── KPI ─────────────────────────────────────────────────────────── -->
 <form method="POST" action="<?= base_url('appraisal/templates/' . $tpl['id'] . '/kpi/save') ?>" id="kpiForm">
 <?= csrf_field() ?>
