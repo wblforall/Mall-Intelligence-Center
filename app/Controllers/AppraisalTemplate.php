@@ -258,6 +258,9 @@ class AppraisalTemplate extends BaseController
         if (! $this->canManage()) return redirect()->to('/')->with('error', 'Akses ditolak.');
         $tpl = (new AppraisalTemplateModel())->find($id);
         if (! $tpl) return redirect()->to('appraisal/templates')->with('error', 'Template tidak ditemukan.');
+        if (! $this->canAuthorJab((int) $tpl['jabatan_id'])) {
+            return redirect()->to('appraisal/templates')->with('error', 'Akses ditolak.');
+        }
 
         $jab = (new JabatanModel())->find((int) $tpl['jabatan_id']);
         $namaJab = $jab['nama'] ?? 'Template';
@@ -346,8 +349,9 @@ class AppraisalTemplate extends BaseController
         foreach (AppraisalConfig::AREAS as $slug => $label) { $areaMap[self::norm($slug)] = $slug; $areaMap[self::norm($label)] = $slug; }
         foreach (AppraisalConfig::UNITS as $slug => $label) { $unitMap[self::norm($slug)] = $slug; $unitMap[self::norm($label)] = $slug; }
 
-        // ── Sheet KPI (index 0) ──
-        $kpiRows = SimpleXlsx::readRows($path, 0);
+        // Baca kedua sheet dengan satu kali buka arsip.
+        $sheets  = SimpleXlsx::readSheets($path, [0, 1]);
+        $kpiRows = $sheets[0] ?? [];
         $kpiParsed = [];
         foreach ($kpiRows as $ri => $row) {
             $area = trim((string) ($row[0] ?? ''));
@@ -359,13 +363,13 @@ class AppraisalTemplate extends BaseController
                 'area'   => $areaMap[self::norm($area)] ?? 'pencapaian_target',
                 'indi'   => $indi,
                 'unit'   => $unitMap[self::norm(trim((string) ($row[2] ?? '')))] ?? 'persen',
-                'bobot'  => (float) preg_replace('/[^0-9.\-]/', '', (string) ($row[3] ?? '0')),
-                'target' => trim((string) ($row[4] ?? '')) === '' ? null : (float) preg_replace('/[^0-9.\-]/', '', (string) $row[4]),
+                'bobot'  => self::parseNum($row[3] ?? '0') ?? 0.0,
+                'target' => self::parseNum($row[4] ?? ''),
             ];
         }
 
         // ── Sheet Kompetensi (index 1) ──
-        $compRows = SimpleXlsx::readRows($path, 1);
+        $compRows = $sheets[1] ?? [];
         $compParsed = [];
         foreach ($compRows as $ri => $row) {
             $nama = trim((string) ($row[0] ?? ''));
@@ -403,6 +407,9 @@ class AppraisalTemplate extends BaseController
         }
 
         $db->transComplete();
+        if ($db->transStatus() === false) {
+            return redirect()->to('appraisal/templates/' . $id)->with('error', 'Import gagal disimpan (transaksi dibatalkan). Periksa isi file lalu coba lagi.');
+        }
 
         $totBobot = (new AppraisalTemplateKpiModel())->totalBobot($id);
         ActivityLog::write('update', 'appraisal_template', (string) $id, 'Import Excel — ' . ($tpl['nama'] ?? ''),
@@ -417,6 +424,37 @@ class AppraisalTemplate extends BaseController
     private static function norm(string $s): string
     {
         return strtolower(trim(preg_replace('/\s+/', ' ', $s)));
+    }
+
+    /**
+     * Parse angka dari sel Excel dengan toleransi format lokal (Indonesia).
+     * Angka numerik dari Excel dikembalikan apa adanya; teks "12,5" → 12.5,
+     * "1.000.000" → 1000000, "1.000,50" → 1000.5. Kosong → null.
+     */
+    private static function parseNum($v): ?float
+    {
+        if (is_int($v) || is_float($v)) return (float) $v;
+        $s = trim((string) $v);
+        if ($s === '') return null;
+        $neg = strpos(ltrim($s), '-') === 0;
+        $s = preg_replace('/[^0-9.,]/', '', $s); // sisakan digit, koma, titik
+        if ($s === '') return null;
+        $hasComma = strpos($s, ',') !== false;
+        $hasDot   = strpos($s, '.') !== false;
+        if ($hasComma && $hasDot) {
+            // Pemisah desimal = yang muncul paling akhir; sisanya pemisah ribuan.
+            if (strrpos($s, ',') > strrpos($s, '.')) {
+                $s = str_replace(['.', ','], ['', '.'], $s); // titik=ribuan, koma=desimal
+            } else {
+                $s = str_replace(',', '', $s);               // koma=ribuan, titik=desimal
+            }
+        } elseif ($hasComma) {
+            $s = str_replace(',', '.', $s);                  // hanya koma → desimal
+        } elseif (substr_count($s, '.') > 1) {
+            $s = str_replace('.', '', $s);                   // beberapa titik → ribuan
+        }
+        $n = (float) $s;
+        return $neg ? -$n : $n;
     }
 
     // ── Submit ke HR ─────────────────────────────────────────────────────

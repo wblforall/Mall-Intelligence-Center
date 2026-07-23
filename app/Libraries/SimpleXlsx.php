@@ -59,10 +59,33 @@ class SimpleXlsx
      */
     public static function readRows(string $path, int $sheetIndex = 0): array
     {
-        $zip = new \ZipArchive();
-        if ($zip->open($path) !== true) return [];
+        return self::readSheets($path, [$sheetIndex])[$sheetIndex] ?? [];
+    }
 
-        $strings   = [];
+    /**
+     * Baca beberapa sheet sekaligus dengan satu kali buka arsip (sharedStrings
+     * di-parse sekali). Kembalikan [sheetIndex => rows].
+     * @return array<int, array<int, array<int, mixed>>>
+     */
+    public static function readSheets(string $path, array $sheetIndexes): array
+    {
+        $out = array_fill_keys($sheetIndexes, []);
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) return $out;
+
+        $strings = self::sharedStrings($zip);
+        foreach ($sheetIndexes as $idx) {
+            $sheetXml = $zip->getFromName('xl/worksheets/sheet' . ($idx + 1) . '.xml');
+            $out[$idx] = $sheetXml ? self::rowsFromSheetXml($sheetXml, $strings) : [];
+        }
+        $zip->close();
+        return $out;
+    }
+
+    /** Ambil tabel shared strings dari arsip yang sudah terbuka. */
+    private static function sharedStrings(\ZipArchive $zip): array
+    {
+        $strings = [];
         $sharedXml = $zip->getFromName('xl/sharedStrings.xml');
         if ($sharedXml) {
             $sx = @simplexml_load_string($sharedXml);
@@ -71,21 +94,27 @@ class SimpleXlsx
                 else { $t = ''; foreach ($si->r ?? [] as $r) { $t .= (string) ($r->t ?? ''); } $strings[] = $t; }
             }
         }
+        return $strings;
+    }
 
-        $sheetXml = $zip->getFromName('xl/worksheets/sheet' . ($sheetIndex + 1) . '.xml');
-        $zip->close();
-        if (! $sheetXml) return [];
-
+    /** Ubah XML sheet → baris (kolom diselaraskan; baris kosong dibuang). */
+    private static function rowsFromSheetXml(string $sheetXml, array $strings): array
+    {
         $sx = @simplexml_load_string($sheetXml);
         if (! $sx) return [];
 
         $rows = [];
         foreach ($sx->sheetData->row as $row) {
             $cells = [];
+            $col = -1; // penghitung berurutan untuk sel tanpa atribut "r"
             foreach ($row->c as $c) {
-                preg_match('/^([A-Z]+)\d+$/', strtoupper((string) $c['r']), $m);
-                $col = self::colToInt($m[1] ?? 'A');
-                $t   = (string) $c['t'];
+                $ref = strtoupper((string) $c['r']);
+                if ($ref !== '' && preg_match('/^([A-Z]+)\d+$/', $ref, $m)) {
+                    $col = self::colToInt($m[1]);
+                } else {
+                    $col++;
+                }
+                $t = (string) $c['t'];
                 if ($t === 'inlineStr') {
                     $v = (string) ($c->is->t ?? '');
                 } else {
