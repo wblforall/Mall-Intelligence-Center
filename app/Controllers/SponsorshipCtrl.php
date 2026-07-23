@@ -399,6 +399,15 @@ class SponsorshipCtrl extends BaseController
         }
 
         $programs   = (new SponsorshipProgramModel())->getAll();
+        // Urutkan per periode program (tanggal_mulai) — bukan status/nama; tanpa
+        // tanggal ditaruh paling akhir. Terbaru di atas agar selaras dropdown bulan.
+        usort($programs, function ($a, $b) {
+            $am = $a['tanggal_mulai'] ?? ''; $bm = $b['tanggal_mulai'] ?? '';
+            if ($am === '' && $bm === '') return strcmp($a['nama_program'], $b['nama_program']);
+            if ($am === '') return 1;
+            if ($bm === '') return -1;
+            return strcmp($bm, $am); // desc: periode terbaru dulu
+        });
         $programIds = array_column($programs, 'id');
 
         $bulan = $this->request->getGet('bulan') ?: date('Y-m');
@@ -407,21 +416,36 @@ class SponsorshipCtrl extends BaseController
         $realModel = new SponsorshipRealisasiModel();
         $spModel   = new SponsorshipSponsorModel();
 
-        $monthRows = $realModel->getAvailableMonths($programIds);
-        $monthList = array_column($monthRows, 'bulan');
-        if (! in_array($bulan, $monthList)) $monthList[] = $bulan;
+        // ── Sponsor dari EVENT (ikutkan ke summary; sebelumnya hanya standalone) ──
+        $evModel   = new EventSponsorModel();
+        $evrModel  = new EventSponsorRealisasiModel();
+        $eventAggs = $evModel->getEventAggregates();
+        $eventIds  = array_column($eventAggs, 'event_id');
+
+        // Daftar bulan dropdown: gabungan bulan REALISASI + PERIODE program +
+        // periode event. Sebelumnya hanya dari realisasi — bila realisasi masih
+        // kosong, dropdown cuma berisi bulan berjalan sehingga bulan lain (yang
+        // programnya ada) tak bisa dipilih.
+        $monthSet = [$bulan => true];
+        foreach ($realModel->getAvailableMonths($programIds) as $r) { $monthSet[$r['bulan']] = true; }
+        foreach ($evrModel->getAllMonthlyTotals($eventIds) as $r)    { $monthSet[$r['bulan']] = true; }
+        foreach ($programs as $p) {
+            $s = substr((string)($p['tanggal_mulai'] ?? ''), 0, 7);
+            if ($s === '') continue;
+            $e = substr((string)($p['tanggal_selesai'] ?? '') ?: $s, 0, 7);
+            for ($m = $s; $m <= $e; $m = date('Y-m', strtotime($m . '-01 +1 month'))) { $monthSet[$m] = true; }
+        }
+        foreach ($eventAggs as $e) {
+            $s = substr((string)($e['event_start_date'] ?? ''), 0, 7);
+            if ($s !== '') $monthSet[$s] = true;
+        }
+        $monthList = array_keys($monthSet);
         rsort($monthList);
 
         // Per-program realisasi for selected month
         $monthlyReal      = $realModel->getMonthlyByPrograms($bulan, $programIds);
         $committedMap     = $spModel->getCommittedByPrograms($programIds);
         $allTimeRealMap   = $realModel->getTotalByPrograms($programIds);
-
-        // ── Sponsor dari EVENT (ikutkan ke summary; sebelumnya hanya standalone) ──
-        $evModel   = new EventSponsorModel();
-        $evrModel  = new EventSponsorRealisasiModel();
-        $eventAggs = $evModel->getEventAggregates();
-        $eventIds  = array_column($eventAggs, 'event_id');
         $evMonthly = $evrModel->getMonthlyByEvents($bulan, $eventIds);   // realisasi bulan ini per event
         $evGrand   = array_sum(array_column($evrModel->getAllMonthlyTotals($eventIds), 'total_nilai'));
         $evDeal    = 0; $evSponsorCount = 0;
