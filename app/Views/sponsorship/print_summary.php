@@ -71,6 +71,20 @@ tbody.prog-block { break-inside: avoid; page-break-inside: avoid; }
 .zero { color: #cbd5e1; text-align: right; }
 .subnote { font-size: 9px; color: #94a3b8; margin-top: 1px; white-space: nowrap; }
 
+/* ── Detail per program/event (laporan achievement) ── */
+.prog-detail { border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 12px; break-inside: avoid; page-break-inside: avoid; overflow: hidden; }
+.prog-head { background: #eef2f7; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+.prog-head .ph-title { font-size: 12px; font-weight: 700; color: #1e293b; }
+.prog-head .ph-badge { font-size: 8.5px; font-weight: 700; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+.prog-head .ph-meta { font-size: 9.5px; color: #475569; margin-top: 2px; }
+.prog-head .ph-meta b { color: #1e293b; }
+.detail-table { margin-bottom: 0; }
+.detail-table th { background: #475569; font-size: 9px; padding: 3px 7px; }
+.detail-table td { font-size: 10px; padding: 3px 7px; }
+.detail-foot td { background: #f1f5f9 !important; font-weight: 700; }
+.prog-analisa { font-size: 10px; color: #334155; padding: 5px 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+.st-pill { font-weight: 700; font-size: 9px; }
+
 /* pills */
 .pill {
     display: inline-block; padding: 1px 7px; border-radius: 3px;
@@ -255,134 +269,157 @@ $deltaPct = function (int $now, int $prev): string {
     </div>
 </div>
 
-<!-- ══ PROGRAM STANDALONE ══ -->
-<?php if (! empty($programs)): ?>
-<div class="sec-title">
-    <span>Program Sponsorship &nbsp;&middot;&nbsp; <?= count($programs) ?> program</span>
-    <span class="sec-sub">komitmen = deal terkonfirmasi + lunas &middot; penerimaan = realisasi pembayaran masuk</span>
-</div>
-<table class="main-table">
-<thead>
-    <tr>
-        <th style="width:23%">Nama Program</th>
-        <th style="width:6%">Status</th>
-        <th style="width:13%">Periode</th>
-        <th class="text-center" style="width:11%">Sponsor</th>
-        <th class="text-center" style="width:14%">Komitmen Deal</th>
-        <th class="text-center" style="width:14%">Penerimaan Bulan Ini</th>
-        <th class="text-center" style="width:9%">Capaian Target</th>
-    </tr>
-</thead>
-<?php foreach ($programs as $p):
-    $pid  = (int)$p['id'];
-    $com  = $committedMap[$pid] ?? [];
-    $pipe = $pipelineMap[$pid]  ?? [];
-    $now  = (int)($monthlyReal[$pid] ?? 0);
-    $prev = (int)($prevReal[$pid] ?? 0);
-    $cum  = (int)($cumReal[$pid] ?? 0);
-    $target = (int)($p['target_nilai'] ?? 0);
-    $tSponsor = (int)($p['target_sponsor'] ?? 0);
-    $dealCount = (int)($com['total_sponsor'] ?? 0);
-
-    $statusPill  = match($p['status']) { 'active' => 'pill-active', default => 'pill-inactive' };
-    $statusLabel = ['active'=>'Aktif','inactive'=>'Nonaktif'][$p['status']] ?? $p['status'];
-    if (! empty($p['locked'])) { $statusPill = 'pill-locked'; $statusLabel = 'Terkunci'; }
-
-    $pipeParts = [];
-    foreach (['prospek' => 'P', 'negosiasi' => 'N', 'terkonfirmasi' => 'K', 'lunas' => 'L', 'batal' => 'B'] as $st => $ab) {
-        if (! empty($pipe[$st])) $pipeParts[] = $ab . ':' . $pipe[$st];
-    }
-?>
-<tbody class="prog-block">
-<tr>
-    <td>
-        <strong><?= esc($p['nama_program']) ?></strong>
-        <?php if (! empty($p['mall'])): ?><div style="font-size:9.5px;color:#64748b"><?= esc($mallLabel[$p['mall']] ?? ucfirst($p['mall'])) ?></div><?php endif; ?>
-    </td>
-    <td><span class="pill <?= $statusPill ?>"><?= $statusLabel ?></span></td>
-    <td style="color:#64748b;font-size:10px"><?= $fmtPeriode($p['tanggal_mulai'] ?? null, $p['tanggal_selesai'] ?? null) ?></td>
-    <td class="<?= $dealCount ? 'num' : 'zero' ?>"><?= $dealCount ?: '—' ?><?= $tSponsor ? ' / ' . $tSponsor : '' ?>
-        <?php if ($pipeParts): ?><div class="subnote"><?= implode(' · ', $pipeParts) ?></div><?php endif; ?></td>
-    <td class="<?= ($com['total_nilai'] ?? 0) ? 'num' : 'zero' ?>"><?= $rp((int)($com['total_nilai'] ?? 0)) ?>
-        <?php if (($com['total_cash'] ?? 0) && ($com['total_barang'] ?? 0)): ?>
-        <div class="subnote">cash <?= number_format($com['total_cash']) ?> · barang <?= number_format($com['total_barang']) ?></div>
-        <?php endif; ?></td>
-    <td class="<?= $now ? 'num' : 'zero' ?>"><?= $rp($now) ?>
-        <?php if ($prev || $cum > $now): ?><div class="subnote">lalu <?= number_format($prev) ?> · kum <?= number_format($cum) ?></div><?php endif; ?></td>
-    <td class="<?= $target ? 'num' : 'zero' ?>"><?= $target ? round($cum / $target * 100) . '%' : '—' ?>
-        <?php if ($target): ?><div class="subnote">target <?= number_format($target) ?></div><?php endif; ?></td>
-</tr>
 <?php
-$analisaData  = $analisaMap[$pid] ?? [];
-$highlight    = $analisaData['highlight']     ?? '';
-$kendala      = $analisaData['kendala']       ?? '';
-$tindakLanjut = $analisaData['tindak_lanjut'] ?? '';
-$hasAnalisa   = $highlight !== '' || $kendala !== '' || $tindakLanjut !== '';
+// Warna status deal — dipakai di detail sponsor
+$stMap = [
+    'prospek'       => ['Prospek', '#64748b'],
+    'negosiasi'     => ['Negosiasi', '#b45309'],
+    'terkonfirmasi' => ['Terkonfirmasi', '#1d4ed8'],
+    'lunas'         => ['Lunas', '#15803d'],
+    'batal'         => ['Batal', '#b91c1c'],
+];
 ?>
-<tr class="analisa-row">
-    <td colspan="7" style="background:#f8fafc;font-size:10.5px;color:#334155;padding:4px 8px;border-top:none">
-        <strong style="color:#0f172a">Analisa:</strong>
-        <?php if ($hasAnalisa): ?>
-        <div style="font-size:10.5px">
-            <?php if ($highlight): ?><div><strong>Highlight:</strong> <?= esc($highlight) ?></div><?php endif; ?>
-            <?php if ($kendala): ?><div><strong>Kendala:</strong> <?= esc($kendala) ?></div><?php endif; ?>
-            <?php if ($tindakLanjut): ?><div><strong>Tindak Lanjut:</strong> <?= esc($tindakLanjut) ?></div><?php endif; ?>
+
+<!-- ══ DETAIL PROGRAM STANDALONE ══ -->
+<?php if (! empty($programs)): ?>
+<div class="sec-title"><span>Detail Program Sponsorship &middot; <?= count($programs) ?> program</span>
+    <span class="sec-sub">rincian per sponsor — pencapaian tim bulan <?= $bulanLabel ?></span></div>
+<?php foreach ($programs as $p):
+    $pid   = (int)$p['id'];
+    $com   = $committedMap[$pid] ?? [];
+    $now   = (int)($monthlyReal[$pid] ?? 0);
+    $cum   = (int)($cumReal[$pid] ?? 0);
+    $target   = (int)($p['target_nilai'] ?? 0);
+    $tSponsor = (int)($p['target_sponsor'] ?? 0);
+    $komit    = (int)($com['total_nilai'] ?? 0);
+    $spList   = $sponsorsMap[$pid] ?? [];
+    $statusLabel = ! empty($p['locked']) ? 'Terkunci' : (['active'=>'Aktif','inactive'=>'Nonaktif'][$p['status']] ?? $p['status']);
+    $badgeBg = ! empty($p['locked']) ? '#fecaca;color:#b91c1c' : ($p['status'] === 'active' ? '#bbf7d0;color:#15803d' : '#e2e8f0;color:#64748b');
+?>
+<div class="prog-detail">
+    <div class="prog-head">
+        <div class="ph-title"><?= esc($p['nama_program']) ?><span class="ph-badge" style="background:<?= $badgeBg ?>"><?= $statusLabel ?></span></div>
+        <div class="ph-meta">
+            <?php if (! empty($p['mall'])): ?><?= esc($mallLabel[$p['mall']] ?? ucfirst($p['mall'])) ?> &middot; <?php endif; ?>
+            Periode <?= $fmtPeriode($p['tanggal_mulai'] ?? null, $p['tanggal_selesai'] ?? null) ?> &middot;
+            Sponsor deal <b><?= (int)($com['total_sponsor'] ?? 0) ?><?= $tSponsor ? ' / ' . $tSponsor . ' target' : '' ?></b> &middot;
+            Komitmen <b><?= $rp($komit) ?></b> &middot;
+            Target <b><?= $target ? $rp($target) : '—' ?></b><?= $target ? ' (capaian ' . round($cum / $target * 100) . '%)' : '' ?>
         </div>
-        <?php else: ?>
-        <em style="color:#94a3b8">—</em>
-        <?php endif; ?>
-    </td>
-</tr>
-</tbody>
-<?php endforeach; ?>
-</table>
-<?php endif; ?>
-
-<!-- ══ SPONSOR EVENT ══ -->
-<?php if (! empty($eventAggs)): ?>
-<div class="sec-title">
-    <span>Sponsorship — Support Event &nbsp;&middot;&nbsp; <?= count($eventAggs) ?> event</span>
-    <span class="sec-sub">nilai deal dari modul Sponsorship event</span>
+    </div>
+    <table class="main-table detail-table">
+    <thead><tr>
+        <th style="width:4%">#</th>
+        <th style="width:30%">Nama Sponsor</th>
+        <th style="width:16%">Kategori</th>
+        <th style="width:9%">Jenis</th>
+        <th class="text-center" style="width:16%">Nilai Deal</th>
+        <th class="text-center" style="width:12%">Status Deal</th>
+        <th class="text-center" style="width:13%">Realisasi</th>
+    </tr></thead>
+    <tbody>
+    <?php if (empty($spList)): ?>
+        <tr><td colspan="7" style="text-align:center;color:#94a3b8">Belum ada sponsor terdaftar.</td></tr>
+    <?php endif; $i = 1; foreach ($spList as $s):
+        $sid = (int)$s['id'];
+        $rz  = (int)(($realBySponsor[$sid]['total_nilai']) ?? 0);
+        $st  = $stMap[$s['status_deal']] ?? [$s['status_deal'], '#64748b'];
+    ?>
+        <tr>
+            <td class="num"><?= $i++ ?></td>
+            <td><strong><?= esc($s['nama_sponsor']) ?></strong>
+                <?php if (! empty($s['catatan'])): ?><div class="subnote" style="white-space:normal"><?= esc(mb_substr($s['catatan'], 0, 60)) ?></div><?php endif; ?></td>
+            <td style="color:#64748b"><?= esc($s['kategori'] ?: '—') ?></td>
+            <td><?= $s['jenis'] === 'cash' ? 'Cash' : 'Barang' ?></td>
+            <td class="num"><?= $rp((int)$s['nilai']) ?></td>
+            <td class="text-center"><span class="st-pill" style="color:<?= $st[1] ?>"><?= $st[0] ?></span></td>
+            <td class="<?= $rz ? 'num' : 'zero' ?>"><?= $rz ? $rp($rz) : '—' ?></td>
+        </tr>
+    <?php endforeach; ?>
+    </tbody>
+    <tfoot><tr class="detail-foot">
+        <td colspan="4">Total &middot; <?= count($spList) ?> sponsor</td>
+        <td class="num"><?= $rp($komit) ?></td>
+        <td class="text-center" style="font-size:9px;color:#475569">bln ini <?= $now ? $rp($now) : '—' ?></td>
+        <td class="num"><?= $cum ? $rp($cum) : '—' ?></td>
+    </tr></tfoot>
+    </table>
+    <?php
+    $a  = $analisaMap[$pid] ?? [];
+    $hl = $a['highlight'] ?? ''; $kd = $a['kendala'] ?? ''; $tl = $a['tindak_lanjut'] ?? '';
+    ?>
+    <div class="prog-analisa">
+        <strong style="color:#0f172a">Analisa:</strong>
+        <?php if ($hl || $kd || $tl): ?>
+            <?php if ($hl): ?><div><strong>Highlight:</strong> <?= esc($hl) ?></div><?php endif; ?>
+            <?php if ($kd): ?><div><strong>Kendala:</strong> <?= esc($kd) ?></div><?php endif; ?>
+            <?php if ($tl): ?><div><strong>Tindak Lanjut:</strong> <?= esc($tl) ?></div><?php endif; ?>
+        <?php else: ?><em style="color:#94a3b8"> belum diisi</em><?php endif; ?>
+    </div>
 </div>
-<table class="main-table">
-<thead>
-    <tr>
-        <th style="width:30%">Event</th>
-        <th style="width:12%">Mall</th>
-        <th style="width:13%">Tanggal Mulai</th>
-        <th class="text-center" style="width:10%">Jml Sponsor</th>
-        <th class="text-center" style="width:17%">Nilai Deal</th>
-        <th class="text-center" style="width:18%">Penerimaan Bulan Ini</th>
-    </tr>
-</thead>
-<?php foreach ($eventAggs as $e):
-    $eid  = (int)$e['event_id'];
-    $now  = (int)($evMonthly[$eid] ?? 0);
-    $prev = (int)($evPrev[$eid] ?? 0);
-    $cum  = (int)($evCum[$eid] ?? 0);
-    $deal = (int)$e['total_cash'] + (int)$e['total_barang'];
-?>
-<tbody class="prog-block">
-<tr>
-    <td><strong><?= esc($e['event_name']) ?></strong></td>
-    <td style="color:#64748b;font-size:10px"><?= esc($mallLabel[$e['event_mall']] ?? ucfirst((string)$e['event_mall'])) ?></td>
-    <td style="color:#64748b;font-size:10px"><?= $e['event_start_date'] ? date('d M Y', strtotime($e['event_start_date'])) : '—' ?></td>
-    <td class="num"><?= (int)$e['jumlah_sponsor'] ?></td>
-    <td class="<?= $deal ? 'num' : 'zero' ?>"><?= $rp($deal) ?>
-        <?php if ((int)$e['total_cash'] && (int)$e['total_barang']): ?>
-        <div class="subnote">cash <?= number_format($e['total_cash']) ?> · barang <?= number_format($e['total_barang']) ?></div>
-        <?php endif; ?></td>
-    <td class="<?= $now ? 'num' : 'zero' ?>"><?= $rp($now) ?>
-        <?php if ($prev || $cum > $now): ?><div class="subnote">lalu <?= number_format($prev) ?> · kum <?= number_format($cum) ?></div><?php endif; ?></td>
-</tr>
-</tbody>
 <?php endforeach; ?>
-</table>
 <?php endif; ?>
 
-<div style="font-size:9.5px;color:#94a3b8;margin:-12px 0 14px">
-    Keterangan: <em>lalu</em> = penerimaan bulan sebelumnya (<?= esc($prevLabel) ?>) · <em>kum</em> = kumulatif s/d <?= $bulanLabel ?> ·
-    pipeline <em>P</em> = prospek, <em>N</em> = negosiasi, <em>K</em> = terkonfirmasi, <em>L</em> = lunas, <em>B</em> = batal.
+<!-- ══ DETAIL SPONSOR EVENT ══ -->
+<?php if (! empty($eventAggs)): ?>
+<div class="sec-title"><span>Detail Sponsorship — Support Event &middot; <?= count($eventAggs) ?> event</span>
+    <span class="sec-sub">rincian sponsor per event</span></div>
+<?php foreach ($eventAggs as $e):
+    $eid   = (int)$e['event_id'];
+    $now   = (int)($evMonthly[$eid] ?? 0);
+    $cum   = (int)($evCum[$eid] ?? 0);
+    $deal  = (int)$e['total_cash'] + (int)$e['total_barang'];
+    $spList = $eventSponsors[$eid] ?? [];
+?>
+<div class="prog-detail">
+    <div class="prog-head">
+        <div class="ph-title"><?= esc($e['event_name']) ?><span class="ph-badge" style="background:#ede9fe;color:#5b21b6">Event</span></div>
+        <div class="ph-meta">
+            <?= esc($mallLabel[$e['event_mall']] ?? ucfirst((string)$e['event_mall'])) ?> &middot;
+            Mulai <?= $e['event_start_date'] ? date('d M Y', strtotime($e['event_start_date'])) : '—' ?> &middot;
+            Sponsor <b><?= (int)$e['jumlah_sponsor'] ?></b> &middot; Nilai deal <b><?= $rp($deal) ?></b>
+        </div>
+    </div>
+    <table class="main-table detail-table">
+    <thead><tr>
+        <th style="width:4%">#</th>
+        <th style="width:34%">Nama Sponsor</th>
+        <th style="width:10%">Jenis</th>
+        <th class="text-center" style="width:8%">Qty</th>
+        <th class="text-center" style="width:20%">Nilai</th>
+        <th class="text-center" style="width:16%">Realisasi</th>
+    </tr></thead>
+    <tbody>
+    <?php if (empty($spList)): ?>
+        <tr><td colspan="6" style="text-align:center;color:#94a3b8">Belum ada sponsor terdaftar.</td></tr>
+    <?php endif; $i = 1; foreach ($spList as $s):
+        $sid = (int)$s['id'];
+        $rz  = (int)(($eventRealBySp[$eid][$sid]) ?? 0);
+    ?>
+        <tr>
+            <td class="num"><?= $i++ ?></td>
+            <td><strong><?= esc($s['nama_sponsor']) ?></strong>
+                <?php if (! empty($s['deskripsi_barang'])): ?><div class="subnote" style="white-space:normal"><?= esc(mb_substr($s['deskripsi_barang'], 0, 60)) ?></div><?php endif; ?></td>
+            <td><?= $s['jenis'] === 'cash' ? 'Cash' : 'Barang' ?></td>
+            <td class="num"><?= (int)($s['qty'] ?? 0) ?: '—' ?></td>
+            <td class="num"><?= $rp((int)$s['nilai']) ?></td>
+            <td class="<?= $rz ? 'num' : 'zero' ?>"><?= $rz ? $rp($rz) : '—' ?></td>
+        </tr>
+    <?php endforeach; ?>
+    </tbody>
+    <tfoot><tr class="detail-foot">
+        <td colspan="4">Total &middot; <?= count($spList) ?> sponsor</td>
+        <td class="num"><?= $rp($deal) ?></td>
+        <td class="num"><?= $cum ? $rp($cum) : ($now ? $rp($now) : '—') ?></td>
+    </tr></tfoot>
+    </table>
+</div>
+<?php endforeach; ?>
+<?php endif; ?>
+
+<div style="font-size:9.5px;color:#94a3b8;margin:2px 0 14px">
+    Keterangan: <em>Nilai Deal</em> = komitmen sponsor (nilai kontrak) · <em>Realisasi</em> = pembayaran yang sudah masuk (kumulatif).
+    Status: Prospek → Negosiasi → Terkonfirmasi → Lunas (Batal = gagal).
 </div>
 
 <!-- ══ TANDA TANGAN ══ -->

@@ -680,10 +680,30 @@ class SponsorshipCtrl extends BaseController
         if ($noActivity > 0) $insights[] = $noActivity . ' program aktif belum mencatat penerimaan bulan ini — perlu ditindaklanjuti.';
         if ($targetNilaiAktif > 0) $insights[] = 'Capaian kumulatif vs target program aktif: ' . $capaianPct . '% dari ' . $fmtRp($targetNilaiAktif) . '.';
 
+        // ── Detail sponsor per program standalone (laporan achievement) ──
+        $allSponsorIds = [];
+        foreach ($sponsorsMap as $rows) { foreach ($rows as $s) { $allSponsorIds[] = (int)$s['id']; } }
+        $realBySponsor = $realModel->getGroupedBySponsors($allSponsorIds); // sponsor_id => ['total_nilai'=>..]
+
+        // ── Detail sponsor per event ──
+        $eventSponsors = [];   // event_id => [event_sponsors]
+        $eventRealBySp = [];   // event_id => [sponsor_id => realisasi total]
+        foreach ($eventAggs as $e) {
+            $eid = (int) $e['event_id'];
+            $eventSponsors[$eid] = $evModel->getByEvent($eid);
+            foreach ($evrModel->getGroupedByEvent($eid) as $sid => $rows) {
+                $eventRealBySp[$eid][$sid] = array_sum(array_column($rows, 'nilai'));
+            }
+        }
+
         return view('sponsorship/print_summary', [
             'bulan'          => $bulan,
             'prevBulan'      => $prevBulan,
             'programs'       => $programs,
+            'sponsorsMap'    => $sponsorsMap,
+            'realBySponsor'  => $realBySponsor,
+            'eventSponsors'  => $eventSponsors,
+            'eventRealBySp'  => $eventRealBySp,
             'monthlyReal'    => $monthlyReal,
             'prevReal'       => $prevReal,
             'cumReal'        => $cumReal,
