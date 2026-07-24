@@ -16,6 +16,14 @@ class AppraisalConfig
         'pelaporan'         => 'Pelaporan & Pertanggungjawaban Pekerjaan',
     ];
 
+    // Label ringkas untuk dropdown (form sempit) — makna penuh tetap di AREAS
+    const AREAS_SHORT = [
+        'pencapaian_target' => 'Pencapaian Target',
+        'program_kerja'     => 'Program Kerja & Pelatihan',
+        'metode_kerja'      => 'Metode Kerja & Improvisasi',
+        'pelaporan'         => 'Pelaporan & Pertanggungjawaban',
+    ];
+
     // Unit pengukur — slug => label
     const UNITS = [
         'persen'       => '%',

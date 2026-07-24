@@ -185,6 +185,7 @@ class AppraisalTemplate extends BaseController
             'comps'       => $compModel->getByTemplate($id),
             'totalBobot'  => $kpiModel->totalBobot($id),
             'areas'       => AppraisalConfig::AREAS,
+            'areasShort'  => AppraisalConfig::AREAS_SHORT,
             'units'       => AppraisalConfig::UNITS,
             'isHr'        => $this->isHr(),
             'locked'      => $locked,

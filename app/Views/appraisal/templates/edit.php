@@ -52,10 +52,10 @@ $canEdit = ! $locked && in_array($tpl['status'], ['draft']) ;
 </div>
 <div class="card-body p-0">
 <div class="table-responsive">
-<table class="table table-sm align-middle mb-0" id="kpiTable" style="min-width:760px">
+<table class="table table-sm align-middle mb-0" id="kpiTable" style="min-width:820px">
 <thead class="small text-muted">
 <tr>
-    <th style="width:170px" class="ps-3">Area Kinerja</th>
+    <th style="width:230px" class="ps-3">Area Kinerja</th>
     <th style="min-width:280px">Indikator (KPI)</th>
     <th style="width:120px">Unit</th>
     <th style="width:80px" class="text-center">Bobot</th>
@@ -68,9 +68,9 @@ $canEdit = ! $locked && in_array($tpl['status'], ['draft']) ;
 <tr class="kpi-row">
     <td class="ps-3">
         <?php if ($canEdit): ?>
-        <select name="kpi[<?= $i ?>][area]" class="form-select form-select-sm">
+        <select name="kpi[<?= $i ?>][area]" class="form-select form-select-sm" title="<?= esc($areas[$k['area']] ?? '') ?>">
             <?php foreach ($areas as $slug => $label): ?>
-            <option value="<?= $slug ?>" <?= $k['area']===$slug?'selected':'' ?>><?= esc($label) ?></option>
+            <option value="<?= $slug ?>" title="<?= esc($label) ?>" <?= $k['area']===$slug?'selected':'' ?>><?= esc($areasShort[$slug] ?? $label) ?></option>
             <?php endforeach; ?>
         </select>
         <?php else: ?>
@@ -188,6 +188,7 @@ document.addEventListener('input', e => {
 <?php if ($canEdit): ?>
 <script>
 const areas = <?= json_encode($areas) ?>;
+const areasShort = <?= json_encode($areasShort) ?>;
 const units = <?= json_encode($units) ?>;
 let kpiIdx = <?= count($kpis) ?>, compIdx = <?= count($comps) ?>;
 
@@ -199,7 +200,7 @@ function recomputeBobot() {
     el.className = Math.abs(t - 100) < 0.01 ? 'text-success' : 'text-danger';
 }
 
-function areaOptions(sel) { return Object.entries(areas).map(([s,l]) => `<option value="${s}">${l}</option>`).join(''); }
+function areaOptions(sel) { return Object.entries(areas).map(([s,l]) => `<option value="${s}" title="${l}">${areasShort[s] || l}</option>`).join(''); }
 function unitOptions() { return Object.entries(units).map(([s,l]) => `<option value="${s}">${l}</option>`).join(''); }
 
 document.getElementById('addKpi').addEventListener('click', () => {
