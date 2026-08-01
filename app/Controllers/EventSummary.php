@@ -621,6 +621,9 @@ class EventSummary extends BaseController
         return view('summary/post_event', [
             'event'                  => $event,
             'evalUpdatedByName'      => $evalBy,
+            // Blok tanda tangan formal (laporan dibaca sampai Direksi):
+            // dept pemilik modul Events → Dept Head, Deputy/SM, GM.
+            'signatories'            => \App\Libraries\ReportSignatories::resolve('events'),
             'eventLocations'         => $eventLocations,
             'rundown'                => $rundown,
             'vmItems'                => $vmItems,

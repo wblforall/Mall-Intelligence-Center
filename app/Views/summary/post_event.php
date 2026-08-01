@@ -122,11 +122,35 @@ tr.from-content td { background: #eef4ff !important; }
 .btn-print { background: #1e3a5f; color: #fff; border: none; padding: 10px 28px; font-size: 11pt; border-radius: 5px; cursor: pointer; }
 .empty { color: #aaa; font-style: italic; padding: 10px 12px; font-size: 9pt; }
 
+/* Blok tanda tangan formal (laporan naik sampai Direksi) */
+.sign-wrap { margin-top: 30px; page-break-inside: avoid; break-inside: avoid; }
+.sign-place { text-align: right; font-size: 9.5pt; color: #444; margin-bottom: 10px; }
+.sign-row { display: flex; gap: 18px; text-align: center; }
+.sign-box { flex: 1; border: 1px solid #d5dfe8; border-radius: 4px; padding: 10px 8px 12px; font-size: 9pt; color: #1e3a5f; font-weight: 600; }
+.sign-role { font-size: 9.5pt; font-weight: 700; color: #1a1a1a; }
+
+/* Identitas laporan berulang di tiap halaman cetak (position:fixed —
+   satu-satunya cara yang bekerja di Chrome; margin-box @page tidak didukung.
+   Nomor halaman diambil dari opsi "Headers and footers" dialog cetak). */
+.print-runner { display: none; }
+
+/* Halaman cetak: ukuran & margin (ruang bawah untuk runner) */
+@page { size: A4 portrait; margin: 14mm 12mm 16mm; }
+
 @media print {
     body { font-size: 9.5pt; }
     .page { padding: 0; max-width: 100%; }
     .no-print { display: none !important; }
     .section { page-break-inside: avoid; }
+    /* Header tabel berulang di tiap halaman */
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    .sign-wrap { page-break-inside: avoid; }
+    .print-runner {
+        display: block; position: fixed; bottom: 0; left: 0; right: 0;
+        font-size: 7.5pt; color: #999; text-align: center;
+        border-top: 1px solid #ddd; padding-top: 3px; background: #fff;
+    }
     thead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .section-header, .day-header, .sub-header, .tipe-group-header, .program-name { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     tr.from-content td, tbody tr:nth-child(even) td, tfoot td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -175,8 +199,8 @@ $insightDef = [
                 <span>🏢 <strong><?= esc(implode(', ', array_column($eventLocations, 'nama'))) ?></strong></span>
                 <?php endif; ?>
                 <span>📅 <strong><?= $sameDay
-                    ? date('l, d F Y', strtotime($startDate))
-                    : date('l, d F Y', strtotime($startDate)) . ' – ' . date('l, d F Y', strtotime($endDate)) ?></strong></span>
+                    ? tgl_indo_hari($startDate)
+                    : tgl_indo_hari($startDate) . ' – ' . tgl_indo_hari($endDate) ?></strong></span>
                 <span>⏱ <strong><?= $event['event_days'] ?> hari</strong></span>
                 <?php if ($event['tema']): ?>
                 <span>🎯 <strong><?= esc($event['tema']) ?></strong></span>
@@ -264,7 +288,7 @@ $insightDef = [
         <tbody>
         <?php foreach ($perfDaily as $row): ?>
         <tr>
-            <td style="font-weight:600;color:#1e3a5f;white-space:nowrap"><?= date('D, d M Y', strtotime($row['date'])) ?></td>
+            <td style="font-weight:600;color:#1e3a5f;white-space:nowrap"><?= tgl_indo_pendek($row['date']) ?></td>
             <td style="text-align:right"><?= $row['pengunjung'] ? number_format($row['pengunjung'], 0, ',', '.') : '—' ?></td>
             <?php foreach (array_keys($vehActiveTypes) as $k): ?><td style="text-align:right"><?= $row['counts'][$k] ? number_format($row['counts'][$k], 0, ',', '.') : '—' ?></td><?php endforeach; ?>
             <td style="text-align:right;font-weight:600"><?= $row['vehTotal'] ? number_format($row['vehTotal'], 0, ',', '.') : '—' ?></td>
@@ -296,7 +320,7 @@ $insightDef = [
             $tanggalHari = $rows[0]['tanggal'] ?? null;
         ?>
         <div class="day-header">
-            Hari <?= $hariKe ?><?php if ($tanggalHari): ?> — <?= date('l, d F Y', strtotime($tanggalHari)) ?><?php endif; ?>
+            Hari <?= $hariKe ?><?php if ($tanggalHari): ?> — <?= tgl_indo_hari($tanggalHari) ?><?php endif; ?>
         </div>
         <table>
         <thead><tr>
@@ -1090,18 +1114,62 @@ $insightDef = [
         <?php if (! empty($event['eval_updated_at'])): ?>
         <div style="margin-top:14px;padding:6px 12px;font-size:8.5pt;color:#666;display:flex;justify-content:space-between">
             <span>Disusun oleh: <strong><?= esc($evalUpdatedByName ?: '—') ?></strong></span>
-            <span><?= date('d F Y, H:i', strtotime($event['eval_updated_at'])) ?></span>
+            <span><?= tgl_indo($event['eval_updated_at'], true) ?></span>
         </div>
         <?php endif; ?>
     </div>
     <?php endif; ?>
 
+    <?php
+    /* ── Blok tanda tangan formal ──
+       Laporan ini naik sampai Direksi, jadi memakai rantai penandatangan baku
+       MIC (ReportSignatories): Disusun = Dept Head dept pemilik modul Events,
+       Diperiksa = Senior Manager (bila ada) + Deputy GM, Mengetahui = GM. */
+    $sg = $signatories ?? [];
+    // Tidak ada dept pemegang can_edit menu 'events' → slot "Disusun oleh"
+    // diisi penulis Kesimpulan & Evaluasi (data yang memang sudah ada),
+    // bukan dibiarkan kosong.
+    if (empty($sg['disusun']) && ! empty($evalUpdatedByName)) {
+        $sg['disusun'] = ['nama' => $evalUpdatedByName, 'jabatan' => 'Penyusun Laporan'];
+    }
+    $signSlot = function (?array $s) {
+        if ($s) {
+            return '<div style="height:46px"></div><span class="sign-role" style="text-decoration:underline">' . esc($s['nama']) . '</span>'
+                 . '<div style="font-size:8pt;color:#64748b;margin-top:3px;font-weight:500">' . esc($s['jabatan']) . '</div>';
+        }
+        return '<div style="height:46px"></div><span class="sign-role">( ……………………………… )</span>';
+    };
+    ?>
+    <div class="sign-wrap">
+        <div class="sign-place">Balikpapan, <?= tgl_indo(date('Y-m-d')) ?></div>
+        <div class="sign-row">
+            <div class="sign-box">Disusun oleh<?= $signSlot($sg['disusun'] ?? null) ?></div>
+            <?php if (! empty($sg['diperiksa_sm'])): ?>
+            <div class="sign-box" style="flex:1.6">
+                Diperiksa oleh
+                <div style="display:flex;gap:14px">
+                    <div style="flex:1"><?= $signSlot($sg['diperiksa_sm']) ?></div>
+                    <div style="flex:1"><?= $signSlot($sg['diperiksa'] ?? null) ?></div>
+                </div>
+            </div>
+            <?php else: ?>
+            <div class="sign-box">Diperiksa oleh<?= $signSlot($sg['diperiksa'] ?? null) ?></div>
+            <?php endif; ?>
+            <div class="sign-box">Mengetahui<?= $signSlot($sg['mengetahui'] ?? null) ?></div>
+        </div>
+    </div>
+
     <div class="doc-footer">
-        <span>Dicetak: <?= date('d F Y, H:i') ?></span>
+        <span>Dicetak: <?= tgl_indo(date('Y-m-d H:i:s'), true) ?></span>
         <span>Laporan Post Event — <?= esc($event['name']) ?></span>
         <span>Mall Intelligence Center</span>
     </div>
 
+</div>
+
+<!-- Identitas berulang di tiap halaman cetak -->
+<div class="print-runner">
+    Laporan Post Event — <?= esc($event['name']) ?> · Mall Intelligence Center · dicetak <?= date('d/m/Y') ?>
 </div>
 
 <div class="no-print">
