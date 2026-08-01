@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.22.0** (Juli 2026)
+> Versi saat ini: **v2.23.0** (Agustus 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,50 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.23.0
+
+**Tanggal Rilis:** 2 Agustus 2026
+
+### Perubahan dari v2.22.0
+
+Fokus rilis ini: **MIC menjadi proaktif**. Sebelumnya banyak alur menunggu orang membukanya — komentar, pengajuan, dan peringatan bisa menggantung berhari-hari tanpa ada yang tahu. Sekarang informasi mendatangi orangnya, dan semua yang menunggu keputusan berkumpul di satu tempat.
+
+#### Lonceng Notifikasi (semua halaman)
+
+- Ikon lonceng di kanan atas dengan **jumlah notifikasi belum dibaca**, daftar 20 terbaru, dan "Tandai semua dibaca".
+- Klik notifikasi → langsung menuju item yang dimaksud.
+- Notifikasi dikelompokkan per jenis: persetujuan masuk, hasil keputusan, komentar, dan pengingat.
+
+#### Notifikasi pada Modul yang Sudah Ada
+
+- **Progress Report** (sebelumnya **tanpa notifikasi sama sekali** — paling rawan terlewat): komentar Dept Head → Deputy, balasan Deputy → Dept Head, program kerja di-flag ke GM, dan catatan GM → Deputy. Divisi tanpa Deputy: komentar otomatis naik ke GM, catatan GM turun ke Dept Head.
+- **Persetujuan masuk**: Request Media Promo (ke approver), Template & Form Appraisal (ke HR / penilai berikutnya), Pengajuan perubahan data karyawan (ke HR).
+- **Hasil keputusan kembali ke pengaju beserta alasannya**: Media Promo, Event, pengajuan data karyawan, template appraisal, dan rilis hasil penilaian ke karyawan.
+- **Pengingat terjadwal** kini juga masuk lonceng (sebelumnya hanya email/log): review PIP H-1, Progress Report belum diperbarui (Senin), dan dokumen Legal mendekati kedaluwarsa.
+
+#### Kotak Persetujuan Terpadu (menu baru)
+
+- Halaman **Kotak Persetujuan** mengumpulkan semua yang menunggu keputusan Anda dari **8 sumber**: Media Promo, Event, Appraisal (template, finalisasi HR, penilaian yang diteruskan ke Anda), Pengajuan data & dokumen karyawan, PIP, IDP, dan Review dokumen Legal.
+- Diurutkan **paling lama menunggu di atas**, dengan penanda **"Perlu segera"** untuk yang sudah ≥7 hari menggantung atau yang memang giliran Anda.
+- Ringkasan jumlah + sebaran modul, serta filter per modul.
+- Isi halaman menyesuaikan hak akses masing-masing pengguna — hanya menampilkan yang memang bisa ditindaklanjuti.
+
+#### Laporan Post Event — Format Resmi
+
+- **Blok tanda tangan** Disusun / Diperiksa / Mengetahui (Dept Head, Senior Manager & Deputy GM, GM) lengkap dengan tempat dan tanggal — sebelumnya hanya baris "Disusun oleh".
+- Ukuran halaman A4 baku, **judul tabel berulang** di tiap halaman cetak, dan identitas laporan di kaki setiap halaman.
+- **Seluruh tanggal kini berbahasa Indonesia** (sebelumnya bercampur bahasa Inggris, mis. "Saturday, 02 August 2026" → "Sabtu, 2 Agustus 2026").
+
+#### Perapian Internal
+
+- Tiga laporan bulanan (Loyalty, Sponsorship, Traffic) kini memakai komponen tampilan bersama seperti laporan Parkir — **tampilan tidak berubah sama sekali**, tetapi pemeliharaan jadi satu sumber.
+- Perbaikan dropdown **Area Kinerja** pada form template Appraisal yang teksnya terpotong.
+- Perbaikan keamanan: token formulir kini ikut diperbarui setelah interaksi notifikasi, sehingga formulir yang sedang dibuka tidak gagal terkirim.
+
+> Catatan modul Boards/Kanban: sempat dibangun pada siklus ini lalu **dibatalkan** karena alurnya tumpang tindih dengan modul yang sudah ada (Progress Report, Media Promo, Sponsorship). Dokumen desainnya disimpan sebagai arsip.
 
 ---
 

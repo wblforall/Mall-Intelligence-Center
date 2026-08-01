@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v2.22.0** (Juli 2026).
+Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v2.23.0** (Agustus 2026).
 
 Stack: CodeIgniter 4 (v4.4.x), MySQL (XAMPP), Bootstrap 5.3, Chart.js, Apache.  
 Base URL: `http://localhost/mall-intelligence-center/public/`
@@ -83,6 +83,18 @@ Item content bertipe `'program'` memicu `EventRundownModel::syncFromContentItem(
 ### Activity Log
 
 Semua operasi create/update/delete harus memanggil `ActivityLog::write()`. Log disimpan ke tabel `activity_logs` dan bersifat append-only.
+
+### Notifikasi in-app & Kotak Persetujuan
+
+Notifikasi lintas modul memakai **satu tabel `notifications`**. Kirim lewat `App\Libraries\Notify::send($userIds, $actorId, $module, $type, $title, $body, $linkType, $linkId, $url)` — pengirim otomatis dikecualikan, `insertBatch` (1 query).
+
+Penerima diresolusi lewat `App\Libraries\OrgRecipients`: `deptHead()` (grade terendah ≥5), `deputy()` (grade 3 per divisi), `gm()`, `menuEditors($menuKey)`, `withRolePerm($perm)`, `admins()`.
+
+⚠️ **Bungkus dengan `OrgRecipients::orAdmins()`** untuk notifikasi yang tak boleh hilang — `department_menu_access` tidak memuat grant `hr_main`/`legal` (akses lewat role admin), sehingga `menuEditors()` bisa mengembalikan kosong dan notifikasi lenyap tanpa jejak.
+
+⚠️ **Setiap AJAX POST wajib menyinkronkan token CSRF ke seluruh form di halaman** (`Config\Security::$regenerate = true` merotasi token tiap POST; form yang sudah ter-render jadi basi dan submit berikutnya ditolak diam-diam). Pola: kembalikan `csrf_hash()` di respons JSON, lalu tulis ulang semua `input[name=mic_csrf_token]`. Jangan pakai `navigator.sendBeacon` untuk POST ber-CSRF — responsnya tak bisa dibaca; pakai `fetch(..., {keepalive:true})`.
+
+**Kotak Persetujuan** (`/persetujuan`): `App\Libraries\ApprovalInbox::collect($ctx)` mengagregasi 8 sumber pending. Otorisasi **tidak** ditebak di library — controller menyerahkan konteks kapabilitas hasil `canEditMenu()/can()`, agar aturan akses tetap satu sumber di `BaseController`. Batas `BATAS_PER_SUMBER` per sumber.
 
 ### Laporan Bulanan (print formal)
 
