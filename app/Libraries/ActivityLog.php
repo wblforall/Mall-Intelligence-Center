@@ -9,9 +9,6 @@ class ActivityLog
 
     // Peta module key (nama tabel internal) → label ramah-baca untuk Activity Log
     public const MODULE_LABELS = [
-        'kanban_board'                  => 'Boards — Board',
-        'kanban_list'                   => 'Boards — Kolom',
-        'kanban_card'                   => 'Boards — Kartu',
         'auth'                          => 'Login / Autentikasi',
         'app_settings'                  => 'Pengaturan Aplikasi',
         'user'                          => 'User',

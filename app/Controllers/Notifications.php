@@ -6,7 +6,7 @@ use App\Models\NotificationModel;
 
 /**
  * Pusat notifikasi in-app GENERIK (lonceng navbar) — tabel `notifications`.
- * Kanban = produser pertama; modul lain memakai endpoint yang sama.
+ * Dipakai semua modul; app mobile kelak memakai endpoint setara.
  */
 class Notifications extends BaseController
 {

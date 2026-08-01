@@ -560,13 +560,6 @@ body { min-height: 100vh; }
         </a>
         <?php endif; ?>
 
-        <?php if ($navCanView('kanban')): ?>
-        <div class="nav-label">Kolaborasi</div>
-        <a href="<?= base_url('kanban') ?>" class="nav-link <?= str_starts_with(uri_string(), 'kanban') ? 'active' : '' ?>">
-            <i class="bi bi-columns-gap"></i> Boards
-        </a>
-        <?php endif; ?>
-
         <?php if (session()->get('role_perms')['can_view_logs'] ?? session()->get('role_is_admin') || session()->get('user_role') === 'admin'): ?>
         <div class="nav-label">System</div>
         <a href="<?= base_url('logs') ?>" class="nav-link <?= str_starts_with(uri_string(), 'logs') ? 'active' : '' ?>">

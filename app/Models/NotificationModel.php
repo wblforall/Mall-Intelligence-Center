@@ -6,7 +6,7 @@ use CodeIgniter\Model;
 
 /**
  * Notifikasi in-app GENERIK lintas modul (lonceng navbar).
- * Kanban = produser pertama; modul lain & app mobile memakai tabel yang sama.
+ * Semua modul menulis lewat App\Libraries\Notify::send().
  */
 class NotificationModel extends Model
 {
@@ -29,12 +29,15 @@ class NotificationModel extends Model
         return $this->where('user_id', $userId)->orderBy('id', 'DESC')->findAll($limit);
     }
 
-    /** Card id yang punya notif belum-dibaca utk user (badge merah kartu board). */
-    public function unreadCardIds(int $userId): array
+    /**
+     * ID tautan yang punya notif belum-dibaca untuk user pada satu jenis tautan
+     * — dipakai halaman modul untuk memberi badge "belum dibaca" per item.
+     */
+    public function unreadLinkIds(int $userId, string $linkType): array
     {
         $rows = $this->select('link_id')
             ->where('user_id', $userId)->where('is_read', 0)
-            ->where('link_type', 'kanban_card')
+            ->where('link_type', $linkType)
             ->findAll();
         return array_map(static fn ($r) => (int) $r['link_id'], $rows);
     }

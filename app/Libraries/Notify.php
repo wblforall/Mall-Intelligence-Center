@@ -5,9 +5,10 @@ namespace App\Libraries;
 use App\Models\NotificationModel;
 
 /**
- * Pusat notifikasi in-app (tabel `notifications`, generik lintas modul).
- * Dipakai kanban sekarang; modul lain (approval/reminder) & push mobile
- * tinggal memanggil helper yang sama.
+ * Pusat notifikasi in-app (tabel `notifications`, generik lintas modul):
+ * approval masuk, hasil approval, komentar/balasan Progress Report,
+ * pengingat cron. Semua modul memakai helper yang sama — app mobile kelak
+ * membaca sumber yang sama (MIC_MOBILE_DESIGN.md §5).
  */
 class Notify
 {

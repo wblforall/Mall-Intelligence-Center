@@ -25,7 +25,6 @@ class SectionConfig
         'parking_revenue'    => 'Parkir — Revenue',
         'legal'              => 'Legal',
         'work_report'        => 'Progress Report',
-        'kanban'             => 'Boards (Kolaborasi)',
     ];
 
     // Per-Event (Event Sub-menu)
