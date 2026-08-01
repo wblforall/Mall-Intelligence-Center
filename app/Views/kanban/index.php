@@ -7,6 +7,9 @@
         <small class="text-muted">Papan tugas kolaboratif — buat board untuk proyek, agenda, atau tugas tim apa pun.</small>
     </div>
     <div class="d-flex gap-2">
+        <a href="<?= base_url('kanban/kartu-saya') ?>" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-person-check me-1"></i>Kartu Saya
+        </a>
         <a href="<?= base_url('kanban' . ($arsip ? '' : '?arsip=1')) ?>" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-archive me-1"></i><?= $arsip ? 'Board Aktif' : 'Arsip' ?>
         </a>

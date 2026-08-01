@@ -475,11 +475,35 @@ $routes->post('kanban/lists/(:num)/rename',     'Kanban::renameList/$1',   ['fil
 $routes->post('kanban/lists/(:num)/archive',    'Kanban::archiveList/$1',  ['filter' => 'auth']);
 $routes->post('kanban/(:num)/lists/reorder',    'Kanban::reorderLists/$1', ['filter' => 'auth']);
 $routes->get('kanban/(:num)/state',             'Kanban::state/$1',     ['filter' => 'auth']);
+$routes->get('kanban/kartu-saya',               'Kanban::myCards',      ['filter' => 'auth']);
+$routes->get('kanban/(:num)/arsip',             'Kanban::arsip/$1',     ['filter' => 'auth']);
+$routes->post('kanban/(:num)/delete',           'Kanban::delete/$1',    ['filter' => 'auth']);
+$routes->post('kanban/(:num)/members/add',            'Kanban::addMember/$1',           ['filter' => 'auth']);
+$routes->post('kanban/(:num)/members/(:num)/role',    'Kanban::setMemberRole/$1/$2',    ['filter' => 'auth']);
+$routes->post('kanban/(:num)/members/(:num)/remove',  'Kanban::removeMember/$1/$2',     ['filter' => 'auth']);
+$routes->post('kanban/(:num)/labels/save',      'Kanban::saveLabels/$1', ['filter' => 'auth']);
+$routes->post('kanban/lists/(:num)/restore',    'Kanban::restoreList/$1', ['filter' => 'auth']);
 $routes->post('kanban/lists/(:num)/cards/create', 'KanbanCard::create/$1',  ['filter' => 'auth']);
 $routes->post('kanban/cards/(:num)/move',       'KanbanCard::move/$1',    ['filter' => 'auth']);
 $routes->get('kanban/cards/(:num)',             'KanbanCard::detail/$1',  ['filter' => 'auth']);
 $routes->post('kanban/cards/(:num)/update',     'KanbanCard::update/$1',  ['filter' => 'auth']);
 $routes->post('kanban/cards/(:num)/archive',    'KanbanCard::archive/$1', ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/restore',    'KanbanCard::restore/$1', ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/delete',     'KanbanCard::delete/$1',  ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/labels',     'KanbanCard::toggleLabel/$1',  ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/members',    'KanbanCard::toggleMember/$1', ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/checklists/create',  'KanbanCard::createChecklist/$1', ['filter' => 'auth']);
+$routes->post('kanban/checklists/(:num)/items/create',  'KanbanCard::createItem/$1',      ['filter' => 'auth']);
+$routes->post('kanban/checklist-items/(:num)/toggle',   'KanbanCard::toggleItem/$1',      ['filter' => 'auth']);
+$routes->post('kanban/checklist-items/(:num)/delete',   'KanbanCard::deleteItem/$1',      ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/comments/create',    'KanbanCard::addComment/$1',      ['filter' => 'auth']);
+$routes->post('kanban/comments/(:num)/delete',          'KanbanCard::deleteComment/$1',   ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/attachments/upload', 'KanbanCard::upload/$1',          ['filter' => 'auth']);
+$routes->get('kanban/attachments/(:num)/download',      'KanbanCard::download/$1',        ['filter' => 'auth']);
+$routes->post('kanban/attachments/(:num)/delete',       'KanbanCard::deleteAttachment/$1', ['filter' => 'auth']);
+// Notifikasi in-app generik (lonceng navbar, lintas modul)
+$routes->get('notifications',        'Notifications::index',    ['filter' => 'auth']);
+$routes->post('notifications/read',  'Notifications::markRead', ['filter' => 'auth']);
 
 $routes->get('appraisal',                              'Appraisal::index',                ['filter' => 'auth']);
 $routes->get('appraisal/authors',                      'Appraisal::authors',              ['filter' => 'auth']);

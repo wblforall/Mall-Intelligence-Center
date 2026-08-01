@@ -719,6 +719,29 @@ body { min-height: 100vh; }
             <?php endif; ?>
         </div>
         <div class="d-flex align-items-center gap-2">
+            <?php
+            // Lonceng notifikasi in-app (tabel notifications, lintas modul)
+            $_notifUnread = 0;
+            try {
+                $_notifUnread = (int) db_connect()->table('notifications')
+                    ->where('user_id', (int) session()->get('user_id'))->where('is_read', 0)->countAllResults();
+            } catch (\Throwable $e) { /* tabel belum ada (pre-migrate) — abaikan */ }
+            ?>
+            <div class="dropdown" id="notifBellWrap">
+                <button class="btn btn-sm btn-light position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="notifBell" aria-label="Notifikasi">
+                    <i class="bi bi-bell"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifBadge" style="font-size:.6rem; <?= $_notifUnread > 0 ? '' : 'display:none' ?>"><?= $_notifUnread ?></span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-0" style="width:330px; max-width:90vw">
+                    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom border-secondary-subtle">
+                        <span class="small fw-semibold">Notifikasi</span>
+                        <button class="btn btn-link btn-sm p-0 small" id="notifReadAll" style="font-size:.75rem">Tandai semua dibaca</button>
+                    </div>
+                    <div id="notifList" style="max-height:360px; overflow-y:auto">
+                        <div class="text-center text-muted small py-4">Memuat…</div>
+                    </div>
+                </div>
+            </div>
             <span class="badge bg-secondary d-none d-sm-inline-block"><?= ucfirst($currentRole) ?></span>
             <div class="dropdown">
                 <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown">
@@ -826,6 +849,66 @@ if (typeof Chart !== 'undefined') {
         wrapTables();
     }
     window.wrapResponsiveTables = wrapTables; // bisa dipanggil ulang setelah render tabel via JS
+})();
+</script>
+<script>
+/* ── Lonceng notifikasi in-app (lintas modul) ── */
+(function () {
+    const bell = document.getElementById('notifBell');
+    if (!bell) return;
+    const list  = document.getElementById('notifList');
+    const badge = document.getElementById('notifBadge');
+    let nCsrf   = '<?= csrf_hash() ?>';
+    const nName = '<?= csrf_token() ?>';
+    const BASE  = '<?= rtrim(base_url(), '/') ?>';
+    const escN  = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    function setBadge(n) {
+        badge.textContent = n;
+        badge.style.display = n > 0 ? '' : 'none';
+    }
+    function icon(type) {
+        return { mention: 'at', assigned: 'person-plus', comment: 'chat-left-text', due_soon: 'clock', due_over: 'exclamation-circle' }[type] || 'bell';
+    }
+    function load() {
+        fetch(BASE + '/notifications').then(r => r.json()).then(d => {
+            if (!d.success) return;
+            nCsrf = d.csrf || nCsrf;
+            setBadge(d.unread);
+            if (!d.items.length) {
+                list.innerHTML = '<div class="text-center text-muted small py-4">Tidak ada notifikasi.</div>';
+                return;
+            }
+            list.innerHTML = d.items.map(n => `
+                <a href="${n.url ? BASE + '/' + n.url : '#'}" class="dropdown-item d-flex gap-2 py-2 notif-item ${+n.is_read ? 'opacity-50' : ''}" data-id="${n.id}" style="white-space:normal">
+                    <i class="bi bi-${icon(n.type)} mt-1 flex-shrink-0"></i>
+                    <span class="small">
+                        <span class="d-block fw-semibold">${escN(n.title)}</span>
+                        ${n.body ? '<span class="d-block text-muted" style="font-size:.75rem">' + escN(n.body).substring(0, 90) + '</span>' : ''}
+                        <span class="d-block text-muted" style="font-size:.7rem">${escN((n.created_at || '').substring(0, 16))}</span>
+                    </span>
+                </a>`).join('');
+        }).catch(() => {});
+    }
+    bell.addEventListener('click', load);
+    list.addEventListener('click', e => {
+        const it = e.target.closest('.notif-item');
+        if (!it) return;
+        const fd = new FormData();
+        fd.append('id', it.dataset.id);
+        fd.append(nName, nCsrf);
+        // biarkan navigasi jalan; tandai dibaca di background
+        navigator.sendBeacon ? navigator.sendBeacon(BASE + '/notifications/read', fd)
+            : fetch(BASE + '/notifications/read', { method: 'POST', body: fd, keepalive: true });
+    });
+    document.getElementById('notifReadAll').addEventListener('click', e => {
+        e.stopPropagation();
+        const fd = new FormData();
+        fd.append('all', '1');
+        fd.append(nName, nCsrf);
+        fetch(BASE + '/notifications/read', { method: 'POST', body: fd })
+            .then(r => r.json()).then(d => { nCsrf = d.csrf || nCsrf; setBadge(0); load(); });
+    });
 })();
 </script>
 <?= $this->renderSection('scripts') ?>
