@@ -478,7 +478,8 @@ class AppraisalTemplate extends BaseController
 
         // Notifikasi ke HR
         \App\Libraries\Notify::send(
-            \App\Libraries\OrgRecipients::menuEditors('hr_main'), $this->uid(), 'appraisal', 'approval',
+            \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('hr_main')),
+            $this->uid(), 'appraisal', 'approval',
             'Template KPI menunggu persetujuan: ' . ($tpl['nama'] ?? ''),
             ($this->currentUser()['name'] ?? '') . ' mengajukan template untuk disetujui.',
             'appraisal_template', $id, 'appraisal/templates/' . $id

@@ -441,9 +441,13 @@ class WorkReportCtrl extends BaseController
         ]);
         ActivityLog::write('create', 'work_initiative', (string) $id, 'Komentar ke Deputy: ' . $item['judul']);
 
-        // Notifikasi ke Deputy GM divisi pemilik inisiatif
+        // Notifikasi ke Deputy GM divisi pemilik inisiatif.
+        // Divisi tanpa Deputy → naik ke GM (konsisten dengan aturan v2.20:
+        // program kerja divisi tanpa Deputy otomatis tampil di halaman GM).
+        $penerimaKomentar = \App\Libraries\OrgRecipients::deputy((int) $item['divisi_id'])
+            ?: \App\Libraries\OrgRecipients::gm();
         \App\Libraries\Notify::send(
-            \App\Libraries\OrgRecipients::deputy((int) $item['divisi_id']),
+            $penerimaKomentar,
             (int) session()->get('user_id'), 'work_report', 'comment',
             ($emp['nama'] ?? 'Dept Head') . ' berkomentar: ' . $item['judul'],
             mb_substr($body, 0, 200), 'work_initiative', $id, 'work-report/division#initiative-' . $id

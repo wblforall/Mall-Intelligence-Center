@@ -103,6 +103,17 @@ class OrgRecipients
             ->get()->getResultArray());
     }
 
+    /**
+     * Jaring pengaman: kembalikan $ids bila ada isinya, selain itu admin sistem.
+     * Dipakai untuk notifikasi yang TIDAK BOLEH hilang (mis. pengajuan menunggu
+     * persetujuan) — sebagian menu diakses lewat role admin, bukan grant dept,
+     * sehingga resolver bisa mengembalikan kosong.
+     */
+    public static function orAdmins(array $ids): array
+    {
+        return $ids ?: self::admins();
+    }
+
     /** Semua admin sistem aktif (fallback penerima bila hierarki tak ketemu). */
     public static function admins(): array
     {

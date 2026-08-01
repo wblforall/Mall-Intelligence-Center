@@ -309,10 +309,10 @@ class Users extends BaseController
 
         // Notifikasi ke pengelola data (HR / People Dev)
         \App\Libraries\Notify::send(
-            array_merge(
+            \App\Libraries\OrgRecipients::orAdmins(array_merge(
                 \App\Libraries\OrgRecipients::menuEditors('hr_main'),
                 \App\Libraries\OrgRecipients::menuEditors('people_dev')
-            ),
+            )),
             (int) $id, 'hr', 'approval',
             'Pengajuan perubahan data: ' . $emp['nama'],
             $created . ' field menunggu verifikasi.', 'employee_change_request', (int) $emp['id'], 'people/change-requests'

@@ -140,9 +140,12 @@ class WorkReportGmCtrl extends BaseController
             'created_at'    => date('Y-m-d H:i:s'),
         ]);
 
-        // Notifikasi catatan GM ke Deputy divisi pemilik program kerja
+        // Notifikasi catatan GM ke Deputy divisi; bila divisi tak punya Deputy,
+        // catatan diteruskan ke Dept Head pemilik program kerja agar tak hilang.
+        $penerimaCatatan = \App\Libraries\OrgRecipients::deputy((int) $item['divisi_id'])
+            ?: \App\Libraries\OrgRecipients::deptHead((int) $item['dept_id']);
         \App\Libraries\Notify::send(
-            \App\Libraries\OrgRecipients::deputy((int) $item['divisi_id']),
+            $penerimaCatatan,
             (int) session()->get('user_id'), 'work_report', 'comment',
             'Catatan GM: ' . $item['judul'],
             mb_substr($body, 0, 200), 'work_initiative', $id, 'work-report/division#initiative-' . $id

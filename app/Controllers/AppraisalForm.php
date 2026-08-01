@@ -228,7 +228,7 @@ class AppraisalForm extends BaseController
         // Notifikasi ke penilai berikutnya (atau HR bila rantai sudah habis)
         $penerima = $next
             ? [(int) $next['user_id']]
-            : \App\Libraries\OrgRecipients::menuEditors('hr_main');
+            : \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('hr_main'));
         \App\Libraries\Notify::send(
             $penerima, $this->uid(), 'appraisal', 'approval',
             'Penilaian menunggu Anda: ' . $this->empName((int) $form['employee_id']),
