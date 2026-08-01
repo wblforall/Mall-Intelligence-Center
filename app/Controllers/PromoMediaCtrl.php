@@ -257,6 +257,14 @@ class PromoMediaCtrl extends BaseController
         ActivityLog::captureBefore(['status' => $usage['status']]);
         ActivityLog::captureAfter(['status' => 'approved', 'catatan_approver' => $catatan ?: '—']);
         ActivityLog::write('update', 'promo_media_usage', (string)$id, "Approve: {$usage['nama_materi']}");
+
+        // Notifikasi hasil ke pengaju
+        \App\Libraries\Notify::send(
+            [(int) $usage['created_by']], (int) $userId, 'promo_media', 'result',
+            'Request media disetujui: ' . $usage['nama_materi'],
+            $catatan ?: null, 'promo_media_usage', $id, 'creative/media-promo/my'
+        );
+
         return redirect()->to('/creative/media-promo/pending')->with('success', 'Request disetujui.');
     }
 
@@ -285,6 +293,14 @@ class PromoMediaCtrl extends BaseController
         ActivityLog::captureBefore(['status' => $usage['status']]);
         ActivityLog::captureAfter(['status' => 'rejected', 'rejection_reason' => $reason]);
         ActivityLog::write('update', 'promo_media_usage', (string)$id, "Reject: {$usage['nama_materi']}");
+
+        // Notifikasi hasil + alasan ke pengaju
+        \App\Libraries\Notify::send(
+            [(int) $usage['created_by']], (int) $this->currentUser()['id'], 'promo_media', 'result',
+            'Request media ditolak: ' . $usage['nama_materi'],
+            'Alasan: ' . $reason, 'promo_media_usage', $id, 'creative/media-promo/my'
+        );
+
         return redirect()->to('/creative/media-promo/pending')->with('success', 'Request ditolak.');
     }
 

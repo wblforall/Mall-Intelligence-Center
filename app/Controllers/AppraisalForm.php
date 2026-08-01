@@ -224,6 +224,18 @@ class AppraisalForm extends BaseController
             $msg = 'Diteruskan ke HR untuk pengecekan akhir.';
         }
         ActivityLog::write('update', 'appraisal_form', (string) $id, 'Teruskan penilaian — ' . $this->empName((int) $form['employee_id']), ['ke' => $next['nama'] ?? 'HR']);
+
+        // Notifikasi ke penilai berikutnya (atau HR bila rantai sudah habis)
+        $penerima = $next
+            ? [(int) $next['user_id']]
+            : \App\Libraries\OrgRecipients::menuEditors('hr_main');
+        \App\Libraries\Notify::send(
+            $penerima, $this->uid(), 'appraisal', 'approval',
+            'Penilaian menunggu Anda: ' . $this->empName((int) $form['employee_id']),
+            $next ? 'Diteruskan untuk penilaian berjenjang.' : 'Menunggu pengecekan akhir HR.',
+            'appraisal_form', $id, 'appraisal/forms/' . $id
+        );
+
         return redirect()->to('appraisal/saya')->with('success', $msg);
     }
 
@@ -264,6 +276,18 @@ class AppraisalForm extends BaseController
             'released_by' => $isRelease ? $this->uid() : null,
         ]);
         ActivityLog::write('update', 'appraisal_form', (string) $id, ($isRelease ? 'Rilis hasil — ' : 'Batal rilis — ') . $this->empName((int) $form['employee_id']));
+
+        // Notifikasi ke karyawan saat hasil penilaiannya dirilis
+        if ($isRelease) {
+            $empUser = db_connect()->table('employees')->select('user_id')
+                ->where('id', (int) $form['employee_id'])->get()->getRowArray();
+            \App\Libraries\Notify::send(
+                [(int) ($empUser['user_id'] ?? 0)], $this->uid(), 'appraisal', 'result',
+                'Hasil penilaian Anda sudah dirilis',
+                'Lihat rincian di Profil Saya → Riwayat Penilaian.', 'appraisal_form', $id, 'profile'
+            );
+        }
+
         return redirect()->to('appraisal/forms/' . $id)->with('success', $isRelease ? 'Hasil dirilis — karyawan kini bisa melihatnya di Profil Saya.' : 'Rilis dibatalkan.');
     }
 

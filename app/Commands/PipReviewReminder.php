@@ -22,7 +22,7 @@ class PipReviewReminder extends BaseCommand
         $plans = $db->table('pip_plans p')
             ->select('p.*, e.nama as employee_nama, e.jabatan,
                       a.nama as atasan_nama, a.jabatan as atasan_jabatan,
-                      a.no_hp as atasan_no_hp, a.email as atasan_email,
+                      a.no_hp as atasan_no_hp, a.email as atasan_email, a.user_id as atasan_user_id,
                       (SELECT MAX(tanggal_review) FROM pip_reviews WHERE pip_id = p.id) as last_review_date')
             ->join('employees e', 'e.id = p.employee_id', 'left')
             ->join('employees a', 'a.id = e.atasan_id', 'left')
@@ -33,6 +33,17 @@ class PipReviewReminder extends BaseCommand
         foreach ($plans as $plan) {
             $nextDate = PipPlanModel::nextReviewDate($plan);
             if ($nextDate !== $tomorrow) continue;
+
+            // Notifikasi in-app (lonceng) — berjalan meski atasan tak punya email
+            if (! empty($plan['atasan_user_id'])) {
+                \App\Libraries\Notify::send(
+                    [(int) $plan['atasan_user_id']], 0, 'pip', 'reminder',
+                    'Review PIP besok: ' . $plan['employee_nama'],
+                    'Jadwal review ' . $nextDate . '. Segera lakukan review.',
+                    'pip_plan', (int) $plan['id'], 'people/pip/' . $plan['id']
+                );
+            }
+
             if (empty($plan['atasan_email'])) continue;
 
             $body = EmailNotifier::pipReviewReminder($plan, $nextDate);

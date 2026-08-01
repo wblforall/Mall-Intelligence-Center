@@ -358,6 +358,13 @@ class PeopleEmployees extends BaseController
 
         $model->update($id, ['status' => 'approved', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s')]);
         ActivityLog::write('update', 'employee', (string) $req['employee_id'], $emp['nama'], ['field' => $req['field'], 'dari' => $req['value_old'], 'jadi' => $req['value_new'], 'via' => 'pengajuan_karyawan']);
+
+        // Notifikasi hasil ke karyawan pengaju
+        \App\Libraries\Notify::send(
+            [(int) $req['requested_by']], (int) session()->get('user_id'), 'hr', 'result',
+            'Pengajuan data disetujui: ' . $req['label'], null, 'employee_change_request', $id, 'profile'
+        );
+
         return redirect()->to('/people/change-requests')->with('success', 'Pengajuan disetujui & data diperbarui.');
     }
 
@@ -379,6 +386,13 @@ class PeopleEmployees extends BaseController
 
         $model->update($id, ['status' => 'rejected', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s'), 'catatan' => $catatan]);
         ActivityLog::write('update', 'employee_change_request', (string) $id, $req['label'], ['status' => 'rejected']);
+
+        // Notifikasi hasil + alasan ke karyawan pengaju
+        \App\Libraries\Notify::send(
+            [(int) $req['requested_by']], (int) session()->get('user_id'), 'hr', 'result',
+            'Pengajuan data ditolak: ' . $req['label'], 'Alasan: ' . $catatan, 'employee_change_request', $id, 'profile'
+        );
+
         return redirect()->to('/people/change-requests')->with('success', 'Pengajuan ditolak.');
     }
 

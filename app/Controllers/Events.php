@@ -257,6 +257,13 @@ class Events extends BaseController
         ]);
 
         ActivityLog::write('approve', 'event', (string)$id, $event['name']);
+
+        // Notifikasi hasil ke pembuat event
+        \App\Libraries\Notify::send(
+            [(int) ($event['created_by'] ?? 0)], (int) $this->currentUser()['id'], 'event', 'result',
+            'Event disetujui: ' . $event['name'], null, 'event', $id, 'events/' . $id . '/summary'
+        );
+
         return redirect()->to('/events')->with('success', 'Event "' . $event['name'] . '" telah disetujui.');
     }
 
@@ -281,6 +288,13 @@ class Events extends BaseController
         ]);
 
         ActivityLog::write('reject', 'event', (string)$id, $event['name'], ['reason' => $reason]);
+
+        // Notifikasi hasil + alasan ke pembuat event
+        \App\Libraries\Notify::send(
+            [(int) ($event['created_by'] ?? 0)], (int) $this->currentUser()['id'], 'event', 'result',
+            'Event ditolak: ' . $event['name'], 'Alasan: ' . $reason, 'event', $id, 'events'
+        );
+
         return redirect()->to('/events')->with('success', 'Event "' . $event['name'] . '" ditolak.');
     }
 }

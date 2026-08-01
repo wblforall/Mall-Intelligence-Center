@@ -259,6 +259,16 @@ class WorkReportDeputyCtrl extends BaseController
         ActivityLog::write('update', 'work_initiative', (string) $id,
             ($flagged ? 'Flag ke GM: ' : 'Unflag dari GM: ') . $item['judul']);
 
+        // Notifikasi ke GM saat program kerja dinaikkan ke radar beliau
+        if ($flagged) {
+            \App\Libraries\Notify::send(
+                \App\Libraries\OrgRecipients::gm(), (int) $uid, 'work_report', 'flag',
+                'Program kerja diangkat ke Anda: ' . $item['judul'],
+                ($emp['nama'] ?? 'Deputy') . ' menandai program ini untuk perhatian GM.',
+                'work_initiative', $id, 'work-report/gm#initiative-' . $id
+            );
+        }
+
         return redirect()->to('/work-report/division')->with('success',
             $flagged ? 'Inisiatif ditampilkan di halaman GM.' : 'Inisiatif disembunyikan dari GM.');
     }
@@ -288,6 +298,14 @@ class WorkReportDeputyCtrl extends BaseController
             'created_at'    => date('Y-m-d H:i:s'),
         ]);
 
+        // Notifikasi balik ke Dept Head pemilik program kerja
+        \App\Libraries\Notify::send(
+            \App\Libraries\OrgRecipients::deptHead((int) $item['dept_id']),
+            (int) session()->get('user_id'), 'work_report', 'comment',
+            ($emp['nama'] ?? 'Deputy') . ' membalas: ' . $item['judul'],
+            mb_substr($body, 0, 200), 'work_initiative', $id, 'work-report/' . $id . '/detail#komentar'
+        );
+
         return redirect()->to('/work-report/division#initiative-' . $id)->with('success', 'Komentar dikirim.');
     }
 
@@ -316,6 +334,13 @@ class WorkReportDeputyCtrl extends BaseController
             'visibility'    => 'gm_deputy',
             'created_at'    => date('Y-m-d H:i:s'),
         ]);
+
+        // Notifikasi balasan Deputy ke GM
+        \App\Libraries\Notify::send(
+            \App\Libraries\OrgRecipients::gm(), (int) session()->get('user_id'), 'work_report', 'comment',
+            ($emp['nama'] ?? 'Deputy') . ' membalas catatan Anda: ' . $item['judul'],
+            mb_substr($body, 0, 200), 'work_initiative', $id, 'work-report/gm#initiative-' . $id
+        );
 
         return redirect()->to('/work-report/division#initiative-' . $id)->with('success', 'Balasan dikirim ke GM.');
     }

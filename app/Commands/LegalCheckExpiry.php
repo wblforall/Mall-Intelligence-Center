@@ -114,5 +114,14 @@ class LegalCheckExpiry extends BaseCommand
             $targetId,
             "[{$level}] {$label} — berakhir dalam {$daysLeft} hari"
         );
+
+        // Notifikasi in-app ke tim Legal (sebelumnya hanya tercatat di log)
+        \App\Libraries\Notify::send(
+            \App\Libraries\OrgRecipients::menuEditors('legal'), 0, 'legal',
+            $daysLeft <= 7 ? 'expiry_critical' : 'expiry_warning',
+            "[{$level}] {$label}",
+            "Berakhir dalam {$daysLeft} hari.",
+            $module, $targetId, 'legal'
+        );
     }
 }

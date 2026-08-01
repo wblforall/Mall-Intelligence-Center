@@ -306,6 +306,18 @@ class Users extends BaseController
 
         if ($created === 0) return redirect()->to('/profile')->with('error', 'Tidak ada perubahan untuk diajukan (atau sudah ada pengajuan pending yang sama).');
         ActivityLog::write('create', 'employee_change_request', (string) $emp['id'], $emp['nama'], ['jumlah_field' => $created]);
+
+        // Notifikasi ke pengelola data (HR / People Dev)
+        \App\Libraries\Notify::send(
+            array_merge(
+                \App\Libraries\OrgRecipients::menuEditors('hr_main'),
+                \App\Libraries\OrgRecipients::menuEditors('people_dev')
+            ),
+            (int) $id, 'hr', 'approval',
+            'Pengajuan perubahan data: ' . $emp['nama'],
+            $created . ' field menunggu verifikasi.', 'employee_change_request', (int) $emp['id'], 'people/change-requests'
+        );
+
         return redirect()->to('/profile')->with('success', "$created pengajuan perubahan dikirim. Menunggu persetujuan HR.");
     }
 

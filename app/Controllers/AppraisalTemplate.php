@@ -475,6 +475,15 @@ class AppraisalTemplate extends BaseController
 
         (new AppraisalTemplateModel())->update($id, ['status' => 'submitted', 'submitted_at' => date('Y-m-d H:i:s')]);
         ActivityLog::write('update', 'appraisal_template', (string) $id, 'Submit ke HR — ' . ($tpl['nama'] ?? ''));
+
+        // Notifikasi ke HR
+        \App\Libraries\Notify::send(
+            \App\Libraries\OrgRecipients::menuEditors('hr_main'), $this->uid(), 'appraisal', 'approval',
+            'Template KPI menunggu persetujuan: ' . ($tpl['nama'] ?? ''),
+            ($this->currentUser()['name'] ?? '') . ' mengajukan template untuk disetujui.',
+            'appraisal_template', $id, 'appraisal/templates/' . $id
+        );
+
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Template diajukan ke HR untuk persetujuan.');
     }
 
@@ -491,6 +500,14 @@ class AppraisalTemplate extends BaseController
 
         $m->update($id, ['status' => 'approved', 'approved_by' => $this->currentUser()['id'], 'approved_at' => date('Y-m-d H:i:s'), 'catatan_hr' => null]);
         ActivityLog::write('update', 'appraisal_template', (string) $id, 'Approve — ' . ($tpl['nama'] ?? ''));
+
+        // Notifikasi hasil ke penyusun template
+        \App\Libraries\Notify::send(
+            [(int) ($tpl['created_by'] ?? 0)], $this->uid(), 'appraisal', 'result',
+            'Template KPI disetujui: ' . ($tpl['nama'] ?? ''), null,
+            'appraisal_template', $id, 'appraisal/templates/' . $id
+        );
+
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Template disetujui.');
     }
 
@@ -505,6 +522,14 @@ class AppraisalTemplate extends BaseController
         if ($catatan === '') return redirect()->to('appraisal/templates/' . $id)->with('error', 'Catatan revisi wajib diisi saat mengembalikan template.');
         $m->update($id, ['status' => 'draft', 'catatan_hr' => $catatan]);
         ActivityLog::write('update', 'appraisal_template', (string) $id, 'Reject — ' . ($tpl['nama'] ?? ''), ['catatan' => $catatan]);
+
+        // Notifikasi hasil + catatan revisi ke penyusun template
+        \App\Libraries\Notify::send(
+            [(int) ($tpl['created_by'] ?? 0)], $this->uid(), 'appraisal', 'result',
+            'Template KPI dikembalikan: ' . ($tpl['nama'] ?? ''),
+            'Catatan HR: ' . $catatan, 'appraisal_template', $id, 'appraisal/templates/' . $id
+        );
+
         return redirect()->to('appraisal/templates/' . $id)->with('success', 'Template dikembalikan ke penyusun.');
     }
 

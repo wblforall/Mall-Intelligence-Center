@@ -22,7 +22,7 @@ class WorkReportReminder extends BaseCommand
         // Ambil semua inisiatif aktif beserta Dept Head (user tertinggi di dept)
         $initiatives = $db->table('work_initiatives wi')
             ->select('wi.id, wi.judul, wi.dept_id, d.name AS dept_name,
-                      e.id AS emp_id, e.nama AS emp_nama, e.email AS emp_email,
+                      e.id AS emp_id, e.nama AS emp_nama, e.email AS emp_email, e.user_id AS emp_user_id,
                       (SELECT MAX(wu.created_at) FROM work_initiative_updates wu WHERE wu.initiative_id = wi.id) AS last_update')
             ->join('departments d', 'd.id = wi.dept_id', 'left')
             ->join('users u', 'u.id = (
@@ -47,6 +47,15 @@ class WorkReportReminder extends BaseCommand
             $updatedThisWeek = $lastUpdate && $lastUpdate >= $monday . ' 00:00:00';
             if (! $updatedThisWeek && ! empty($ini['emp_email'])) {
                 $toNotify[$ini['emp_email']][] = $ini;
+            }
+            // Notifikasi in-app (lonceng) — tak bergantung pada email
+            if (! $updatedThisWeek && ! empty($ini['emp_user_id'])) {
+                \App\Libraries\Notify::send(
+                    [(int) $ini['emp_user_id']], 0, 'work_report', 'reminder',
+                    'Belum diperbarui minggu ini: ' . $ini['judul'],
+                    'Program kerja ' . ($ini['dept_name'] ?? '') . ' menunggu update progres.',
+                    'work_initiative', (int) $ini['id'], 'work-report/' . $ini['id'] . '/detail'
+                );
             }
         }
 

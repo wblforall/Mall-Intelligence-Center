@@ -441,6 +441,14 @@ class WorkReportCtrl extends BaseController
         ]);
         ActivityLog::write('create', 'work_initiative', (string) $id, 'Komentar ke Deputy: ' . $item['judul']);
 
+        // Notifikasi ke Deputy GM divisi pemilik inisiatif
+        \App\Libraries\Notify::send(
+            \App\Libraries\OrgRecipients::deputy((int) $item['divisi_id']),
+            (int) session()->get('user_id'), 'work_report', 'comment',
+            ($emp['nama'] ?? 'Dept Head') . ' berkomentar: ' . $item['judul'],
+            mb_substr($body, 0, 200), 'work_initiative', $id, 'work-report/division#initiative-' . $id
+        );
+
         return redirect()->to('/work-report/' . $id . '/detail#komentar')->with('success', 'Komentar terkirim ke Deputy.');
     }
 
