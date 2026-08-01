@@ -292,6 +292,14 @@ class PeopleEmployees extends BaseController
         if (! $doc || $doc['status'] !== 'pending') return redirect()->to('/people/change-requests')->with('error', 'Dokumen tidak valid.');
         $m->update($id, ['status' => 'approved', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s')]);
         ActivityLog::write('update', 'employee_document', (string) $doc['employee_id'], EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']), ['status' => 'approved']);
+
+        // Notifikasi hasil ke karyawan pengunggah
+        \App\Libraries\Notify::send(
+            [(int) ($doc['uploaded_by'] ?? 0)], (int) session()->get('user_id'), 'hr', 'result',
+            'Dokumen diverifikasi: ' . EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']),
+            null, 'employee_document', $id, 'profile'
+        );
+
         return redirect()->to('/people/change-requests')->with('success', 'Dokumen diverifikasi.');
     }
 
@@ -308,6 +316,15 @@ class PeopleEmployees extends BaseController
         if (is_file($path)) @unlink($path);
         $m->update($id, ['status' => 'rejected', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s'), 'catatan' => $catatan]);
         ActivityLog::write('update', 'employee_document', (string) $doc['employee_id'], EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']), ['status' => 'rejected']);
+
+        // Notifikasi hasil + alasan ke karyawan pengunggah (file sudah dihapus,
+        // jadi pemberitahuan ini satu-satunya cara dia tahu harus unggah ulang)
+        \App\Libraries\Notify::send(
+            [(int) ($doc['uploaded_by'] ?? 0)], (int) session()->get('user_id'), 'hr', 'result',
+            'Dokumen ditolak: ' . EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']),
+            'Alasan: ' . $catatan . ' — silakan unggah ulang.', 'employee_document', $id, 'profile'
+        );
+
         return redirect()->to('/people/change-requests')->with('success', 'Dokumen ditolak.');
     }
 

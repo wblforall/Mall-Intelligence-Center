@@ -62,6 +62,22 @@ class IdpApproval extends BaseController
         ActivityLog::captureAfter($planModel->find((int)$plan['id']));
         ActivityLog::write('update', 'idp_plan', (string)$plan['id'], 'approval atasan: ' . $keputusan);
 
+        // Notifikasi hasil ke karyawan + pengelola People Dev. Approval ini
+        // dilakukan atasan lewat tautan email (tanpa login), jadi tanpa
+        // notifikasi tak ada jejak yang terlihat di dalam aplikasi.
+        $emp = db_connect()->table('employees')->select('user_id, nama')
+            ->where('id', (int) $plan['employee_id'])->get()->getRowArray();
+        \App\Libraries\Notify::send(
+            array_merge(
+                [(int) ($emp['user_id'] ?? 0)],
+                \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('people_dev'))
+            ),
+            0, 'idp', 'result',
+            'IDP ' . ($keputusan === 'setuju' ? 'disetujui' : 'ditolak') . ': ' . ($emp['nama'] ?? '-'),
+            trim($this->request->getPost('catatan') ?? '') ?: null,
+            'idp_plan', (int) $plan['id'], 'people/idp/' . $plan['id']
+        );
+
         $planFull = $planModel->getWithEmployee((int)$plan['id']);
         return view('people/idp/approval_done', [
             'keputusan' => $keputusan,

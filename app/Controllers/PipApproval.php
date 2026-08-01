@@ -68,6 +68,20 @@ class PipApproval extends BaseController
         ActivityLog::captureAfter($updateData);
         ActivityLog::write('update', 'pip_plan', (string)$plan['id'], 'approval ' . $pihak . ': ' . $keputusan);
 
+        // Notifikasi hasil ke pengelola People Dev (dan karyawan bila yang
+        // memutuskan adalah atasan). Approval ini lewat tautan email tanpa
+        // login, jadi tanpa notifikasi tak terlihat di dalam aplikasi.
+        $emp = db_connect()->table('employees')->select('user_id, nama')
+            ->where('id', (int) $plan['employee_id'])->get()->getRowArray();
+        $penerima = \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('people_dev'));
+        if ($pihak === 'atasan') $penerima[] = (int) ($emp['user_id'] ?? 0);
+        \App\Libraries\Notify::send(
+            $penerima, 0, 'pip', 'result',
+            'PIP ' . ($keputusan === 'setuju' ? 'disetujui' : 'ditolak') . ' oleh ' . $pihak . ': ' . ($emp['nama'] ?? '-'),
+            trim($post['catatan'] ?? '') ?: null,
+            'pip_plan', (int) $plan['id'], 'people/pip/' . $plan['id']
+        );
+
         return view('people/pip/approval_done', [
             'pihak'     => $pihak,
             'keputusan' => $keputusan,

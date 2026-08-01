@@ -270,6 +270,16 @@ class PromoMediaUsageCtrl extends BaseController
             $usageModel->update($id, ['status' => 'pending', 'submitted_at' => $now]);
             ActivityLog::captureAfter(['status' => 'pending']);
             ActivityLog::write('update', 'promo_media_usage', (string)$id, "Submit: {$usage['nama_materi']}");
+
+            // Notifikasi ke approver — jalur batch ini yang dipakai UI "Submit
+            // Terpilih", jadi tanpa ini approver tak tahu ada request masuk.
+            \App\Libraries\Notify::send(
+                \App\Libraries\OrgRecipients::withRolePerm('can_approve_promo_media'),
+                (int) $userId, 'promo_media', 'approval',
+                'Request media menunggu persetujuan: ' . $usage['nama_materi'],
+                ($this->currentUser()['name'] ?? '') . ' · ' . $usage['tanggal_mulai'] . ' s/d ' . $usage['tanggal_selesai'],
+                'promo_media_usage', $id, 'creative/media-promo/pending'
+            );
             $submitted[] = $label;
         }
 

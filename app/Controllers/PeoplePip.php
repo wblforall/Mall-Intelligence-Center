@@ -161,6 +161,19 @@ class PeoplePip extends BaseController
         ActivityLog::captureBefore(['status' => $plan['status']]);
         ActivityLog::captureAfter(['status' => 'aktif']);
         ActivityLog::write('update', 'pip_plan', (string)$id, 'approve: ' . $plan['judul']);
+
+        // Notifikasi hasil ke karyawan ybs + atasan langsungnya
+        $empUser = db_connect()->table('employees')->select('user_id, atasan_id')
+            ->where('id', (int) $plan['employee_id'])->get()->getRowArray();
+        \App\Libraries\Notify::send(
+            array_merge(
+                [(int) ($empUser['user_id'] ?? 0)],
+                \App\Libraries\OrgRecipients::supervisorOfUser((int) ($empUser['user_id'] ?? 0))
+            ),
+            (int) session()->get('user_id'), 'pip', 'result',
+            'PIP disetujui & aktif: ' . $plan['judul'], null, 'pip_plan', $id, 'people/pip/' . $id
+        );
+
         return redirect()->to('/people/pip/' . $id)->with('success', 'PIP disetujui dan sekarang aktif.');
     }
 
