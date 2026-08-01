@@ -600,9 +600,33 @@ $user = $this->currentUser();
             return redirect()->to('/creative')->with('error', 'Status tidak valid.');
         }
 
+        $item = (new CreativeItemModel())->find($id);
         (new CreativeItemModel())->updateStatus($id, $status);
 
         ActivityLog::write('update_status', 'creative_standalone', (string)$id, $status, []);
+
+        // Beri tahu pihak yang menunggu keputusan ini:
+        // - 'review'              → pengelola Creative (ada materi minta ditinjau)
+        // - 'approved'/'revision' → pembuat materi (hasil peninjauan)
+        if ($item) {
+            $label = $item['nama'] ?? 'Materi creative';
+            if ($status === 'review') {
+                \App\Libraries\Notify::send(
+                    \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('creative_main')),
+                    (int) $user['id'], 'creative', 'approval',
+                    'Materi creative menunggu peninjauan: ' . $label,
+                    ($user['name'] ?? '') . ' mengajukan materi untuk ditinjau.',
+                    'creative_item', $id, 'creative#item-' . $id . '-s'
+                );
+            } elseif (in_array($status, ['approved', 'revision'], true) && ! empty($item['created_by'])) {
+                \App\Libraries\Notify::send(
+                    [(int) $item['created_by']], (int) $user['id'], 'creative', 'result',
+                    'Materi creative ' . ($status === 'approved' ? 'disetujui' : 'perlu revisi') . ': ' . $label,
+                    $status === 'revision' ? ($item['catatan'] ?: 'Silakan periksa catatan pada materi.') : null,
+                    'creative_item', $id, 'creative#item-' . $id . '-s'
+                );
+            }
+        }
 
         return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Status berhasil diperbarui.');
     }

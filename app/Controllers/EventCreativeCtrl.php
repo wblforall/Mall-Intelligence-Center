@@ -241,10 +241,32 @@ class EventCreativeCtrl extends BaseController
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Hanya admin/manager yang bisa approve.');
         }
 
+        $item = (new EventCreativeItemModel())->find($id);
         (new EventCreativeItemModel())->update($id, ['status' => $status]);
 
         $labels = ['draft' => 'Draft', 'review' => 'Diajukan untuk review', 'approved' => 'Approved', 'revision' => 'Perlu revisi'];
         ActivityLog::write('update', 'creative', (string) $eventId, 'Ubah status item creative');
+
+        // Notifikasi: 'review' → peninjau creative; 'approved'/'revision' → pembuat materi
+        if ($item) {
+            $label = $item['nama'] ?? 'Materi creative';
+            if ($status === 'review') {
+                \App\Libraries\Notify::send(
+                    \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('creative')),
+                    (int) $user['id'], 'creative', 'approval',
+                    'Materi creative event menunggu peninjauan: ' . $label,
+                    ($user['name'] ?? '') . ' mengajukan materi untuk ditinjau.',
+                    'event_creative_item', $id, "events/{$eventId}/creative#item-{$id}"
+                );
+            } elseif (in_array($status, ['approved', 'revision'], true) && ! empty($item['created_by'])) {
+                \App\Libraries\Notify::send(
+                    [(int) $item['created_by']], (int) $user['id'], 'creative', 'result',
+                    'Materi creative event ' . ($status === 'approved' ? 'disetujui' : 'perlu revisi') . ': ' . $label,
+                    $status === 'revision' ? ($item['catatan'] ?: 'Silakan periksa catatan pada materi.') : null,
+                    'event_creative_item', $id, "events/{$eventId}/creative#item-{$id}"
+                );
+            }
+        }
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Status: ' . ($labels[$status] ?? $status));
     }
 

@@ -86,6 +86,16 @@ class Events extends BaseController
             (new EventLocationModel())->syncEventLocations((int)$eventId, $locationIds);
         }
 
+        // Event baru berstatus pending → beri tahu pemegang izin approve,
+        // kalau tidak mereka harus rajin membuka daftar event untuk tahu.
+        \App\Libraries\Notify::send(
+            \App\Libraries\OrgRecipients::withRolePerm('can_approve_events'),
+            (int) $this->currentUser()['id'], 'event', 'approval',
+            'Event menunggu persetujuan: ' . $this->request->getPost('name'),
+            ($this->currentUser()['name'] ?? '') . ' · ' . ucfirst((string) $this->request->getPost('mall')),
+            'event', (int) $eventId, 'events'
+        );
+
         ActivityLog::write('create', 'event', (string)$eventId, $this->request->getPost('name'), [
             'mall' => $this->request->getPost('mall'), 'start_date' => $this->request->getPost('start_date'),
         ]);
@@ -138,8 +148,29 @@ class Events extends BaseController
             'start_date' => $startDate,
             'event_days' => $eventDays,
         ];
+        // Event yang DITOLAK lalu direvisi → diajukan ulang (kembali pending),
+        // jejak penolakan lama dibersihkan. Tanpa ini penolakan bersifat final:
+        // pembuat merevisi tapi statusnya tetap "ditolak" selamanya.
+        $diajukanUlang = ($event['approval_status'] ?? '') === 'rejected';
+        if ($diajukanUlang) {
+            $eventData['approval_status']  = 'pending';
+            $eventData['rejection_reason'] = null;
+            $eventData['approved_by']      = null;
+            $eventData['approved_at']      = null;
+        }
+
         $this->eventModel->update($id, $eventData);
         ActivityLog::captureAfter($eventData);
+
+        if ($diajukanUlang) {
+            \App\Libraries\Notify::send(
+                \App\Libraries\OrgRecipients::withRolePerm('can_approve_events'),
+                (int) $this->currentUser()['id'], 'event', 'approval',
+                'Event diajukan ulang: ' . $this->request->getPost('name'),
+                'Sudah direvisi setelah ditolak — menunggu persetujuan.',
+                'event', $id, 'events'
+            );
+        }
         $locationIds = array_filter(array_map('intval', (array)($this->request->getPost('location_ids') ?? [])));
         (new EventLocationModel())->syncEventLocations($id, $locationIds);
 

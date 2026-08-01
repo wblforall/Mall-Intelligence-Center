@@ -31,6 +31,7 @@ class ApprovalInbox
         'pip'            => ['PIP',             'bi-graph-up-arrow',   'gold'],
         'idp'            => ['IDP',             'bi-signpost-split',   'green'],
         'legal'          => ['Legal',           'bi-shield-check',     'cyan'],
+        'creative'       => ['Creative',        'bi-palette',          'pink'],
     ];
 
     /**
@@ -155,6 +156,35 @@ class ApprovalInbox
             }
         }
 
+        // ── Creative standalone: materi diajukan untuk ditinjau ──
+        // Gate mengikuti CreativeCtrl::updateStatus — pemegang can_edit
+        // creative_main ATAU role admin/manager.
+        if ($admin || ! empty($ctx['can_creative'])) {
+            foreach ($db->table('creative_items c')
+                ->select('c.id, c.nama, c.pic, c.updated_at, c.created_at')
+                ->where('c.status', 'review')
+                ->orderBy('c.updated_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
+                $items[] = self::row('creative', $r['nama'],
+                    'Menunggu peninjauan' . ($r['pic'] ? ' · PIC ' . $r['pic'] : ''),
+                    'creative#item-' . $r['id'] . '-s', $r['updated_at'] ?: $r['created_at']);
+            }
+        }
+
+        // ── Creative per-event: HANYA admin/manager yang boleh memutuskan
+        // (EventCreativeCtrl::updateStatus), jadi jangan tampilkan ke staf
+        // creative yang tak bisa menindaklanjutinya.
+        if ($admin || ! empty($ctx['can_creative_event'])) {
+            foreach ($db->table('event_creative_items c')
+                ->select('c.id, c.nama, c.event_id, c.updated_at, c.created_at, e.name AS event_nama')
+                ->join('events e', 'e.id = c.event_id', 'left')
+                ->where('c.status', 'review')
+                ->orderBy('c.updated_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
+                $items[] = self::row('creative', $r['nama'],
+                    'Event: ' . ($r['event_nama'] ?? '-') . ' · menunggu peninjauan',
+                    'events/' . $r['event_id'] . '/creative#item-' . $r['id'], $r['updated_at'] ?: $r['created_at']);
+            }
+        }
+
         // ── Legal: dokumen dalam review ──
         if ($admin || ! empty($ctx['can_legal'])) {
             foreach ($db->table('legal_reviews r')
@@ -190,6 +220,8 @@ class ApprovalInbox
             OrgRecipients::menuEditors('hr_main'),
             OrgRecipients::menuEditors('people_dev'),
             OrgRecipients::menuEditors('legal'),
+            OrgRecipients::menuEditors('creative_main'),
+            OrgRecipients::menuEditors('creative'),
         );
 
         // Penilai yang sedang dituju form appraisal
@@ -256,6 +288,12 @@ class ApprovalInbox
             'can_approve_pip'         => $isAdmin || ! empty($perms['can_approve_pip']),
             'is_hr'                   => $canEdit('hr_main') || $canEdit('people_dev'),
             'can_legal'               => $canEdit('legal'),
+            // Gate creative mengikuti aturan controllernya masing-masing:
+            // standalone = can_edit creative_main / role manager; per-event =
+            // HANYA admin/manager (EventCreativeCtrl::updateStatus).
+            'can_creative'            => $canEdit('creative_main') || $canEdit('creative')
+                                         || in_array($u['role'] ?? '', ['admin', 'manager'], true),
+            'can_creative_event'      => $isAdmin || in_array($u['role'] ?? '', ['admin', 'manager'], true),
         ]);
     }
 
@@ -266,6 +304,7 @@ class ApprovalInbox
             'user_id' => 0, 'employee_id' => 0, 'is_admin' => false,
             'can_approve_promo_media' => false, 'can_approve_events' => false,
             'can_approve_pip' => false, 'is_hr' => false, 'can_legal' => false,
+            'can_creative' => false, 'can_creative_event' => false,
         ];
     }
 
