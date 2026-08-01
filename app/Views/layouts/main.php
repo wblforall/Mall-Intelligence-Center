@@ -859,6 +859,16 @@ if (typeof Chart !== 'undefined') {
     const BASE  = '<?= rtrim(base_url(), '/') ?>';
     const escN  = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+    /* PENTING: Security::$regenerate = true → setiap POST yang lolos validasi
+       merotasi token CSRF. Token baru WAJIB ditulis ulang ke seluruh input
+       form di halaman, kalau tidak submit form berikutnya ditolak diam-diam
+       (hanya di-redirect, aksi hilang). Pola sama dengan traffic/form.php. */
+    function syncCsrf(hash) {
+        if (!hash) return;
+        nCsrf = hash;
+        document.querySelectorAll(`input[name="${nName}"]`).forEach(i => { i.value = hash; });
+    }
+
     function setBadge(n) {
         badge.textContent = n;
         badge.style.display = n > 0 ? '' : 'none';
@@ -869,7 +879,7 @@ if (typeof Chart !== 'undefined') {
     function load() {
         fetch(BASE + '/notifications').then(r => r.json()).then(d => {
             if (!d.success) return;
-            nCsrf = d.csrf || nCsrf;
+            syncCsrf(d.csrf);
             setBadge(d.unread);
             if (!d.items.length) {
                 list.innerHTML = '<div class="text-center text-muted small py-4">Tidak ada notifikasi.</div>';
@@ -893,9 +903,14 @@ if (typeof Chart !== 'undefined') {
         const fd = new FormData();
         fd.append('id', it.dataset.id);
         fd.append(nName, nCsrf);
-        // biarkan navigasi jalan; tandai dibaca di background
-        navigator.sendBeacon ? navigator.sendBeacon(BASE + '/notifications/read', fd)
-            : fetch(BASE + '/notifications/read', { method: 'POST', body: fd, keepalive: true });
+        /* Pakai fetch+keepalive, BUKAN sendBeacon: beacon tak bisa dibaca
+           responsnya sehingga token baru tak bisa disinkronkan. Dengan
+           keepalive, permintaan tetap terkirim meski halaman berpindah, dan
+           bila pengguna TETAP di halaman (notif tanpa url → href="#")
+           token halaman ikut diperbarui. */
+        fetch(BASE + '/notifications/read', { method: 'POST', body: fd, keepalive: true })
+            .then(r => r.json()).then(d => { syncCsrf(d.csrf); setBadge(d.unread); })
+            .catch(() => {});
     });
     document.getElementById('notifReadAll').addEventListener('click', e => {
         e.stopPropagation();
@@ -903,7 +918,7 @@ if (typeof Chart !== 'undefined') {
         fd.append('all', '1');
         fd.append(nName, nCsrf);
         fetch(BASE + '/notifications/read', { method: 'POST', body: fd })
-            .then(r => r.json()).then(d => { nCsrf = d.csrf || nCsrf; setBadge(0); load(); });
+            .then(r => r.json()).then(d => { syncCsrf(d.csrf); setBadge(0); load(); });
     });
 })();
 </script>

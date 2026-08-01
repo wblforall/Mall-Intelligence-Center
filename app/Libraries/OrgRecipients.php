@@ -54,21 +54,7 @@ class OrgRecipients
             ->get()->getResultArray());
     }
 
-    /** Divisi pemilik sebuah departemen. */
-    public static function divisionOfDept(int $deptId): int
-    {
-        $row = db_connect()->table('departments')->select('division_id')->where('id', $deptId)->get()->getRowArray();
-        return (int) ($row['division_id'] ?? 0);
-    }
 
-    /** user_id atasan langsung seorang karyawan (employees.atasan_id). */
-    public static function supervisorOf(int $employeeId): array
-    {
-        $db = db_connect();
-        $emp = $db->table('employees')->select('atasan_id')->where('id', $employeeId)->get()->getRowArray();
-        if (! $emp || empty($emp['atasan_id'])) return [];
-        return self::userIds($db->table('employees')->select('user_id')->where('id', (int) $emp['atasan_id'])->get()->getResultArray());
-    }
 
     /** Semua user pemegang akses EDIT sebuah menu (pakai grant dept, non-outsource). */
     public static function menuEditors(string $menuKey): array

@@ -30,29 +30,27 @@ class Notify
         ?string $url = null
     ): void {
         $userIds = array_unique(array_map('intval', $userIds));
-        $model   = new NotificationModel();
+        $baris   = [];
+        $now     = date('Y-m-d H:i:s');
         foreach ($userIds as $uid) {
             if ($uid <= 0 || $uid === $actorId) continue;
-            $model->insert([
-                'user_id'   => $uid,
-                'actor_id'  => $actorId ?: null,
-                'module'    => $module,
-                'type'      => $type,
-                'title'     => mb_substr($title, 0, 150),
-                'body'      => $body !== null ? mb_substr($body, 0, 500) : null,
-                'link_type' => $linkType,
-                'link_id'   => $linkId,
-                'url'       => $url,
-            ]);
+            $baris[] = [
+                'user_id'    => $uid,
+                'actor_id'   => $actorId ?: null,
+                'module'     => $module,
+                'type'       => $type,
+                'title'      => mb_substr($title, 0, 150),
+                'body'       => $body !== null ? mb_substr($body, 0, 500) : null,
+                'link_type'  => $linkType,
+                'link_id'    => $linkId,
+                'url'        => $url,
+                'created_at' => $now,
+            ];
         }
-    }
+        if (! $baris) return;
 
-    /** Tandai terbaca semua notif user utk satu tautan (mis. buka kartu). */
-    public static function markReadForLink(int $userId, string $linkType, int $linkId): void
-    {
-        db_connect()->table('notifications')
-            ->where('user_id', $userId)->where('is_read', 0)
-            ->where('link_type', $linkType)->where('link_id', $linkId)
-            ->update(['is_read' => 1]);
+        // Satu query untuk semua penerima — penerima berbasis peran bisa
+        // berjumlah puluhan (mis. seluruh pengelola HR).
+        (new NotificationModel())->insertBatch($baris);
     }
 }

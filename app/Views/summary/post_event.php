@@ -138,7 +138,9 @@ tr.from-content td { background: #eef4ff !important; }
 @page { size: A4 portrait; margin: 14mm 12mm 16mm; }
 
 @media print {
-    body { font-size: 9.5pt; }
+    /* padding-bottom menyediakan ruang untuk .print-runner yang position:fixed,
+       supaya baris terakhir isi tidak tertimpa footer berulang. */
+    body { font-size: 9.5pt; padding-bottom: 12mm; }
     .page { padding: 0; max-width: 100%; }
     .no-print { display: none !important; }
     .section { page-break-inside: avoid; }
