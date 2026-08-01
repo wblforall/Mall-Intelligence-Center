@@ -35,6 +35,10 @@ class Persetujuan extends BaseController
     {
         $items = ApprovalInbox::collect($this->ctx());
 
+        // Segarkan cache badge sidebar dengan angka terbaru (bukan menunggu TTL),
+        // supaya badge langsung akurat setelah user menindaklanjuti item.
+        session()->set('appr_badge', ['n' => count($items), 't' => time()]);
+
         // Rekap per modul untuk filter chip
         $perModul = [];
         foreach ($items as $it) {

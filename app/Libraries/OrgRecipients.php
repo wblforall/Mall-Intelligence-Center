@@ -56,6 +56,19 @@ class OrgRecipients
 
 
 
+    /**
+     * user_id atasan langsung seorang USER (lewat employees.atasan_id).
+     * Dipakai eskalasi pengingat persetujuan yang menggantung terlalu lama.
+     */
+    public static function supervisorOfUser(int $userId): array
+    {
+        $db  = db_connect();
+        $emp = $db->table('employees')->select('atasan_id')->where('user_id', $userId)->get()->getRowArray();
+        if (! $emp || empty($emp['atasan_id'])) return [];
+        return self::userIds($db->table('employees')->select('user_id')
+            ->where('id', (int) $emp['atasan_id'])->get()->getResultArray());
+    }
+
     /** Semua user pemegang akses EDIT sebuah menu (pakai grant dept, non-outsource). */
     public static function menuEditors(string $menuKey): array
     {

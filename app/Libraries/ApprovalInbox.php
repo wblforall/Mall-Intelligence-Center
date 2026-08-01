@@ -172,6 +172,93 @@ class ApprovalInbox
     }
 
 
+    /**
+     * Daftar user yang MUNGKIN punya item menunggu keputusan — dipakai cron
+     * pengingat agar tak perlu memindai seluruh user. Sengaja longgar
+     * (superset); penyaringan sebenarnya tetap dilakukan collect() per user.
+     *
+     * @return int[] user_id
+     */
+    public static function candidateApprovers(): array
+    {
+        $db  = db_connect();
+        $ids = array_merge(
+            OrgRecipients::admins(),
+            OrgRecipients::withRolePerm('can_approve_promo_media'),
+            OrgRecipients::withRolePerm('can_approve_events'),
+            OrgRecipients::withRolePerm('can_approve_pip'),
+            OrgRecipients::menuEditors('hr_main'),
+            OrgRecipients::menuEditors('people_dev'),
+            OrgRecipients::menuEditors('legal'),
+        );
+
+        // Penilai yang sedang dituju form appraisal
+        foreach ($db->table('appraisal_forms')->select('current_user_id')
+            ->where('status', 'in_review')->where('current_user_id IS NOT NULL', null, false)
+            ->groupBy('current_user_id')->get()->getResultArray() as $r) {
+            $ids[] = (int) $r['current_user_id'];
+        }
+
+        // Atasan langsung dari karyawan yang PIP/IDP-nya menunggu persetujuan
+        $sql = 'SELECT DISTINCT a.user_id
+                FROM employees e
+                JOIN employees a ON a.id = e.atasan_id
+                WHERE a.user_id IS NOT NULL AND (
+                      EXISTS (SELECT 1 FROM pip_plans p WHERE p.employee_id = e.id
+                              AND p.persetujuan_atasan = "pending" AND p.status = "menunggu_persetujuan")
+                   OR EXISTS (SELECT 1 FROM idp_plans i WHERE i.employee_id = e.id
+                              AND i.persetujuan_atasan = "pending"))';
+        foreach ($db->query($sql)->getResultArray() as $r) $ids[] = (int) $r['user_id'];
+
+        return array_values(array_unique(array_filter($ids, static fn ($i) => (int) $i > 0)));
+    }
+
+    /**
+     * Bangun konteks kapabilitas satu user LANGSUNG DARI DATABASE (tanpa session)
+     * — dipakai cron pengingat & kelak endpoint API mobile. Aturannya menyalin
+     * BaseController: admin bypass → user_menu_access → department_menu_access.
+     * Mengembalikan [] bila user tidak ada / tidak aktif.
+     */
+    public static function contextForUser(int $userId): array
+    {
+        $db = db_connect();
+        $u  = $db->table('users')->select('id, role, role_id, department_id, is_active')
+            ->where('id', $userId)->get()->getRowArray();
+        if (! $u || ! $u['is_active']) return [];
+
+        $perms = ['is_admin' => false];
+        if (! empty($u['role_id'])) {
+            $role = $db->table('roles')->where('id', (int) $u['role_id'])->get()->getRowArray();
+            if ($role) $perms = \App\Models\RoleModel::buildPerms($role);
+        } elseif (($u['role'] ?? '') === 'admin') {
+            $perms = ['is_admin' => true];
+        }
+        $isAdmin = ! empty($perms['is_admin']) || ($u['role'] ?? '') === 'admin';
+
+        // canEditMenu tanpa session: admin → grant per-user → grant dept
+        $canEdit = static function (string $menuKey) use ($db, $u, $isAdmin): bool {
+            if ($isAdmin) return true;
+            if ($db->table('user_menu_access')->where('user_id', $u['id'])
+                ->where('menu_key', $menuKey)->where('can_edit', 1)->countAllResults()) return true;
+            if (empty($u['department_id'])) return false;
+            return (bool) $db->table('department_menu_access')->where('department_id', $u['department_id'])
+                ->where('menu_key', $menuKey)->where('can_edit', 1)->countAllResults();
+        };
+
+        $emp = $db->table('employees')->select('id')->where('user_id', $userId)->get()->getRowArray();
+
+        return self::contextFor([
+            'user_id'                 => $userId,
+            'employee_id'             => (int) ($emp['id'] ?? 0),
+            'is_admin'                => $isAdmin,
+            'can_approve_promo_media' => $isAdmin || ! empty($perms['can_approve_promo_media']),
+            'can_approve_events'      => $isAdmin || ! empty($perms['can_approve_events']),
+            'can_approve_pip'         => $isAdmin || ! empty($perms['can_approve_pip']),
+            'is_hr'                   => $canEdit('hr_main') || $canEdit('people_dev'),
+            'can_legal'               => $canEdit('legal'),
+        ]);
+    }
+
     /** Bangun konteks kapabilitas dari controller (dipanggil BaseController). */
     public static function contextFor(array $flags): array
     {
