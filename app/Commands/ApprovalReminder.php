@@ -79,11 +79,18 @@ class ApprovalReminder extends BaseCommand
             // ── Eskalasi ke atasan approver ──
             if ($umurTertua < $umurEskalasi) continue;
 
-            $atasan = OrgRecipients::supervisorOfUser($uid);
+            // Atasan langsung (aktif) → Deputy divisi → GM, supaya kemandekan
+            // tetap terlihat walau atasannya sudah resign / tak tercatat.
+            $atasan = OrgRecipients::escalationTargets($uid);
             if (! $atasan) continue;
 
+            // Dedupe DIIKAT KE APPROVER (link_id), bukan sekadar "atasan ini
+            // sudah dieskalasi hari ini" — kalau tidak, atasan dengan beberapa
+            // bawahan mandek hanya menerima eskalasi untuk satu orang saja,
+            // dan karena urutan kandidat stabil, yang lain tak pernah terkirim.
             $sudahEsk = $db->table('notifications')
                 ->whereIn('user_id', $atasan)->where('module', 'persetujuan')->where('type', 'escalation')
+                ->where('link_type', 'approver')->where('link_id', $uid)
                 ->where('created_at >=', $hariIni)->countAllResults();
             if ($sudahEsk) continue;
 
@@ -93,7 +100,7 @@ class ApprovalReminder extends BaseCommand
                     $atasan, 0, 'persetujuan', 'escalation',
                     'Persetujuan mandek: ' . $nama,
                     count($tunggak) . ' item belum diputuskan, tertua ' . $umurTertua . ' hari.',
-                    null, null, 'persetujuan'
+                    'approver', $uid, 'persetujuan'
                 );
             }
             $dieskalasi++;

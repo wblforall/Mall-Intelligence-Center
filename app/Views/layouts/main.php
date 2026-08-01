@@ -133,34 +133,7 @@ body { min-height: 100vh; }
         <a href="<?= base_url('/') ?>" class="nav-link <?= uri_string() === '' ? 'active' : '' ?>">
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
-        <?php
-        /* Badge jumlah persetujuan menunggu. ApprovalInbox memakai s.d. 10 query,
-           jadi hasilnya di-cache di session 5 menit — badge tetap muncul tiap
-           halaman tanpa membebani setiap request. Cache dibuang saat halaman
-           /persetujuan dibuka (lihat Persetujuan::index) agar angkanya akurat
-           tepat setelah user menindaklanjuti. */
-        $_apprBadge = 0;
-        try {
-            $_c = session()->get('appr_badge');
-            if (is_array($_c) && ($_c['t'] ?? 0) > time() - 300) {
-                $_apprBadge = (int) $_c['n'];
-            } else {
-                $_rpB = session()->get('role_perms') ?? [];
-                $_ctxB = \App\Libraries\ApprovalInbox::contextFor([
-                    'user_id'                 => (int) session()->get('user_id'),
-                    'employee_id'             => (int) (session()->get('employee_id') ?? 0),
-                    'is_admin'                => $_navIsAdmin,
-                    'can_approve_promo_media' => $_navIsAdmin || ! empty($_rpB['can_approve_promo_media']),
-                    'can_approve_events'      => $_navIsAdmin || ! empty($_rpB['can_approve_events']),
-                    'can_approve_pip'         => $_navIsAdmin || ! empty($_rpB['can_approve_pip']),
-                    'is_hr'                   => $navCanEdit('hr_main') || $navCanEdit('people_dev'),
-                    'can_legal'               => $navCanEdit('legal'),
-                ]);
-                $_apprBadge = count(\App\Libraries\ApprovalInbox::collect($_ctxB));
-                session()->set('appr_badge', ['n' => $_apprBadge, 't' => time()]);
-            }
-        } catch (\Throwable $e) { /* tabel/relasi belum siap — badge disembunyikan */ }
-        ?>
+        <?php $_apprBadge = badge_persetujuan(); // di-cache session 5 menit ?>
         <a href="<?= base_url('persetujuan') ?>" class="nav-link <?= str_starts_with(uri_string(), 'persetujuan') ? 'active' : '' ?>">
             <i class="bi bi-check2-square"></i> Kotak Persetujuan
             <?php if ($_apprBadge > 0): ?><span class="badge bg-danger ms-auto"><?= $_apprBadge ?></span><?php endif; ?>

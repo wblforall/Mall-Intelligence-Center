@@ -58,27 +58,72 @@ class OrgRecipients
 
     /**
      * user_id atasan langsung seorang USER (lewat employees.atasan_id).
-     * Dipakai eskalasi pengingat persetujuan yang menggantung terlalu lama.
+     * Hanya atasan berstatus aktif & berakun aktif — konsisten dengan
+     * resolver lain di kelas ini (dulu tanpa filter, sehingga eskalasi bisa
+     * mendarat di akun karyawan yang sudah resign).
      */
     public static function supervisorOfUser(int $userId): array
     {
         $db  = db_connect();
         $emp = $db->table('employees')->select('atasan_id')->where('user_id', $userId)->get()->getRowArray();
         if (! $emp || empty($emp['atasan_id'])) return [];
-        return self::userIds($db->table('employees')->select('user_id')
-            ->where('id', (int) $emp['atasan_id'])->get()->getResultArray());
+
+        return self::userIds($db->table('employees e')
+            ->select('e.user_id')
+            ->join('users u', 'u.id = e.user_id')
+            ->where('e.id', (int) $emp['atasan_id'])
+            ->where('e.status', 'aktif')->where('u.is_active', 1)
+            ->get()->getResultArray());
     }
 
-    /** Semua user pemegang akses EDIT sebuah menu (pakai grant dept, non-outsource). */
+    /**
+     * Sasaran eskalasi bila seorang approver membiarkan item menggantung:
+     * atasan langsung (aktif) → Deputy GM divisi approver → GM.
+     * Rantai ini menjaga kemandekan tetap terlihat walau atasannya sudah
+     * resign atau karyawan tak punya atasan tercatat.
+     */
+    public static function escalationTargets(int $userId): array
+    {
+        if ($atasan = self::supervisorOfUser($userId)) return $atasan;
+
+        $emp = db_connect()->table('employees')->select('division_id')
+            ->where('user_id', $userId)->where('status', 'aktif')->get()->getRowArray();
+        if ($emp && ! empty($emp['division_id'])) {
+            if ($deputy = self::deputy((int) $emp['division_id'])) return $deputy;
+        }
+
+        return self::gm();
+    }
+
+    /**
+     * Semua user pemegang akses EDIT sebuah menu.
+     *
+     * Menggabungkan DUA sumber sesuai aturan MIC (BaseController::canEditMenu):
+     * grant per-departemen (`department_menu_access`, dept non-outsource) DAN
+     * grant per-user (`user_menu_access`, additive di atas dept). Sebelumnya
+     * hanya membaca grant dept, sehingga pemegang grant individual tak pernah
+     * menerima notifikasi HR/Legal maupun pengingat persetujuan.
+     */
     public static function menuEditors(string $menuKey): array
     {
-        return self::userIds(db_connect()->table('users u')
+        $db = db_connect();
+
+        $dept = $db->table('users u')
             ->select('u.id AS user_id')
             ->join('department_menu_access dma', 'dma.department_id = u.department_id')
             ->join('departments d', 'd.id = u.department_id')
             ->where('dma.menu_key', $menuKey)->where('dma.can_edit', 1)
             ->where('d.is_outsource', 0)->where('u.is_active', 1)
-            ->get()->getResultArray());
+            ->get()->getResultArray();
+
+        $perUser = $db->table('user_menu_access uma')
+            ->select('uma.user_id')
+            ->join('users u', 'u.id = uma.user_id')
+            ->where('uma.menu_key', $menuKey)->where('uma.can_edit', 1)
+            ->where('u.is_active', 1)
+            ->get()->getResultArray();
+
+        return self::userIds(array_merge($dept, $perUser));
     }
 
     /** Izin approve yang boleh dipakai withRolePerm() (whitelist kolom `roles`). */

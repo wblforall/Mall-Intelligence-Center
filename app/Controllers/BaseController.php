@@ -132,6 +132,20 @@ abstract class BaseController extends Controller
         return session()->get('role_is_admin') || session()->get('user_role') === 'admin';
     }
 
+    /**
+     * Konteks kapabilitas Kotak Persetujuan untuk user yang login.
+     *
+     * Sengaja mendelegasikan ke ApprovalInbox::contextForUser() (berbasis DB)
+     * alih-alih merakit ulang dari session: aturan akses jadi punya SATU
+     * implementasi yang dipakai halaman, badge, cron, dan kelak API mobile.
+     * Perakitan terpisah sebelumnya membuat badge kehilangan employee_id
+     * sehingga item PIP/IDP tak ikut terhitung.
+     */
+    protected function approvalContext(): array
+    {
+        return \App\Libraries\ApprovalInbox::contextForUser((int) session()->get('user_id'));
+    }
+
     protected function can(string $perm): bool
     {
         if ($this->isAdmin()) return true;

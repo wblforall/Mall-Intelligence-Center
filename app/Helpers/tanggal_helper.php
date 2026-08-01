@@ -5,6 +5,31 @@
  * Sebelumnya array nama bulan diduplikasi di beberapa view laporan.
  */
 
+if (! function_exists('badge_persetujuan')) {
+    /**
+     * Jumlah item menunggu keputusan user (badge sidebar), di-cache di session
+     * 5 menit karena ApprovalInbox::collect() memakai s.d. 10 query.
+     *
+     * Memakai ApprovalInbox::contextForUser() — SATU implementasi aturan akses
+     * yang sama dengan halaman /persetujuan & cron, sehingga angka badge tak
+     * mungkin berbeda dari isi halamannya.
+     */
+    function badge_persetujuan(): int
+    {
+        $c = session()->get('appr_badge');
+        if (is_array($c) && ($c['t'] ?? 0) > time() - 300) return (int) $c['n'];
+
+        try {
+            $ctx = \App\Libraries\ApprovalInbox::contextForUser((int) session()->get('user_id'));
+            $n   = $ctx ? count(\App\Libraries\ApprovalInbox::collect($ctx)) : 0;
+        } catch (\Throwable $e) {
+            return 0; // tabel/relasi belum siap (mis. sebelum migrate)
+        }
+        session()->set('appr_badge', ['n' => $n, 't' => time()]);
+        return $n;
+    }
+}
+
 if (! function_exists('bulan_indo')) {
     /** Nama bulan Indonesia dari nomor bulan 1–12 (atau tanggal apa pun). */
     function bulan_indo(int|string $bulan): string
