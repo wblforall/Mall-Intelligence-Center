@@ -3,121 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <title>Laporan Bulanan Loyalty — <?= $bulan ?></title>
+<?= $this->include('_laporan/_style') ?>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: Arial, sans-serif; font-size: 11px; color: #111; background: #fff; }
-
-@page { size: A4 landscape; margin: 12mm 14mm 10mm; }
-@media print {
-    .no-print { display: none !important; }
-    body { font-size: 11px; }
-}
-
-/* ── Page break saat print ───────────────────────────────────────────
-   - thead berulang otomatis di tiap halaman (table-header-group)
-   - satu program (baris data + baris analisa) tidak boleh terpotong
-   - judul section menempel ke isinya, blok grafik & ttd utuh satu halaman */
-thead { display: table-header-group; }
+/* Hanya aturan KHUSUS laporan ini — dasar bersama dari _laporan/_style.php */
 tbody.prog-block { break-inside: avoid; page-break-inside: avoid; }
-.sec-title { break-after: avoid; page-break-after: avoid; break-inside: avoid; }
 .kpi-row, .chart-panel, .sign-row { break-inside: avoid; page-break-inside: avoid; }
-
-/* ── Header ── */
-.doc-header {
-    border-bottom: 3px solid #1e293b; padding-bottom: 10px; margin-bottom: 16px;
-    display: flex; justify-content: space-between; align-items: flex-end;
-}
-.doc-header .title { font-size: 18px; font-weight: 700; color: #1e293b; }
-.doc-header .sub   { font-size: 13px; color: #475569; margin-top: 2px; }
-.doc-header .org   { font-size: 10px; color: #94a3b8; margin-top: 5px; }
-.doc-header .meta  { text-align: right; font-size: 10px; color: #64748b; line-height: 1.8; }
-
-/* ── KPI ── */
-.kpi-row { display: flex; gap: 10px; margin-bottom: 16px; }
-.kpi-box {
-    flex: 1; border: 1px solid #e2e8f0; border-radius: 6px;
-    padding: 9px 12px; background: #f8fafc;
-}
-.kpi-label { font-size: 10px; color: #64748b; margin-bottom: 3px; }
-.kpi-num   { font-size: 21px; font-weight: 700; line-height: 1.1; }
-.kpi-sub   { font-size: 9.5px; color: #94a3b8; margin-top: 2px; }
-.kpi-member  { border-color: #bfdbfe; background: #eff6ff; }
-.kpi-member .kpi-num  { color: #1d4ed8; }
-.kpi-aktif   { border-color: #bbf7d0; background: #f0fdf4; }
-.kpi-aktif .kpi-num   { color: #15803d; }
-.kpi-sebar   { border-color: #fde68a; background: #fffbeb; }
-.kpi-sebar .kpi-num   { color: #b45309; }
-.kpi-pakai   { border-color: #fecaca; background: #fef2f2; }
-.kpi-pakai .kpi-num   { color: #b91c1c; }
-.kpi-hadiah  { border-color: #c4b5fd; background: #f5f3ff; }
-.kpi-hadiah .kpi-num  { color: #6d28d9; }
-
-/* ── Section title ── */
+.kpi-num { font-size: 21px; font-weight: 700; line-height: 1.1; }
+.kpi-member { border-color: #bfdbfe; background: #eff6ff; }
+.kpi-member .kpi-num { color: #1d4ed8; }
+.kpi-aktif { border-color: #bbf7d0; background: #f0fdf4; }
+.kpi-aktif .kpi-num { color: #15803d; }
+.kpi-sebar { border-color: #fde68a; background: #fffbeb; }
+.kpi-sebar .kpi-num { color: #b45309; }
+.kpi-pakai { border-color: #fecaca; background: #fef2f2; }
+.kpi-pakai .kpi-num { color: #b91c1c; }
+.kpi-hadiah { border-color: #c4b5fd; background: #f5f3ff; }
+.kpi-hadiah .kpi-num { color: #6d28d9; }
 .sec-title {
     font-size: 11px; font-weight: 700; color: #f1f5f9; text-transform: uppercase;
     letter-spacing: .4px; background: #1e293b; padding: 5px 10px;
     margin-bottom: 0; border-radius: 4px 4px 0 0;
     display: flex; justify-content: space-between; align-items: center;
 }
-.sec-title .sec-sub { font-weight: 400; font-size: 9.5px; opacity: .75; }
-
-/* ── Table ── */
-.main-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
-.main-table th {
-    background: #334155; color: #f1f5f9; font-size: 10px;
-    padding: 5px 7px; border: 1px solid #475569; text-align: left; white-space: nowrap;
-}
-.main-table th.text-center { text-align: center; }
 .main-table td { padding: 5px 7px; border: 1px solid #e2e8f0; font-size: 11px; vertical-align: middle; }
 .main-table tbody.prog-block:nth-of-type(even) tr:first-child td { background: #f8fafc; }
-.num { text-align: right; font-variant-numeric: tabular-nums; }
-.zero { color: #cbd5e1; text-align: right; }
-
-/* source/status pills */
 .pill {
     display: inline-block; padding: 1px 7px; border-radius: 3px;
     font-size: 9px; font-weight: 700; border: 1px solid;
 }
 .pill-standalone { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
-.pill-event      { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
-.pill-active     { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-.pill-inactive   { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
-.pill-locked     { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
-
-/* ── Signature ── */
-.sign-row { display: flex; gap: 20px; margin-top: 24px; }
-.sign-box {
-    flex: 1; border: 1px solid #e2e8f0; border-radius: 6px;
-    padding: 9px 12px 48px; text-align: center; font-size: 11px; color: #475569;
-}
-.sign-box .sign-role { font-weight: 700; color: #1e293b; font-size: 11.5px; margin-top: 3px; }
-
-/* ── Footer ── */
-.doc-footer {
-    margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 6px;
-    display: flex; justify-content: space-between; font-size: 9.5px; color: #94a3b8;
-}
-
-/* ── Analisa & grafik ── */
+.pill-event { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+.pill-active { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.pill-inactive { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+.pill-locked { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 .chart-panel {
     display: flex; gap: 10px; margin-bottom: 18px; page-break-inside: avoid;
     border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; padding: 10px;
 }
-.insight-box { flex: 0 0 30%; }
-.insight-title { font-size: 10.5px; font-weight: 700; color: #1e293b; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .3px; }
-.insight-list { margin: 0; padding-left: 14px; }
-.insight-list li { font-size: 10.5px; color: #334155; line-height: 1.5; margin-bottom: 5px; }
-.chart-box { flex: 1; min-width: 0; }
-.chart-title { font-size: 10px; font-weight: 700; color: #475569; margin-bottom: 4px; }
-.chart-wrap { height: 165px; position: relative; }
-
-/* ── Print button ── */
-.btn-print {
-    position: fixed; top: 16px; right: 16px; background: #1e293b; color: #fff;
-    border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer;
-    font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
-}
-.btn-print:hover { background: #334155; }
 </style>
 </head>
 <body>
@@ -408,40 +330,7 @@ $hasAnalisa   = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tind
 </div>
 
 <!-- ══ TANDA TANGAN ══ -->
-<?php
-$sg = $signatories ?? [];
-$signSlot = function (?array $s) {
-    if ($s) {
-        return '<div style="height:42px"></div><span class="sign-role" style="text-decoration:underline">' . esc($s['nama']) . '</span>'
-             . '<div style="font-size:8.5px;color:#64748b;margin-top:2px">' . esc($s['jabatan']) . '</div>';
-    }
-    return '<div style="height:42px"></div><span class="sign-role">( ……………………………… )</span>';
-};
-?>
-<div class="sign-row">
-    <div class="sign-box" style="padding-bottom:10px">
-        Disusun oleh
-        <?= $signSlot($sg['disusun'] ?? null) ?>
-    </div>
-    <?php if (! empty($sg['diperiksa_sm'])): ?>
-    <div class="sign-box" style="padding-bottom:10px;flex:1.6">
-        Diperiksa oleh
-        <div style="display:flex;gap:14px">
-            <div style="flex:1"><?= $signSlot($sg['diperiksa_sm']) ?></div>
-            <div style="flex:1"><?= $signSlot($sg['diperiksa'] ?? null) ?></div>
-        </div>
-    </div>
-    <?php else: ?>
-    <div class="sign-box" style="padding-bottom:10px">
-        Diperiksa oleh
-        <?= $signSlot($sg['diperiksa'] ?? null) ?>
-    </div>
-    <?php endif; ?>
-    <div class="sign-box" style="padding-bottom:10px">
-        Mengetahui
-        <?= $signSlot($sg['mengetahui'] ?? null) ?>
-    </div>
-</div>
+<?= $this->include('_laporan/_ttd') ?>
 
 <!-- ══ FOOTER ══ -->
 <div class="doc-footer">
