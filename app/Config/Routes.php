@@ -464,6 +464,23 @@ $routes->get('people/eei/period/(:num)/activate',                   'PeopleEei::
 $routes->get('people/orgchart', 'PeopleOrgChart::index', ['filter' => 'auth']);
 
 // ── Appraisal (HR) ──────────────────────────────────────────────────────
+// ── Boards / Kanban (KANBAN_DESIGN.md §4 — Fase 1) ──
+$routes->get('kanban',                          'Kanban::index',        ['filter' => 'auth']);
+$routes->post('kanban/create',                  'Kanban::create',       ['filter' => 'auth']);
+$routes->get('kanban/(:num)',                   'Kanban::board/$1',     ['filter' => 'auth']);
+$routes->post('kanban/(:num)/update',           'Kanban::update/$1',    ['filter' => 'auth']);
+$routes->post('kanban/(:num)/archive',          'Kanban::archive/$1',   ['filter' => 'auth']);
+$routes->post('kanban/(:num)/lists/create',     'Kanban::createList/$1',   ['filter' => 'auth']);
+$routes->post('kanban/lists/(:num)/rename',     'Kanban::renameList/$1',   ['filter' => 'auth']);
+$routes->post('kanban/lists/(:num)/archive',    'Kanban::archiveList/$1',  ['filter' => 'auth']);
+$routes->post('kanban/(:num)/lists/reorder',    'Kanban::reorderLists/$1', ['filter' => 'auth']);
+$routes->get('kanban/(:num)/state',             'Kanban::state/$1',     ['filter' => 'auth']);
+$routes->post('kanban/lists/(:num)/cards/create', 'KanbanCard::create/$1',  ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/move',       'KanbanCard::move/$1',    ['filter' => 'auth']);
+$routes->get('kanban/cards/(:num)',             'KanbanCard::detail/$1',  ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/update',     'KanbanCard::update/$1',  ['filter' => 'auth']);
+$routes->post('kanban/cards/(:num)/archive',    'KanbanCard::archive/$1', ['filter' => 'auth']);
+
 $routes->get('appraisal',                              'Appraisal::index',                ['filter' => 'auth']);
 $routes->get('appraisal/authors',                      'Appraisal::authors',              ['filter' => 'auth']);
 $routes->post('appraisal/authors/save',                'Appraisal::saveAuthors',          ['filter' => 'auth']);
