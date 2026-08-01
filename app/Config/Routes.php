@@ -464,6 +464,8 @@ $routes->get('people/eei/period/(:num)/activate',                   'PeopleEei::
 $routes->get('people/orgchart', 'PeopleOrgChart::index', ['filter' => 'auth']);
 
 // ── Appraisal (HR) ──────────────────────────────────────────────────────
+// Kotak Persetujuan terpadu (agregasi pending lintas modul)
+$routes->get('persetujuan',          'Persetujuan::index',      ['filter' => 'auth']);
 // Notifikasi in-app generik (lonceng navbar, lintas modul)
 $routes->get('notifications',        'Notifications::index',    ['filter' => 'auth']);
 $routes->post('notifications/read',  'Notifications::markRead', ['filter' => 'auth']);

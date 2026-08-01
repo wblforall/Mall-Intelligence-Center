@@ -133,6 +133,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('/') ?>" class="nav-link <?= uri_string() === '' ? 'active' : '' ?>">
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
+        <a href="<?= base_url('persetujuan') ?>" class="nav-link <?= str_starts_with(uri_string(), 'persetujuan') ? 'active' : '' ?>">
+            <i class="bi bi-check2-square"></i> Kotak Persetujuan
+        </a>
         <?php endif; ?>
         <?php
         $_rp = session()->get('role_perms') ?? [];
