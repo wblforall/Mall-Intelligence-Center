@@ -41,6 +41,12 @@ Fokus rilis ini: **MIC menjadi proaktif**. Sebelumnya banyak alur menunggu orang
 - Ringkasan jumlah + sebaran modul, serta filter per modul.
 - Isi halaman menyesuaikan hak akses masing-masing pengguna — hanya menampilkan yang memang bisa ditindaklanjuti.
 
+#### Pengingat Persetujuan Menggantung
+
+- Notifikasi saat pengajuan masuk hanya menyala sekali; bila terlewat, item bisa menggantung tanpa ada yang tahu. Kini ada **pengingat harian**: satu rangkuman per penyetuju berisi jumlah tunggakan dan item tertua, dikirim untuk item yang sudah **≥3 hari** menunggu (maksimal satu kali per hari, tidak spam).
+- **Eskalasi otomatis**: bila masih menggantung **≥14 hari**, atasan langsung penyetuju ikut diberi tahu.
+- **Angka penanda** pada menu Kotak Persetujuan sehingga jumlah yang menunggu terlihat tanpa perlu membuka halamannya.
+
 #### Laporan Post Event — Format Resmi
 
 - **Blok tanda tangan** Disusun / Diperiksa / Mengetahui (Dept Head, Senior Manager & Deputy GM, GM) lengkap dengan tempat dan tanggal — sebelumnya hanya baris "Disusun oleh".
