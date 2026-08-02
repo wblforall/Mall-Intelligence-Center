@@ -273,17 +273,12 @@ class ApprovalInbox
         }
         $isAdmin = ! empty($perms['is_admin']) || ($u['role'] ?? '') === 'admin';
 
-        // canEditMenu / canApproveMenu tanpa session: admin → grant per-user → grant dept
-        $punyaHak = static function (string $menuKey, string $kolom) use ($db, $u, $isAdmin): bool {
-            if ($isAdmin) return true;
-            if ($db->table('user_menu_access')->where('user_id', $u['id'])
-                ->where('menu_key', $menuKey)->where($kolom, 1)->countAllResults()) return true;
-            if (empty($u['department_id'])) return false;
-            return (bool) $db->table('department_menu_access')->where('department_id', $u['department_id'])
-                ->where('menu_key', $menuKey)->where($kolom, 1)->countAllResults();
-        };
-        $canEdit    = static fn (string $k): bool => $punyaHak($k, 'can_edit');
-        $canApprove = static fn (string $k): bool => $punyaHak($k, 'can_approve');
+        // Aturan akses memakai sumber tunggal MenuAccess (sama dengan web & API).
+        // Peta dimuat SEKALI di sini — versi lama menembak 2 query per menu per
+        // pemeriksaan, padahal konteks ini dipanggil untuk tiap kandidat di cron.
+        $peta = ['is_admin' => $isAdmin] + MenuAccess::mapsForUser($userId);
+        $canEdit    = static fn (string $k): bool => MenuAccess::allowed($isAdmin, $peta['user'], $peta['dept'], $k, 'can_edit');
+        $canApprove = static fn (string $k): bool => MenuAccess::allowed($isAdmin, $peta['user'], $peta['dept'], $k, 'can_approve');
 
         $emp = $db->table('employees')->select('id')->where('user_id', $userId)->get()->getRowArray();
 

@@ -108,12 +108,29 @@ class AuthController extends BaseApiController
     {
         if (! $this->requireAuth()) return $this->response;
 
+        $uid = (int) $this->apiUser['id'];
+        $emp = $this->db->table('employees')->select('id')->where('user_id', $uid)->get()->getRowArray();
+        $dept = ! empty($this->apiUser['department_id'])
+            ? $this->db->table('departments')->select('name')
+                ->where('id', $this->apiUser['department_id'])->get()->getRowArray()
+            : null;
+
+        // Dikirim LENGKAP supaya app bisa menyusun menu & tombolnya sendiri,
+        // dan bisa menyegarkan hak akses tanpa login ulang. Sebelumnya hanya
+        // identitas yang dikirim, jadi app tak punya dasar apa pun.
         return $this->success([
-            'user_id'  => $this->apiUser['id'],
-            'name'     => $this->apiUser['name'],
-            'email'    => $this->apiUser['email'],
-            'role'     => $this->apiUser['role'],
-            'dept_id'  => $this->apiUser['department_id'],
+            'user_id'     => $uid,
+            'name'        => $this->apiUser['name'],
+            'email'       => $this->apiUser['email'],
+            'role'        => $this->apiUser['role'],
+            'dept_id'     => $this->apiUser['department_id'],
+            'dept_name'   => $dept['name'] ?? null,
+            'employee_id' => $emp ? (int) $emp['id'] : null,
+            'is_admin'    => $this->isAdmin(),
+            'role_perms'  => $this->apiPerms,
+            // Peta hak efektif per menu (dept + grant per-user + bypass admin
+            // sudah digabung). Menu yang tak boleh diakses tidak dikirim.
+            'menus'       => $this->effectiveMenuMap(),
         ]);
     }
 

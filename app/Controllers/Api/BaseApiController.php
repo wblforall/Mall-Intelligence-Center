@@ -20,6 +20,9 @@ abstract class BaseApiController extends Controller
     /** Department menu access map, or null for admin / no department. */
     protected ?array $apiMenus = null;
 
+    /** Grant menu per-user (user_menu_access) — aditif di atas akses dept. */
+    protected array $apiUserMenus = [];
+
     /** @var \CodeIgniter\Database\BaseConnection */
     protected $db;
 
@@ -59,10 +62,27 @@ abstract class BaseApiController extends Controller
         }
 
         $token = substr($header, 7);
-        $user  = (new ApiTokenModel())->findUser($token);
+        $row   = (new ApiTokenModel())->findRow($token);
 
-        if (! $user) {
+        if (! $row) {
             $this->json(['success' => false, 'message' => 'Token tidak valid atau sudah kadaluarsa.'], 401)->send();
+            return false;
+        }
+
+        $user = (new \App\Models\UserModel())->find($row['user_id']);
+
+        // Force-logout — menyamakan API dengan web, yang memutus sesi begitu
+        // akun dinonaktifkan atau hak aksesnya diubah. Tanpa ini token masih
+        // berlaku sampai 30 hari, jadi karyawan resign tetap bisa memakai app.
+        if (! $user || empty($user['is_active'])) {
+            (new ApiTokenModel())->revoke($token);
+            $this->json(['success' => false, 'message' => 'Akun tidak aktif. Silakan hubungi admin.'], 401)->send();
+            return false;
+        }
+        if (! empty($user['perms_changed_at']) && ! empty($row['created_at'])
+            && strtotime($user['perms_changed_at']) > strtotime($row['created_at'])) {
+            (new ApiTokenModel())->revoke($token);
+            $this->json(['success' => false, 'message' => 'Hak akses Anda berubah. Silakan login ulang.'], 401)->send();
             return false;
         }
 
@@ -83,8 +103,14 @@ abstract class BaseApiController extends Controller
         }
         $this->apiPerms = $perms;
 
-        if (empty($perms['is_admin']) && ! empty($user['department_id'])) {
-            $this->apiMenus = (new DepartmentMenuModel())->getMenuMap((int)$user['department_id']);
+        if (empty($perms['is_admin'])) {
+            // Grant per-user WAJIB ikut dimuat — aturan MIC bersifat aditif.
+            // Sebelumnya hanya akses dept yang dibaca, sehingga pemegang grant
+            // khusus ditolak keliru oleh app.
+            $this->apiUserMenus = (new \App\Models\UserMenuModel())->getMenuMap((int)$user['id']);
+            if (! empty($user['department_id'])) {
+                $this->apiMenus = (new DepartmentMenuModel())->getMenuMap((int)$user['department_id']);
+            }
         }
     }
 
@@ -100,16 +126,42 @@ abstract class BaseApiController extends Controller
         return (bool)($this->apiPerms[$perm] ?? false);
     }
 
+    /**
+     * Aturan akses menu — SAMA PERSIS dengan web (BaseController), karena
+     * keduanya memanggil {@see \App\Libraries\MenuAccess::allowed()}. API tak
+     * boleh jadi pintu belakang: kalau di web tidak boleh, di app juga tidak.
+     */
+    private function menuAllowed(string $menuKey, string $kolom): bool
+    {
+        return \App\Libraries\MenuAccess::allowed(
+            $this->isAdmin(), $this->apiUserMenus, $this->apiMenus, $menuKey, $kolom
+        );
+    }
+
     protected function canViewMenu(string $menuKey): bool
     {
-        if ($this->isAdmin()) return true;
-        return isset($this->apiMenus[$menuKey]) && $this->apiMenus[$menuKey]['can_view'];
+        return $this->menuAllowed($menuKey, 'can_view');
     }
 
     protected function canEditMenu(string $menuKey): bool
     {
-        if ($this->isAdmin()) return true;
-        return isset($this->apiMenus[$menuKey]) && $this->apiMenus[$menuKey]['can_edit'];
+        return $this->menuAllowed($menuKey, 'can_edit');
+    }
+
+    /** Boleh menyetujui pada menu ini (kolom `can_approve`, v2.24). */
+    protected function canApproveMenu(string $menuKey): bool
+    {
+        return $this->menuAllowed($menuKey, 'can_approve');
+    }
+
+    /** Peta hak efektif seluruh menu — dikirim ke app lewat /api/auth/me. */
+    protected function effectiveMenuMap(): array
+    {
+        return \App\Libraries\MenuAccess::effectiveMap((int) $this->apiUser['id'], [
+            'is_admin' => $this->isAdmin(),
+            'user'     => $this->apiUserMenus,
+            'dept'     => $this->apiMenus,
+        ]);
     }
 
     protected function forbidden(string $message = 'Anda tidak memiliki izin untuk tindakan ini.'): ResponseInterface

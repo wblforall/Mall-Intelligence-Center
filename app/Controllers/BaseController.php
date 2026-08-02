@@ -177,33 +177,36 @@ abstract class BaseController extends Controller
         return (bool)($perms[$perm] ?? false);
     }
 
-    // Returns true if user can view the menu — dept_menus is sole authority for non-admin
-    protected function canViewMenu(string $menuKey): bool
+    /**
+     * Aturan akses menu — admin → grant per-user (aditif) → grant dept.
+     * Aturannya sendiri tinggal di {@see \App\Libraries\MenuAccess}, satu
+     * tempat yang juga dipakai API mobile & cron, supaya web dan API tak
+     * pernah lagi menyimpang. Di sini kita hanya menyuplai peta dari session.
+     */
+    private function menuAllowed(string $menuKey, string $kolom): bool
     {
-        if ($this->isAdmin()) return true;
-        // Grant per-user (override) — additive di atas akses dept.
-        $um = session()->get('user_menus');
-        if (isset($um[$menuKey]) && $um[$menuKey]['can_view']) return true;
-        $menus = session()->get('dept_menus');
-        // Non-admin tanpa departemen = TIDAK punya akses (hanya admin/superadmin yang full).
-        if ($menus === null) return false;
-        return isset($menus[$menuKey]) && $menus[$menuKey]['can_view'];
+        return \App\Libraries\MenuAccess::allowed(
+            $this->isAdmin(),
+            session()->get('user_menus'),
+            session()->get('dept_menus'), // null = non-admin tanpa dept → tak punya akses
+            $menuKey,
+            $kolom
+        );
     }
 
-    // Returns true if user can edit the menu — dept_menus + grant per-user (override)
+    protected function canViewMenu(string $menuKey): bool
+    {
+        return $this->menuAllowed($menuKey, 'can_view');
+    }
+
     protected function canEditMenu(string $menuKey): bool
     {
-        if ($this->isAdmin()) return true;
-        $um = session()->get('user_menus');
-        if (isset($um[$menuKey]) && $um[$menuKey]['can_edit']) return true;
-        $menus = session()->get('dept_menus');
-        if ($menus === null) return false; // non-admin tanpa dept = tidak boleh edit
-        return isset($menus[$menuKey]) && $menus[$menuKey]['can_edit'];
+        return $this->menuAllowed($menuKey, 'can_edit');
     }
 
     /**
      * Boleh MENYETUJUI pada sebuah menu — tingkat akses ketiga setelah
-     * lihat & ubah. Aturannya sama: admin → grant per-user → grant dept.
+     * lihat & ubah.
      *
      * Bersifat ADITIF terhadap izin lama di tabel `roles` (can_approve_*):
      * pemanggil menggabungkan keduanya, sehingga hak yang sudah berjalan
@@ -212,12 +215,7 @@ abstract class BaseController extends Controller
      */
     protected function canApproveMenu(string $menuKey): bool
     {
-        if ($this->isAdmin()) return true;
-        $um = session()->get('user_menus');
-        if (isset($um[$menuKey]) && ! empty($um[$menuKey]['can_approve'])) return true;
-        $menus = session()->get('dept_menus');
-        if ($menus === null) return false;
-        return isset($menus[$menuKey]) && ! empty($menus[$menuKey]['can_approve']);
+        return $this->menuAllowed($menuKey, 'can_approve');
     }
 
     // Returns the section_type for the user's dept + menu ('all' for admin or no dept)

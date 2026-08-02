@@ -52,5 +52,39 @@ class Notify
         // Satu query untuk semua penerima — penerima berbasis peran bisa
         // berjumlah puluhan (mis. seluruh pengelola HR).
         (new NotificationModel())->insertBatch($baris);
+
+        self::antrikanPush($baris);
+    }
+
+    /**
+     * Titipkan notifikasi yang sama ke antrian push (app mobile).
+     *
+     * Ditulis ke tabel, BUKAN dikirim di sini: satu panggilan FCM per perangkat
+     * akan menahan request web sampai belasan detik untuk penerima yang banyak.
+     * Cron `mic:push-dispatch` yang mengirimkannya. Kegagalan di sini tidak
+     * boleh menjatuhkan aksi utama user — karena itu dibungkus try/catch.
+     */
+    private static function antrikanPush(array $baris): void
+    {
+        try {
+            $db  = db_connect();
+            if (! $db->tableExists('push_queue')) return; // belum migrasi
+
+            $antri = [];
+            foreach ($baris as $r) {
+                $antri[] = [
+                    'user_id'    => $r['user_id'],
+                    'title'      => $r['title'],
+                    'body'       => $r['body'],
+                    'url'        => $r['url'],
+                    'module'     => $r['module'],
+                    'status'     => 'pending',
+                    'created_at' => $r['created_at'],
+                ];
+            }
+            if ($antri) $db->table('push_queue')->insertBatch($antri);
+        } catch (\Throwable $e) {
+            log_message('error', 'Notify: gagal mengantrikan push — ' . $e->getMessage());
+        }
     }
 }

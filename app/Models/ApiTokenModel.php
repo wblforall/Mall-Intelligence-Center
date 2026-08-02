@@ -21,11 +21,21 @@ class ApiTokenModel extends Model
         return $token;
     }
 
-    public function findUser(string $token): ?array
+    /**
+     * Baris token yang masih berlaku (bukan user-nya) — dibutuhkan
+     * BaseApiController untuk membandingkan `created_at` token dengan
+     * `users.perms_changed_at` saat memutuskan force-logout.
+     */
+    public function findRow(string $token): ?array
     {
-        $row = $this->where('token', $token)
+        return $this->where('token', $token)
                     ->where('expires_at >', date('Y-m-d H:i:s'))
                     ->first();
+    }
+
+    public function findUser(string $token): ?array
+    {
+        $row = $this->findRow($token);
         if (! $row) return null;
 
         return (new UserModel())->find($row['user_id']);
