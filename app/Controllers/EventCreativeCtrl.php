@@ -99,7 +99,7 @@ class EventCreativeCtrl extends BaseController
             'completion'     => $completion,
             'canEdit'        => $this->canEditMenu('creative') && ! $completion,
             'insights'       => $insights,
-            'canApprove'     => in_array($this->currentUser()['role'] ?? '', ['admin', 'manager']),
+            'canApprove'     => $this->canApproveCreative(true),
             'analysis'       => $analysis,
         ]);
     }
@@ -237,8 +237,8 @@ class EventCreativeCtrl extends BaseController
         $status = $this->request->getPost('status');
 
         $approveStatuses = ['approved', 'revision'];
-        if (in_array($status, $approveStatuses) && ! in_array($user['role'] ?? '', ['admin', 'manager'])) {
-            return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Hanya admin/manager yang bisa approve.');
+        if (in_array($status, $approveStatuses) && ! $this->canApproveCreative(true)) {
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Anda tidak punya hak menyetujui materi creative.');
         }
 
         $item = (new EventCreativeItemModel())->find($id);
@@ -252,7 +252,7 @@ class EventCreativeCtrl extends BaseController
             $label = $item['nama'] ?? 'Materi creative';
             if ($status === 'review') {
                 \App\Libraries\Notify::send(
-                    \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('creative')),
+                    \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::menuEditors('creative'), \App\Libraries\OrgRecipients::menuApprovers('creative'))),
                     (int) $user['id'], 'creative', 'approval',
                     'Materi creative event menunggu peninjauan: ' . $label,
                     ($user['name'] ?? '') . ' mengajukan materi untuk ditinjau.',

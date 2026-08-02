@@ -97,7 +97,104 @@ class Users extends BaseController
             'after'  => ['name' => $data['name'],   'role' => $data['role'],   'department_id' => $data['department_id']],
             'password_changed' => !empty($post['password']),
         ]);
+
+        // Pindah departemen: grant khusus per-user TIDAK ikut terhapus otomatis
+        // (bisa jadi memang masih diperlukan). Ingatkan admin untuk meninjau.
+        $pindahDept = ($before['department_id'] ?? null) != $data['department_id'];
+        $jmlGrant   = $pindahDept
+            ? db_connect()->table('user_menu_access')->where('user_id', $id)->countAllResults()
+            : 0;
+        if ($jmlGrant > 0) {
+            return redirect()->to('users/' . $id . '/menu-access')->with('warning',
+                'User pindah departemen, tapi masih punya ' . $jmlGrant . ' akses khusus dari departemen lama. '
+                . 'Tinjau di bawah — hapus centang yang sudah tidak relevan lalu Simpan.');
+        }
         return redirect()->to('/users')->with('success', 'User berhasil diperbarui.');
+    }
+
+    /** Halaman tinjauan: siapa memegang menu apa (lihat/edit/setujui). */
+    public function tinjauAkses()
+    {
+        $db     = db_connect();
+        $labels = \App\Libraries\SectionConfig::MENU_LABELS;
+
+        $deptAkses = [];
+        foreach ($db->table('department_menu_access dma')
+            ->select('dma.menu_key, dma.can_view, dma.can_edit, dma.can_approve, d.name AS dept, d.id AS dept_id')
+            ->join('departments d', 'd.id = dma.department_id')
+            ->get()->getResultArray() as $r) {
+            $deptAkses[$r['menu_key']][] = $r;
+        }
+
+        $userAkses = [];
+        foreach ($db->table('user_menu_access uma')
+            ->select('uma.menu_key, uma.can_view, uma.can_edit, uma.can_approve, u.id AS user_id, u.name, u.is_active, d.name AS dept')
+            ->join('users u', 'u.id = uma.user_id')
+            ->join('departments d', 'd.id = u.department_id', 'left')
+            ->orderBy('u.name')->get()->getResultArray() as $r) {
+            $userAkses[$r['menu_key']][] = $r;
+        }
+
+        // Admin = bypass total, perlu ditampilkan agar tinjauan tidak menyesatkan.
+        $admins = $db->table('users')->select('id, name, is_active')
+            ->where('role', 'admin')->where('is_active', 1)->orderBy('name')->get()->getResultArray();
+
+        // Grant per-user yang SUDAH dicakup akses departemennya → kandidat dibersihkan.
+        $redundan = [];
+        foreach ($db->table('user_menu_access uma')
+            ->select('uma.menu_key, uma.can_view, uma.can_edit, uma.can_approve, u.id AS user_id, u.name,
+                      d.name AS dept, dma.can_view AS d_view, dma.can_edit AS d_edit, dma.can_approve AS d_approve')
+            ->join('users u', 'u.id = uma.user_id')
+            ->join('departments d', 'd.id = u.department_id', 'left')
+            ->join('department_menu_access dma', 'dma.department_id = u.department_id AND dma.menu_key = uma.menu_key')
+            ->where('u.role !=', 'admin')
+            ->orderBy('u.name')->get()->getResultArray() as $r) {
+            $tercakup = (empty($r['can_view'])    || ! empty($r['d_view']))
+                     && (empty($r['can_edit'])    || ! empty($r['d_edit']))
+                     && (empty($r['can_approve']) || ! empty($r['d_approve']));
+            if (! $tercakup) continue;
+            $redundan[$r['user_id']]['nama']    = $r['name'];
+            $redundan[$r['user_id']]['dept']    = $r['dept'];
+            $redundan[$r['user_id']]['menus'][] = $labels[$r['menu_key']] ?? $r['menu_key'];
+        }
+
+        return view('users/tinjau_akses', [
+            'user'       => $this->currentUser(),
+            'menuLabels' => $labels,
+            'deptAkses'  => $deptAkses,
+            'userAkses'  => $userAkses,
+            'admins'     => $admins,
+            'redundan'   => $redundan,
+        ]);
+    }
+
+    /** Hapus semua grant per-user yang sudah dicakup akses departemennya. */
+    public function bersihkanGrant(int $id)
+    {
+        $user = (new UserModel())->find($id);
+        if (! $user) return redirect()->to('users/akses')->with('error', 'User tidak ditemukan.');
+
+        $db   = db_connect();
+        $dept = (new \App\Models\DepartmentMenuModel())->getMenuMap((int) ($user['department_id'] ?? 0));
+        $umm  = new \App\Models\UserMenuModel();
+
+        $hapus = [];
+        foreach ($umm->getByUser($id) as $r) {
+            $d = $dept[$r['menu_key']] ?? null;
+            if (! $d) continue;
+            $tercakup = (empty($r['can_view'])    || ! empty($d['can_view']))
+                     && (empty($r['can_edit'])    || ! empty($d['can_edit']))
+                     && (empty($r['can_approve']) || ! empty($d['can_approve']));
+            if ($tercakup) $hapus[] = $r['menu_key'];
+        }
+        if ($hapus) {
+            $db->table('user_menu_access')->where('user_id', $id)->whereIn('menu_key', $hapus)->delete();
+            $db->table('users')->where('id', $id)->update(['perms_changed_at' => date('Y-m-d H:i:s')]);
+            ActivityLog::write('delete', 'user', (string) $id, $user['name'], ['grant_redundan_dihapus' => $hapus]);
+        }
+
+        return redirect()->to('users/akses')->with('success',
+            count($hapus) . ' akses khusus milik ' . esc($user['name']) . ' yang sudah dicakup departemen dihapus.');
     }
 
     public function toggle(int $id)
@@ -144,12 +241,49 @@ class Users extends BaseController
     {
         $user = (new UserModel())->find($id);
         if (! $user) return redirect()->to('/users')->with('error', 'User tidak ditemukan.');
+        $db   = db_connect();
+        $dept = ! empty($user['department_id'])
+            ? $db->table('departments')->select('name')->where('id', $user['department_id'])->get()->getRowArray()
+            : null;
+
+        // Kandidat "samakan dengan" — user aktif yang PUNYA grant khusus,
+        // beserta jumlah menunya, agar admin bisa menilai sebelum menyalin.
+        $userLain = $db->table('users u')
+            ->select('u.id, u.name, d.name AS dept, COUNT(uma.id) AS jml')
+            ->join('user_menu_access uma', 'uma.user_id = u.id')
+            ->join('departments d', 'd.id = u.department_id', 'left')
+            ->where('u.is_active', 1)->where('u.id !=', $id)
+            ->groupBy('u.id')->orderBy('u.name')->get()->getResultArray();
+
         return view('users/menu_access', [
             'user'       => $this->currentUser(),
             'target'     => $user,
             'menuLabels' => \App\Libraries\SectionConfig::MENU_LABELS,
             'access'     => (new \App\Models\UserMenuModel())->getMenuMap($id),
+            'deptNama'   => $dept['name'] ?? null,
+            'deptAccess' => ! empty($user['department_id'])
+                ? (new \App\Models\DepartmentMenuModel())->getMenuMap((int) $user['department_id'])
+                : [],
+            'userLain'   => $userLain,
         ]);
+    }
+
+    /** Salin seluruh akses menu dari user lain (menimpa yang ada). */
+    public function salinMenuAccess(int $id)
+    {
+        $user = (new UserModel())->find($id);
+        if (! $user) return redirect()->to('/users')->with('error', 'User tidak ditemukan.');
+
+        $sumberId = (int) $this->request->getPost('sumber_user_id');
+        $sumber   = $sumberId ? (new UserModel())->find($sumberId) : null;
+        if (! $sumber) return redirect()->back()->with('error', 'User sumber tidak valid.');
+
+        $n = (new \App\Models\UserMenuModel())->copyFrom($sumberId, $id);
+        db_connect()->table('users')->where('id', $id)->update(['perms_changed_at' => date('Y-m-d H:i:s')]);
+        ActivityLog::write('update', 'user', (string) $id, $user['name'], ['salin_akses_dari' => $sumber['name'], 'jumlah_menu' => $n]);
+
+        return redirect()->to('users/' . $id . '/menu-access')
+            ->with('success', "Akses disalin dari {$sumber['name']} ({$n} menu). Periksa & sesuaikan bila perlu, lalu Simpan.");
     }
 
     public function saveMenuAccess(int $id)
@@ -161,8 +295,9 @@ class Users extends BaseController
         $menuData  = [];
         foreach (array_keys(\App\Libraries\SectionConfig::MENU_LABELS) as $key) {
             $menuData[$key] = [
-                'can_view' => isset($postMenus[$key]['can_view']) ? 1 : 0,
-                'can_edit' => isset($postMenus[$key]['can_edit']) ? 1 : 0,
+                'can_view'    => isset($postMenus[$key]['can_view']) ? 1 : 0,
+                'can_edit'    => isset($postMenus[$key]['can_edit']) ? 1 : 0,
+                'can_approve' => isset($postMenus[$key]['can_approve']) ? 1 : 0,
             ];
         }
         (new \App\Models\UserMenuModel())->saveMenuAccess($id, $menuData);

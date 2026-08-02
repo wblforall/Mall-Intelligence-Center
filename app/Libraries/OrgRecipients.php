@@ -126,6 +126,42 @@ class OrgRecipients
         return self::userIds(array_merge($dept, $perUser));
     }
 
+    /**
+     * Semua user yang boleh MENYETUJUI pada sebuah menu (`can_approve`),
+     * dari grant dept maupun grant per-user — cermin BaseController::canApproveMenu().
+     *
+     * Dipakai berdampingan dengan withRolePerm()/menuEditors() di titik kirim
+     * notifikasi: pemegang hak setuju per-orang harus ikut diberi tahu, kalau
+     * tidak item-nya muncul di Kotak Persetujuan tanpa pernah ada notifikasi.
+     */
+    public static function menuApprovers(string $menuKey): array
+    {
+        $db = db_connect();
+
+        $dept = $db->table('users u')
+            ->select('u.id AS user_id')
+            ->join('department_menu_access dma', 'dma.department_id = u.department_id')
+            ->join('departments d', 'd.id = u.department_id')
+            ->where('dma.menu_key', $menuKey)->where('dma.can_approve', 1)
+            ->where('d.is_outsource', 0)->where('u.is_active', 1)
+            ->get()->getResultArray();
+
+        $perUser = $db->table('user_menu_access uma')
+            ->select('uma.user_id')
+            ->join('users u', 'u.id = uma.user_id')
+            ->where('uma.menu_key', $menuKey)->where('uma.can_approve', 1)
+            ->where('u.is_active', 1)
+            ->get()->getResultArray();
+
+        return self::userIds(array_merge($dept, $perUser));
+    }
+
+    /** Gabung beberapa daftar penerima jadi satu (unik). */
+    public static function merge(array ...$daftar): array
+    {
+        return array_values(array_unique(array_merge(...$daftar)));
+    }
+
     /** Izin approve yang boleh dipakai withRolePerm() (whitelist kolom `roles`). */
     private const APPROVE_PERMS = [
         'can_approve_events', 'can_approve_promo_media', 'can_approve_pip', 'can_approve_legal',

@@ -3,9 +3,14 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
     <h4 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>User Management</h4>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
-        <i class="bi bi-plus-lg me-1"></i> Tambah User
-    </button>
+    <div class="d-flex gap-2">
+        <a href="<?= base_url('users/akses') ?>" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-list-check me-1"></i> Tinjau Hak Akses
+        </a>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="bi bi-plus-lg me-1"></i> Tambah User
+        </button>
+    </div>
 </div>
 
 <?php

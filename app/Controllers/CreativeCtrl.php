@@ -91,7 +91,7 @@ $user = $this->currentUser();
             }
         }
 
-        $canApprove = in_array($user['role'] ?? '', ['admin', 'manager']);
+        $canApprove = $this->canApproveCreative();
 
         return view('creative_main/index', [
             'user'           => $user,
@@ -588,7 +588,7 @@ $user = $this->currentUser();
     public function updateStatus(int $id)
     {
         $user   = $this->currentUser();
-        $canApprove = in_array($user['role'] ?? '', ['admin', 'manager']);
+        $canApprove = $this->canApproveCreative();
 
         if (!$this->canEditMenu('creative_main') && !$canApprove) {
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
@@ -612,7 +612,7 @@ $user = $this->currentUser();
             $label = $item['nama'] ?? 'Materi creative';
             if ($status === 'review') {
                 \App\Libraries\Notify::send(
-                    \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('creative_main')),
+                    \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::menuEditors('creative_main'), \App\Libraries\OrgRecipients::menuApprovers('creative_main'))),
                     (int) $user['id'], 'creative', 'approval',
                     'Materi creative menunggu peninjauan: ' . $label,
                     ($user['name'] ?? '') . ' mengajukan materi untuk ditinjau.',

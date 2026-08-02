@@ -399,7 +399,10 @@ $routes->post('jabatans/(:num)/delete', 'Jabatans::delete/$1', ['filter' => 'aut
 
 // Users (admin only)
 $routes->get('users', 'Users::index', ['filter' => 'auth:admin']);
+$routes->get('users/akses', 'Users::tinjauAkses', ['filter' => 'auth:admin']);
+$routes->post('users/akses/bersihkan/(:num)', 'Users::bersihkanGrant/$1', ['filter' => 'auth:admin']);
 $routes->post('users/add', 'Users::store', ['filter' => 'auth:admin']);
+$routes->post('users/(:num)/menu-access/salin', 'Users::salinMenuAccess/$1', ['filter' => 'auth:admin']);
 $routes->post('users/(:num)/edit', 'Users::update/$1', ['filter' => 'auth:admin']);
 $routes->get('users/(:num)/menu-access', 'Users::menuAccess/$1', ['filter' => 'auth:admin']);
 $routes->post('users/(:num)/menu-access', 'Users::saveMenuAccess/$1', ['filter' => 'auth:admin']);

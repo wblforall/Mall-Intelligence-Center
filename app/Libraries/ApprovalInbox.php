@@ -222,6 +222,12 @@ class ApprovalInbox
             OrgRecipients::menuEditors('legal'),
             OrgRecipients::menuEditors('creative_main'),
             OrgRecipients::menuEditors('creative'),
+            // pemegang grant "Setujui" per-orang/dept — tak terjaring resolver di atas
+            OrgRecipients::menuApprovers('events'),
+            OrgRecipients::menuApprovers('creative_main'),
+            OrgRecipients::menuApprovers('creative'),
+            OrgRecipients::menuApprovers('people_dev'),
+            OrgRecipients::menuApprovers('legal'),
         );
 
         // Penilai yang sedang dituju form appraisal
@@ -267,15 +273,17 @@ class ApprovalInbox
         }
         $isAdmin = ! empty($perms['is_admin']) || ($u['role'] ?? '') === 'admin';
 
-        // canEditMenu tanpa session: admin → grant per-user → grant dept
-        $canEdit = static function (string $menuKey) use ($db, $u, $isAdmin): bool {
+        // canEditMenu / canApproveMenu tanpa session: admin → grant per-user → grant dept
+        $punyaHak = static function (string $menuKey, string $kolom) use ($db, $u, $isAdmin): bool {
             if ($isAdmin) return true;
             if ($db->table('user_menu_access')->where('user_id', $u['id'])
-                ->where('menu_key', $menuKey)->where('can_edit', 1)->countAllResults()) return true;
+                ->where('menu_key', $menuKey)->where($kolom, 1)->countAllResults()) return true;
             if (empty($u['department_id'])) return false;
             return (bool) $db->table('department_menu_access')->where('department_id', $u['department_id'])
-                ->where('menu_key', $menuKey)->where('can_edit', 1)->countAllResults();
+                ->where('menu_key', $menuKey)->where($kolom, 1)->countAllResults();
         };
+        $canEdit    = static fn (string $k): bool => $punyaHak($k, 'can_edit');
+        $canApprove = static fn (string $k): bool => $punyaHak($k, 'can_approve');
 
         $emp = $db->table('employees')->select('id')->where('user_id', $userId)->get()->getRowArray();
 
@@ -283,17 +291,20 @@ class ApprovalInbox
             'user_id'                 => $userId,
             'employee_id'             => (int) ($emp['id'] ?? 0),
             'is_admin'                => $isAdmin,
-            'can_approve_promo_media' => $isAdmin || ! empty($perms['can_approve_promo_media']),
-            'can_approve_events'      => $isAdmin || ! empty($perms['can_approve_events']),
-            'can_approve_pip'         => $isAdmin || ! empty($perms['can_approve_pip']),
+            // Hak setuju = izin role (lama) ATAU grant "Setujui" pada menu (baru)
+            'can_approve_promo_media' => $isAdmin || ! empty($perms['can_approve_promo_media']) || $canApprove('creative_main'),
+            'can_approve_events'      => $isAdmin || ! empty($perms['can_approve_events'])      || $canApprove('events'),
+            'can_approve_pip'         => $isAdmin || ! empty($perms['can_approve_pip'])         || $canApprove('people_dev'),
             'is_hr'                   => $canEdit('hr_main') || $canEdit('people_dev'),
-            'can_legal'               => $canEdit('legal'),
+            'can_legal'               => $canEdit('legal') || $canApprove('legal'),
             // Gate creative mengikuti aturan controllernya masing-masing:
             // standalone = can_edit creative_main / role manager; per-event =
-            // HANYA admin/manager (EventCreativeCtrl::updateStatus).
+            // HANYA admin/manager. Kini keduanya juga menerima grant "Setujui".
             'can_creative'            => $canEdit('creative_main') || $canEdit('creative')
-                                         || in_array($u['role'] ?? '', ['admin', 'manager'], true),
-            'can_creative_event'      => $isAdmin || in_array($u['role'] ?? '', ['admin', 'manager'], true),
+                                         || in_array($u['role'] ?? '', ['admin', 'manager'], true)
+                                         || $canApprove('creative_main'),
+            'can_creative_event'      => $isAdmin || in_array($u['role'] ?? '', ['admin', 'manager'], true)
+                                         || $canApprove('creative'),
         ]);
     }
 

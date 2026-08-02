@@ -49,6 +49,7 @@
     <th style="width:180px">Menu</th>
     <th class="text-center" style="width:80px">Lihat</th>
     <th class="text-center" style="width:80px">Edit</th>
+    <th class="text-center" style="width:90px">Setujui</th>
     <th>Section / Data</th>
 </tr>
 </thead>
@@ -56,16 +57,17 @@
 <?php
 $firstEventKey = true;
 $standaloneKeys = \App\Libraries\SectionConfig::standaloneKeys(); // sumber tunggal — jangan hardcode ulang
-echo '<tr><td colspan="4" class="py-1 px-3 bg-body-secondary" style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bs-secondary-color)">Standalone</td></tr>';
+echo '<tr><td colspan="5" class="py-1 px-3 bg-body-secondary" style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bs-secondary-color)">Standalone</td></tr>';
 foreach ($menuLabels as $key => $label):
     if ($firstEventKey && !in_array($key, $standaloneKeys)):
         $firstEventKey = false;
 ?>
-<tr><td colspan="4" class="py-1 px-3 bg-body-secondary" style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bs-secondary-color)">Per Event</td></tr>
+<tr><td colspan="5" class="py-1 px-3 bg-body-secondary" style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bs-secondary-color)">Per Event</td></tr>
 <?php   endif;
     $access = $dept['menus'][$key] ?? [];
     $canView = !empty($access['can_view']);
     $canEdit = !empty($access['can_edit']);
+    $canApprove = !empty($access['can_approve']);
     $section = $access['section_type'] ?? 'all';
 ?>
 <tr>
@@ -79,6 +81,12 @@ foreach ($menuLabels as $key => $label):
         <input type="checkbox" name="menus[<?= $key ?>][can_edit]" value="1"
                class="form-check-input menu-edit-cb" data-menu="<?= $key ?>"
                <?= $canEdit ? 'checked' : '' ?>>
+    </td>
+    <td class="text-center">
+        <input type="checkbox" name="menus[<?= $key ?>][can_approve]" value="1"
+               class="form-check-input menu-approve-cb" data-menu="<?= $key ?>"
+               title="Seluruh anggota departemen ini boleh menyetujui di modul tsb."
+               <?= $canApprove ? 'checked' : '' ?>>
     </td>
     <td>
         <?php if (in_array($key, ['tracking', 'baseline'])): ?>
@@ -136,6 +144,15 @@ document.querySelectorAll('.menu-view-cb').forEach(cb => {
         if (! this.checked && ! INPUT_ONLY_MENUS.includes(this.dataset.menu)) {
             const editCb = document.querySelector(`.menu-edit-cb[data-menu="${this.dataset.menu}"]`);
             if (editCb) editCb.checked = false;
+        }
+    });
+});
+// "Setujui" tak berguna tanpa bisa melihat modulnya — auto-centang "view".
+document.querySelectorAll('.menu-approve-cb').forEach(cb => {
+    cb.addEventListener('change', function() {
+        if (this.checked) {
+            const viewCb = document.querySelector(`.menu-view-cb[data-menu="${this.dataset.menu}"]`);
+            if (viewCb) viewCb.checked = true;
         }
     });
 });

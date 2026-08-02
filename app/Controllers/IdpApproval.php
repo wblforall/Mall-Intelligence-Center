@@ -70,7 +70,7 @@ class IdpApproval extends BaseController
         \App\Libraries\Notify::send(
             array_merge(
                 [(int) ($emp['user_id'] ?? 0)],
-                \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('people_dev'))
+                \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::menuEditors('people_dev'), \App\Libraries\OrgRecipients::menuApprovers('people_dev')))
             ),
             0, 'idp', 'result',
             'IDP ' . ($keputusan === 'setuju' ? 'disetujui' : 'ditolak') . ': ' . ($emp['nama'] ?? '-'),

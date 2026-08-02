@@ -223,7 +223,7 @@ class PromoMediaUsageCtrl extends BaseController
 
         // Notifikasi ke pemegang izin approve Media Promo
         \App\Libraries\Notify::send(
-            \App\Libraries\OrgRecipients::withRolePerm('can_approve_promo_media'),
+            \App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::withRolePerm('can_approve_promo_media'), \App\Libraries\OrgRecipients::menuApprovers('creative_main')),
             (int) $this->currentUser()['id'], 'promo_media', 'approval',
             'Request media menunggu persetujuan: ' . $usage['nama_materi'],
             ($this->currentUser()['name'] ?? '') . ' · ' . $usage['tanggal_mulai'] . ' s/d ' . $usage['tanggal_selesai'],
@@ -274,7 +274,7 @@ class PromoMediaUsageCtrl extends BaseController
             // Notifikasi ke approver — jalur batch ini yang dipakai UI "Submit
             // Terpilih", jadi tanpa ini approver tak tahu ada request masuk.
             \App\Libraries\Notify::send(
-                \App\Libraries\OrgRecipients::withRolePerm('can_approve_promo_media'),
+                \App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::withRolePerm('can_approve_promo_media'), \App\Libraries\OrgRecipients::menuApprovers('creative_main')),
                 (int) $userId, 'promo_media', 'approval',
                 'Request media menunggu persetujuan: ' . $usage['nama_materi'],
                 ($this->currentUser()['name'] ?? '') . ' · ' . $usage['tanggal_mulai'] . ' s/d ' . $usage['tanggal_selesai'],

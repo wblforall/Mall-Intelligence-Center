@@ -80,6 +80,7 @@ class Departments extends BaseController
                 'section_type' => $postMenus[$key]['section_type'] ?? 'all',
                 'can_view'     => isset($postMenus[$key]['can_view']) ? 1 : 0,
                 'can_edit'     => isset($postMenus[$key]['can_edit']) ? 1 : 0,
+                'can_approve'  => isset($postMenus[$key]['can_approve']) ? 1 : 0,
             ];
         }
 

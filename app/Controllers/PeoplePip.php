@@ -105,7 +105,7 @@ class PeoplePip extends BaseController
             'reviews'        => $reviews,
             'aspekMaster'    => (new PipAspekMasterModel())->getAktif(),
             'canEdit'        => $this->canEditMenu('people_dev'),
-            'canApprovePip'  => (bool)(session()->get('role_perms')['can_approve_pip'] ?? false),
+            'canApprovePip'  => $this->canApprovePip(),
         ]);
     }
 
@@ -145,7 +145,7 @@ class PeoplePip extends BaseController
 
     public function approve(int $id)
     {
-        if (! session()->get('role_perms')['can_approve_pip'] ?? false) {
+        if (! $this->canApprovePip()) {
             return redirect()->to('/people/pip/' . $id)->with('error', 'Anda tidak memiliki izin untuk menyetujui PIP.');
         }
 

@@ -89,7 +89,7 @@ class Events extends BaseController
         // Event baru berstatus pending → beri tahu pemegang izin approve,
         // kalau tidak mereka harus rajin membuka daftar event untuk tahu.
         \App\Libraries\Notify::send(
-            \App\Libraries\OrgRecipients::withRolePerm('can_approve_events'),
+            \App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::withRolePerm('can_approve_events'), \App\Libraries\OrgRecipients::menuApprovers('events')),
             (int) $this->currentUser()['id'], 'event', 'approval',
             'Event menunggu persetujuan: ' . $this->request->getPost('name'),
             ($this->currentUser()['name'] ?? '') . ' · ' . ucfirst((string) $this->request->getPost('mall')),
@@ -164,7 +164,7 @@ class Events extends BaseController
 
         if ($diajukanUlang) {
             \App\Libraries\Notify::send(
-                \App\Libraries\OrgRecipients::withRolePerm('can_approve_events'),
+                \App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::withRolePerm('can_approve_events'), \App\Libraries\OrgRecipients::menuApprovers('events')),
                 (int) $this->currentUser()['id'], 'event', 'approval',
                 'Event diajukan ulang: ' . $this->request->getPost('name'),
                 'Sudah direvisi setelah ditolak — menunggu persetujuan.',

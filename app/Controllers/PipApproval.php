@@ -73,7 +73,7 @@ class PipApproval extends BaseController
         // login, jadi tanpa notifikasi tak terlihat di dalam aplikasi.
         $emp = db_connect()->table('employees')->select('user_id, nama')
             ->where('id', (int) $plan['employee_id'])->get()->getRowArray();
-        $penerima = \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::menuEditors('people_dev'));
+        $penerima = \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::menuEditors('people_dev'), \App\Libraries\OrgRecipients::menuApprovers('people_dev')));
         if ($pihak === 'atasan') $penerima[] = (int) ($emp['user_id'] ?? 0);
         \App\Libraries\Notify::send(
             $penerima, 0, 'pip', 'result',

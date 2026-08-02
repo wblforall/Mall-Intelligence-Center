@@ -106,25 +106,49 @@ abstract class BaseController extends Controller
         ];
     }
 
+    /* Hak menyetujui = izin role (lama, berlaku ke semua pemegang role)
+       ATAU grant "Setujui" pada menu terkait (baru, bisa per orang). */
     protected function canApproveEvents(): bool
     {
         if ($this->isAdmin()) return true;
         $perms = session()->get('role_perms') ?? [];
-        return (bool)($perms['can_approve_events'] ?? false);
+        return (bool)($perms['can_approve_events'] ?? false) || $this->canApproveMenu('events');
     }
 
     protected function canApprovePromoMedia(): bool
     {
         if ($this->isAdmin()) return true;
         $perms = session()->get('role_perms') ?? [];
-        return (bool)($perms['can_approve_promo_media'] ?? false);
+        return (bool)($perms['can_approve_promo_media'] ?? false) || $this->canApproveMenu('creative_main');
     }
 
     protected function canApproveLegal(): bool
     {
         if ($this->isAdmin()) return true;
         $perms = session()->get('role_perms') ?? [];
-        return (bool)($perms['can_approve_legal'] ?? false);
+        return (bool)($perms['can_approve_legal'] ?? false) || $this->canApproveMenu('legal');
+    }
+
+    protected function canApprovePip(): bool
+    {
+        if ($this->isAdmin()) return true;
+        $perms = session()->get('role_perms') ?? [];
+        return (bool)($perms['can_approve_pip'] ?? false) || $this->canApproveMenu('people_dev');
+    }
+
+    /**
+     * Boleh memutuskan materi creative (approve / minta revisi).
+     * Gerbang lama memakai kolom users.role ('admin'/'manager') yang tak bisa
+     * diatur dari UI dan berlaku ke semua manager lintas dept; kini grant
+     * "Setujui" pada menu creative juga berlaku, sehingga hak ini bisa
+     * diarahkan ke orang yang tepat. Gerbang lama dipertahankan dulu agar
+     * tak ada yang mendadak kehilangan akses.
+     */
+    protected function canApproveCreative(bool $perEvent = false): bool
+    {
+        if ($this->isAdmin()) return true;
+        if (in_array(session()->get('user_role') ?? '', ['admin', 'manager'], true)) return true;
+        return $this->canApproveMenu($perEvent ? 'creative' : 'creative_main');
     }
 
     protected function isAdmin(): bool
@@ -175,6 +199,25 @@ abstract class BaseController extends Controller
         $menus = session()->get('dept_menus');
         if ($menus === null) return false; // non-admin tanpa dept = tidak boleh edit
         return isset($menus[$menuKey]) && $menus[$menuKey]['can_edit'];
+    }
+
+    /**
+     * Boleh MENYETUJUI pada sebuah menu — tingkat akses ketiga setelah
+     * lihat & ubah. Aturannya sama: admin → grant per-user → grant dept.
+     *
+     * Bersifat ADITIF terhadap izin lama di tabel `roles` (can_approve_*):
+     * pemanggil menggabungkan keduanya, sehingga hak yang sudah berjalan
+     * lewat role tidak berubah, sementara hak setuju kini juga bisa
+     * diberikan ke SATU orang tanpa harus mengubah role bersama.
+     */
+    protected function canApproveMenu(string $menuKey): bool
+    {
+        if ($this->isAdmin()) return true;
+        $um = session()->get('user_menus');
+        if (isset($um[$menuKey]) && ! empty($um[$menuKey]['can_approve'])) return true;
+        $menus = session()->get('dept_menus');
+        if ($menus === null) return false;
+        return isset($menus[$menuKey]) && ! empty($menus[$menuKey]['can_approve']);
     }
 
     // Returns the section_type for the user's dept + menu ('all' for admin or no dept)
