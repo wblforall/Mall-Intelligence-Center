@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.23.0** (Agustus 2026)
+> Versi saat ini: **v2.24.0** (Agustus 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,62 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.24.0
+
+**Tanggal Rilis:** 2 Agustus 2026
+
+### Perubahan dari v2.23.0
+
+#### Hak Menyetujui Kini Bisa Diberikan Per Orang
+
+Sebelumnya hak menyetujui hanya menempel pada **role** (mis. izin `can_approve_events`)
+atau pada kolom role lama (`admin`/`manager`). Karena satu role dipakai bersama banyak
+orang, memberi hak menyetujui ke satu orang otomatis ikut memberikannya ke semua
+pemegang role yang sama — tidak cocok dengan kondisi di WBL, di mana jabatan yang sama
+belum tentu punya kewenangan yang sama.
+
+- Form **Akses Menu Tambahan** (per user) dan **Akses Menu** (per departemen) kini punya
+  kolom ketiga: **Setujui**, di samping Lihat dan Edit.
+- Hak ini berlaku di modul Event, Media Promo, PIP, Kontrak/Legal, dan Creative
+  (standalone maupun per event).
+- Bersifat **tambahan** — semua hak yang sudah berjalan lewat role tidak berubah sama
+  sekali; tak ada satu pun user yang kehilangan akses.
+- Kotak Persetujuan, badge angka di menu, dan cron pengingat tunggakan ikut membaca hak
+  baru ini, jadi tampilannya konsisten dengan halaman modulnya.
+- **Notifikasi** pengajuan juga dikirim ke pemegang hak "Setujui" — sebelumnya penerima
+  notifikasi hanya diambil dari izin role, sehingga pemegang hak per-orang bisa melihat
+  item di Kotak Persetujuan tanpa pernah menerima pemberitahuan.
+
+#### Salin Akses dari User Lain
+
+Menyiapkan akses karyawan baru dari nol mudah ada yang terlewat (kasus tim HR yang
+belum diberi akses lengkap). Di halaman Akses Menu Tambahan kini ada pilihan
+**"Samakan dengan user lain"** — pilih user yang perannya serupa, akses tersalin
+seluruhnya, lalu tinggal disesuaikan. Daftar pilihan menampilkan jumlah menu tiap user
+sebagai bahan pertimbangan.
+
+#### Halaman Tinjauan Hak Akses
+
+Menu baru **Tinjau Hak Akses** (`/users/akses`, admin) untuk peninjauan berkala:
+
+- Matriks per menu: departemen mana yang punya, user mana yang dapat grant khusus, dan
+  **siapa saja yang boleh menyetujui** di modul itu. Menu tanpa approver ditandai
+  "hanya Admin".
+- Daftar admin ditampilkan terpisah, karena admin melewati semua pengaturan akses.
+- Kode ringkas L/E/S (Lihat/Edit/Setujui); user nonaktif dicoret.
+- Bisa dicetak untuk dokumentasi audit.
+
+#### Pembersihan Akses Sisa Saat Pindah Departemen
+
+- Menyimpan perubahan departemen seorang user yang masih memegang akses khusus kini
+  mengarahkan admin langsung ke halaman aksesnya, disertai peringatan berisi jumlah
+  akses lama yang perlu ditinjau. Sebelumnya akses lama diam-diam ikut terbawa.
+- Halaman Tinjauan menandai akses khusus yang **sudah dicakup** akses departemennya
+  (biasanya sisa pindah dept) dan menyediakan tombol **Bersihkan** untuk menghapusnya
+  sekaligus.
 
 ---
 
