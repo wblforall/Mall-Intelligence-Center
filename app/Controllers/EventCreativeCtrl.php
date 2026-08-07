@@ -8,7 +8,9 @@ use App\Models\EventCreativeFileModel;
 use App\Models\EventCreativeRealisasiModel;
 use App\Models\EventCreativeInsightModel;
 use App\Models\EventCompletionModel;
+use App\Models\CreativeReviewModel;
 use App\Libraries\ActivityLog;
+use App\Services\CreativeApprovalService;
 
 class EventCreativeCtrl extends BaseController
 {
@@ -35,6 +37,7 @@ class EventCreativeCtrl extends BaseController
         $itemIds   = array_column($items, 'id');
 
         $files     = (new EventCreativeFileModel())->getGroupedByItems($itemIds);
+        $reviews   = (new CreativeReviewModel())->getGroupedByItems(CreativeApprovalService::SCOPE_EVENT, $itemIds);
         $realisasi = (new EventCreativeRealisasiModel())->getGroupedByItems($itemIds);
         $insights  = (new EventCreativeInsightModel())->getGroupedByItems($itemIds);
 
@@ -95,6 +98,7 @@ class EventCreativeCtrl extends BaseController
             'totalBudget'    => $totalBudget,
             'totalRealisasi' => $totalRealisasi,
             'files'          => $files,
+            'reviews'        => $reviews,
             'realisasi'      => $realisasi,
             'completion'     => $completion,
             'canEdit'        => $this->canEditMenu('creative') && ! $completion,
@@ -136,7 +140,14 @@ class EventCreativeCtrl extends BaseController
         $post              = $this->request->getPost();
         $isDigital         = ($post['tipe'] === 'digital');
         $eventCreativeModel = new EventCreativeItemModel();
-        ActivityLog::captureBefore($eventCreativeModel->find($id));
+        $existing           = $eventCreativeModel->find($id);
+
+        if (CreativeApprovalService::isLocked($existing)) {
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")
+                ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
+        }
+
+        ActivityLog::captureBefore($existing);
         $eventCreativeData = [
             'nama'         => $post['nama'],
             'platform'     => $isDigital ? ($post['platform'] ?? null) : null,
@@ -165,6 +176,11 @@ class EventCreativeCtrl extends BaseController
         $dir       = $this->uploadDir($eventId);
         $citem     = (new EventCreativeItemModel())->find($id);
 
+        if (CreativeApprovalService::isLocked($citem)) {
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")
+                ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
+        }
+
         $db->transStart();
         $fileModel->where('creative_item_id', $id)->delete();
         (new EventCreativeInsightModel())->where('creative_item_id', $id)->delete();
@@ -189,6 +205,12 @@ class EventCreativeCtrl extends BaseController
     {
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
+        $item = (new EventCreativeItemModel())->find($id);
+        if (CreativeApprovalService::isLocked($item)) {
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")
+                ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
+        }
+
         $file = $this->request->getFile('file_upload');
         if (! $file || ! $file->isValid() || $file->hasMoved()) {
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'File tidak valid.');
@@ -199,29 +221,60 @@ class EventCreativeCtrl extends BaseController
         }
         $name     = 'creative_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
         $origName = $file->getClientName();
-        $file->move($this->uploadDir($eventId), $name);
+        try {
+            $file->move($this->uploadDir($eventId), $name);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal memindahkan file creative event: ' . $e->getMessage());
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")
+                ->with('error', 'Gagal menyimpan file ke server. Periksa izin folder upload.');
+        }
         \App\Libraries\ImageCompressor::compress($this->uploadDir($eventId) . '/' . $name);
 
-        (new EventCreativeFileModel())->insert([
+        // Satu file = satu opsi desain, kecuali ditandai sebagai file pendukung.
+        $meta = CreativeApprovalService::forEvent($eventId)
+            ->uploadMeta($id, ! $this->request->getPost('is_pendukung'));
+
+        $fileId = (new EventCreativeFileModel())->insert([
             'creative_item_id' => $id,
             'event_id'         => $eventId,
             'file_name'        => $name,
             'original_name'    => $origName,
             'catatan'          => $this->request->getPost('catatan') ?? null,
             'uploaded_by'      => $this->currentUser()['id'],
-        ]);
+        ] + $meta);
+        if (! $fileId) {
+            // Jangan tinggalkan file di disk tanpa baris DB yang menunjuknya.
+            $path = $this->uploadDir($eventId) . $name;
+            if (is_file($path)) unlink($path);
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Gagal menyimpan file.');
+        }
 
-        ActivityLog::write('update', 'creative', (string) $eventId, 'Upload file creative');
-        return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'File berhasil diupload.');
+        ActivityLog::write('update', 'creative', (string) $eventId, 'Upload file creative', [
+            'opsi' => $meta['opsi_label'], 'versi' => $meta['versi'],
+        ]);
+        return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with(
+            'success',
+            $meta['is_opsi']
+                ? 'Opsi ' . $meta['opsi_label'] . ' berhasil diupload.'
+                : 'File pendukung berhasil diupload.'
+        );
     }
 
     public function deleteFile(int $eventId, int $id, int $fileId)
     {
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
+        $item      = (new EventCreativeItemModel())->find($id);
         $fileModel = new EventCreativeFileModel();
         $row       = $fileModel->find($fileId);
         if ($row) {
+            if ((int) $row['creative_item_id'] !== $id) {
+                return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'File tidak cocok dengan item.');
+            }
+            if (CreativeApprovalService::fileTerkunci($item, $row)) {
+                return redirect()->to("/events/{$eventId}/creative#item-{$id}")
+                    ->with('error', CreativeApprovalService::pesanOpsiTerkunci($item));
+            }
             $path = $this->uploadDir($eventId) . $row['file_name'];
             $fileModel->delete($fileId);
             if (file_exists($path)) unlink($path);
@@ -231,43 +284,86 @@ class EventCreativeCtrl extends BaseController
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'File berhasil dihapus.');
     }
 
-    public function updateStatus(int $eventId, int $id)
-    {
-        $user   = $this->currentUser();
-        $status = $this->request->getPost('status');
+    // ─────────────────────────────────────────────────────────────
+    // Alur persetujuan materi (lihat CreativeApprovalService)
+    // ─────────────────────────────────────────────────────────────
 
-        $approveStatuses = ['approved', 'revision'];
-        if (in_array($status, $approveStatuses) && ! $this->canApproveCreative(true)) {
+    /** Desainer mengirim materi untuk ditinjau. */
+    public function ajukan(int $eventId, int $id)
+    {
+        if (! $this->canEditMenu('creative')) {
+            return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
+        }
+
+        return $this->hasilApproval(
+            $eventId,
+            $id,
+            CreativeApprovalService::forEvent($eventId)->ajukan($id, $this->currentUser())
+        );
+    }
+
+    /** Peninjau menyetujui sekaligus menetapkan opsi yang dipakai. */
+    public function setujui(int $eventId, int $id)
+    {
+        if (! $this->canApproveCreative(true)) {
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Anda tidak punya hak menyetujui materi creative.');
         }
 
-        $item = (new EventCreativeItemModel())->find($id);
-        (new EventCreativeItemModel())->update($id, ['status' => $status]);
+        return $this->hasilApproval(
+            $eventId,
+            $id,
+            CreativeApprovalService::forEvent($eventId)->setujui(
+                $id,
+                (array) ($this->request->getPost('opsi') ?? []),
+                $this->currentUser(),
+                $this->request->getPost('catatan')
+            )
+        );
+    }
 
-        $labels = ['draft' => 'Draft', 'review' => 'Diajukan untuk review', 'approved' => 'Approved', 'revision' => 'Perlu revisi'];
-        ActivityLog::write('update', 'creative', (string) $eventId, 'Ubah status item creative');
-
-        // Notifikasi: 'review' → peninjau creative; 'approved'/'revision' → pembuat materi
-        if ($item) {
-            $label = $item['nama'] ?? 'Materi creative';
-            if ($status === 'review') {
-                \App\Libraries\Notify::send(
-                    \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::menuEditors('creative'), \App\Libraries\OrgRecipients::menuApprovers('creative'))),
-                    (int) $user['id'], 'creative', 'approval',
-                    'Materi creative event menunggu peninjauan: ' . $label,
-                    ($user['name'] ?? '') . ' mengajukan materi untuk ditinjau.',
-                    'event_creative_item', $id, "events/{$eventId}/creative#item-{$id}"
-                );
-            } elseif (in_array($status, ['approved', 'revision'], true) && ! empty($item['created_by'])) {
-                \App\Libraries\Notify::send(
-                    [(int) $item['created_by']], (int) $user['id'], 'creative', 'result',
-                    'Materi creative event ' . ($status === 'approved' ? 'disetujui' : 'perlu revisi') . ': ' . $label,
-                    $status === 'revision' ? ($item['catatan'] ?: 'Silakan periksa catatan pada materi.') : null,
-                    'event_creative_item', $id, "events/{$eventId}/creative#item-{$id}"
-                );
-            }
+    /** Peninjau meminta revisi — alasan wajib. */
+    public function revisi(int $eventId, int $id)
+    {
+        if (! $this->canApproveCreative(true)) {
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Anda tidak punya hak menyetujui materi creative.');
         }
-        return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Status: ' . ($labels[$status] ?? $status));
+
+        $basis = $this->request->getPost('basis_file_id');
+
+        return $this->hasilApproval(
+            $eventId,
+            $id,
+            CreativeApprovalService::forEvent($eventId)->revisi(
+                $id,
+                (string) ($this->request->getPost('catatan') ?? ''),
+                $basis !== null && $basis !== '' ? (int) $basis : null,
+                $this->currentUser()
+            )
+        );
+    }
+
+    /** Membuka kembali materi yang sudah disetujui agar bisa diubah. */
+    public function buka(int $eventId, int $id)
+    {
+        if (! $this->canEditMenu('creative') && ! $this->canApproveCreative(true)) {
+            return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
+        }
+
+        return $this->hasilApproval(
+            $eventId,
+            $id,
+            CreativeApprovalService::forEvent($eventId)->buka(
+                $id,
+                (string) ($this->request->getPost('catatan') ?? ''),
+                $this->currentUser()
+            )
+        );
+    }
+
+    private function hasilApproval(int $eventId, int $id, array $hasil)
+    {
+        return redirect()->to("/events/{$eventId}/creative#item-{$id}")
+            ->with($hasil['ok'] ? 'success' : 'error', $hasil['message']);
     }
 
     public function storeRealisasi(int $eventId, int $id)

@@ -6,10 +6,12 @@ use App\Models\CreativeItemModel;
 use App\Models\CreativeRealisasiModel;
 use App\Models\CreativeFileModel;
 use App\Models\CreativeInsightModel;
+use App\Models\CreativeReviewModel;
 use App\Models\EventCreativeItemModel;
 use App\Models\EventCreativeRealisasiModel;
 use App\Models\EventCreativeInsightModel;
 use App\Libraries\ActivityLog;
+use App\Services\CreativeApprovalService;
 
 class CreativeCtrl extends BaseController
 {
@@ -61,6 +63,7 @@ $user = $this->currentUser();
         $eventItemIds  = array_column($eventItems, 'id');
 
         $files          = (new CreativeFileModel())->getGroupedByItems($standaloneIds);
+        $reviews        = (new CreativeReviewModel())->getGroupedByItems(CreativeApprovalService::SCOPE_STANDALONE, $standaloneIds);
         $realisasi      = (new CreativeRealisasiModel())->getGroupedByItems($standaloneIds);
         $eventRealisasi = empty($eventItemIds) ? [] : (new EventCreativeRealisasiModel())->getGroupedByItems($eventItemIds);
         $insights       = (new CreativeInsightModel())->getGroupedByItems($standaloneIds);
@@ -99,6 +102,7 @@ $user = $this->currentUser();
             'standaloneItems'=> $standaloneItems,
             'eventItems'     => $eventItems,
             'files'          => $files,
+            'reviews'        => $reviews,
             'realisasi'      => $realisasi,
             'insights'       => $insights,
             'totalBudget'    => $totalBudget,
@@ -464,7 +468,14 @@ $user = $this->currentUser();
         $post           = $this->request->getPost();
         $isDigital      = ($post['tipe'] === 'digital');
         $creativeModel  = new CreativeItemModel();
-        ActivityLog::captureBefore($creativeModel->find($id));
+        $existing       = $creativeModel->find($id);
+
+        if (CreativeApprovalService::isLocked($existing)) {
+            return redirect()->to('/creative#item-' . $id . '-s')
+                ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
+        }
+
+        ActivityLog::captureBefore($existing);
         $creativeData = [
             'tipe'         => $post['tipe'],
             'nama'         => $post['nama'],
@@ -495,6 +506,12 @@ $user = $this->currentUser();
         }
 
         $item         = (new CreativeItemModel())->find($id);
+
+        if (CreativeApprovalService::isLocked($item)) {
+            return redirect()->to('/creative#item-' . $id . '-s')
+                ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
+        }
+
         $realisasiRows= (new CreativeRealisasiModel())->where('creative_item_id', $id)->findAll();
         $fileRows     = (new CreativeFileModel())->where('creative_item_id', $id)->findAll();
         $insightRows  = (new CreativeInsightModel())->where('creative_item_id', $id)->findAll();
@@ -540,6 +557,12 @@ $user = $this->currentUser();
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
 
+        $item = (new CreativeItemModel())->find($id);
+        if (CreativeApprovalService::isLocked($item)) {
+            return redirect()->to('/creative#item-' . $id . '-s')
+                ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
+        }
+
         $file = $this->request->getFile('file');
         if (!$file || !$file->isValid() || $file->hasMoved()) {
             return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'File tidak valid.');
@@ -551,19 +574,42 @@ $user = $this->currentUser();
         $name = 'creative_s_' . $id . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $this->safeExt($file);
         $dir  = $this->fileDir($id);
 
+        // Satu file = satu opsi desain, kecuali ditandai sebagai file pendukung.
+        $meta = CreativeApprovalService::standalone()
+            ->uploadMeta($id, ! $this->request->getPost('is_pendukung'));
+
+        // Pindahkan file dulu, baru catat ke DB. Urutan sebaliknya meninggalkan
+        // baris yatim yang menunjuk file tak ada bila direktori tidak writable.
+        try {
+            $file->move($dir, $name);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal memindahkan file creative: ' . $e->getMessage());
+            return redirect()->to('/creative#item-' . $id . '-s')
+                ->with('error', 'Gagal menyimpan file ke server. Periksa izin folder upload.');
+        }
+
         $fileId = (new CreativeFileModel())->insert([
             'creative_item_id' => $id,
             'file_name'        => $name,
             'original_name'    => $file->getClientName(),
             'uploaded_by'      => $this->currentUser()['id'],
-        ]);
-        if (! $fileId) return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'Gagal menyimpan file.');
-        $file->move($dir, $name);
+        ] + $meta);
+        if (! $fileId) {
+            if (is_file($dir . '/' . $name)) unlink($dir . '/' . $name);
+            return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'Gagal menyimpan file.');
+        }
         \App\Libraries\ImageCompressor::compress($dir . '/' . $name);
 
-        ActivityLog::write('upload', 'creative_standalone', (string)$id, $name, []);
+        ActivityLog::write('upload', 'creative_standalone', (string)$id, $name, [
+            'opsi' => $meta['opsi_label'], 'versi' => $meta['versi'],
+        ]);
 
-        return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'File berhasil diupload.');
+        return redirect()->to('/creative#item-' . $id . '-s')->with(
+            'success',
+            $meta['is_opsi']
+                ? 'Opsi ' . $meta['opsi_label'] . ' berhasil diupload.'
+                : 'File pendukung berhasil diupload.'
+        );
     }
 
     public function deleteFile(int $id, int $fileId)
@@ -572,9 +618,17 @@ $user = $this->currentUser();
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
 
+        $item      = (new CreativeItemModel())->find($id);
         $fileModel = new CreativeFileModel();
         $row       = $fileModel->find($fileId);
         if ($row) {
+            if ((int) $row['creative_item_id'] !== $id) {
+                return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'File tidak cocok dengan item.');
+            }
+            if (CreativeApprovalService::fileTerkunci($item, $row)) {
+                return redirect()->to('/creative#item-' . $id . '-s')
+                    ->with('error', CreativeApprovalService::pesanOpsiTerkunci($item));
+            }
             $path = FCPATH . 'uploads/creative-standalone/' . $id . '/' . $row['file_name'];
             $fileModel->delete($fileId);
             if (file_exists($path)) unlink($path);
@@ -585,50 +639,84 @@ $user = $this->currentUser();
         return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'File berhasil dihapus.');
     }
 
-    public function updateStatus(int $id)
-    {
-        $user   = $this->currentUser();
-        $canApprove = $this->canApproveCreative();
+    // ─────────────────────────────────────────────────────────────
+    // Alur persetujuan materi (lihat CreativeApprovalService)
+    // ─────────────────────────────────────────────────────────────
 
-        if (!$this->canEditMenu('creative_main') && !$canApprove) {
+    /** Desainer mengirim materi untuk ditinjau. */
+    public function ajukan(int $id)
+    {
+        if (! $this->canEditMenu('creative_main')) {
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
 
-        $status = $this->request->getPost('status');
-        $validStatuses = ['draft', 'review', 'approved', 'revision'];
-        if (!in_array($status, $validStatuses)) {
-            return redirect()->to('/creative')->with('error', 'Status tidak valid.');
+        return $this->hasilApproval(
+            $id,
+            CreativeApprovalService::standalone()->ajukan($id, $this->currentUser())
+        );
+    }
+
+    /** Peninjau menyetujui sekaligus menetapkan opsi yang dipakai. */
+    public function setujui(int $id)
+    {
+        if (! $this->canApproveCreative()) {
+            return redirect()->to('/creative')->with('error', 'Anda tidak punya hak menyetujui materi creative.');
         }
 
-        $item = (new CreativeItemModel())->find($id);
-        (new CreativeItemModel())->updateStatus($id, $status);
+        $fileIds = (array) ($this->request->getPost('opsi') ?? []);
 
-        ActivityLog::write('update_status', 'creative_standalone', (string)$id, $status, []);
+        return $this->hasilApproval(
+            $id,
+            CreativeApprovalService::standalone()->setujui(
+                $id,
+                $fileIds,
+                $this->currentUser(),
+                $this->request->getPost('catatan')
+            )
+        );
+    }
 
-        // Beri tahu pihak yang menunggu keputusan ini:
-        // - 'review'              → pengelola Creative (ada materi minta ditinjau)
-        // - 'approved'/'revision' → pembuat materi (hasil peninjauan)
-        if ($item) {
-            $label = $item['nama'] ?? 'Materi creative';
-            if ($status === 'review') {
-                \App\Libraries\Notify::send(
-                    \App\Libraries\OrgRecipients::orAdmins(\App\Libraries\OrgRecipients::merge(\App\Libraries\OrgRecipients::menuEditors('creative_main'), \App\Libraries\OrgRecipients::menuApprovers('creative_main'))),
-                    (int) $user['id'], 'creative', 'approval',
-                    'Materi creative menunggu peninjauan: ' . $label,
-                    ($user['name'] ?? '') . ' mengajukan materi untuk ditinjau.',
-                    'creative_item', $id, 'creative#item-' . $id . '-s'
-                );
-            } elseif (in_array($status, ['approved', 'revision'], true) && ! empty($item['created_by'])) {
-                \App\Libraries\Notify::send(
-                    [(int) $item['created_by']], (int) $user['id'], 'creative', 'result',
-                    'Materi creative ' . ($status === 'approved' ? 'disetujui' : 'perlu revisi') . ': ' . $label,
-                    $status === 'revision' ? ($item['catatan'] ?: 'Silakan periksa catatan pada materi.') : null,
-                    'creative_item', $id, 'creative#item-' . $id . '-s'
-                );
-            }
+    /** Peninjau meminta revisi — alasan wajib. */
+    public function revisi(int $id)
+    {
+        if (! $this->canApproveCreative()) {
+            return redirect()->to('/creative')->with('error', 'Anda tidak punya hak menyetujui materi creative.');
         }
 
-        return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Status berhasil diperbarui.');
+        $basis = $this->request->getPost('basis_file_id');
+
+        return $this->hasilApproval(
+            $id,
+            CreativeApprovalService::standalone()->revisi(
+                $id,
+                (string) ($this->request->getPost('catatan') ?? ''),
+                $basis !== null && $basis !== '' ? (int) $basis : null,
+                $this->currentUser()
+            )
+        );
+    }
+
+    /** Membuka kembali materi yang sudah disetujui agar bisa diubah. */
+    public function buka(int $id)
+    {
+        if (! $this->canEditMenu('creative_main') && ! $this->canApproveCreative()) {
+            return redirect()->to('/creative')->with('error', 'Akses ditolak.');
+        }
+
+        return $this->hasilApproval(
+            $id,
+            CreativeApprovalService::standalone()->buka(
+                $id,
+                (string) ($this->request->getPost('catatan') ?? ''),
+                $this->currentUser()
+            )
+        );
+    }
+
+    private function hasilApproval(int $id, array $hasil)
+    {
+        return redirect()->to('/creative#item-' . $id . '-s')
+            ->with($hasil['ok'] ? 'success' : 'error', $hasil['message']);
     }
 
     public function storeRealisasi(int $id)

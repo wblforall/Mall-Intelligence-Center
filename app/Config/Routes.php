@@ -149,7 +149,11 @@ $routes->post('events/(:num)/creative/(:num)/edit', 'EventCreativeCtrl::update/$
 $routes->post('events/(:num)/creative/(:num)/delete', 'EventCreativeCtrl::delete/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/upload', 'EventCreativeCtrl::uploadFile/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/file/(:num)/delete', 'EventCreativeCtrl::deleteFile/$1/$2/$3', ['filter' => 'auth']);
-$routes->post('events/(:num)/creative/(:num)/status', 'EventCreativeCtrl::updateStatus/$1/$2', ['filter' => 'auth']);
+// Alur persetujuan: aksi eksplisit, bukan lagi satu endpoint status bebas
+$routes->post('events/(:num)/creative/(:num)/ajukan',  'EventCreativeCtrl::ajukan/$1/$2',  ['filter' => 'auth']);
+$routes->post('events/(:num)/creative/(:num)/setujui', 'EventCreativeCtrl::setujui/$1/$2', ['filter' => 'auth']);
+$routes->post('events/(:num)/creative/(:num)/revisi',  'EventCreativeCtrl::revisi/$1/$2',  ['filter' => 'auth']);
+$routes->post('events/(:num)/creative/(:num)/buka',    'EventCreativeCtrl::buka/$1/$2',    ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/realisasi/add', 'EventCreativeCtrl::storeRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/realisasi/(:num)/delete', 'EventCreativeCtrl::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/insight/add', 'EventCreativeCtrl::storeInsight/$1/$2', ['filter' => 'auth']);
@@ -164,7 +168,11 @@ $routes->post('creative/(:num)/edit', 'CreativeCtrl::update/$1', ['filter' => 'a
 $routes->post('creative/(:num)/delete', 'CreativeCtrl::delete/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/upload', 'CreativeCtrl::uploadFile/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/file/(:num)/delete', 'CreativeCtrl::deleteFile/$1/$2', ['filter' => 'auth']);
-$routes->post('creative/(:num)/status', 'CreativeCtrl::updateStatus/$1', ['filter' => 'auth']);
+// Alur persetujuan: aksi eksplisit, bukan lagi satu endpoint status bebas
+$routes->post('creative/(:num)/ajukan',  'CreativeCtrl::ajukan/$1',  ['filter' => 'auth']);
+$routes->post('creative/(:num)/setujui', 'CreativeCtrl::setujui/$1', ['filter' => 'auth']);
+$routes->post('creative/(:num)/revisi',  'CreativeCtrl::revisi/$1',  ['filter' => 'auth']);
+$routes->post('creative/(:num)/buka',    'CreativeCtrl::buka/$1',    ['filter' => 'auth']);
 $routes->post('creative/(:num)/realisasi/add', 'CreativeCtrl::storeRealisasi/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/realisasi/(:num)/delete', 'CreativeCtrl::deleteRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('creative/(:num)/insight/add', 'CreativeCtrl::storeInsight/$1', ['filter' => 'auth']);

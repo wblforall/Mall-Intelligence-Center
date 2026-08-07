@@ -296,7 +296,7 @@ foreach ($byTipe as $tipeItems) {
             <div class="flex-grow-1 min-w-0">
                 <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
                     <?php if ($tipe === 'master_design'): ?>
-                    <span class="badge <?= $sCfg['badge'] ?>" style="font-size:.65rem"><?= $sCfg['label'] ?></span>
+                    <span class="badge <?= $sCfg['badge'] ?>" style="font-size:.65rem"><?= $sCfg['label'] ?><?= ($item['versi'] ?? 1) > 1 ? ' · v' . (int) $item['versi'] : '' ?></span>
                     <?php endif; ?>
                     <?php if ($tipe === 'digital' && ($item['platform'] ?? '')): ?>
                     <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
@@ -308,6 +308,14 @@ foreach ($byTipe as $tipeItems) {
                     <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?><span class="text-muted ms-1" style="font-size:.7rem"><i class="bi bi-calendar3"></i> <?= date('d M Y', strtotime($itgl)) ?></span><?php endif; ?>
                     <?php if (!empty($item['deadline'])): $dlDiff = (int)((strtotime($item['deadline']) - strtotime(date('Y-m-d'))) / 86400); $isDone = !empty($item['is_closed']) || ($item['status'] ?? '') === 'approved'; if ($isDone): ?><span class="badge bg-success-subtle text-success ms-1" style="font-size:.6rem"><i class="bi bi-check-circle me-1"></i>Tepat waktu</span><?php elseif ($dlDiff < 0): ?><span class="badge bg-danger ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-exclamation-triangle-fill me-1"></i>Terlambat <?= abs($dlDiff) ?> hari</span><?php elseif ($dlDiff <= 3): ?><span class="badge bg-warning text-dark ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-clock me-1"></i><?= $dlDiff === 0 ? 'Hari ini!' : $dlDiff.' hari lagi' ?></span><?php else: ?><span class="badge bg-info-subtle text-info ms-1" style="font-size:.6rem"><i class="bi bi-calendar-check me-1"></i><?= date('d M', strtotime($item['deadline'])) ?></span><?php endif; endif; ?>
                 </div>
+                <?php // Materi final harus terbaca tanpa membuka panel — inilah yang
+                      // dicari orang produksi saat mengambil file untuk dicetak. ?>
+                <?php if ($tipe === 'master_design' && $status === 'approved'): ?>
+                <?= view('_creative/_final', [
+                    'iFiles'   => $iFiles,
+                    'fileBase' => 'uploads/creative-standalone/' . $iid . '/',
+                ], ['saveData' => false]) ?>
+                <?php endif; ?>
                 <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '') || ($item['pic'] ?? ''))): ?>
                 <div class="small text-muted mb-1">
                     <?php if ($item['tanggal_take'] || $item['jam_take']): ?>
@@ -345,35 +353,24 @@ foreach ($byTipe as $tipeItems) {
 
             <!-- Right: action buttons -->
             <div class="d-flex gap-1 flex-shrink-0 align-items-start">
-                <?php if ($tipe === 'master_design' && $canApprove): ?>
-                <div class="dropdown">
-                    <button class="btn btn-xs btn-outline-secondary dropdown-toggle" style="padding:.2rem .5rem;font-size:.72rem"
-                            data-bs-toggle="dropdown">Status</button>
-                    <ul class="dropdown-menu dropdown-menu-end" style="font-size:.8rem;min-width:160px">
-                        <?php foreach ($statusConfig as $sVal => $sCfgOpt): ?>
-                        <?php if ($sVal !== $status): ?>
-                        <li>
-                            <form method="POST" action="<?= base_url('creative/' . $iid . '/status') ?>">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="status" value="<?= $sVal ?>">
-                                <button type="submit" class="dropdown-item"><?= $sCfgOpt['label'] ?></button>
-                            </form>
-                        </li>
-                        <?php endif; ?>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-                <?php elseif ($tipe === 'master_design' && $canEdit && $status === 'draft'): ?>
-                <form method="POST" action="<?= base_url('creative/' . $iid . '/status') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="status" value="review">
-                    <button type="submit" class="btn btn-xs btn-outline-warning" style="padding:.2rem .5rem;font-size:.72rem"
-                            title="Ajukan untuk review">
-                        <i class="bi bi-send me-1"></i>Review
-                    </button>
-                </form>
+                <?php // Panel "Opsi & Persetujuan" di bawah sudah terbuka sendiri untuk
+                      // materi yang menunggu keputusan; ini sekadar penanda, bukan tombol
+                      // toggle — mengklik toggle justru akan menutup panel yang dicari. ?>
+                <?php if ($tipe === 'master_design' && $canApprove && $status === 'review'): ?>
+                <span class="badge bg-warning text-dark" style="font-size:.65rem" title="Keputusan Anda ditunggu di panel Opsi &amp; Persetujuan">
+                    <i class="bi bi-clipboard-check me-1"></i>Perlu ditinjau
+                </span>
                 <?php endif; ?>
-                <?php if ($canEdit): ?>
+                <?php // Item yang sudah disetujui ditolak oleh controller, jadi tombolnya
+                      // jangan ditampilkan — kalau tidak, satu-satunya hasil klik adalah pesan galat. ?>
+                <?php $terkunci = $tipe === 'master_design' && $status === 'approved'; ?>
+                <?php if ($terkunci && $canEdit): ?>
+                <span class="badge bg-secondary-subtle text-secondary" style="font-size:.62rem"
+                      title="Buka kembali materi di panel Opsi &amp; Persetujuan bila perlu diubah">
+                    <i class="bi bi-lock-fill me-1"></i>Terkunci
+                </span>
+                <?php endif; ?>
+                <?php if ($canEdit && ! $terkunci): ?>
                 <button class="btn btn-xs btn-outline-secondary edit-item-btn"
                         style="padding:.2rem .5rem;font-size:.72rem"
                         data-id="<?= $iid ?>"
@@ -412,8 +409,9 @@ foreach ($byTipe as $tipeItems) {
             <button class="btn btn-xs btn-outline-primary toggle-files"
                     style="padding:.2rem .5rem;font-size:.72rem"
                     data-iid="<?= $iid ?>">
-                <i class="bi bi-paperclip me-1"></i>File
-                <?php if (!empty($iFiles)): ?><span class="badge bg-primary-subtle text-primary ms-1" style="font-size:.65rem"><?= count($iFiles) ?></span><?php endif; ?>
+                <i class="bi bi-images me-1"></i>Opsi &amp; Persetujuan
+                <?php $jmlOpsi = count(array_filter($iFiles, fn($f) => (int)($f['is_opsi'] ?? 1) === 1)); ?>
+                <?php if ($jmlOpsi): ?><span class="badge bg-primary-subtle text-primary ms-1" style="font-size:.65rem"><?= $jmlOpsi ?></span><?php endif; ?>
             </button>
             <?php endif; ?>
             <?php if (in_array($tipe, ['cetak', 'influencer', 'digital', 'media_prescon'])): ?>
@@ -437,65 +435,22 @@ foreach ($byTipe as $tipeItems) {
     </div>
 
     <?php if ($tipe === 'master_design'): ?>
-    <!-- ── File section (master_design) ── -->
-    <div id="files-<?= $iid ?>" class="d-none border-top">
-        <div class="px-3 py-2 bg-primary-subtle d-flex justify-content-between align-items-center">
-            <span class="small fw-semibold text-primary">
-                <i class="bi bi-paperclip me-1"></i>File Referensi
-                <?php if (!empty($iFiles)): ?>
-                <span class="badge bg-primary text-white ms-1"><?= count($iFiles) ?></span>
-                <?php endif; ?>
-            </span>
-        </div>
-        <div class="px-3 py-2">
-            <?php if (!empty($iFiles)): ?>
-            <div class="d-flex flex-wrap gap-2 mb-2">
-                <?php foreach ($iFiles as $f):
-                    $ext     = strtolower(pathinfo($f['file_name'], PATHINFO_EXTENSION));
-                    $isImage = in_array($ext, $imageExts);
-                    $fileUrl = base_url('uploads/creative-standalone/' . $iid . '/' . $f['file_name']);
-                ?>
-                <div class="border rounded-2 p-1 bg-white text-center" style="min-width:80px;max-width:120px">
-                    <?php if ($isImage): ?>
-                    <a href="<?= $fileUrl ?>" target="_blank">
-                        <img src="<?= $fileUrl ?>" alt="<?= esc($f['original_name']) ?>"
-                             class="rounded-1 d-block mb-1"
-                             style="width:100%;height:70px;object-fit:cover">
-                    </a>
-                    <?php else: ?>
-                    <a href="<?= $fileUrl ?>" target="_blank" class="d-block mb-1 text-muted" style="font-size:2rem">
-                        <i class="bi bi-file-earmark-<?= $ext === 'pdf' ? 'pdf text-danger' : 'fill' ?>"></i>
-                    </a>
-                    <?php endif; ?>
-                    <div class="text-muted" style="font-size:.6rem;line-height:1.2;word-break:break-all"><?= esc($f['original_name']) ?></div>
-                    <?php if ($canEdit): ?>
-                    <form method="POST" action="<?= base_url('creative/' . $iid . '/file/' . $f['id'] . '/delete') ?>"
-                          onsubmit="return confirm('Hapus file ini?')" class="mt-1">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="btn btn-xs btn-outline-danger w-100" style="padding:.1rem .3rem;font-size:.6rem">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                    <?php endif; ?>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <?php elseif (!$canEdit): ?>
-            <div class="small text-muted fst-italic">Belum ada file diupload.</div>
-            <?php endif; ?>
-            <?php if ($canEdit): ?>
-            <form method="POST" action="<?= base_url('creative/' . $iid . '/upload') ?>" enctype="multipart/form-data">
-                <?= csrf_field() ?>
-                <div class="d-flex gap-2 align-items-center">
-                    <input type="file" name="file" class="form-control form-control-sm" style="max-width:280px"
-                           accept="image/*,.pdf,.psd,.ai,.zip,.rar">
-                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-upload me-1"></i>Upload</button>
-                </div>
-            </form>
-            <?php endif; ?>
-        </div>
+    <!-- ── Opsi desain, keputusan & riwayat (master_design) ── -->
+    <div id="files-<?= $iid ?>" class="<?= ($canApprove && $status === 'review') ? '' : 'd-none' ?> border-top">
+        <?= view('_creative/_approval', [
+            'iid'        => $iid,
+            'item'       => $item,
+            'iFiles'     => $iFiles,
+            'iReviews'   => $reviews[$iid] ?? [],
+            'canEdit'    => $canEdit,
+            'canApprove' => $canApprove,
+            'aksiBase'   => 'creative/' . $iid,
+            'fileBase'   => 'uploads/creative-standalone/' . $iid . '/',
+            'fileField'  => 'file',
+            'imageExts'  => $imageExts,
+        ], ['saveData' => false]) ?>
     </div>
-    <?php endif; // master_design files ?>
+    <?php endif; // master_design ?>
 
     <?php if (in_array($tipe, ['cetak', 'influencer', 'digital', 'media_prescon'])): ?>
     <!-- ── Realisasi section ── -->
@@ -1217,18 +1172,33 @@ document.querySelectorAll('.edit-item-btn').forEach(btn => {
 });
 <?php endif; ?>
 
-// Toggle file section
+// Toggle panel opsi & persetujuan.
+// Tombol "Tinjau" di header memakai class yang sama, jadi keduanya membuka
+// panel yang sama tanpa handler terpisah.
 document.querySelectorAll('.toggle-files').forEach(btn => {
     btn.addEventListener('click', function () {
         const el = document.getElementById('files-' + this.dataset.iid);
         if (!el) return;
         el.classList.toggle('d-none');
-        const isHidden = el.classList.contains('d-none');
-        const count = this.querySelector('.badge');
-        const countHtml = count ? ' ' + count.outerHTML : '';
-        this.innerHTML = (isHidden
-            ? '<i class="bi bi-paperclip me-1"></i>File'
-            : '<i class="bi bi-paperclip me-1"></i>File') + countHtml;
+        if (!el.classList.contains('d-none')) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    });
+});
+
+// Panel alasan revisi / buka kembali — muncul di tempat, bukan modal,
+// supaya opsi desain tetap terlihat saat alasannya ditulis.
+[['toggle-revisi', 'revisi-'], ['toggle-buka', 'buka-']].forEach(([cls, prefix]) => {
+    document.querySelectorAll('.' + cls).forEach(btn => {
+        btn.addEventListener('click', function () {
+            const el = document.getElementById(prefix + this.dataset.iid);
+            if (!el) return;
+            el.classList.toggle('d-none');
+            if (!el.classList.contains('d-none')) {
+                const ta = el.querySelector('textarea');
+                if (ta) ta.focus();
+            }
+        });
     });
 });
 

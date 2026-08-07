@@ -157,31 +157,39 @@ class ApprovalInbox
         }
 
         // ── Creative standalone: materi diajukan untuk ditinjau ──
-        // Gate mengikuti CreativeCtrl::updateStatus — pemegang can_edit
-        // creative_main ATAU role admin/manager.
+        // Gate = canApproveCreative(): admin/manager atau pemegang hak
+        // "Setujui" pada creative_main.
         if ($admin || ! empty($ctx['can_creative'])) {
             foreach ($db->table('creative_items c')
-                ->select('c.id, c.nama, c.pic, c.updated_at, c.created_at')
+                ->select('c.id, c.nama, c.pic, c.versi, c.review_submitted_at, c.updated_at, c.created_at')
+                ->selectCount('f.id', 'jml_opsi')
+                ->join('creative_files f', "f.creative_item_id = c.id AND f.is_opsi = 1", 'left')
                 ->where('c.status', 'review')
-                ->orderBy('c.updated_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
+                ->groupBy('c.id')
+                ->orderBy('c.review_submitted_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
                 $items[] = self::row('creative', $r['nama'],
-                    'Menunggu peninjauan' . ($r['pic'] ? ' · PIC ' . $r['pic'] : ''),
-                    'creative#item-' . $r['id'] . '-s', $r['updated_at'] ?: $r['created_at']);
+                    self::ketCreative($r) . ($r['pic'] ? ' · PIC ' . $r['pic'] : ''),
+                    'creative#item-' . $r['id'] . '-s',
+                    $r['review_submitted_at'] ?: ($r['updated_at'] ?: $r['created_at']));
             }
         }
 
-        // ── Creative per-event: HANYA admin/manager yang boleh memutuskan
-        // (EventCreativeCtrl::updateStatus), jadi jangan tampilkan ke staf
+        // ── Creative per-event: HANYA admin/manager atau pemegang hak
+        // Setujui yang boleh memutuskan, jadi jangan tampilkan ke staf
         // creative yang tak bisa menindaklanjutinya.
         if ($admin || ! empty($ctx['can_creative_event'])) {
             foreach ($db->table('event_creative_items c')
-                ->select('c.id, c.nama, c.event_id, c.updated_at, c.created_at, e.name AS event_nama')
+                ->select('c.id, c.nama, c.event_id, c.versi, c.review_submitted_at, c.updated_at, c.created_at, e.name AS event_nama')
+                ->selectCount('f.id', 'jml_opsi')
                 ->join('events e', 'e.id = c.event_id', 'left')
+                ->join('event_creative_files f', "f.creative_item_id = c.id AND f.is_opsi = 1", 'left')
                 ->where('c.status', 'review')
-                ->orderBy('c.updated_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
+                ->groupBy('c.id')
+                ->orderBy('c.review_submitted_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
                 $items[] = self::row('creative', $r['nama'],
-                    'Event: ' . ($r['event_nama'] ?? '-') . ' · menunggu peninjauan',
-                    'events/' . $r['event_id'] . '/creative#item-' . $r['id'], $r['updated_at'] ?: $r['created_at']);
+                    'Event: ' . ($r['event_nama'] ?? '-') . ' · ' . self::ketCreative($r),
+                    'events/' . $r['event_id'] . '/creative#item-' . $r['id'],
+                    $r['review_submitted_at'] ?: ($r['updated_at'] ?: $r['created_at']));
             }
         }
 
@@ -292,11 +300,12 @@ class ApprovalInbox
             'can_approve_pip'         => $isAdmin || ! empty($perms['can_approve_pip'])         || $canApprove('people_dev'),
             'is_hr'                   => $canEdit('hr_main') || $canEdit('people_dev'),
             'can_legal'               => $canEdit('legal') || $canApprove('legal'),
-            // Gate creative mengikuti aturan controllernya masing-masing:
-            // standalone = can_edit creative_main / role manager; per-event =
-            // HANYA admin/manager. Kini keduanya juga menerima grant "Setujui".
-            'can_creative'            => $canEdit('creative_main') || $canEdit('creative')
-                                         || in_array($u['role'] ?? '', ['admin', 'manager'], true)
+            // Gate creative mengikuti canApproveCreative() di BaseController —
+            // persis syarat yang dipakai endpoint setujui/revisi. Hak can_edit
+            // saja TIDAK cukup: desainer yang hanya boleh mengunggah materi
+            // akan melihat item yang tak bisa ia putuskan, dan item itu tak
+            // akan pernah hilang dari kotaknya.
+            'can_creative'            => $isAdmin || in_array($u['role'] ?? '', ['admin', 'manager'], true)
                                          || $canApprove('creative_main'),
             'can_creative_event'      => $isAdmin || in_array($u['role'] ?? '', ['admin', 'manager'], true)
                                          || $canApprove('creative'),
@@ -319,6 +328,26 @@ class ApprovalInbox
     {
         if (! $since) return 0;
         return (int) floor((time() - strtotime($since)) / 86400);
+    }
+
+    /**
+     * Keterangan materi creative yang menunggu keputusan: berapa opsi yang
+     * harus dipilih dan putaran review ke berapa — dua hal yang menentukan
+     * apakah peninjau perlu membandingkan alternatif atau sekadar meng-iya-kan.
+     */
+    private static function ketCreative(array $r): string
+    {
+        $jml   = (int) ($r['jml_opsi'] ?? 0);
+        $versi = (int) ($r['versi'] ?? 1) ?: 1;
+
+        $ket = $jml > 1
+            ? 'Pilih 1 dari ' . $jml . ' opsi'
+            : 'Menunggu peninjauan';
+
+        // Sengaja "putaran ke-N", bukan "revisi ke-N": versi juga naik saat
+        // materi dibuka kembali setelah disetujui, jadi menyebutnya revisi
+        // akan mengarang permintaan revisi yang tidak pernah ada.
+        return $versi > 1 ? $ket . ' · putaran ke-' . $versi : $ket;
     }
 
     private static function row(string $module, string $title, ?string $subtitle, string $url, ?string $since, bool $urgent = false): array

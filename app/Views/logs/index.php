@@ -77,6 +77,7 @@ $actionBadge = [
     'approve'      => ['bg' => 'var(--c-action-create-bg)', 'color' => 'var(--c-action-create-fg)', 'icon' => 'check-circle'],
     'reject'       => ['bg' => 'var(--c-action-delete-bg)', 'color' => 'var(--c-action-delete-fg)', 'icon' => 'x-circle'],
     'submit'       => ['bg' => 'var(--c-action-update-bg)', 'color' => 'var(--c-action-update-fg)', 'icon' => 'send'],
+    'reopen'       => ['bg' => 'var(--c-action-update-bg)', 'color' => 'var(--c-action-update-fg)', 'icon' => 'unlock'],
     'export'       => ['bg' => 'var(--c-action-login-bg)',  'color' => 'var(--c-action-login-fg)',  'icon' => 'file-earmark-arrow-down'],
     'send_email'   => ['bg' => 'var(--c-action-login-bg)',  'color' => 'var(--c-action-login-fg)',  'icon' => 'envelope'],
 ];

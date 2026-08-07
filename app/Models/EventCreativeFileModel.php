@@ -11,6 +11,7 @@ class EventCreativeFileModel extends Model
     protected $useTimestamps = true;
     protected $allowedFields = [
         'creative_item_id', 'event_id', 'file_name', 'original_name', 'catatan', 'uploaded_by',
+        'is_opsi', 'opsi_label', 'is_terpilih', 'versi',
     ];
 
     public function getByItem(int $itemId): array
