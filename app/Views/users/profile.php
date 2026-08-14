@@ -526,8 +526,25 @@ $infoFields = [
         <label class="form-label small fw-semibold">Jenis Dokumen</label>
         <select name="jenis" id="docJenis" class="form-select form-select-sm" required>
             <option value="">— pilih —</option>
-            <?php foreach ($jenisDok as $k => $lbl): ?><option value="<?= $k ?>"><?= esc($lbl) ?></option><?php endforeach; ?>
+            <?php
+            // Dokumen wajib hanya boleh satu per karyawan. Yang sudah terunggah
+            // dinonaktifkan — TIDAK dihilangkan, supaya karyawan tahu alasannya
+            // dan tidak mengira sistemnya rusak. Yang DITOLAK tetap terbuka,
+            // karena justru harus diunggah ulang.
+            $sudah = [];
+            foreach (($kelengkapan['per_jenis'] ?? []) as $j => $d) {
+                if (in_array($d['status'], ['approved', 'pending'], true)) $sudah[$j] = $d['status'];
+            }
+            foreach ($jenisDok as $k => $lbl):
+                $st = $sudah[$k] ?? null;
+                $ket = $st === 'approved' ? ' — sudah diverifikasi'
+                     : ($st === 'pending' ? ' — sudah diunggah, menunggu verifikasi' : ''); ?>
+            <option value="<?= $k ?>" <?= $st ? 'disabled' : '' ?>><?= esc($lbl . $ket) ?></option>
+            <?php endforeach; ?>
         </select>
+        <?php if ($sudah): ?>
+        <div class="form-text small">Dokumen yang sudah diunggah tidak bisa dipilih lagi. Untuk mengganti, hapus dulu dari daftar <em>Dokumen Saya</em> di bawah.</div>
+        <?php endif; ?>
     </div>
     <div class="mb-3 d-none" id="docNamaWrap">
         <label class="form-label small fw-semibold">Nama Dokumen</label>

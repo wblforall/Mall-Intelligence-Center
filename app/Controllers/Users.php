@@ -370,6 +370,23 @@ class Users extends BaseController
         $nomor = trim((string) $this->request->getPost('nomor_identitas'));
         $field = \App\Models\EmployeeDocumentModel::PASANGAN_NOMOR[$jenis] ?? null;
 
+        // Dokumen wajib hanya boleh satu per karyawan. Di form pilihannya sudah
+        // dinonaktifkan, tapi itu bisa ditembus POST langsung — dan unggahan
+        // ganda inilah yang dulu memaksa HR menolak berkas dengan alasan
+        // "double". Yang DITOLAK tidak menghalangi, karena memang harus
+        // diunggah ulang.
+        if (in_array($jenis, \App\Models\EmployeeDocumentModel::WAJIB, true)) {
+            $adaModel = new \App\Models\EmployeeDocumentModel();
+            $ada = $adaModel->where('employee_id', $emp['id'])->where('jenis', $jenis)
+                ->whereIn('status', ['approved', 'pending'])->first();
+            if ($ada) {
+                return redirect()->to('/profile')->with('error',
+                    \App\Models\EmployeeDocumentModel::JENIS[$jenis] . ' sudah pernah diunggah ('
+                    . ($ada['status'] === 'approved' ? 'sudah diverifikasi' : 'menunggu verifikasi')
+                    . '). Hapus dulu dari daftar Dokumen Saya bila ingin menggantinya.');
+            }
+        }
+
         // Nomor WAJIB untuk KTP/KK/NPWP, dan diperiksa SEBELUM berkas disimpan.
         // Kalau divalidasi sesudahnya, unggahan yang ditolak akan meninggalkan
         // file yatim di disk tanpa baris yang menunjuknya.
