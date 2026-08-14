@@ -80,3 +80,7 @@ public/.htaccess
 writable/spi/
 public/userguide/
 .playwright-mcp/
+
+# Sample data uji berisi dokumen identitas ASLI (KTP/KK/NPWP karyawan).
+# Jangan pernah ikut ter-commit — repo ini punya remote publik di GitHub.
+Sample data/
