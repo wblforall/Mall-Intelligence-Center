@@ -398,6 +398,13 @@ $infoFields = [
                    <?= isset($petunjukNomor[$f]) ? 'inputmode="numeric"' : '' ?> disabled>
             <?php if (isset($petunjukNomor[$f])): ?>
             <div class="form-text small"><?= $petunjukNomor[$f] ?></div>
+            <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
+                <label class="btn btn-sm btn-outline-secondary py-0 px-2 mb-0" style="font-size:.72rem">
+                    <i class="bi bi-camera me-1"></i>Pindai dari foto
+                    <input type="file" accept="image/*" class="d-none ocr-pilih" data-target="in_<?= $f ?>" data-jenis="<?= $f ?>">
+                </label>
+                <span class="small text-muted ocr-status" data-for="in_<?= $f ?>"></span>
+            </div>
             <?php endif; ?>
         </div>
     </div>
@@ -698,5 +705,56 @@ document.addEventListener('DOMContentLoaded', function () {
     if (chk) chk.addEventListener('change', aturIpk);
     aturIpk();
 });
+
+/**
+ * Pindai nomor identitas dari foto. Seluruh proses terjadi di perangkat
+ * karyawan — foto tidak diunggah ke mana pun untuk keperluan ini.
+ *
+ * Hasilnya SELALU diperlakukan sebagai usulan: field ikut dicentang dan
+ * disorot agar karyawan sadar harus mencocokkannya dengan kartu aslinya.
+ */
+document.addEventListener('change', function (e) {
+    const inp = e.target.closest('.ocr-pilih');
+    if (!inp || !inp.files || !inp.files[0]) return;
+
+    const target = document.getElementById(inp.dataset.target);
+    const status = document.querySelector('.ocr-status[data-for="' + inp.dataset.target + '"]');
+    const file   = inp.files[0];
+    inp.value = '';                       // supaya file yang sama bisa dipilih lagi
+
+    const pesan = (t, kelas) => {
+        status.textContent = t;
+        status.className = 'small ocr-status ' + (kelas || 'text-muted');
+    };
+
+    if (typeof OcrIdentitas === 'undefined') {
+        pesan('Mesin OCR belum termuat — ketik nomornya manual.', 'text-danger');
+        return;
+    }
+
+    pesan('Memuat mesin OCR (unduhan pertama ±8 MB)…');
+
+    OcrIdentitas.baca(file, inp.dataset.jenis, p => pesan('Membaca… ' + p + '%'))
+        .then(function (hasil) {
+            if (!hasil.nomor) {
+                pesan('Nomor tidak terbaca. Coba foto lebih terang & lurus, atau ketik manual.', 'text-warning');
+                return;
+            }
+            // Aktifkan field-nya agar nilai hasil pindai ikut terkirim.
+            const chk = document.getElementById('chk_' + inp.dataset.jenis);
+            if (chk && !chk.checked) { chk.checked = true; target.disabled = false; }
+
+            target.value = hasil.nomor;
+            target.classList.add('border-warning');
+            target.focus();
+            pesan('Terbaca ' + hasil.nomor.length + ' digit — WAJIB dicocokkan dengan kartu asli.', 'text-warning');
+        })
+        .catch(function (err) {
+            pesan(err.message || 'Gagal membaca gambar.', 'text-danger');
+        });
+});
 </script>
+<script>window.MIC_BASE_URL = '<?= base_url() ?>';</script>
+<script src="<?= base_url('lib/tesseract/tesseract.min.js') ?>"></script>
+<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.1"></script>
 <?= $this->endSection() ?>

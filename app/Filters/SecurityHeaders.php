@@ -53,6 +53,9 @@ class SecurityHeaders implements FilterInterface
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
             "img-src 'self' data: blob:",
+            // OCR nomor identitas menjalankan Tesseract sebagai Web Worker dari
+            // aset lokal MIC; sebagian build membungkusnya sebagai blob: URL.
+            "worker-src 'self' blob:",
             "font-src 'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
             "connect-src 'self' https://api.open-meteo.com https://cdn.jsdelivr.net",
             "object-src 'none'",
