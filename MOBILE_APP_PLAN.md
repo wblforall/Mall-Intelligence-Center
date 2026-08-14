@@ -1,7 +1,8 @@
 # Rencana Pengembangan Aplikasi Mobile MIC
 
 **Mall Intelligence Center — PT. Wulandari Bangun Laksana Tbk.**
-Disusun 2 Agustus 2026 · Basis: MIC v2.24.0 · Status: **rencana, belum ada kode app**
+Disusun 2 Agustus 2026 · Diperbarui 11 Agustus 2026 · Basis: MIC v2.24.0
+Status: **Fase 0 (backend) selesai · belum ada kode app**
 
 ---
 
@@ -21,15 +22,17 @@ Disusun 2 Agustus 2026 · Basis: MIC v2.24.0 · Status: **rencana, belum ada kod
 ## 2. Kondisi Backend Saat Ini (per v2.24.0)
 
 ### Yang SUDAH ada
-- `app/Controllers/Api/` — `BaseApiController` dengan Bearer token, plus 6 controller: Auth, Dashboard, Events, PromoMedia, Idp, Pip.
-- Endpoint hidup: `auth/login|me|logout|push-token`, `dashboard/summary`, `events` (index/show), approval **media-promo / idp / pip** (approve+reject).
+- `app/Controllers/Api/` — `BaseApiController` dengan Bearer token, plus 7 controller: Auth, Approvals, Dashboard, Events, PromoMedia, Idp, Pip.
+- Endpoint hidup: `auth/login|me|logout|push-token`, **`approvals` (kotak terpadu 9 sumber)**, `dashboard/summary`, `events` (index/show), approval **media-promo / idp / pip** (approve+reject).
 - Tabel `api_tokens` sudah punya kolom **`push_token`** — tinggal mesin pengirimnya.
 - **Tabel `notifications` + `App\Libraries\Notify::send()`** (v2.23) — pusat notifikasi in-app sudah berdiri.
 - **`ApprovalInbox::collect($ctx)` + `contextForUser($userId)`** (v2.23) — agregator 9 sumber persetujuan yang **sengaja dibuat tanpa session**, memang disiapkan untuk API mobile. Ini menghemat pekerjaan paling besar di Fase 1.
 - `ImageCompressor` (resize 1600px) untuk foto bukti.
 - PWA installable (`sw.js`, manifest, offline.html) + tabel responsif `table-cardify`.
 
-### CELAH yang WAJIB ditutup sebelum app dibangun
+### CELAH yang WAJIB ditutup sebelum app dibangun — ✅ **kelimanya sudah ditutup di `548f249`**
+
+*Tabel di bawah disimpan sebagai catatan alasan; jangan dianggap pekerjaan terbuka.*
 
 | # | Celah | Akibat kalau dibiarkan |
 |---|---|---|
@@ -128,16 +131,21 @@ Disusun 2 Agustus 2026 · Basis: MIC v2.24.0 · Status: **rencana, belum ada kod
 
 ## 4. Fase Pengembangan
 
-### Fase 0 — Pengerasan Backend *(prasyarat mutlak)*
+### Fase 0 — Pengerasan Backend *(prasyarat mutlak)* — ✅ **SELESAI**
 Tanpa ini app tidak boleh dirilis ke user.
 
-1. **Samakan otorisasi API dengan web** — muat `user_menu_access` secara additive di `BaseApiController`, tambah `canApproveMenu()`. Idealnya: ekstrak aturan ke satu trait/service yang dipakai `BaseController` **dan** `BaseApiController`, supaya tidak ada lagi dua salinan aturan yang bisa berbeda.
-2. **Perkaya `/api/auth/me`** — kembalikan `role_perms`, peta menu efektif (view/edit/approve per menu), dan `employee_id`. App menyusun menu dari sini.
-3. **Force-logout di API** — tolak token bila `users.is_active = 0` atau `perms_changed_at` lebih baru dari `api_tokens.created_at`.
-4. **`NotificationService` terpusat** — satu titik yang mengirim **email + push (FCM) + tulis tabel `notifications`** sekaligus. Saat ini `Notify::send()` sudah menangani in-app; tinggal ditambah kanal push & email di belakang antarmuka yang sama, lalu seluruh trigger yang ada otomatis ikut jadi push. **Ini investasi paling bernilai di seluruh rencana.**
-5. **Endpoint Kotak Persetujuan** — `GET /api/approvals` yang membungkus `ApprovalInbox::collect(contextForUser($id))`. Struktur hasilnya sudah datar dan siap pakai; pekerjaannya tinggal membungkus.
+1. ✅ **Samakan otorisasi API dengan web** — muat `user_menu_access` secara additive di `BaseApiController`, tambah `canApproveMenu()`. Idealnya: ekstrak aturan ke satu trait/service yang dipakai `BaseController` **dan** `BaseApiController`, supaya tidak ada lagi dua salinan aturan yang bisa berbeda.
+   → *Selesai `548f249`: `App\Libraries\MenuAccess::allowed()` jadi satu-satunya aturan, dipakai bersama web, API, dan `ApprovalInbox`.*
+2. ✅ **Perkaya `/api/auth/me`** — kembalikan `role_perms`, peta menu efektif (view/edit/approve per menu), dan `employee_id`. App menyusun menu dari sini. → *Selesai `548f249`.*
+3. ✅ **Force-logout di API** — tolak token bila `users.is_active = 0` atau `perms_changed_at` lebih baru dari `api_tokens.created_at`. → *Selesai `548f249`.*
+4. ✅ **`NotificationService` terpusat** — satu titik yang mengirim **email + push (FCM) + tulis tabel `notifications`** sekaligus. Saat ini `Notify::send()` sudah menangani in-app; tinggal ditambah kanal push & email di belakang antarmuka yang sama, lalu seluruh trigger yang ada otomatis ikut jadi push. **Ini investasi paling bernilai di seluruh rencana.**
+   → *Selesai `548f249`: tabel `push_queue`, `PushSender` (FCM HTTP v1), cron `mic:push-dispatch`. **Kanal email belum dipasang** — masih in-app + push. Firebase belum disiapkan, antrian ditandai `skipped` sampai kredensial ada.*
+5. ✅ **Endpoint Kotak Persetujuan** — `GET /api/approvals` yang membungkus `ApprovalInbox::collect(contextForUser($id))`. Struktur hasilnya sudah datar dan siap pakai; pekerjaannya tinggal membungkus.
+   → *Selesai: `Api\ApprovalsController`. Item kini membawa `source` + `id` eksplisit (satu modul bisa punya beberapa sumber — `appraisal` = template / form HR / form berjenjang — dan app tak boleh mengurai id dari string URL). Mendukung `?module=` dan `?limit=`; rekap `total`/`urgent`/`oldest_days` dihitung sebelum limit agar badge tetap benar. Tiap item membawa `web_url` sebagai jalan keluar webview untuk modul yang belum punya layar di app.*
 
-*Perkiraan kasar: 1,5–2 minggu.*
+**Sisa pekerjaan Fase 0 sebelum app dirilis:** siapkan proyek Firebase + APNs key (mesin push sudah ada, kredensialnya belum), dan pasang kanal email di `Notify` bila memang diinginkan.
+
+*Perkiraan kasar: 1,5–2 minggu.* → **realisasi: selesai, di luar penyiapan Firebase.**
 
 ### Fase 1 — Hub Approval + Push *(inti nilai app)*
 - Login, simpan token, refresh hak akses dari `/api/auth/me`
@@ -177,8 +185,8 @@ Tanpa ini app tidak boleh dirilis ke user.
 
 | Endpoint | Fase | Catatan |
 |---|---|---|
-| `GET /api/auth/me` *(diperkaya)* | 0 | + `role_perms`, peta menu efektif, `employee_id` |
-| `GET /api/approvals` | 0 | Bungkus `ApprovalInbox::collect()` — sudah siap |
+| ~~`GET /api/auth/me`~~ *(diperkaya)* | 0 | ✅ **ada** — + `role_perms`, peta menu efektif, `employee_id` |
+| ~~`GET /api/approvals`~~ | 0 | ✅ **ada** — `Api\ApprovalsController`. Query: `module`, `limit`. Balikan: `total`, `urgent`, `oldest_days`, `modules[]` (key/label/icon/color/count), `items[]` (module, module_label, icon, color, **source**, **id**, title, subtitle, since, age_days, urgent, url, web_url) |
 | `POST /api/approvals/{modul}/{id}/decide` | 1 | Satu jalur untuk semua modul: `{aksi: approve\|reject, alasan}` |
 | `GET /api/notifications`, `POST /api/notifications/read` | 1 | Cermin controller web `Notifications` |
 | `GET /api/work-report`, `POST /api/work-report/{id}/update` | 2 | Termasuk unggah foto multipart |

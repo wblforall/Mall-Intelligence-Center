@@ -21,6 +21,9 @@ $routes->group('api', function ($routes) {
     $routes->get('events',     'Api\EventsController::index');
     $routes->get('events/(:num)', 'Api\EventsController::show/$1');
 
+    // Kotak Persetujuan terpadu (semua sumber sekaligus)
+    $routes->get('approvals', 'Api\ApprovalsController::index');
+
     // Media Promo Approval
     $routes->get('media-promo/approvals',        'Api\PromoMediaController::approvals');
     $routes->post('media-promo/(:num)/approve',  'Api\PromoMediaController::approve/$1');

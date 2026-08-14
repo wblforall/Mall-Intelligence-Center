@@ -54,7 +54,7 @@ class ApprovalInbox
                 ->join('users us', 'us.id = u.created_by', 'left')
                 ->where('u.status', 'pending')
                 ->orderBy('u.submitted_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('promo_media', $r['nama_materi'],
+                $items[] = self::row('promo_media', 'promo_media', (int) $r['id'], $r['nama_materi'],
                     trim(($r['pengaju'] ?? '') . ' · ' . ($r['spot_nama'] ?? '') . ' · ' . $r['tanggal_mulai'] . ' s/d ' . $r['tanggal_selesai'], ' ·'),
                     'creative/media-promo/pending', $r['submitted_at']);
             }
@@ -70,7 +70,7 @@ class ApprovalInbox
                 $periode = $r['start_date']
                     ? $r['start_date'] . ' · ' . (int) $r['event_days'] . ' hari'
                     : 'tanggal belum diisi';
-                $items[] = self::row('event', $r['name'],
+                $items[] = self::row('event', 'event', (int) $r['id'], $r['name'],
                     ucfirst((string) $r['mall']) . ' · ' . $periode, 'events', $r['created_at']);
             }
         }
@@ -82,7 +82,8 @@ class ApprovalInbox
                 ->join('jabatans j', 'j.id = t.jabatan_id', 'left')
                 ->where('t.status', 'submitted')
                 ->orderBy('t.submitted_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('appraisal', 'Template KPI: ' . ($r['jabatan_nama'] ?? $r['nama']),
+                $items[] = self::row('appraisal', 'appraisal_template', (int) $r['id'],
+                    'Template KPI: ' . ($r['jabatan_nama'] ?? $r['nama']),
                     'Menunggu persetujuan HR', 'appraisal/templates/' . $r['id'], $r['submitted_at']);
             }
             // Form di tahap pengecekan akhir HR
@@ -91,7 +92,8 @@ class ApprovalInbox
                 ->join('employees e', 'e.id = f.employee_id', 'left')
                 ->where('f.status', 'hr_review')
                 ->orderBy('f.updated_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('appraisal', 'Penilaian: ' . ($r['employee_nama'] ?? '-'),
+                $items[] = self::row('appraisal', 'appraisal_form_hr', (int) $r['id'],
+                    'Penilaian: ' . ($r['employee_nama'] ?? '-'),
                     'Menunggu finalisasi HR', 'appraisal/forms/' . $r['id'], $r['updated_at']);
             }
         }
@@ -103,7 +105,8 @@ class ApprovalInbox
                 ->join('employees e', 'e.id = f.employee_id', 'left')
                 ->where('f.status', 'in_review')->where('f.current_user_id', $uid)
                 ->orderBy('f.updated_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('appraisal', 'Penilaian: ' . ($r['employee_nama'] ?? '-'),
+                $items[] = self::row('appraisal', 'appraisal_form_review', (int) $r['id'],
+                    'Penilaian: ' . ($r['employee_nama'] ?? '-'),
                     'Menunggu penilaian Anda', 'appraisal/forms/' . $r['id'], $r['updated_at'], true);
             }
         }
@@ -115,7 +118,7 @@ class ApprovalInbox
                 ->join('employees e', 'e.id = r.employee_id', 'left')
                 ->where('r.status', 'pending')
                 ->orderBy('r.created_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('hr_data', ($r['employee_nama'] ?? '-') . ' — ' . $r['label'],
+                $items[] = self::row('hr_data', 'hr_change_request', (int) $r['id'], ($r['employee_nama'] ?? '-') . ' — ' . $r['label'],
                     'Usulan baru: ' . mb_substr((string) $r['value_new'], 0, 60),
                     'people/change-requests', $r['created_at']);
             }
@@ -124,7 +127,7 @@ class ApprovalInbox
                 ->join('employees e', 'e.id = d.employee_id', 'left')
                 ->where('d.status', 'pending')
                 ->orderBy('d.created_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('hr_document', ($r['employee_nama'] ?? '-') . ' — ' . $r['jenis'],
+                $items[] = self::row('hr_document', 'hr_document', (int) $r['id'], ($r['employee_nama'] ?? '-') . ' — ' . $r['jenis'],
                     'Dokumen menunggu verifikasi', 'people/change-requests', $r['created_at']);
             }
         }
@@ -138,7 +141,7 @@ class ApprovalInbox
                 ->where('p.status', 'menunggu_persetujuan');
             if (! $admin && empty($ctx['can_approve_pip'])) $q->where('e.atasan_id', $eid);
             foreach ($q->orderBy('p.created_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('pip', 'PIP: ' . ($r['employee_nama'] ?? '-'),
+                $items[] = self::row('pip', 'pip', (int) $r['id'], 'PIP: ' . ($r['employee_nama'] ?? '-'),
                     'Menunggu persetujuan atasan', 'people/pip/' . $r['id'], $r['created_at']);
             }
         }
@@ -151,7 +154,7 @@ class ApprovalInbox
                 ->where('p.persetujuan_atasan', 'pending');
             if (! $admin && empty($ctx['is_hr'])) $q->where('e.atasan_id', $eid);
             foreach ($q->orderBy('p.created_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('idp', 'IDP: ' . ($r['employee_nama'] ?? '-'),
+                $items[] = self::row('idp', 'idp', (int) $r['id'], 'IDP: ' . ($r['employee_nama'] ?? '-'),
                     (string) $r['periode_label'], 'people/idp/' . $r['id'], $r['created_at']);
             }
         }
@@ -167,7 +170,7 @@ class ApprovalInbox
                 ->where('c.status', 'review')
                 ->groupBy('c.id')
                 ->orderBy('c.review_submitted_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('creative', $r['nama'],
+                $items[] = self::row('creative', 'creative', (int) $r['id'], $r['nama'],
                     self::ketCreative($r) . ($r['pic'] ? ' · PIC ' . $r['pic'] : ''),
                     'creative#item-' . $r['id'] . '-s',
                     $r['review_submitted_at'] ?: ($r['updated_at'] ?: $r['created_at']));
@@ -186,7 +189,7 @@ class ApprovalInbox
                 ->where('c.status', 'review')
                 ->groupBy('c.id')
                 ->orderBy('c.review_submitted_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('creative', $r['nama'],
+                $items[] = self::row('creative', 'creative_event', (int) $r['id'], $r['nama'],
                     'Event: ' . ($r['event_nama'] ?? '-') . ' · ' . self::ketCreative($r),
                     'events/' . $r['event_id'] . '/creative#item-' . $r['id'],
                     $r['review_submitted_at'] ?: ($r['updated_at'] ?: $r['created_at']));
@@ -199,7 +202,7 @@ class ApprovalInbox
                 ->select('r.id, r.judul, r.created_at')
                 ->where('r.status', 'in_review')
                 ->orderBy('r.created_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
-                $items[] = self::row('legal', $r['judul'], 'Review dokumen berjalan',
+                $items[] = self::row('legal', 'legal_review', (int) $r['id'], $r['judul'], 'Review dokumen berjalan',
                     'legal/reviews/' . $r['id'], $r['created_at']);
             }
         }
@@ -350,10 +353,21 @@ class ApprovalInbox
         return $versi > 1 ? $ket . ' · putaran ke-' . $versi : $ket;
     }
 
-    private static function row(string $module, string $title, ?string $subtitle, string $url, ?string $since, bool $urgent = false): array
+    /**
+     * @param string $source Sumber spesifik di dalam modul. Satu modul bisa
+     *        punya beberapa sumber dengan tabel & alur keputusan berbeda
+     *        (mis. `appraisal` = template, form HR, form berjenjang), dan
+     *        pemanggil API perlu membedakannya untuk mengambil tindakan.
+     * @param int $id Primary key baris asal. Web cukup memakai `url`, tapi app
+     *        mobile perlu identitas eksplisit — mengurai id dari string URL
+     *        akan patah begitu rutenya berubah.
+     */
+    private static function row(string $module, string $source, int $id, string $title, ?string $subtitle, string $url, ?string $since, bool $urgent = false): array
     {
         return [
             'module'   => $module,
+            'source'   => $source,
+            'id'       => $id,
             'title'    => $title,
             'subtitle' => $subtitle ?: null,
             'url'      => $url,
