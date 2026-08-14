@@ -114,13 +114,82 @@
         return null;
     }
 
+    /* ── PDF ──────────────────────────────────────────────────────────────
+       pdf.js dimuat MALAS: hanya karyawan yang benar-benar mengunggah PDF
+       yang menanggung 1,3 MB tambahan; yang memakai foto tak terkena apa pun.
+    */
+    var pdfjsPromise = null;
+
+    function siapkanPdfjs() {
+        if (pdfjsPromise) return pdfjsPromise;
+        pdfjsPromise = import(BASE + 'lib/pdfjs/pdf.min.js').then(function (mod) {
+            mod.GlobalWorkerOptions.workerSrc = BASE + 'lib/pdfjs/pdf.worker.min.js';
+            return mod;
+        }).catch(function (e) {
+            pdfjsPromise = null;
+            throw new Error('Gagal memuat pembaca PDF. Ketik nomornya manual.');
+        });
+        return pdfjsPromise;
+    }
+
+    /** Render halaman pertama PDF ke blob PNG, siap dibaca Tesseract. */
+    function pdfKeGambar(halaman) {
+        var vp = halaman.getViewport({ scale: 2 });   // 2x supaya angka kecil tetap tajam
+        var c  = document.createElement('canvas');
+        c.width = vp.width; c.height = vp.height;
+        return halaman.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise
+            .then(function () {
+                return new Promise(function (res) { c.toBlob(res, 'image/png'); });
+            });
+    }
+
     /**
-     * @param {File}     file
-     * @param {string}   jenis     nik_ktp | no_kk | no_npwp
-     * @param {Function} lapor     progres 0-100
-     * @returns {Promise<{nomor:string|null, teks:string}>}
+     * Baca PDF. Lapisan teks dicoba LEBIH DULU: dokumen terbit digital
+     * (mis. NPWP dari DJP) menyimpan nomornya sebagai teks sungguhan,
+     * sehingga bisa diambil persis tanpa risiko salah baca OCR. Hanya PDF
+     * hasil pindai — yang isinya cuma gambar — yang perlu dirender lalu di-OCR.
+     */
+    function bacaPdf(file, jenis, lapor) {
+        return siapkanPdfjs()
+            .then(function (pdfjs) {
+                return file.arrayBuffer().then(function (buf) {
+                    return pdfjs.getDocument({ data: buf }).promise;
+                });
+            })
+            .then(function (doc) {
+                return doc.getPage(1);
+            })
+            .then(function (halaman) {
+                return halaman.getTextContent().then(function (tc) {
+                    var teks = tc.items.map(function (i) { return i.str; }).join(' ');
+                    var nomor = cariNomor(teks, jenis);
+                    if (nomor) return { nomor: nomor, teks: teks, sumber: 'teks' };
+
+                    // Tak ada lapisan teks yang berguna → PDF hasil pindai.
+                    return pdfKeGambar(halaman)
+                        .then(function (blob) { return kecilkan(blob, 1600); })
+                        .then(function (kecil) {
+                            return siapkanWorker(lapor).then(function (w) { return w.recognize(kecil); });
+                        })
+                        .then(function (hasil) {
+                            var t = (hasil && hasil.data && hasil.data.text) || '';
+                            return { nomor: cariNomor(t, jenis), teks: t, sumber: 'ocr' };
+                        });
+                });
+            });
+    }
+
+    /**
+     * @param {File|Blob} file
+     * @param {string}    jenis   nik_ktp | no_kk | no_npwp
+     * @param {Function}  lapor   progres 0-100
+     * @returns {Promise<{nomor:string|null, teks:string, sumber:string}>}
+     *          `sumber` = 'teks' (lapisan teks PDF, akurat) atau 'ocr' (hasil pengenalan).
      */
     function baca(file, jenis, lapor) {
+        var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+        if (isPdf) return bacaPdf(file, jenis, lapor);
+
         if (typeof Tesseract === 'undefined') {
             return Promise.reject(new Error('Mesin OCR belum termuat. Muat ulang halaman lalu coba lagi.'));
         }
@@ -131,7 +200,7 @@
             })
             .then(function (hasil) {
                 var teks = (hasil && hasil.data && hasil.data.text) || '';
-                return { nomor: cariNomor(teks, jenis), teks: teks };
+                return { nomor: cariNomor(teks, jenis), teks: teks, sumber: 'ocr' };
             });
     }
 

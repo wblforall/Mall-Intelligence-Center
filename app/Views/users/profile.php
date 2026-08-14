@@ -541,7 +541,7 @@ $infoFields = [
          nomornya tertinggal kosong tanpa ada yang menyadari sampai HR
          memverifikasi berkasnya. -->
     <div class="mt-3 d-none" id="docNomorWrap">
-        <label class="form-label small fw-semibold" id="docNomorLabel">Nomor</label>
+        <label class="form-label small fw-semibold" id="docNomorLabel">Nomor <span class="text-danger">*</span></label>
         <input type="text" name="nomor_identitas" id="docNomor" class="form-control form-control-sm" inputmode="numeric">
         <div class="form-text small" id="docNomorHint"></div>
         <div class="mt-1 small text-muted" id="docOcrStatus"></div>
@@ -810,8 +810,16 @@ document.addEventListener('change', function (e) {
         var a = aturan();
         document.getElementById('docNamaWrap').classList.toggle('d-none', jenis.value !== 'lainnya');
         wrap.classList.toggle('d-none', !a);
-        if (a) { label.textContent = a.label; hint.textContent = a.hint; }
-        else   { input.value = ''; status.textContent = ''; }
+        // `required` dipasang/dilepas mengikuti jenis: kalau dibiarkan menempel
+        // saat kolomnya tersembunyi, form jadi tak bisa dikirim untuk jenis
+        // dokumen lain dengan galat yang tak terlihat oleh pengguna.
+        input.required = !!a;
+        if (a) {
+            label.innerHTML = a.label + ' <span class="text-danger">*</span>';
+            hint.textContent = a.hint + ' · wajib diisi';
+        } else {
+            input.value = ''; status.textContent = '';
+        }
     }
 
     jenis.addEventListener('change', function () { perbarui(); if (file.files[0]) pindai(); });
@@ -821,11 +829,6 @@ document.addEventListener('change', function (e) {
         var a = aturan();
         var f = file.files && file.files[0];
         if (!a || !f || typeof OcrIdentitas === 'undefined') return;
-        if (!/^image\//.test(f.type)) {                     // PDF tak bisa dibaca canvas
-            status.textContent = 'Berkas PDF — ketik nomornya manual.';
-            status.className = 'mt-1 small text-muted';
-            return;
-        }
 
         status.className = 'mt-1 small text-muted';
         status.textContent = 'Mencoba membaca nomor dari berkas…';
@@ -838,9 +841,19 @@ document.addEventListener('change', function (e) {
                     return;
                 }
                 input.value = h.nomor;
-                input.classList.add('border-warning');
-                status.textContent = 'Terbaca dari berkas — WAJIB dicocokkan dengan kartu asli.';
-                status.className = 'mt-1 small text-warning';
+
+                // Nomor dari lapisan teks PDF diambil apa adanya dari berkas,
+                // bukan ditebak — tak perlu diperlakukan seragam dengan hasil
+                // pengenalan gambar yang memang rawan salah baca.
+                if (h.sumber === 'teks') {
+                    input.classList.remove('border-warning');
+                    status.textContent = 'Diambil langsung dari teks PDF — tetap periksa sebelum mengirim.';
+                    status.className = 'mt-1 small text-success';
+                } else {
+                    input.classList.add('border-warning');
+                    status.textContent = 'Terbaca dari berkas — WAJIB dicocokkan dengan kartu asli.';
+                    status.className = 'mt-1 small text-warning';
+                }
             })
             .catch(function () {
                 status.textContent = 'Gagal membaca berkas — ketik nomornya manual.';
@@ -853,5 +866,5 @@ document.addEventListener('change', function (e) {
 </script>
 <script>window.MIC_BASE_URL = '<?= base_url() ?>';</script>
 <script src="<?= base_url('lib/tesseract/tesseract.min.js') ?>"></script>
-<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.1"></script>
+<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.2"></script>
 <?= $this->endSection() ?>

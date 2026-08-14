@@ -366,17 +366,31 @@ class Users extends BaseController
         $emp = (new \App\Models\EmployeeModel())->where('user_id', $id)->first();
         if (! $emp) return redirect()->to('/profile')->with('error', 'Akun belum terhubung ke data karyawan.');
 
+        $jenis = (string) $this->request->getPost('jenis');
+        $nomor = trim((string) $this->request->getPost('nomor_identitas'));
+        $field = \App\Models\EmployeeDocumentModel::PASANGAN_NOMOR[$jenis] ?? null;
+
+        // Nomor WAJIB untuk KTP/KK/NPWP, dan diperiksa SEBELUM berkas disimpan.
+        // Kalau divalidasi sesudahnya, unggahan yang ditolak akan meninggalkan
+        // file yatim di disk tanpa baris yang menunjuknya.
+        if ($field) {
+            $label = \App\Models\EmployeeChangeRequestModel::EDITABLE[$field] ?? $field;
+            if ($nomor === '') {
+                return redirect()->to('/profile')->with('error', $label . ' wajib diisi saat mengunggah dokumen ini.');
+            }
+            if ($err = self::validasiNomorIdentitas($field, $nomor)) {
+                return redirect()->to('/profile')->with('error', $err);
+            }
+        }
+
         $res = $this->storeDocument((int) $emp['id'], $id, 'pending');
         if (! $res['ok']) return redirect()->to('/profile')->with('error', $res['msg']);
 
-        // Nomor ikut diajukan dari form yang sama. Sebelumnya kartu dan
-        // nomornya lewat dua jalur terpisah, dan karyawan hampir selalu hanya
-        // mengunggah kartunya — kolom nomornya tertinggal kosong sampai HR
-        // menyadarinya sendiri.
-        $pesan = $res['msg'];
-        $catatan = $this->ajukanNomorDariDokumen($emp, (int) $id,
-            (string) $this->request->getPost('jenis'),
-            trim((string) $this->request->getPost('nomor_identitas')));
+        // Nomor diajukan dari form yang sama supaya kartu dan nomornya tak
+        // pernah lagi terpisah — dulu karyawan hampir selalu hanya mengunggah
+        // kartunya dan kolom nomor tertinggal kosong tanpa ada yang menyadari.
+        $pesan   = $res['msg'];
+        $catatan = $this->ajukanNomorDariDokumen($emp, (int) $id, $jenis, $nomor);
         if ($catatan) $pesan .= ' ' . $catatan;
 
         return redirect()->to('/profile')->with('success', $pesan);
@@ -389,12 +403,10 @@ class Users extends BaseController
      */
     private function ajukanNomorDariDokumen(array $emp, int $userId, string $jenis, string $nomor): ?string
     {
+        // Kesahihan & kewajiban nomor sudah diperiksa di uploadDocument sebelum
+        // berkas disimpan; di sini tinggal mencatat pengajuannya.
         $field = \App\Models\EmployeeDocumentModel::PASANGAN_NOMOR[$jenis] ?? null;
         if (! $field || $nomor === '') return null;
-
-        if ($err = self::validasiNomorIdentitas($field, $nomor)) {
-            return 'Namun nomornya tidak disimpan: ' . $err;
-        }
 
         $label = \App\Models\EmployeeChangeRequestModel::EDITABLE[$field] ?? $field;
         $lama  = (string) ($emp[$field] ?? '');
