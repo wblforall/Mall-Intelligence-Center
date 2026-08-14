@@ -238,16 +238,42 @@ class PeopleEmployees extends BaseController
     public function changeRequests()
     {
         if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $model = new EmployeeChangeRequestModel();
+        $model       = new EmployeeChangeRequestModel();
+        $docModel    = new EmployeeDocumentModel();
+        $pending     = $model->inbox('pending');
+        $pendingDocs = $docModel->pendingInbox();
+
+        // Nomor identitas dan kartunya diajukan lewat dua jalur terpisah.
+        // Disandingkan di sini supaya HR bisa memutuskan tanpa berpindah
+        // bagian — dan supaya nomor yang belum diisi ketahuan saat kartunya
+        // diverifikasi.
+        $idKaryawan = array_merge(
+            array_column($pending, 'employee_id'),
+            array_column($pendingDocs, 'employee_id')
+        );
+        $dokIdentitas = $docModel->identitasUntukKaryawan($idKaryawan);
+
+        $nomorIdentitas = [];
+        $ids = array_values(array_unique(array_filter(array_map('intval', $idKaryawan))));
+        if ($ids) {
+            foreach ((new EmployeeModel())
+                ->select('id, ' . implode(', ', EmployeeDocumentModel::PASANGAN_NOMOR))
+                ->whereIn('id', $ids)->findAll() as $e) {
+                $nomorIdentitas[(int) $e['id']] = $e;
+            }
+        }
+
         return view('people/change_requests', [
             'user'        => $this->currentUser(),
-            'pending'     => $model->inbox('pending'),
+            'pending'     => $pending,
             'processed'   => array_merge($model->inbox('approved'), $model->inbox('rejected')),
-            'pendingDocs' => (new EmployeeDocumentModel())->pendingInbox(),
+            'pendingDocs' => $pendingDocs,
             'jenisDok'    => EmployeeDocumentModel::JENIS,
             'pendingCerts'=> (new EmployeeCertificateModel())->pendingInbox(),
             'jenisSert'   => EmployeeCertificateModel::JENIS,
             'levelSert'   => EmployeeCertificateModel::LEVEL,
+            'dokIdentitas'   => $dokIdentitas,
+            'nomorIdentitas' => $nomorIdentitas,
         ]);
     }
 

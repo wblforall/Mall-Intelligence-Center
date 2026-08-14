@@ -24,7 +24,27 @@
         <div class="fw-semibold small"><?= esc($r['employee_nama']) ?></div>
         <div class="text-muted" style="font-size:.72rem"><?= esc($r['dept_name'] ?? '—') ?></div>
     </td>
-    <td class="small fw-semibold"><?= esc($r['label']) ?></td>
+    <td class="small fw-semibold">
+        <?= esc($r['label']) ?>
+        <?php
+        // Nomor identitas: sandingkan kartunya supaya HR tak perlu berpindah
+        // ke bagian Dokumen untuk mencocokkan.
+        $jenisPasangan = \App\Models\EmployeeDocumentModel::jenisUntukField($r['field']);
+        if ($jenisPasangan):
+            $dok = $dokIdentitas[(int) $r['employee_id']][$jenisPasangan] ?? null; ?>
+            <div class="fw-normal mt-1" style="font-size:.72rem">
+            <?php if ($dok): ?>
+                <a href="<?= base_url('people/documents/'.$dok['id'].'/view') ?>" target="_blank">
+                    <i class="bi bi-file-earmark-image me-1"></i>Lihat <?= esc(\App\Models\EmployeeDocumentModel::JENIS[$jenisPasangan]) ?>
+                </a>
+                <?php $wb = ['pending'=>'warning','approved'=>'success','rejected'=>'danger']; ?>
+                <span class="badge bg-<?= $wb[$dok['status']] ?? 'secondary' ?>-subtle text-<?= $wb[$dok['status']] ?? 'secondary' ?>-emphasis ms-1" style="font-size:.62rem"><?= ucfirst($dok['status']) ?></span>
+            <?php else: ?>
+                <span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Belum ada <?= esc(\App\Models\EmployeeDocumentModel::JENIS[$jenisPasangan]) ?> terunggah</span>
+            <?php endif; ?>
+            </div>
+        <?php endif; ?>
+    </td>
     <td class="small text-muted">
         <?php if ($r['field'] === 'foto'): ?>
             <?php if (! empty($r['value_old'])): ?><img src="<?= base_url('people/photo/' . $r['value_old']) ?>" style="width:40px;height:40px;border-radius:6px;object-fit:cover"><?php else: ?>—<?php endif; ?>
@@ -166,7 +186,24 @@
         <div class="fw-semibold small"><?= esc($d['employee_nama']) ?></div>
         <div class="text-muted" style="font-size:.72rem"><?= esc($d['dept_name'] ?? '—') ?></div>
     </td>
-    <td class="small fw-semibold"><?= esc(\App\Models\EmployeeDocumentModel::jenisLabel($d['jenis'], $d['nama_dokumen'])) ?></td>
+    <td class="small fw-semibold">
+        <?= esc(\App\Models\EmployeeDocumentModel::jenisLabel($d['jenis'], $d['nama_dokumen'])) ?>
+        <?php
+        // Tampilkan nomor yang tercatat untuk jenis ini. Kalau masih kosong,
+        // HR bisa langsung menagih karyawannya alih-alih memverifikasi kartu
+        // lalu membiarkan kolom nomornya kosong tanpa ada yang tahu.
+        $fieldNomor = \App\Models\EmployeeDocumentModel::PASANGAN_NOMOR[$d['jenis']] ?? null;
+        if ($fieldNomor):
+            $nomor = $nomorIdentitas[(int) $d['employee_id']][$fieldNomor] ?? null; ?>
+            <div class="fw-normal mt-1" style="font-size:.72rem">
+            <?php if (! empty($nomor)): ?>
+                <span class="text-muted">Nomor tercatat: </span><span class="font-monospace"><?= esc($nomor) ?></span>
+            <?php else: ?>
+                <span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Nomor belum diisi</span>
+            <?php endif; ?>
+            </div>
+        <?php endif; ?>
+    </td>
     <td class="small"><a href="<?= base_url('people/documents/'.$d['id'].'/view') ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
     <td class="small text-nowrap text-muted"><?= date('d M Y H:i', strtotime($d['created_at'])) ?></td>
     <td class="text-end pe-3 text-nowrap">

@@ -35,6 +35,58 @@ class EmployeeDocumentModel extends Model
     public const WAJIB = ['ktp', 'kk', 'npwp'];
 
     /**
+     * Pasangan dokumen ↔ kolom nomor di tabel employees.
+     *
+     * Dipakai untuk menyandingkan keduanya di layar verifikasi HR: nomor dan
+     * berkasnya diajukan lewat dua jalur berbeda (change request vs unggahan),
+     * sehingga tanpa penyandingan ini HR bisa menyetujui nomor tanpa pernah
+     * melihat kartunya, atau memverifikasi kartu sementara kolom nomornya
+     * masih kosong tanpa ada yang menyadari.
+     */
+    public const PASANGAN_NOMOR = [
+        'ktp'  => 'nik_ktp',
+        'kk'   => 'no_kk',
+        'npwp' => 'no_npwp',
+    ];
+
+    /** Kebalikan PASANGAN_NOMOR: kolom nomor → jenis dokumen. */
+    public static function jenisUntukField(string $field): ?string
+    {
+        $peta = array_flip(self::PASANGAN_NOMOR);
+        return $peta[$field] ?? null;
+    }
+
+    /**
+     * Dokumen identitas milik sekumpulan karyawan, dikelompokkan
+     * [employee_id][jenis]. Satu query untuk semua — layar verifikasi bisa
+     * memuat puluhan baris dan pencarian per baris akan jadi N+1.
+     *
+     * Yang `approved` menang atas baris lain yang lebih baru, supaya dokumen
+     * yang sudah sah tidak tertutup oleh unggahan gagal sesudahnya.
+     */
+    public function identitasUntukKaryawan(array $employeeIds): array
+    {
+        $employeeIds = array_values(array_unique(array_filter(array_map('intval', $employeeIds))));
+        if (! $employeeIds) return [];
+
+        $rows = $this->whereIn('employee_id', $employeeIds)
+            ->whereIn('jenis', array_keys(self::PASANGAN_NOMOR))
+            ->orderBy('created_at', 'DESC')
+            ->findAll();
+
+        $peta = [];
+        foreach ($rows as $r) {
+            $eid   = (int) $r['employee_id'];
+            $jenis = $r['jenis'];
+            $ada   = $peta[$eid][$jenis] ?? null;
+            if ($ada === null || ($r['status'] === 'approved' && $ada['status'] !== 'approved')) {
+                $peta[$eid][$jenis] = $r;
+            }
+        }
+        return $peta;
+    }
+
+    /**
      * Status kelengkapan dokumen wajib satu karyawan.
      *
      * Hanya dokumen berstatus `approved` yang dihitung lengkap — dokumen yang
