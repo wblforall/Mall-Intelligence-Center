@@ -148,7 +148,7 @@ $infoFields = [
     </div>
     <div class="card-body">
         <?php if (! $kelengkapan['lengkap']): ?>
-        <p class="small text-muted mb-3">Ketiga dokumen di bawah ini wajib dilengkapi. Unggah lewat tombol <em>Upload Dokumen</em>, lalu HR akan memverifikasi.</p>
+        <p class="small text-muted mb-3">Ketiga dokumen di bawah ini wajib dilengkapi. Lampirkan lewat <strong>Ajukan Perubahan Data</strong> bersama nomornya, lalu HR akan memverifikasi.</p>
         <?php endif; ?>
         <div class="row g-2">
         <?php foreach ($kelengkapan['per_jenis'] as $jenis => $d):
@@ -230,7 +230,7 @@ $infoFields = [
     <div class="card mb-4">
     <div class="card-header d-flex align-items-center">
         <h6 class="mb-0 fw-semibold"><i class="bi bi-folder2-open me-2"></i>Dokumen Saya</h6>
-        <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="modal" data-bs-target="#docModal"><i class="bi bi-upload me-1"></i>Upload Dokumen</button>
+        <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="modal" data-bs-target="#docModal"><i class="bi bi-upload me-1"></i>Unggah Dokumen Lain</button>
     </div>
     <div class="card-body p-0">
     <?php if (empty($documents)): ?>
@@ -417,13 +417,30 @@ $infoFields = [
                    <?= isset($petunjukNomor[$f]) ? 'inputmode="numeric"' : '' ?> disabled>
             <?php if (isset($petunjukNomor[$f])): ?>
             <div class="form-text small"><?= $petunjukNomor[$f] ?></div>
-            <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
-                <label class="btn btn-sm btn-outline-secondary py-0 px-2 mb-0" style="font-size:.72rem">
-                    <i class="bi bi-camera me-1"></i>Pindai dari foto
-                    <input type="file" accept="image/*" class="d-none ocr-pilih" data-target="in_<?= $f ?>" data-jenis="<?= $f ?>">
-                </label>
-                <span class="small text-muted ocr-status" data-for="in_<?= $f ?>"></span>
-            </div>
+            <?php
+            // Kartu dilampirkan di baris nomornya sendiri: nomor dan buktinya
+            // masuk lewat satu pintu. NPWP-16 tidak punya kolom sendiri karena
+            // tercetak di kartu NPWP yang sama — dibaca dari lampiran itu.
+            $kartu = ['nik_ktp' => 'ktp', 'no_kk' => 'kk', 'no_npwp' => 'npwp'][$f] ?? null;
+            $adaKartu = $kartu ? ($jenisTerpakai[$kartu] ?? null) : null;
+            if ($kartu): ?>
+                <?php if ($adaKartu): ?>
+                <div class="form-text small text-<?= $adaKartu === 'approved' ? 'success' : 'warning' ?>">
+                    <i class="bi bi-paperclip me-1"></i>Berkas <?= esc(\App\Models\EmployeeDocumentModel::JENIS[$kartu]) ?>
+                    <?= $adaKartu === 'approved' ? 'sudah diverifikasi' : 'sedang menunggu verifikasi' ?> — tak perlu dilampirkan lagi.
+                </div>
+                <?php else: ?>
+                <div class="mt-1">
+                    <input type="file" name="file_<?= $kartu ?>" class="form-control form-control-sm lampiran-kartu"
+                           accept=".jpg,.jpeg,.png,.pdf" data-jenis="<?= $f ?>" data-target="in_<?= $f ?>"
+                           <?= $f === 'no_npwp' ? 'data-extra="in_no_npwp16"' : '' ?>>
+                    <div class="form-text small">Lampirkan <?= esc(\App\Models\EmployeeDocumentModel::JENIS[$kartu]) ?> — wajib bila nomornya diubah. Nomor akan dibaca otomatis dari berkas ini.</div>
+                    <div class="small text-muted ocr-status" data-for="in_<?= $f ?>"></div>
+                </div>
+                <?php endif; ?>
+            <?php elseif ($f === 'no_npwp16'): ?>
+            <div class="form-text small">Dibaca otomatis dari lampiran kartu NPWP di atas.</div>
+            <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
@@ -550,28 +567,23 @@ $infoFields = [
 <div class="modal-content">
 <form method="POST" action="<?= base_url('profile/upload-document') ?>" enctype="multipart/form-data">
 <?= csrf_field() ?>
-<div class="modal-header"><h5 class="modal-title fw-semibold">Upload Dokumen</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-header"><h5 class="modal-title fw-semibold">Unggah Dokumen Lain</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
 <div class="modal-body">
     <div class="mb-3">
         <label class="form-label small fw-semibold">Jenis Dokumen</label>
         <select name="jenis" id="docJenis" class="form-select form-select-sm" required>
             <option value="">— pilih —</option>
             <?php
-            // Setiap jenis (kecuali "Lainnya") hanya boleh satu per karyawan.
-            // Yang sudah terunggah dinonaktifkan — TIDAK dihilangkan, supaya
-            // karyawan tahu alasannya dan tidak mengira sistemnya rusak. Yang
-            // DITOLAK tetap terbuka, karena justru harus diunggah ulang.
-            $sudah = $jenisTerpakai ?? [];
+            // KTP, KK, NPWP, ijazah, dan transkrip TIDAK lagi diunggah di sini
+            // — semuanya masuk lewat Ajukan Perubahan Data, bersama nomor atau
+            // data yang dibuktikannya. Form ini tinggal untuk dokumen lain,
+            // supaya tak ada dua pintu untuk berkas yang sama.
             foreach ($jenisDok as $k => $lbl):
-                $st = $sudah[$k] ?? null;
-                $ket = $st === 'approved' ? ' — sudah diverifikasi'
-                     : ($st === 'pending' ? ' — sudah diunggah, menunggu verifikasi' : ''); ?>
-            <option value="<?= $k ?>" <?= $st ? 'disabled' : '' ?>><?= esc($lbl . $ket) ?></option>
+                if ($k !== 'lainnya') continue; ?>
+            <option value="<?= $k ?>"><?= esc($lbl) ?></option>
             <?php endforeach; ?>
         </select>
-        <?php if ($sudah): ?>
-        <div class="form-text small">Dokumen yang sudah diunggah tidak bisa dipilih lagi. Untuk mengganti, hapus dulu dari daftar <em>Dokumen Saya</em> di bawah.</div>
-        <?php endif; ?>
+        <div class="form-text small">KTP, Kartu Keluarga, NPWP, ijazah, dan transkrip dilampirkan lewat <strong>Ajukan Perubahan Data</strong> bersama nomor/datanya.</div>
     </div>
     <div class="mb-3 d-none" id="docNamaWrap">
         <label class="form-label small fw-semibold">Nama Dokumen</label>
@@ -794,20 +806,20 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * Pindai nomor identitas dari foto. Seluruh proses terjadi di perangkat
- * karyawan — foto tidak diunggah ke mana pun untuk keperluan ini.
+ * Kartu identitas dilampirkan langsung di baris nomornya, dan nomornya dibaca
+ * dari berkas itu juga — satu berkas, satu langkah. Seluruh pembacaan terjadi
+ * di perangkat karyawan; berkas baru terkirim ke server saat pengajuan dikirim.
  *
  * Hasilnya SELALU diperlakukan sebagai usulan: field ikut dicentang dan
  * disorot agar karyawan sadar harus mencocokkannya dengan kartu aslinya.
  */
 document.addEventListener('change', function (e) {
-    const inp = e.target.closest('.ocr-pilih');
+    const inp = e.target.closest('.lampiran-kartu');
     if (!inp || !inp.files || !inp.files[0]) return;
 
     const target = document.getElementById(inp.dataset.target);
     const status = document.querySelector('.ocr-status[data-for="' + inp.dataset.target + '"]');
-    const file   = inp.files[0];
-    inp.value = '';                       // supaya file yang sama bisa dipilih lagi
+    const file   = inp.files[0];          // JANGAN dikosongkan — berkasnya ikut terkirim
 
     const pesan = (t, kelas) => {
         status.textContent = t;
@@ -819,25 +831,39 @@ document.addEventListener('change', function (e) {
         return;
     }
 
-    pesan('Memuat mesin OCR (unduhan pertama ±8 MB)…');
+    // Isi satu field dari hasil pembacaan, sekalian centang agar ikut terkirim.
+    const isi = (el, hasil) => {
+        if (!el || !hasil.nomor) return false;
+        const nama = el.id.replace(/^in_/, '');
+        const chk  = document.getElementById('chk_' + nama);
+        if (chk && !chk.checked) { chk.checked = true; el.disabled = false; }
+        el.value = hasil.nomor;
+        el.classList.toggle('border-warning', hasil.sumber !== 'teks');
+        return true;
+    };
+
+    pesan('Membaca nomor dari berkas…');
 
     OcrIdentitas.baca(file, inp.dataset.jenis, p => pesan('Membaca… ' + p + '%'))
         .then(function (hasil) {
-            if (!hasil.nomor) {
-                pesan('Nomor tidak terbaca. Coba foto lebih terang & lurus, atau ketik manual.', 'text-warning');
+            if (!isi(target, hasil)) {
+                pesan('Nomor tidak terbaca — ketik manual. Berkasnya tetap terlampir.', 'text-warning');
                 return;
             }
-            // Aktifkan field-nya agar nilai hasil pindai ikut terkirim.
-            const chk = document.getElementById('chk_' + inp.dataset.jenis);
-            if (chk && !chk.checked) { chk.checked = true; target.disabled = false; }
+            pesan(hasil.sumber === 'teks'
+                ? 'Diambil dari teks berkas — tetap periksa sebelum mengirim.'
+                : 'Terbaca dari berkas — WAJIB dicocokkan dengan kartu asli.',
+                hasil.sumber === 'teks' ? 'text-success' : 'text-warning');
 
-            target.value = hasil.nomor;
-            target.classList.add('border-warning');
-            target.focus();
-            pesan('Terbaca ' + hasil.nomor.length + ' digit — WAJIB dicocokkan dengan kartu asli.', 'text-warning');
+            // Kartu NPWP memuat dua nomor; isi sekalian yang 16 digit.
+            if (inp.dataset.extra) {
+                OcrIdentitas.baca(file, 'no_npwp16', null)
+                    .then(h16 => { if (isi(document.getElementById(inp.dataset.extra), h16)) pesan(status.textContent + ' NPWP-16 juga terbaca.', 'text-warning'); })
+                    .catch(() => {});
+            }
         })
         .catch(function (err) {
-            pesan(err.message || 'Gagal membaca gambar.', 'text-danger');
+            pesan((err.message || 'Gagal membaca berkas.') + ' Berkasnya tetap terlampir.', 'text-danger');
         });
 });
 
@@ -944,5 +970,5 @@ document.addEventListener('change', function (e) {
 </script>
 <script>window.MIC_BASE_URL = '<?= base_url() ?>';</script>
 <script src="<?= base_url('lib/tesseract/tesseract.min.js') ?>"></script>
-<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.9"></script>
+<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.10"></script>
 <?= $this->endSection() ?>

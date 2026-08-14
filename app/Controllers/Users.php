@@ -620,6 +620,52 @@ class Users extends BaseController
     private const FIELD_PENDIDIKAN = ['pendidikan', 'institusi', 'jurusan', 'ipk', 'tahun_lulus'];
 
     /**
+     * Kartu identitas → nomor yang dibuktikannya.
+     *
+     * NPWP membuktikan DUA nomor sekaligus (format lama 15 digit dan NPWP-16),
+     * karena keduanya tercetak di kartu yang sama — jadi cukup satu lampiran.
+     */
+    private const KARTU_IDENTITAS = [
+        'ktp'  => ['nik_ktp'],
+        'kk'   => ['no_kk'],
+        'npwp' => ['no_npwp', 'no_npwp16'],
+    ];
+
+    /**
+     * Pastikan perubahan nomor identitas disertai kartunya.
+     *
+     * Nomor dan buktinya kini masuk lewat satu pintu: mengubah nomor menuntut
+     * lampiran kartu, kecuali kartunya sudah ada — terverifikasi maupun masih
+     * menunggu. Tanpa aturan ini HR menyetujui angka tanpa pernah melihat
+     * kartunya, persis masalah yang dulu ada pada data pendidikan.
+     */
+    private function periksaBuktiIdentitas(array $emp): ?string
+    {
+        $sudah  = (new \App\Models\EmployeeDocumentModel())->jenisTerpakai((int) $emp['id']);
+        $kurang = [];
+
+        foreach (self::KARTU_IDENTITAS as $jenis => $fields) {
+            if (isset($sudah[$jenis])) continue;
+
+            $diubah = false;
+            foreach ($fields as $f) {
+                if ($this->request->getPost($f . '_chk')) { $diubah = true; break; }
+            }
+            if (! $diubah) continue;
+
+            $f = $this->request->getFile('file_' . $jenis);
+            if (! $f || ! $f->isValid()) {
+                $kurang[] = \App\Models\EmployeeDocumentModel::JENIS[$jenis];
+            }
+        }
+
+        if (! $kurang) return null;
+
+        return 'Perubahan nomor identitas harus disertai berkas ' . implode(' dan ', $kurang)
+            . '. Lampirkan pada baris nomor yang bersangkutan.';
+    }
+
+    /**
      * Pastikan perubahan data pendidikan disertai bukti.
      *
      * Sebelumnya HR menyetujui klaim pendidikan tanpa melihat apa pun —
@@ -689,6 +735,9 @@ class Users extends BaseController
         if ($err = $this->periksaBuktiPendidikan($emp, $jenjang)) {
             return redirect()->to('/profile')->with('error', $err);
         }
+        if ($err = $this->periksaBuktiIdentitas($emp)) {
+            return redirect()->to('/profile')->with('error', $err);
+        }
 
         foreach ($editable as $field => $label) {
             if ($field === 'foto') continue;
@@ -732,11 +781,20 @@ class Users extends BaseController
             }
         }
 
-        // Berkas pendidikan yang ikut dilampirkan langsung tercatat sebagai
-        // dokumen menunggu verifikasi, jadi karyawan tak perlu mengunggahnya
-        // sekali lagi lewat form terpisah.
+        // Seluruh berkas yang dilampirkan langsung tercatat sebagai dokumen
+        // menunggu verifikasi. Ini juga membuat lampiran BERDIRI SENDIRI sah
+        // sebagai pengajuan ($created bertambah) — penting bagi karyawan yang
+        // nomornya sudah benar tapi berkasnya ditolak dan harus diunggah ulang;
+        // tanpa itu ia buntu karena tak ada field yang perlu diubah.
         $sudahDok = (new \App\Models\EmployeeDocumentModel())->jenisTerpakai((int) $emp['id']);
-        foreach (['ijazah' => 'Ijazah', 'transkrip' => 'Transkrip Nilai'] as $jenis => $labelDok) {
+        $berkas   = [
+            'ktp'       => 'KTP',
+            'kk'        => 'Kartu Keluarga',
+            'npwp'      => 'NPWP',
+            'ijazah'    => 'Ijazah',
+            'transkrip' => 'Transkrip Nilai',
+        ];
+        foreach ($berkas as $jenis => $labelDok) {
             if (isset($sudahDok[$jenis])) continue;                    // sudah ada / menunggu
             $f = $this->request->getFile('file_' . $jenis);
             if (! $f || ! $f->isValid()) continue;
