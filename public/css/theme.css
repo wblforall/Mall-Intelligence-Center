@@ -308,6 +308,21 @@ tr.table-light > th {
 .modal-header { border-bottom: 1px solid rgba(255,255,255,.07) !important; }
 .modal-footer { border-top:    1px solid rgba(255,255,255,.07) !important; }
 .modal-title  { color: var(--txt) !important; }
+
+/* Modal scrollable yang isinya dibungkus <form>.
+   Bootstrap mengandalkan header/body/footer sebagai anak LANGSUNG
+   .modal-content: content jadi flex column, body menyusut dan scroll
+   sendiri. Begitu sebuah <form> menyelipkan diri di tengah, rantai flex
+   itu putus — form tetap block setinggi isinya, body tak pernah menyusut,
+   dan footer terdorong keluar layar sehingga modal tampak tak bisa
+   di-scroll. Meneruskan sifat flex ke form memulihkan rantainya. */
+.modal-dialog-scrollable .modal-content > form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;      /* tanpa ini anak flex menolak menyusut di bawah tinggi isinya */
+    max-height: 100%;
+    overflow: hidden;
+}
 .btn-close    { filter: invert(1) grayscale(1) brightness(2.5) !important; }
 
 /* ── Nav tabs ─────────────────────────────────── */
