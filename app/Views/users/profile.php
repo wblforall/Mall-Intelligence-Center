@@ -866,5 +866,5 @@ document.addEventListener('change', function (e) {
 </script>
 <script>window.MIC_BASE_URL = '<?= base_url() ?>';</script>
 <script src="<?= base_url('lib/tesseract/tesseract.min.js') ?>"></script>
-<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.3"></script>
+<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.8"></script>
 <?= $this->endSection() ?>

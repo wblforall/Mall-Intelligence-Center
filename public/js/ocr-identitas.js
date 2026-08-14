@@ -26,6 +26,33 @@
 
     var workerPromise = null;
 
+    /**
+     * Pengenalan ulang KHUSUS ANGKA.
+     *
+     * Pada foto/pindaian kartu, Tesseract kerap menukar angka dengan huruf
+     * yang mirip — NIK 6409022508950001 sempat terbaca "b4Y0O09022508950001",
+     * sehingga tak ada deretan 16 digit yang sah dan hasilnya kosong.
+     * Membatasi keluaran ke 0-9 menghilangkan kebingungan itu. Tidak dipakai
+     * di percobaan pertama karena labelnya ("NIK", "NPWP") ikut hilang, dan
+     * label justru yang membedakan nomor KK dari NIK.
+     */
+    function bacaHanyaAngka(gambar) {
+        return Tesseract.createWorker('eng', 1, {
+            workerPath: VENDOR + 'worker.min.js',
+            corePath:   VENDOR + 'tesseract-core-simd.wasm.js',
+            langPath:   VENDOR,
+            gzip:       false
+        }).then(function (w) {
+            return w.setParameters({ tessedit_char_whitelist: '0123456789' })
+                .then(function () { return w.recognize(gambar); })
+                .then(function (h) {
+                    w.terminate();
+                    return (h && h.data && h.data.text) || '';
+                })
+                .catch(function (e) { w.terminate(); throw e; });
+        });
+    }
+
     function siapkanWorker(lapor) {
         if (workerPromise) return workerPromise;
 
@@ -48,9 +75,21 @@
     }
 
     /**
-     * Perkecil foto sebelum dikenali. Foto ponsel bisa 4000px dan membuat
-     * Tesseract berjalan puluhan detik tanpa menambah akurasi; 1600px sudah
-     * lebih dari cukup untuk deretan angka pada kartu identitas.
+     * Siapkan gambar untuk dikenali: HANYA memperkecil bila terlalu besar.
+     *
+     * Sengaja TANPA praproses piksel apa pun. Dua percobaan sebelumnya justru
+     * memperburuk hasil pada pindaian KTP sungguhan, dan keduanya terbukti
+     * lewat pengujian berdampingan pada berkas yang sama:
+     *
+     *   asli (warna)      → 6409022508950001   ✓ tepat
+     *   + grayscale       → 64090225048950001  ✗ ada digit tersisip
+     *   + ambang kontras  → angka lain yang tampak sahih  ✗ paling berbahaya
+     *
+     * Tesseract melakukan binarisasinya sendiri dan hasilnya lebih baik dari
+     * gambar apa adanya. "Membantu" di sini malah membuang informasi.
+     *
+     * Batas 2400px: cukup tinggi agar deretan angka tetap tajam — pengecilan
+     * ke 1600px menurunkan akurasi secara nyata.
      */
     function kecilkan(file, maksLebar) {
         return new Promise(function (resolve, reject) {
@@ -59,24 +98,15 @@
 
             img.onload = function () {
                 URL.revokeObjectURL(url);
-                var skala = Math.min(1, maksLebar / img.width);
+
+                // Sudah cukup kecil → pakai apa adanya, tanpa digambar ulang.
+                if (img.width <= maksLebar) { resolve(file); return; }
+
+                var skala = maksLebar / img.width;
                 var c = document.createElement('canvas');
                 c.width  = Math.round(img.width  * skala);
                 c.height = Math.round(img.height * skala);
-
-                var ctx = c.getContext('2d');
-                ctx.drawImage(img, 0, 0, c.width, c.height);
-
-                // Abu-abu + kontras tinggi: teks kartu identitas jauh lebih
-                // terbaca setelah latar berwarna/hologram diratakan.
-                var d = ctx.getImageData(0, 0, c.width, c.height);
-                var p = d.data;
-                for (var i = 0; i < p.length; i += 4) {
-                    var abu = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
-                    abu = abu < 110 ? 0 : (abu > 165 ? 255 : (abu - 110) * (255 / 55));
-                    p[i] = p[i + 1] = p[i + 2] = abu;
-                }
-                ctx.putImageData(d, 0, 0);
+                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
 
                 c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Gagal memproses gambar.')); }, 'image/png');
             };
@@ -140,15 +170,19 @@
      * lain dibuang lebih dulu, supaya tidak mengambil NIK saat yang dicari
      * nomor KK.
      */
-    function cariNomor(teks, jenis) {
+    function cariNomor(teks, jenis, teksBerlabel) {
         var berlabel = nomorBerlabel(teks, jenis);
         if (berlabel) return berlabel;
 
-        // Nomor milik jenis lain — jangan sampai terambil.
+        // Nomor milik jenis lain — jangan sampai terambil. Konteks label
+        // boleh datang dari teks LAIN: pada percobaan kedua yang keluarannya
+        // hanya angka, labelnya sudah tidak ada, jadi dipakai teks percobaan
+        // pertama yang masih memuatnya.
+        var sumberLabel = teksBerlabel || teks;
         var terlarang = {};
         for (var j in LABEL) {
             if (j === jenis) continue;
-            var lain = nomorBerlabel(teks, j);
+            var lain = nomorBerlabel(sumberLabel, j);
             if (lain) terlarang[lain] = true;
         }
 
@@ -165,6 +199,75 @@
             }
         }
         return null;
+    }
+
+    /** Label jenis ini muncul di teks? Bukti bahwa kartunya memang jenis itu. */
+    function adaLabel(teks, jenis) {
+        var kata = { nik_ktp: /\bNIK\b/i, no_kk: /KARTU\s*KELUARGA|\bNo\.?\s*KK\b/i, no_npwp: /\bNPWP/i };
+        return kata[jenis] ? kata[jenis].test(teks) : false;
+    }
+
+    /**
+     * Ambil nomor dari hasil pengenalan KHUSUS ANGKA, hanya bila cukup aman.
+     *
+     * Keluaran khusus angka kehilangan seluruh label, jadi tak ada cara
+     * memastikan deretan mana yang benar. Tanpa pengetatan, derau pada kartu
+     * NPWP sempat menghasilkan 669249122504525 — 15 digit, tampak sahih,
+     * tapi salah. Angka keliru yang terisi otomatis lebih berbahaya daripada
+     * kolom kosong, apalagi nomor ini wajib dan karyawan cenderung menerima
+     * apa yang sudah terisi.
+     *
+     * Dua syarat yang harus dipenuhi:
+     *   1. Label jenisnya terlihat di hasil pengenalan pertama — bukti kita
+     *      memang sedang melihat kartu yang dimaksud.
+     *   2. Hanya ADA SATU kandidat berpanjang sah. Lebih dari satu berarti
+     *      kita menebak, dan menebak nomor identitas tidak dapat diterima.
+     */
+    function tebakAman(teksAngka, jenis, teksBerlabel) {
+        if (! adaLabel(teksBerlabel, jenis)) return null;
+
+        var terlarang = {};
+        for (var j in LABEL) {
+            if (j === jenis) continue;
+            var lain = nomorBerlabel(teksBerlabel, j);
+            if (lain) terlarang[lain] = true;
+        }
+
+        var sah = PANJANG[jenis] || [16];
+        var unik = {}, m;
+        var re = /\d{10,25}/g;
+        while ((m = re.exec(teksAngka)) !== null) {
+            for (var i = 0; i < sah.length; i++) {
+                if (m[0].length === sah[i] && ! terlarang[m[0]]) unik[m[0]] = true;
+            }
+        }
+
+        var daftar = Object.keys(unik);
+        return daftar.length === 1 ? daftar[0] : null;
+    }
+
+    /**
+     * Kenali gambar yang SUDAH diperkecil, dengan percobaan kedua khusus angka
+     * bila percobaan pertama gagal. Dipakai bersama jalur foto dan jalur PDF
+     * hasil pindai — keduanya menghadapi salah-baca angka yang sama.
+     */
+    function kenaliGambar(blob, jenis, lapor) {
+        return siapkanWorker(lapor)
+            .then(function (w) { return w.recognize(blob); })
+            .then(function (hasil) {
+                var teks  = (hasil && hasil.data && hasil.data.text) || '';
+                var nomor = cariNomor(teks, jenis);
+                if (nomor) return { nomor: nomor, teks: teks, sumber: 'ocr' };
+
+                if (lapor) lapor(100);
+                return bacaHanyaAngka(blob)
+                    .then(function (angka) {
+                        return { nomor: tebakAman(angka, jenis, teks), teks: teks, sumber: 'ocr' };
+                    })
+                    .catch(function () {
+                        return { nomor: null, teks: teks, sumber: 'ocr' };
+                    });
+            });
     }
 
     /* ── PDF ──────────────────────────────────────────────────────────────
@@ -219,15 +322,11 @@
                     if (nomor) return { nomor: nomor, teks: teks, sumber: 'teks' };
 
                     // Tak ada lapisan teks yang berguna → PDF hasil pindai.
+                    // Lewat jalur yang sama dengan foto, termasuk percobaan
+                    // kedua khusus angka.
                     return pdfKeGambar(halaman)
-                        .then(function (blob) { return kecilkan(blob, 1600); })
-                        .then(function (kecil) {
-                            return siapkanWorker(lapor).then(function (w) { return w.recognize(kecil); });
-                        })
-                        .then(function (hasil) {
-                            var t = (hasil && hasil.data && hasil.data.text) || '';
-                            return { nomor: cariNomor(t, jenis), teks: t, sumber: 'ocr' };
-                        });
+                        .then(function (blob) { return kecilkan(blob, 2400); })
+                        .then(function (kecil) { return kenaliGambar(kecil, jenis, lapor); });
                 });
             });
     }
@@ -247,14 +346,9 @@
             return Promise.reject(new Error('Mesin OCR belum termuat. Muat ulang halaman lalu coba lagi.'));
         }
 
-        return kecilkan(file, 1600)
-            .then(function (blob) {
-                return siapkanWorker(lapor).then(function (w) { return w.recognize(blob); });
-            })
-            .then(function (hasil) {
-                var teks = (hasil && hasil.data && hasil.data.text) || '';
-                return { nomor: cariNomor(teks, jenis), teks: teks, sumber: 'ocr' };
-            });
+        return kecilkan(file, 2400).then(function (blob) {
+            return kenaliGambar(blob, jenis, lapor);
+        });
     }
 
     global.OcrIdentitas = { baca: baca };
