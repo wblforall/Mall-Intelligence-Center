@@ -527,14 +527,11 @@ $infoFields = [
         <select name="jenis" id="docJenis" class="form-select form-select-sm" required>
             <option value="">— pilih —</option>
             <?php
-            // Dokumen wajib hanya boleh satu per karyawan. Yang sudah terunggah
-            // dinonaktifkan — TIDAK dihilangkan, supaya karyawan tahu alasannya
-            // dan tidak mengira sistemnya rusak. Yang DITOLAK tetap terbuka,
-            // karena justru harus diunggah ulang.
-            $sudah = [];
-            foreach (($kelengkapan['per_jenis'] ?? []) as $j => $d) {
-                if (in_array($d['status'], ['approved', 'pending'], true)) $sudah[$j] = $d['status'];
-            }
+            // Setiap jenis (kecuali "Lainnya") hanya boleh satu per karyawan.
+            // Yang sudah terunggah dinonaktifkan — TIDAK dihilangkan, supaya
+            // karyawan tahu alasannya dan tidak mengira sistemnya rusak. Yang
+            // DITOLAK tetap terbuka, karena justru harus diunggah ulang.
+            $sudah = $jenisTerpakai ?? [];
             foreach ($jenisDok as $k => $lbl):
                 $st = $sudah[$k] ?? null;
                 $ket = $st === 'approved' ? ' — sudah diverifikasi'

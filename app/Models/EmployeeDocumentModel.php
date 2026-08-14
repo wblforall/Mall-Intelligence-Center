@@ -35,6 +35,20 @@ class EmployeeDocumentModel extends Model
     public const WAJIB = ['ktp', 'kk', 'npwp'];
 
     /**
+     * Jenis yang hanya boleh SATU per karyawan.
+     *
+     * Praktis semuanya kecuali `lainnya`. Ijazah dan transkrip sempat
+     * dikecualikan dengan alasan "bisa punya ijazah SMA dan S1", tapi MIC
+     * hanya menyimpan pendidikan TERAKHIR — ijazah kedua tak punya tempat
+     * untuk ditautkan, dan hanya menghasilkan tumpukan yang harus ditolak HR.
+     * `lainnya` tetap bebas karena namanya diisi sendiri oleh karyawan.
+     */
+    public static function sekaliSaja(): array
+    {
+        return array_values(array_diff(array_keys(self::JENIS), ['lainnya']));
+    }
+
+    /**
      * Pasangan dokumen ↔ kolom nomor di tabel employees.
      *
      * Dipakai untuk menyandingkan keduanya di layar verifikasi HR: nomor dan
@@ -84,6 +98,32 @@ class EmployeeDocumentModel extends Model
             }
         }
         return $peta;
+    }
+
+    /**
+     * Jenis yang sudah terpakai oleh karyawan ini → status-nya.
+     *
+     * Hanya `approved` dan `pending` yang menghalangi; yang DITOLAK justru
+     * harus diunggah ulang sehingga pilihannya dibiarkan terbuka.
+     *
+     * @return array<string,string> jenis => 'approved'|'pending'
+     */
+    public function jenisTerpakai(int $employeeId): array
+    {
+        $rows = $this->select('jenis, status')
+            ->where('employee_id', $employeeId)
+            ->whereIn('jenis', self::sekaliSaja())
+            ->whereIn('status', ['approved', 'pending'])
+            ->findAll();
+
+        $out = [];
+        foreach ($rows as $r) {
+            // 'approved' menang atas 'pending' bila keduanya ada.
+            if (! isset($out[$r['jenis']]) || $r['status'] === 'approved') {
+                $out[$r['jenis']] = $r['status'];
+            }
+        }
+        return $out;
     }
 
     /**

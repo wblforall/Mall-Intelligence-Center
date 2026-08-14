@@ -339,7 +339,8 @@ class Users extends BaseController
             $requests = (new \App\Models\EmployeeChangeRequestModel())->pendingForEmployee($employee['id']);
             $docModel  = new \App\Models\EmployeeDocumentModel();
             $documents = $docModel->forEmployee($employee['id']);
-            $kelengkapan = $docModel->kelengkapanWajib((int) $employee['id']);
+            $kelengkapan   = $docModel->kelengkapanWajib((int) $employee['id']);
+            $jenisTerpakai = $docModel->jenisTerpakai((int) $employee['id']);
         }
 
         return view('users/profile', [
@@ -351,6 +352,7 @@ class Users extends BaseController
             'requests'     => $requests,
             'documents'    => $documents ?? null,
             'kelengkapan'  => $kelengkapan ?? null,
+            'jenisTerpakai'=> $jenisTerpakai ?? [],
             'jenisDok'     => \App\Models\EmployeeDocumentModel::JENIS,
             'jenisSertifikat' => \App\Models\EmployeeCertificateModel::JENIS,
             'levelSertifikat' => \App\Models\EmployeeCertificateModel::LEVEL,
@@ -370,12 +372,12 @@ class Users extends BaseController
         $nomor = trim((string) $this->request->getPost('nomor_identitas'));
         $field = \App\Models\EmployeeDocumentModel::PASANGAN_NOMOR[$jenis] ?? null;
 
-        // Dokumen wajib hanya boleh satu per karyawan. Di form pilihannya sudah
-        // dinonaktifkan, tapi itu bisa ditembus POST langsung — dan unggahan
-        // ganda inilah yang dulu memaksa HR menolak berkas dengan alasan
-        // "double". Yang DITOLAK tidak menghalangi, karena memang harus
-        // diunggah ulang.
-        if (in_array($jenis, \App\Models\EmployeeDocumentModel::WAJIB, true)) {
+        // Setiap jenis (kecuali "Lainnya") hanya boleh satu per karyawan. Di
+        // form pilihannya sudah dinonaktifkan, tapi itu bisa ditembus POST
+        // langsung — dan unggahan ganda inilah yang dulu memaksa HR menolak
+        // berkas dengan alasan "double". Yang DITOLAK tidak menghalangi,
+        // karena memang harus diunggah ulang.
+        if (in_array($jenis, \App\Models\EmployeeDocumentModel::sekaliSaja(), true)) {
             $adaModel = new \App\Models\EmployeeDocumentModel();
             $ada = $adaModel->where('employee_id', $emp['id'])->where('jenis', $jenis)
                 ->whereIn('status', ['approved', 'pending'])->first();
