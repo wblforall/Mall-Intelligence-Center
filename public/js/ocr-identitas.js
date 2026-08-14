@@ -89,26 +89,79 @@
     }
 
     /**
-     * Cari nomor dengan panjang yang benar di dalam teks hasil OCR.
-     * Menoleransi pemisah titik/strip/spasi — NPWP hampir selalu tercetak
-     * sebagai 09.254.294.5-017.000, dan OCR mempertahankan pemisah itu.
+     * Pola label per jenis nomor.
+     *
+     * Panjang saja TIDAK cukup membedakan: pada Kartu Keluarga, NIK dan nomor
+     * KK sama-sama 16 digit, dan NIK justru muncul lebih dulu di aliran teks —
+     * sehingga pencarian berbasis panjang selalu salah mengambil NIK.
+     */
+    var LABEL = {
+        nik_ktp: [/\bNIK\b[^0-9]{0,25}(\d[\d.\-\s]{14,32})/i],
+        no_kk:   [
+            /KARTU\s*KELUARGA[^0-9]{0,60}(\d[\d.\-\s]{14,32})/i,
+            /\bNo\.?\s*(?:KK|K\.?\s*K\.?)\b[^0-9]{0,15}(\d[\d.\-\s]{14,32})/i
+        ],
+        no_npwp: [/\bNPWP\b[^0-9]{0,25}(\d[\d.\-\s]{13,32})/i]
+    };
+
+    function digit(s) { return String(s).replace(/\D/g, ''); }
+
+    function panjangSah(nomor, jenis) {
+        return (PANJANG[jenis] || [16]).indexOf(nomor.length) !== -1;
+    }
+
+    /** Nomor yang tertulis tepat setelah label jenis tertentu, atau null. */
+    function nomorBerlabel(teks, jenis) {
+        var pola = LABEL[jenis] || [];
+        for (var i = 0; i < pola.length; i++) {
+            var m = teks.match(pola[i]);
+            if (m) {
+                var n = digit(m[1]);
+                if (panjangSah(n, jenis)) return n;
+
+                // Deret bisa kepanjangan karena menyerempet angka kolom
+                // berikutnya. Dipotong dari panjang sah TERPANJANG dulu —
+                // kalau dari yang terpendek, NPWP 16 digit (format baru)
+                // akan terpangkas jadi 15 dan tampak sahih padahal salah.
+                var urut = (PANJANG[jenis] || [16]).slice().sort(function (a, b) { return b - a; });
+                for (var p = 0; p < urut.length; p++) {
+                    if (n.length > urut[p]) return n.slice(0, urut[p]);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Cari nomor di dalam teks (hasil OCR maupun lapisan teks PDF).
+     *
+     * Label diutamakan; baru kalau tak ada label yang cocok, jatuh ke
+     * pencocokan panjang — dan pada tahap itu nomor yang jelas MILIK jenis
+     * lain dibuang lebih dulu, supaya tidak mengambil NIK saat yang dicari
+     * nomor KK.
      */
     function cariNomor(teks, jenis) {
-        var sah = PANJANG[jenis] || [16];
-        var kandidat = [];
+        var berlabel = nomorBerlabel(teks, jenis);
+        if (berlabel) return berlabel;
 
-        // Deret angka yang mungkin diselingi pemisah
-        var re = /\d[\d.\-\s]{8,32}\d/g, m;
-        while ((m = re.exec(teks)) !== null) {
-            kandidat.push(m[0].replace(/\D/g, ''));
+        // Nomor milik jenis lain — jangan sampai terambil.
+        var terlarang = {};
+        for (var j in LABEL) {
+            if (j === jenis) continue;
+            var lain = nomorBerlabel(teks, j);
+            if (lain) terlarang[lain] = true;
         }
-        // Deret angka murni
+
+        var kandidat = [], m;
+        var re = /\d[\d.\-\s]{8,32}\d/g;
+        while ((m = re.exec(teks)) !== null) kandidat.push(digit(m[0]));
         var re2 = /\d{10,20}/g;
         while ((m = re2.exec(teks)) !== null) kandidat.push(m[0]);
 
+        var sah = PANJANG[jenis] || [16];
         for (var i = 0; i < sah.length; i++) {
-            for (var j = 0; j < kandidat.length; j++) {
-                if (kandidat[j].length === sah[i]) return kandidat[j];
+            for (var k = 0; k < kandidat.length; k++) {
+                if (kandidat[k].length === sah[i] && ! terlarang[kandidat[k]]) return kandidat[k];
             }
         }
         return null;
