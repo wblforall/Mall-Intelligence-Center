@@ -239,15 +239,32 @@ $infoFields = [
     <?php $sb = ['pending'=>'warning','approved'=>'success','rejected'=>'danger']; ?>
     <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
-    <thead class="table-light"><tr><th class="ps-3">Dokumen</th><th>File</th><th>Status</th><th>Catatan HR</th><th>Tanggal</th></tr></thead>
+    <thead class="table-light"><tr><th class="ps-3">Dokumen</th><th>File</th><th>Status</th><th>Catatan HR</th><th>Tanggal</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($documents as $d): ?>
     <tr>
         <td class="ps-3 fw-semibold small"><?= esc(\App\Models\EmployeeDocumentModel::jenisLabel($d['jenis'], $d['nama_dokumen'])) ?></td>
-        <td class="small"><a href="<?= base_url('people/documents/'.$d['id'].'/view') ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a></td>
+        <td class="small">
+            <?php if (! empty($d['file_name'])): ?>
+            <a href="<?= base_url('people/documents/'.$d['id'].'/view') ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a>
+            <?php else: ?>
+            <span class="text-muted" title="Berkas dibuang saat ditolak">—</span>
+            <?php endif; ?>
+        </td>
         <td><span class="badge bg-<?= $sb[$d['status']] ?? 'secondary' ?>"><?= ucfirst($d['status']) ?></span></td>
         <td class="small text-muted"><?= esc($d['catatan'] ?? '') ?: '—' ?></td>
         <td class="small text-nowrap text-muted"><?= date('d M Y', strtotime($d['created_at'])) ?></td>
+        <td class="text-end pe-3">
+            <?php if ($d['status'] !== 'approved'): ?>
+            <form method="POST" action="<?= base_url('profile/documents/'.$d['id'].'/delete') ?>" class="d-inline"
+                  onsubmit="return confirm('Hapus dokumen ini dari daftar Anda?')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Hapus dari daftar"><i class="bi bi-trash"></i></button>
+            </form>
+            <?php else: ?>
+            <span class="text-muted" style="font-size:.7rem" title="Sudah diverifikasi HR"><i class="bi bi-lock"></i></span>
+            <?php endif; ?>
+        </td>
     </tr>
     <?php endforeach; ?>
     </tbody>
@@ -505,19 +522,29 @@ $infoFields = [
 <div class="modal-body">
     <div class="mb-3">
         <label class="form-label small fw-semibold">Jenis Dokumen</label>
-        <select name="jenis" class="form-select form-select-sm" required onchange="document.getElementById('docNamaWrap').classList.toggle('d-none', this.value!=='lainnya')">
+        <select name="jenis" id="docJenis" class="form-select form-select-sm" required>
             <option value="">— pilih —</option>
             <?php foreach ($jenisDok as $k => $lbl): ?><option value="<?= $k ?>"><?= esc($lbl) ?></option><?php endforeach; ?>
         </select>
     </div>
     <div class="mb-3 d-none" id="docNamaWrap">
         <label class="form-label small fw-semibold">Nama Dokumen</label>
-        <input type="text" name="nama_dokumen" class="form-control form-control-sm" placeholder="mis. Sertifikat BNSP">
+        <input type="text" name="nama_dokumen" class="form-control form-control-sm" placeholder="mis. Piagam Penghargaan">
     </div>
     <div class="mb-2">
         <label class="form-label small fw-semibold">File</label>
-        <input type="file" name="file" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf" required>
+        <input type="file" name="file" id="docFile" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf" required>
         <div class="form-text">JPG, PNG, atau PDF · maks 5 MB. Akan diverifikasi HR.</div>
+    </div>
+
+    <!-- Nomor ikut ditanyakan di sini: dulu karyawan hanya mengunggah kartu,
+         nomornya tertinggal kosong tanpa ada yang menyadari sampai HR
+         memverifikasi berkasnya. -->
+    <div class="mt-3 d-none" id="docNomorWrap">
+        <label class="form-label small fw-semibold" id="docNomorLabel">Nomor</label>
+        <input type="text" name="nomor_identitas" id="docNomor" class="form-control form-control-sm" inputmode="numeric">
+        <div class="form-text small" id="docNomorHint"></div>
+        <div class="mt-1 small text-muted" id="docOcrStatus"></div>
     </div>
 </div>
 <div class="modal-footer">
@@ -753,6 +780,76 @@ document.addEventListener('change', function (e) {
             pesan(err.message || 'Gagal membaca gambar.', 'text-danger');
         });
 });
+
+/**
+ * Form Upload Dokumen: untuk KTP/KK/NPWP sekalian minta nomornya, dan coba
+ * bacakan dari berkas yang baru saja dipilih. Menggabungkan keduanya di satu
+ * langkah — sebelumnya kartu dan nomor diajukan lewat dua jalur terpisah,
+ * dan karyawan hampir selalu hanya melakukan yang pertama.
+ */
+(function () {
+    var ATURAN = {
+        ktp:  { field: 'nik_ktp', label: 'No. KTP (NIK)',      hint: '16 digit sesuai KTP' },
+        kk:   { field: 'no_kk',   label: 'No. Kartu Keluarga', hint: '16 digit sesuai Kartu Keluarga' },
+        npwp: { field: 'no_npwp', label: 'No. NPWP',           hint: '15 digit (lama) atau 16 digit (baru)' }
+    };
+
+    var jenis  = document.getElementById('docJenis');
+    var file   = document.getElementById('docFile');
+    if (!jenis || !file) return;
+
+    var wrap   = document.getElementById('docNomorWrap');
+    var label  = document.getElementById('docNomorLabel');
+    var hint   = document.getElementById('docNomorHint');
+    var input  = document.getElementById('docNomor');
+    var status = document.getElementById('docOcrStatus');
+
+    function aturan() { return ATURAN[jenis.value] || null; }
+
+    function perbarui() {
+        var a = aturan();
+        document.getElementById('docNamaWrap').classList.toggle('d-none', jenis.value !== 'lainnya');
+        wrap.classList.toggle('d-none', !a);
+        if (a) { label.textContent = a.label; hint.textContent = a.hint; }
+        else   { input.value = ''; status.textContent = ''; }
+    }
+
+    jenis.addEventListener('change', function () { perbarui(); if (file.files[0]) pindai(); });
+    file.addEventListener('change', pindai);
+
+    function pindai() {
+        var a = aturan();
+        var f = file.files && file.files[0];
+        if (!a || !f || typeof OcrIdentitas === 'undefined') return;
+        if (!/^image\//.test(f.type)) {                     // PDF tak bisa dibaca canvas
+            status.textContent = 'Berkas PDF — ketik nomornya manual.';
+            status.className = 'mt-1 small text-muted';
+            return;
+        }
+
+        status.className = 'mt-1 small text-muted';
+        status.textContent = 'Mencoba membaca nomor dari berkas…';
+
+        OcrIdentitas.baca(f, a.field, function (p) { status.textContent = 'Membaca… ' + p + '%'; })
+            .then(function (h) {
+                if (!h.nomor) {
+                    status.textContent = 'Nomor tidak terbaca — mohon ketik manual.';
+                    status.className = 'mt-1 small text-warning';
+                    return;
+                }
+                input.value = h.nomor;
+                input.classList.add('border-warning');
+                status.textContent = 'Terbaca dari berkas — WAJIB dicocokkan dengan kartu asli.';
+                status.className = 'mt-1 small text-warning';
+            })
+            .catch(function () {
+                status.textContent = 'Gagal membaca berkas — ketik nomornya manual.';
+                status.className = 'mt-1 small text-muted';
+            });
+    }
+
+    perbarui();
+})();
 </script>
 <script>window.MIC_BASE_URL = '<?= base_url() ?>';</script>
 <script src="<?= base_url('lib/tesseract/tesseract.min.js') ?>"></script>

@@ -622,6 +622,7 @@ $routes->post('profile', 'Users::updateProfile', ['filter' => 'auth']);
 $routes->post('profile/theme', 'Users::updateTheme', ['filter' => 'auth']);
 $routes->post('profile/request-change', 'Users::submitChange', ['filter' => 'auth']);
 $routes->post('profile/upload-document', 'Users::uploadDocument', ['filter' => 'auth']);
+$routes->post('profile/documents/(:num)/delete', 'Users::deleteDocument/$1', ['filter' => 'auth']);
 $routes->post('profile/certificates/add', 'Users::storeCertificate', ['filter' => 'auth']);
 $routes->post('profile/certificates/(:num)/delete', 'Users::deleteCertificate/$1', ['filter' => 'auth']);
 

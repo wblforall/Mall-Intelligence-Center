@@ -367,7 +367,90 @@ class Users extends BaseController
         if (! $emp) return redirect()->to('/profile')->with('error', 'Akun belum terhubung ke data karyawan.');
 
         $res = $this->storeDocument((int) $emp['id'], $id, 'pending');
-        return redirect()->to('/profile')->with($res['ok'] ? 'success' : 'error', $res['msg']);
+        if (! $res['ok']) return redirect()->to('/profile')->with('error', $res['msg']);
+
+        // Nomor ikut diajukan dari form yang sama. Sebelumnya kartu dan
+        // nomornya lewat dua jalur terpisah, dan karyawan hampir selalu hanya
+        // mengunggah kartunya — kolom nomornya tertinggal kosong sampai HR
+        // menyadarinya sendiri.
+        $pesan = $res['msg'];
+        $catatan = $this->ajukanNomorDariDokumen($emp, (int) $id,
+            (string) $this->request->getPost('jenis'),
+            trim((string) $this->request->getPost('nomor_identitas')));
+        if ($catatan) $pesan .= ' ' . $catatan;
+
+        return redirect()->to('/profile')->with('success', $pesan);
+    }
+
+    /**
+     * Buat pengajuan perubahan untuk nomor identitas yang diisi bersamaan
+     * dengan unggahan kartunya. Mengembalikan keterangan tambahan untuk
+     * pesan ke karyawan, atau null bila tak ada yang perlu diajukan.
+     */
+    private function ajukanNomorDariDokumen(array $emp, int $userId, string $jenis, string $nomor): ?string
+    {
+        $field = \App\Models\EmployeeDocumentModel::PASANGAN_NOMOR[$jenis] ?? null;
+        if (! $field || $nomor === '') return null;
+
+        if ($err = self::validasiNomorIdentitas($field, $nomor)) {
+            return 'Namun nomornya tidak disimpan: ' . $err;
+        }
+
+        $label = \App\Models\EmployeeChangeRequestModel::EDITABLE[$field] ?? $field;
+        $lama  = (string) ($emp[$field] ?? '');
+        if ($nomor === $lama) return null;
+
+        $m = new \App\Models\EmployeeChangeRequestModel();
+        if ($m->where('employee_id', $emp['id'])->where('field', $field)->where('status', 'pending')->countAllResults()) {
+            return 'Nomor tidak diajukan ulang karena sudah ada pengajuan ' . $label . ' yang menunggu.';
+        }
+
+        $m->insert([
+            'employee_id' => $emp['id'], 'requested_by' => $userId, 'field' => $field,
+            'label' => $label, 'value_old' => $lama, 'value_new' => $nomor, 'status' => 'pending',
+        ]);
+        ActivityLog::write('create', 'employee_change_request', (string) $emp['id'], $emp['nama'],
+            ['field' => $field, 'via' => 'unggah_dokumen']);
+
+        return $label . ' ikut diajukan untuk diverifikasi.';
+    }
+
+    /**
+     * Karyawan membersihkan dokumennya sendiri yang BELUM terverifikasi.
+     *
+     * Dokumen yang ditolak berkasnya sudah dibuang saat penolakan, tapi
+     * barisnya bertahan agar alasannya terbaca — dan menumpuk selamanya di
+     * daftar karyawan. Setelah alasannya dibaca dan diunggah ulang, baris itu
+     * tak berguna lagi. Yang `approved` tetap terkunci (hanya HR), sama
+     * seperti aturan sertifikat: jejak verifikasi tak boleh dicabut sendiri.
+     */
+    public function deleteDocument(int $docId)
+    {
+        $id  = session()->get('user_id');
+        $emp = (new \App\Models\EmployeeModel())->where('user_id', $id)->first();
+        if (! $emp) return redirect()->to('/profile')->with('error', 'Akun belum terhubung ke data karyawan.');
+
+        $m   = new \App\Models\EmployeeDocumentModel();
+        $doc = $m->find($docId);
+
+        if (! $doc || (int) $doc['employee_id'] !== (int) $emp['id']) {
+            return redirect()->to('/profile')->with('error', 'Dokumen tidak ditemukan.');
+        }
+        if ($doc['status'] === 'approved') {
+            return redirect()->to('/profile')->with('error',
+                'Dokumen yang sudah diverifikasi HR tidak dapat dihapus sendiri. Hubungi HR bila perlu diganti.');
+        }
+
+        if (! empty($doc['file_name'])) {
+            $path = WRITEPATH . 'uploads/docs/' . $doc['file_name'];
+            if (is_file($path)) @unlink($path);
+        }
+        $m->delete($docId);
+        ActivityLog::write('delete', 'employee_document', (string) $emp['id'],
+            \App\Models\EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']),
+            ['status_saat_dihapus' => $doc['status'], 'via' => 'karyawan']);
+
+        return redirect()->to('/profile')->with('success', 'Dokumen dihapus dari daftar Anda.');
     }
 
     /** Karyawan mengajukan sertifikatnya sendiri — masuk sebagai `pending`. */

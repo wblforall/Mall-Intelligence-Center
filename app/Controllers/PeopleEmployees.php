@@ -408,10 +408,11 @@ class PeopleEmployees extends BaseController
         $m = new EmployeeDocumentModel();
         $doc = $m->find($id);
         if (! $doc || $doc['status'] !== 'pending') return redirect()->to('/people/change-requests')->with('error', 'Dokumen tidak valid.');
-        // Hapus file yang ditolak
+        // Hapus file yang ditolak. `file_name` ikut dikosongkan — kalau tidak,
+        // tautan "Lihat" tetap muncul di daftar karyawan dan berujung 404.
         $path = WRITEPATH . 'uploads/docs/' . $doc['file_name'];
         if (is_file($path)) @unlink($path);
-        $m->update($id, ['status' => 'rejected', 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s'), 'catatan' => $catatan]);
+        $m->update($id, ['status' => 'rejected', 'file_name' => null, 'reviewed_by' => session()->get('user_id'), 'reviewed_at' => date('Y-m-d H:i:s'), 'catatan' => $catatan]);
         ActivityLog::write('update', 'employee_document', (string) $doc['employee_id'], EmployeeDocumentModel::jenisLabel($doc['jenis'], $doc['nama_dokumen']), ['status' => 'rejected']);
 
         // Notifikasi hasil + alasan ke karyawan pengunggah (file sudah dihapus,
