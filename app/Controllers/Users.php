@@ -575,7 +575,20 @@ class Users extends BaseController
         $nama = trim((string) $this->request->getPost('nama_dokumen')) ?: null;
         if ($jenis === 'lainnya' && ! $nama) return ['ok' => false, 'msg' => 'Sebutkan nama dokumen untuk jenis "Lainnya".'];
 
-        $file = $this->request->getFile('file');
+        return $this->simpanBerkasDokumen($employeeId, $uploaderId, $jenis, $this->request->getFile('file'), $status, $nama);
+    }
+
+    /**
+     * Simpan satu berkas sebagai dokumen karyawan.
+     *
+     * Dipisah dari storeDocument() supaya jalur lain bisa memakainya tanpa
+     * bergantung pada nama input tertentu — ijazah & transkrip kini ikut
+     * terkirim dari modal Ajukan Perubahan Data, bukan hanya dari form unggah.
+     *
+     * @param \CodeIgniter\HTTP\Files\UploadedFile|null $file
+     */
+    private function simpanBerkasDokumen(int $employeeId, $uploaderId, string $jenis, $file, string $status, ?string $nama = null): array
+    {
         if (! $file || ! $file->isValid() || $file->hasMoved()) return ['ok' => false, 'msg' => 'File tidak valid.'];
         $ext = strtolower($file->getExtension());
         if (! in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'], true)) return ['ok' => false, 'msg' => 'Hanya file JPG, PNG, atau PDF.'];
@@ -603,6 +616,52 @@ class Users extends BaseController
     }
 
     // Ajukan perubahan data pribadi (ESS) → approval HR
+    /** Field pendidikan yang, bila diubah, menuntut bukti berkas. */
+    private const FIELD_PENDIDIKAN = ['pendidikan', 'institusi', 'jurusan', 'ipk', 'tahun_lulus'];
+
+    /**
+     * Pastikan perubahan data pendidikan disertai bukti.
+     *
+     * Sebelumnya HR menyetujui klaim pendidikan tanpa melihat apa pun —
+     * "S1 STIKOM, IPK 3.50" bisa lolos tanpa ijazah pernah ada. Sekarang
+     * mengubah data pendidikan menuntut ijazah, dan transkrip untuk jenjang
+     * D1 ke atas (SMA/SMK tak punya transkrip dalam arti yang sama, jadi
+     * mewajibkannya akan memblokir lulusan SMA tanpa alasan).
+     *
+     * Tidak dituntut ulang bila berkasnya sudah ada — terverifikasi maupun
+     * masih menunggu — supaya mengoreksi tahun lulus saja tak memaksa
+     * mengunggah ijazah yang sama untuk kedua kalinya.
+     *
+     * @return string|null pesan galat, atau null bila lolos
+     */
+    private function periksaBuktiPendidikan(array $emp, string $jenjang): ?string
+    {
+        $adaPerubahan = false;
+        foreach (self::FIELD_PENDIDIKAN as $f) {
+            if ($this->request->getPost($f . '_chk')) { $adaPerubahan = true; break; }
+        }
+        if (! $adaPerubahan) return null;
+
+        $sudah = (new \App\Models\EmployeeDocumentModel())->jenisTerpakai((int) $emp['id']);
+
+        $wajib = ['ijazah' => 'Ijazah'];
+        if (\App\Models\EmployeeChangeRequestModel::jenjangPunyaIpk($jenjang)) {
+            $wajib['transkrip'] = 'Transkrip Nilai';
+        }
+
+        $kurang = [];
+        foreach ($wajib as $jenis => $label) {
+            if (isset($sudah[$jenis])) continue;                       // sudah ada / menunggu
+            $f = $this->request->getFile('file_' . $jenis);
+            if (! $f || ! $f->isValid()) $kurang[] = $label;
+        }
+
+        if (! $kurang) return null;
+
+        return 'Perubahan data pendidikan harus disertai ' . implode(' dan ', $kurang)
+            . '. Lampirkan berkasnya pada bagian Pendidikan Terakhir.';
+    }
+
     public function submitChange()
     {
         $id  = session()->get('user_id');
@@ -613,6 +672,7 @@ class Users extends BaseController
         $reqModel = new \App\Models\EmployeeChangeRequestModel();
         $created  = 0;
         $tolak    = [];
+        $lampiran = [];
 
         // Jenjang yang berlaku untuk pengajuan ini: yang sedang diajukan bila
         // dicentang, kalau tidak ya yang tersimpan sekarang. Dipakai untuk
@@ -622,6 +682,13 @@ class Users extends BaseController
         $jenjang = ($this->request->getPost('pendidikan_chk') && $jenjangBaru !== '')
             ? $jenjangBaru
             : (string) ($emp['pendidikan'] ?? '');
+
+        // Bukti pendidikan diperiksa SEBELUM apa pun dibuat: menolak di tengah
+        // jalan akan meninggalkan sebagian pengajuan tersimpan dan sebagian
+        // tidak, dan karyawan tak tahu bagian mana yang perlu diulang.
+        if ($err = $this->periksaBuktiPendidikan($emp, $jenjang)) {
+            return redirect()->to('/profile')->with('error', $err);
+        }
 
         foreach ($editable as $field => $label) {
             if ($field === 'foto') continue;
@@ -665,6 +732,20 @@ class Users extends BaseController
             }
         }
 
+        // Berkas pendidikan yang ikut dilampirkan langsung tercatat sebagai
+        // dokumen menunggu verifikasi, jadi karyawan tak perlu mengunggahnya
+        // sekali lagi lewat form terpisah.
+        $sudahDok = (new \App\Models\EmployeeDocumentModel())->jenisTerpakai((int) $emp['id']);
+        foreach (['ijazah' => 'Ijazah', 'transkrip' => 'Transkrip Nilai'] as $jenis => $labelDok) {
+            if (isset($sudahDok[$jenis])) continue;                    // sudah ada / menunggu
+            $f = $this->request->getFile('file_' . $jenis);
+            if (! $f || ! $f->isValid()) continue;
+
+            $hasil = $this->simpanBerkasDokumen((int) $emp['id'], (int) $id, $jenis, $f, 'pending');
+            if ($hasil['ok']) { $created++; $lampiran[] = $labelDok; }
+            else              { $tolak[] = $labelDok . ': ' . $hasil['msg']; }
+        }
+
         // Data yang ditolak jangan hilang diam-diam — karyawan harus tahu
         // persis mana yang tidak masuk dan kenapa, supaya bisa mengulang.
         if ($created === 0) {
@@ -686,6 +767,7 @@ class Users extends BaseController
         );
 
         $pesan = "$created pengajuan perubahan dikirim. Menunggu persetujuan HR.";
+        if ($lampiran) $pesan .= ' ' . implode(' & ', $lampiran) . ' ikut tersimpan di Dokumen Saya.';
         if ($tolak) $pesan .= ' Namun: ' . implode(' ', $tolak);
 
         return redirect()->to('/profile')->with('success', $pesan);

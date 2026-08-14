@@ -449,7 +449,7 @@ $infoFields = [
     <!-- ── Riwayat Pendidikan ── -->
     <hr class="my-3">
     <div class="fw-semibold small mb-1">Pendidikan Terakhir</div>
-    <p class="small text-muted mb-3">Isi jenjang tertinggi yang Anda selesaikan. Lampirkan ijazah dan transkrip lewat tombol <em>Unggah Dokumen</em> agar HR dapat memverifikasi.</p>
+    <p class="small text-muted mb-3">Isi jenjang tertinggi yang Anda selesaikan, lalu lampirkan bukti di bagian bawah blok ini. Berkasnya otomatis tersimpan di <em>Dokumen Saya</em> — tak perlu diunggah lagi lewat tombol Upload Dokumen.</p>
 
     <?php
     $pendFields = [
@@ -487,6 +487,36 @@ $infoFields = [
             <input type="number" id="in_tahun_lulus" name="tahun_lulus" class="form-control form-control-sm" value="<?= esc($employee['tahun_lulus'] ?? '') ?>" min="1950" max="<?= date('Y') ?>" placeholder="contoh: 2015" disabled>
             <?php else: ?>
             <input type="text" id="in_<?= $f ?>" name="<?= $f ?>" class="form-control form-control-sm" value="<?= esc($employee[$f] ?? '') ?>" disabled>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endforeach; ?>
+
+    <?php
+    // Bukti pendidikan. Ijazah wajib bila datanya diubah; transkrip mengikuti
+    // aturan IPK — hanya relevan untuk D1 ke atas. Yang sudah ada tidak
+    // diminta ulang, cukup ditampilkan status-nya.
+    $dokPend = [
+        'ijazah'    => ['Ijazah', false],
+        'transkrip' => ['Transkrip Nilai', true],   // true = hanya D1 ke atas
+    ];
+    foreach ($dokPend as $jenis => [$lbl, $hanyaTinggi]):
+        $ada = $jenisTerpakai[$jenis] ?? null; ?>
+    <div class="mb-3 row align-items-center<?= $hanyaTinggi ? ' baris-transkrip' : '' ?>">
+        <div class="col-4">
+            <div class="small fw-semibold"><?= $lbl ?> <span class="text-danger">*</span></div>
+            <div class="form-text small">
+                <?php if ($ada === 'approved'): ?><span class="text-success">Sudah diverifikasi</span>
+                <?php elseif ($ada === 'pending'): ?><span class="text-warning">Menunggu verifikasi</span>
+                <?php else: ?>Belum ada<?php endif; ?>
+            </div>
+        </div>
+        <div class="col-8">
+            <?php if ($ada): ?>
+            <div class="small text-muted"><i class="bi bi-check2-circle me-1"></i>Sudah dilampirkan — tak perlu diunggah lagi.</div>
+            <?php else: ?>
+            <input type="file" name="file_<?= $jenis ?>" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf">
+            <div class="form-text small">JPG, PNG, atau PDF · maks 5 MB. Wajib bila Anda mengubah data pendidikan.</div>
             <?php endif; ?>
         </div>
     </div>
@@ -743,6 +773,11 @@ function aturIpk() {
 
     const boleh = ['D1','D2','D3','D4','S1','S2','S3'].includes(jenjang);
     baris.classList.toggle('d-none', !boleh);
+
+    // Transkrip mengikuti aturan yang sama: lulusan SMA/SMK tak punya
+    // transkrip dalam arti yang sama, jadi jangan diminta.
+    const trx = document.querySelector('.baris-transkrip');
+    if (trx) trx.classList.toggle('d-none', !boleh);
 
     // Jangan biarkan nilai yang tersembunyi ikut terkirim.
     if (!boleh) {
