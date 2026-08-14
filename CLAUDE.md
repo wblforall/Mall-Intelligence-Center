@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v2.24.0** (Agustus 2026).
+Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v2.25.0** (Agustus 2026).
 
 Stack: CodeIgniter 4 (v4.4.x), MySQL (XAMPP), Bootstrap 5.3, Chart.js, Apache.  
 Base URL: `http://localhost/mall-intelligence-center/public/`
@@ -104,6 +104,20 @@ Saat menambah laporan modul baru, ikuti pola baku:
 - View standalone A4 landscape **font 11px**; pakai partial bersama `app/Views/_laporan/_style.php` (CSS + aturan page-break: `tbody.prog-block` per item, thead berulang) dan `_laporan/_ttd.php` (blok tanda tangan).
 - Tanda tangan via `App\Libraries\ReportSignatories::resolve(menuKey)` — dept penyusun = **dept pemilik modul** (pemegang `can_edit` di `department_menu_access`, non-outsource), bukan dept si pencetak. Disusun = Dept Head, Diperiksa = Senior Manager divisi (grade 4, bila ada) berdampingan Deputy GM (grade 3) dalam satu kolom, Mengetahui = GM.
 - Struktur isi: KPI (delta vs bulan lalu) → rekap per mall → Ringkasan Analisa (insight rule-based) + 2 grafik Chart.js (`animation:false`, palet CVD-safe) → tabel detail (pembanding `lalu · kum` untuk periode multi-bulan) → ttd.
+
+### Pengkinian Data Mandiri (ESS) — v2.25
+
+**Satu pintu.** Data pribadi DAN berkas buktinya diajukan bersamaan lewat modal *Ajukan Perubahan Data* (`Users::submitChange`). Form *Unggah Dokumen Lain* hanya melayani jenis `lainnya`. Jangan menambahkan jalur unggah kedua untuk jenis dokumen yang sudah punya pasangan data — dua pintu untuk berkas yang sama terbukti membingungkan dan melahirkan berkas ganda.
+
+**Bukti wajib.** Mengubah nomor identitas menuntut lampiran kartunya (`periksaBuktiIdentitas`); mengubah data pendidikan menuntut ijazah, plus transkrip untuk D1 ke atas (`periksaBuktiPendidikan`). Keduanya diperiksa **sebelum** satu pun baris dibuat — menolak di tengah jalan menyisakan sebagian pengajuan tersimpan dan sebagian tidak. Tidak dituntut ulang bila berkasnya sudah `approved`/`pending`.
+
+**Lampiran boleh berdiri sendiri.** Kiriman berisi berkas saja (tanpa perubahan field) tetap sah — tanpa ini karyawan yang nomornya sudah benar tapi berkasnya ditolak akan buntu di pesan "tidak ada perubahan".
+
+**Satu dokumen per jenis** kecuali `lainnya` (`EmployeeDocumentModel::sekaliSaja()`, diturunkan dari `JENIS` agar jenis baru otomatis ikut terlindungi). Ditegakkan di form DAN server.
+
+⚠️ **OCR (`public/js/ocr-identitas.js`) berjalan penuh di browser** — foto identitas tidak boleh dikirim ke layanan luar. Aset di `public/lib/tesseract` + `public/lib/pdfjs` (dimuat malas), ditaruh di `lib/` karena `.gitignore` mengecualikan `vendor/`. Dua pelajaran mahal: **jangan praproses gambar** (grayscale/threshold justru merusak — Tesseract binarisasi sendiri), dan pencarian nomor **berbasis label**, bukan panjang (di KK, NIK dan nomor KK sama-sama 16 digit). Hasil tebakan hanya dipakai bila labelnya terlihat dan kandidatnya tunggal — kolom kosong lebih baik daripada angka keliru yang tampak sahih.
+
+⚠️ **Setiap mengubah `ocr-identitas.js` atau `theme.css`, naikkan `?v=` di view/layout pemanggilnya.** Tanpa itu browser karyawan memakai berkas lama dan perbaikan tak pernah aktif.
 
 ---
 

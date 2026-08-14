@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.24.0** (Agustus 2026)
+> Versi saat ini: **v2.25.0** (Agustus 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,102 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.25.0
+
+**Tanggal Rilis:** 15 Agustus 2026
+
+### Perubahan dari v2.24.0
+
+Rilis ini menyiapkan MIC untuk **pengkinian data karyawan secara mandiri** menjelang
+re-assessment. Intinya satu: karyawan memperbarui datanya sendiri lengkap dengan
+buktinya, HR tinggal memverifikasi — bukan mengetik ulang dari berkas yang dikirim
+lewat WhatsApp.
+
+#### Data Pendidikan Dipecah Jadi Kolom Terpisah
+
+Kolom pendidikan selama ini berupa teks bebas. Dari 202 karyawan, 177 baris terisi
+dengan **120 nilai berbeda** — bercampur antara jenjang, nama sekolah, jurusan, dan
+tahun lulus dalam satu tulisan ("S1 Universitas Gajah Mada (2015)", "SMK Listrik",
+"UNIBA"). Akibatnya jenjang tak bisa dihitung dengan benar, dan sebagian karyawan
+bahkan tak diketahui jenjangnya karena yang tercatat hanya nama kampus.
+
+- Sekarang terpisah: **Jenjang** (dipilih dari daftar SD sampai S3), **Nama Sekolah /
+  Perguruan Tinggi**, **Jurusan / Fakultas**, **IPK**, dan **Tahun Lulus**.
+- IPK hanya diminta untuk jenjang D1 ke atas — lulusan SMA/SMK tidak dipaksa mengisi
+  nilai yang memang tak mereka punya. Bila jenjang diturunkan, IPK ikut dibersihkan
+  agar tidak tertinggal sebagai angka yang menyesatkan.
+- Data lama **tidak ditebak-tebak**. "UNIBA" tidak bisa dipastikan D3 atau S1, jadi
+  pengisiannya diserahkan ke karyawan yang bersangkutan.
+
+#### Nomor Identitas & Dokumen Wajib
+
+- Kolom baru **No. Kartu Keluarga**, **No. NPWP (15 digit)**, dan **No. NPWP-16**.
+  Nomor KTP tetap memakai kolom yang sudah ada.
+- NPWP lama dan NPWP-16 disimpan **terpisah**, tidak lagi bercampur dalam satu kolom.
+  Karena NPWP-16 untuk WNI sama dengan NIK, sistem otomatis menandai bila keduanya
+  berbeda — pertanda salah ketik yang selama ini baru ketahuan saat pelaporan pajak.
+- **KTP, Kartu Keluarga, dan NPWP kini wajib diunggah.** Kelengkapannya tampil sebagai
+  kartu penanda di halaman profil, dan hanya dihitung lengkap setelah HR memverifikasi.
+- Setiap dokumen hanya boleh satu per karyawan. Yang sudah diunggah otomatis terkunci
+  agar tak ada berkas ganda yang harus ditolak HR satu per satu.
+
+#### Nomor Dibaca Otomatis dari Foto atau PDF
+
+Karyawan cukup melampirkan kartunya — nomor 16 digit dibaca sendiri oleh sistem.
+
+- Seluruh pembacaan berjalan **di perangkat karyawan**. Foto KTP, Kartu Keluarga, dan
+  NPWP tidak pernah dikirim ke layanan luar mana pun.
+- Mendukung foto maupun PDF. Untuk dokumen terbitan digital yang punya lapisan teks
+  (mis. NPWP elektronik dari DJP), nomornya diambil **persis** tanpa risiko salah baca.
+- Satu kartu NPWP mengisi dua kolom sekaligus (15 digit dan NPWP-16).
+- Hasilnya selalu diperlakukan sebagai **usulan yang wajib dicocokkan** dengan kartu
+  asli. Bila sistem tidak yakin, kolomnya dibiarkan kosong — lebih baik daripada
+  menyodorkan angka keliru yang terlihat meyakinkan.
+
+#### Sertifikat Keahlian Bisa Diajukan Sendiri
+
+Sebelumnya sertifikat hanya bisa diinput HR. Kini karyawan mengajukan sendiri dan HR
+memverifikasi, dengan data yang cukup untuk diolah — bukan sekadar diarsipkan.
+
+- Field baru: **Jenis** (Kompetensi/BNSP, K3, Pelatihan, Profesi, Lisensi, Penghargaan),
+  **Bidang Keahlian**, **Level** (Dasar/Menengah/Lanjutan atau KKNI 1–9),
+  **URL Verifikasi**, dan **Pembiayaan** (perusahaan atau pribadi).
+- Masuk ke Kotak Persetujuan sebagai sumber persetujuan ke-10.
+- Penolakan wajib disertai alasan, dan alasannya terbaca oleh karyawan.
+- Sertifikat yang sudah diverifikasi tidak bisa dihapus sendiri oleh karyawan.
+
+#### Satu Pintu untuk Data dan Berkasnya
+
+Data dan buktinya kini diajukan bersamaan lewat **Ajukan Perubahan Data** — kartu
+dilampirkan tepat di baris nomornya, ijazah dan transkrip di blok pendidikannya.
+
+- Mengubah nomor identitas **wajib** melampirkan kartunya; mengubah data pendidikan
+  wajib melampirkan ijazah (dan transkrip untuk D1 ke atas). Sebelumnya HR menyetujui
+  klaim pendidikan tanpa pernah melihat berkas apa pun.
+- Tidak diminta ulang bila berkasnya sudah ada, sehingga mengoreksi tahun lulus saja
+  tak memaksa mengunggah ijazah untuk kedua kalinya.
+- Halaman verifikasi HR menyandingkan nomor dengan kartunya, dan menandai bila nomor
+  belum diisi padahal kartunya sudah masuk — atau sebaliknya.
+- Form unggah menyusut menjadi **Unggah Dokumen Lain**, khusus dokumen di luar daftar
+  wajib, supaya tidak ada dua pintu untuk berkas yang sama.
+- Dokumen yang ditolak bisa dibersihkan sendiri oleh karyawan setelah alasannya dibaca.
+
+#### Kotak Persetujuan untuk Aplikasi Mobile
+
+- Endpoint `GET /api/approvals` menyatukan seluruh tunggakan persetujuan dalam satu
+  panggilan, memakai aturan akses yang sama persis dengan web.
+- Ini melengkapi Fase 0 rencana aplikasi mobile di sisi backend. Sisanya tinggal
+  penyiapan Firebase untuk push notification.
+
+#### Perbaikan
+
+- Modal **Ajukan Perubahan Data** tidak bisa di-scroll dan tombol kirimnya terpotong di
+  layar kecil. Penyebabnya ada sejak modal itu dibuat, hanya belum terlihat selama
+  isinya masih muat di layar.
+- Tautan "Lihat" pada dokumen yang ditolak mengarah ke berkas yang sudah dihapus.
 
 ---
 
