@@ -321,7 +321,11 @@ class Users extends BaseController
             $positions    = (new \App\Models\EmployeePositionModel())->getByEmployee($employee['id']);
             $certificates = (new \App\Models\EmployeeCertificateModel())->getByEmployee($employee['id']);
             foreach ($certificates as &$c) {
-                $c['status'] = \App\Models\EmployeeCertificateModel::getCertStatus($c['tanggal_kadaluarsa']);
+                // Disimpan sebagai `masa_berlaku`, BUKAN `status` — sejak
+                // sertifikat punya alur verifikasi, `status` adalah kolom DB
+                // (pending/approved/rejected) dan menimpanya akan menyembunyikan
+                // apakah sertifikat itu sudah diverifikasi HR atau belum.
+                $c['masa_berlaku'] = \App\Models\EmployeeCertificateModel::getCertStatus($c['tanggal_kadaluarsa']);
             }
             unset($c);
             $appraisals = $db->table('appraisal_forms f')
@@ -333,7 +337,9 @@ class Users extends BaseController
                 ->orderBy('f.finalized_at', 'DESC')
                 ->get()->getResultArray();
             $requests = (new \App\Models\EmployeeChangeRequestModel())->pendingForEmployee($employee['id']);
-            $documents = (new \App\Models\EmployeeDocumentModel())->forEmployee($employee['id']);
+            $docModel  = new \App\Models\EmployeeDocumentModel();
+            $documents = $docModel->forEmployee($employee['id']);
+            $kelengkapan = $docModel->kelengkapanWajib((int) $employee['id']);
         }
 
         return view('users/profile', [
@@ -344,7 +350,11 @@ class Users extends BaseController
             'appraisals'   => $appraisals,
             'requests'     => $requests,
             'documents'    => $documents ?? null,
+            'kelengkapan'  => $kelengkapan ?? null,
             'jenisDok'     => \App\Models\EmployeeDocumentModel::JENIS,
+            'jenisSertifikat' => \App\Models\EmployeeCertificateModel::JENIS,
+            'levelSertifikat' => \App\Models\EmployeeCertificateModel::LEVEL,
+            'pembiayaanSertifikat' => \App\Models\EmployeeCertificateModel::PEMBIAYAAN,
             'editable'     => \App\Models\EmployeeChangeRequestModel::EDITABLE,
         ]);
     }
@@ -358,6 +368,69 @@ class Users extends BaseController
 
         $res = $this->storeDocument((int) $emp['id'], $id, 'pending');
         return redirect()->to('/profile')->with($res['ok'] ? 'success' : 'error', $res['msg']);
+    }
+
+    /** Karyawan mengajukan sertifikatnya sendiri — masuk sebagai `pending`. */
+    public function storeCertificate()
+    {
+        $id  = session()->get('user_id');
+        $emp = (new \App\Models\EmployeeModel())->where('user_id', $id)->first();
+        if (! $emp) return redirect()->to('/profile')->with('error', 'Akun belum terhubung ke data karyawan.');
+
+        $res = (new \App\Services\EmployeeCertificateService())->simpan(
+            (int) $emp['id'], $this->request->getPost(), $this->request->getFile('file_sertifikat'),
+            (int) $id, 'pending'
+        );
+        if (! $res['ok']) return redirect()->to('/profile')->with('error', $res['msg']);
+
+        ActivityLog::write('create', 'employee_certificate', (string) $res['id'],
+            trim((string) $this->request->getPost('nama_sertifikat')),
+            ['employee_id' => $emp['id'], 'via' => 'pengajuan_karyawan']);
+
+        \App\Libraries\Notify::send(
+            \App\Libraries\OrgRecipients::orAdmins(array_merge(
+                \App\Libraries\OrgRecipients::menuEditors('hr_main'),
+                \App\Libraries\OrgRecipients::menuEditors('people_dev')
+            )),
+            (int) $id, 'hr', 'approval',
+            'Sertifikat baru menunggu verifikasi: ' . $emp['nama'],
+            trim((string) $this->request->getPost('nama_sertifikat')),
+            'employee_certificate', (int) $res['id'], 'people/change-requests'
+        );
+
+        return redirect()->to('/profile')->with('success', $res['msg']);
+    }
+
+    /**
+     * Karyawan menarik kembali sertifikat yang BELUM diverifikasi.
+     *
+     * Yang sudah `approved` sengaja tidak bisa dihapus sendiri: jejak
+     * verifikasi HR tak boleh dicabut diam-diam. Untuk mengubahnya, ajukan
+     * penggantian dan biarkan HR yang menghapus versi lama.
+     */
+    public function deleteCertificate(int $cid)
+    {
+        $id  = session()->get('user_id');
+        $emp = (new \App\Models\EmployeeModel())->where('user_id', $id)->first();
+        if (! $emp) return redirect()->to('/profile')->with('error', 'Akun belum terhubung ke data karyawan.');
+
+        $m    = new \App\Models\EmployeeCertificateModel();
+        $cert = $m->find($cid);
+
+        if (! $cert || (int) $cert['employee_id'] !== (int) $emp['id']) {
+            return redirect()->to('/profile')->with('error', 'Sertifikat tidak ditemukan.');
+        }
+        if ($cert['status'] === 'approved') {
+            return redirect()->to('/profile')->with('error',
+                'Sertifikat yang sudah diverifikasi HR tidak dapat dihapus sendiri. Hubungi HR bila perlu diubah.');
+        }
+
+        $m->delete($cid);
+        (new \App\Services\EmployeeCertificateService())->hapusBerkas($cert['file_name']);
+        ActivityLog::write('delete', 'employee_certificate', (string) $cid, $cert['nama_sertifikat'],
+            ['employee_id' => $emp['id'], 'via' => 'pengajuan_karyawan']);
+
+        return redirect()->to('/profile')->with('success', 'Pengajuan sertifikat dibatalkan.');
     }
 
     /** Simpan file dokumen + buat record. Dipakai ESS (pending) & HR (approved). */
@@ -532,7 +605,31 @@ class Users extends BaseController
             return 'Nama sekolah / perguruan tinggi maksimal 150 karakter.';
         }
 
+        if ($salahNomor = self::validasiNomorIdentitas($field, $nilai)) return $salahNomor;
+
         return null;
+    }
+
+    /**
+     * Validasi nomor identitas. Dipakai jalur ESS DAN jalur HR agar keduanya
+     * tunduk pada aturan yang sama — nomor ini dipakai lintas sistem
+     * (BPJS, pajak), jadi salah panjang satu digit membuatnya tak berguna.
+     *
+     * NPWP menerima 15 digit (format lama) maupun 16 digit (format baru yang
+     * mengikuti NIK); menolak yang 15 digit akan memblokir karyawan yang
+     * kartunya memang belum diperbarui.
+     */
+    public static function validasiNomorIdentitas(string $field, string $nilai): ?string
+    {
+        $angka = preg_replace('/\D/', '', $nilai);   // toleran titik/strip/spasi
+
+        return match ($field) {
+            'nik_ktp' => strlen($angka) !== 16 ? 'No. KTP (NIK) harus 16 digit angka.' : null,
+            'no_kk'   => strlen($angka) !== 16 ? 'No. Kartu Keluarga harus 16 digit angka.' : null,
+            'no_npwp' => ! in_array(strlen($angka), [15, 16], true)
+                ? 'No. NPWP harus 15 digit (format lama) atau 16 digit (format baru).' : null,
+            default   => null,
+        };
     }
 
     public function updateProfile()

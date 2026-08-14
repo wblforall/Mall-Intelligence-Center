@@ -72,6 +72,80 @@
 </div>
 </div>
 
+<!-- Sertifikat Menunggu Verifikasi -->
+<div class="card mb-4">
+<div class="card-header d-flex align-items-center">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-patch-check me-2"></i>Sertifikat Menunggu Verifikasi</h6>
+    <?php if (! empty($pendingCerts)): ?><span class="badge bg-danger ms-2"><?= count($pendingCerts) ?></span><?php endif; ?>
+</div>
+<div class="card-body p-0">
+<?php if (empty($pendingCerts)): ?>
+<p class="text-muted text-center py-4 small mb-0">Tidak ada sertifikat yang menunggu verifikasi.</p>
+<?php else: ?>
+<div class="table-responsive">
+<table class="table table-sm align-middle mb-0">
+<thead class="table-light"><tr><th class="ps-3">Karyawan</th><th>Sertifikat</th><th>Penerbit</th><th>Berlaku</th><th>File</th><th class="text-end pe-3">Aksi</th></tr></thead>
+<tbody>
+<?php foreach ($pendingCerts as $c): ?>
+<tr>
+    <td class="ps-3">
+        <div class="fw-semibold small"><?= esc($c['employee_nama']) ?></div>
+        <div class="text-muted" style="font-size:.72rem"><?= esc($c['dept_name'] ?? '—') ?></div>
+    </td>
+    <td class="small">
+        <div class="fw-semibold"><?= esc($c['nama_sertifikat']) ?></div>
+        <div class="text-muted" style="font-size:.72rem">
+            <?= esc($jenisSert[$c['jenis']] ?? '—') ?>
+            <?php if (! empty($c['bidang'])): ?> · <?= esc($c['bidang']) ?><?php endif; ?>
+            <?php if (! empty($c['level'])): ?> · <?= esc($levelSert[$c['level']] ?? $c['level']) ?><?php endif; ?>
+        </div>
+        <?php if (! empty($c['nomor_sertifikat'])): ?>
+        <div class="text-muted" style="font-size:.72rem">No. <?= esc($c['nomor_sertifikat']) ?></div>
+        <?php endif; ?>
+    </td>
+    <td class="small text-muted">
+        <?= esc($c['penerbit'] ?? '') ?: '—' ?>
+        <?php if (! empty($c['url_verifikasi'])): ?>
+        <div><a href="<?= esc($c['url_verifikasi']) ?>" target="_blank" rel="noopener" style="font-size:.72rem"><i class="bi bi-box-arrow-up-right me-1"></i>Cek online</a></div>
+        <?php endif; ?>
+    </td>
+    <td class="small text-nowrap">
+        <?= $c['tanggal_terbit'] ? date('d M Y', strtotime($c['tanggal_terbit'])) : '—' ?>
+        <div class="text-muted" style="font-size:.72rem">s/d <?= $c['tanggal_kadaluarsa'] ? date('d M Y', strtotime($c['tanggal_kadaluarsa'])) : 'selamanya' ?></div>
+    </td>
+    <td class="small">
+        <?php if (! empty($c['file_name'])): ?>
+        <a href="<?= base_url('people/certificates/'.$c['id'].'/view') ?>" target="_blank"><i class="bi bi-file-earmark-text me-1"></i>Lihat</a>
+        <?php else: ?><span class="text-muted">—</span><?php endif; ?>
+    </td>
+    <td class="text-end pe-3 text-nowrap">
+        <form method="POST" action="<?= base_url('people/certificates/'.$c['id'].'/approve') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-success" onclick="return confirm('Verifikasi sertifikat ini?')"><i class="bi bi-check-lg"></i> Verifikasi</button>
+        </form>
+        <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectCert<?= $c['id'] ?>"><i class="bi bi-x-lg"></i> Tolak</button>
+        <div class="modal fade" id="rejectCert<?= $c['id'] ?>" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" action="<?= base_url('people/certificates/'.$c['id'].'/reject') ?>">
+            <?= csrf_field() ?>
+            <div class="modal-header"><h6 class="modal-title fw-semibold">Tolak Sertifikat</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body text-start">
+                <label class="form-label small">Alasan penolakan <span class="text-danger">*</span></label>
+                <textarea name="catatan" class="form-control" rows="3" required placeholder="mis. file tidak terbaca / sertifikat sudah kadaluarsa"></textarea>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-sm btn-danger">Tolak</button></div>
+        </form>
+        </div></div></div>
+    </td>
+</tr>
+<?php endforeach; ?>
+</tbody>
+</table>
+</div>
+<?php endif; ?>
+</div>
+</div>
+
 <!-- Dokumen Menunggu Verifikasi -->
 <div class="card mb-4">
 <div class="card-header d-flex align-items-center">

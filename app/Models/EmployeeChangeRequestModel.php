@@ -18,6 +18,9 @@ class EmployeeChangeRequestModel extends Model
     public const EDITABLE = [
         'no_hp'             => 'No. HP',
         'email'             => 'Email',
+        'nik_ktp'           => 'No. KTP (NIK)',
+        'no_kk'             => 'No. Kartu Keluarga',
+        'no_npwp'           => 'No. NPWP',
         'alamat'            => 'Alamat',
         'alamat_non_bpn'    => 'Alamat (Non-BPN)',
         'pendidikan'        => 'Pendidikan Terakhir',

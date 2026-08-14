@@ -28,6 +28,7 @@ class ApprovalInbox
         'appraisal'      => ['Appraisal',       'bi-clipboard-check',  'blue'],
         'hr_data'        => ['Data Karyawan',   'bi-person-lines-fill','orange'],
         'hr_document'    => ['Dokumen Karyawan','bi-file-earmark-text','orange'],
+        'hr_sertifikat'  => ['Sertifikat',      'bi-patch-check',      'orange'],
         'pip'            => ['PIP',             'bi-graph-up-arrow',   'gold'],
         'idp'            => ['IDP',             'bi-signpost-split',   'green'],
         'legal'          => ['Legal',           'bi-shield-check',     'cyan'],
@@ -129,6 +130,18 @@ class ApprovalInbox
                 ->orderBy('d.created_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
                 $items[] = self::row('hr_document', 'hr_document', (int) $r['id'], ($r['employee_nama'] ?? '-') . ' — ' . $r['jenis'],
                     'Dokumen menunggu verifikasi', 'people/change-requests', $r['created_at']);
+            }
+            // Sertifikat yang diajukan karyawan sendiri (ESS)
+            foreach ($db->table('employee_certificates c')
+                ->select('c.id, c.nama_sertifikat, c.jenis, c.created_at, e.nama AS employee_nama')
+                ->join('employees e', 'e.id = c.employee_id', 'left')
+                ->where('c.status', 'pending')
+                ->orderBy('c.created_at', 'ASC')->get(self::BATAS_PER_SUMBER)->getResultArray() as $r) {
+                $jenis = \App\Models\EmployeeCertificateModel::JENIS[$r['jenis']] ?? null;
+                $items[] = self::row('hr_sertifikat', 'hr_sertifikat', (int) $r['id'],
+                    ($r['employee_nama'] ?? '-') . ' — ' . $r['nama_sertifikat'],
+                    trim(($jenis ? $jenis . ' · ' : '') . 'Menunggu verifikasi'),
+                    'people/change-requests', $r['created_at']);
             }
         }
 

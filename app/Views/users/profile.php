@@ -137,24 +137,86 @@ $infoFields = [
     </div>
     </div>
 
+    <!-- Kelengkapan Dokumen Wajib -->
+    <?php if ($hasEmp && $kelengkapan): ?>
+    <div class="card mb-4 border-<?= $kelengkapan['lengkap'] ? 'success' : 'warning' ?>">
+    <div class="card-header d-flex align-items-center">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-shield-check me-2"></i>Dokumen Wajib</h6>
+        <span class="badge ms-auto bg-<?= $kelengkapan['lengkap'] ? 'success' : 'warning' ?>">
+            <?= $kelengkapan['terverifikasi'] ?>/<?= $kelengkapan['total'] ?> terverifikasi
+        </span>
+    </div>
+    <div class="card-body">
+        <?php if (! $kelengkapan['lengkap']): ?>
+        <p class="small text-muted mb-3">Ketiga dokumen di bawah ini wajib dilengkapi. Unggah lewat tombol <em>Upload Dokumen</em>, lalu HR akan memverifikasi.</p>
+        <?php endif; ?>
+        <div class="row g-2">
+        <?php foreach ($kelengkapan['per_jenis'] as $jenis => $d):
+            [$ikon, $warna, $ket] = match ($d['status']) {
+                'approved' => ['bi-check-circle-fill', 'success', 'Terverifikasi'],
+                'pending'  => ['bi-clock-fill',        'warning', 'Menunggu verifikasi HR'],
+                'rejected' => ['bi-x-circle-fill',     'danger',  'Ditolak — mohon unggah ulang'],
+                default    => ['bi-circle',            'secondary', 'Belum diunggah'],
+            }; ?>
+            <div class="col-md-4">
+                <div class="d-flex align-items-center gap-2 border rounded p-2 h-100">
+                    <i class="bi <?= $ikon ?> text-<?= $warna ?>"></i>
+                    <div class="min-w-0">
+                        <div class="small fw-semibold"><?= esc($d['label']) ?></div>
+                        <div class="text-muted" style="font-size:.72rem"><?= $ket ?></div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+        </div>
+    </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Sertifikat -->
     <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-patch-check me-2"></i>Sertifikat</h6></div>
+    <div class="card-header d-flex align-items-center">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-patch-check me-2"></i>Sertifikat</h6>
+        <?php if ($hasEmp): ?>
+        <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="modal" data-bs-target="#certModal"><i class="bi bi-plus-lg me-1"></i>Ajukan Sertifikat</button>
+        <?php endif; ?>
+    </div>
     <div class="card-body p-0">
     <?php if (empty($certificates)): ?>
-    <p class="text-muted text-center py-4 small mb-0">Belum ada sertifikat.</p>
+    <p class="text-muted text-center py-4 small mb-0">Belum ada sertifikat. Ajukan sertifikat keahlian Anda — akan diverifikasi HR.</p>
     <?php else: ?>
+    <?php $vb = ['pending'=>'warning','approved'=>'success','rejected'=>'danger']; ?>
     <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
-    <thead class="table-light"><tr><th class="ps-3">Nama</th><th>Penerbit</th><th>Terbit</th><th>Kadaluarsa</th><th>Status</th></tr></thead>
+    <thead class="table-light"><tr><th class="ps-3">Nama</th><th>Jenis</th><th>Penerbit</th><th>Kadaluarsa</th><th>Masa Berlaku</th><th>Verifikasi</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($certificates as $c): ?>
     <tr>
-        <td class="ps-3 fw-semibold small"><?= esc($c['nama']) ?></td>
-        <td class="small text-muted"><?= esc($c['penerbit'] ?? '—') ?></td>
-        <td class="small text-nowrap"><?= $c['tanggal_terbit'] ? date('d M Y', strtotime($c['tanggal_terbit'])) : '—' ?></td>
+        <td class="ps-3 fw-semibold small">
+            <?= esc($c['nama_sertifikat']) ?>
+            <?php if (! empty($c['bidang'])): ?><div class="text-muted fw-normal" style="font-size:.72rem"><?= esc($c['bidang']) ?></div><?php endif; ?>
+        </td>
+        <td class="small text-muted"><?= esc($jenisSertifikat[$c['jenis']] ?? '—') ?></td>
+        <td class="small text-muted"><?= esc($c['penerbit'] ?? '') ?: '—' ?></td>
         <td class="small text-nowrap"><?= $c['tanggal_kadaluarsa'] ? date('d M Y', strtotime($c['tanggal_kadaluarsa'])) : '—' ?></td>
-        <td><span class="badge bg-<?= esc($c['status']['color'] ?? 'secondary') ?>-subtle text-<?= esc($c['status']['color'] ?? 'secondary') ?>"><?= esc($c['status']['label'] ?? '—') ?></span></td>
+        <td><span class="badge bg-<?= esc($c['masa_berlaku']['color'] ?? 'secondary') ?>-subtle text-<?= esc($c['masa_berlaku']['color'] ?? 'secondary') ?>"><?= esc($c['masa_berlaku']['label'] ?? '—') ?></span></td>
+        <td>
+            <span class="badge bg-<?= $vb[$c['status']] ?? 'secondary' ?>"><?= ucfirst($c['status']) ?></span>
+            <?php if ($c['status'] === 'rejected' && ! empty($c['catatan_review'])): ?>
+            <div class="text-danger" style="font-size:.7rem"><?= esc($c['catatan_review']) ?></div>
+            <?php endif; ?>
+        </td>
+        <td class="text-end pe-3">
+            <?php if ($c['status'] !== 'approved'): ?>
+            <form method="POST" action="<?= base_url('profile/certificates/' . $c['id'] . '/delete') ?>" class="d-inline"
+                  onsubmit="return confirm('Batalkan pengajuan sertifikat ini?')">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Batalkan pengajuan"><i class="bi bi-trash"></i></button>
+            </form>
+            <?php else: ?>
+            <span class="text-muted" style="font-size:.7rem" title="Sudah diverifikasi HR — hubungi HR bila perlu diubah"><i class="bi bi-lock"></i></span>
+            <?php endif; ?>
+        </td>
     </tr>
     <?php endforeach; ?>
     </tbody>
@@ -298,7 +360,20 @@ $infoFields = [
 <div class="modal-body">
     <p class="small text-muted">Centang data yang ingin diubah, lalu isi nilai barunya. Pengajuan akan ditinjau & disetujui HR sebelum berlaku.</p>
     <?php
-    $textFields = ['no_hp'=>'No. HP','email'=>'Email','alamat'=>'Alamat','alamat_non_bpn'=>'Alamat (Non-BPN)'];
+    $textFields = [
+        'no_hp'          => 'No. HP',
+        'email'          => 'Email',
+        'nik_ktp'        => 'No. KTP (NIK)',
+        'no_kk'          => 'No. Kartu Keluarga',
+        'no_npwp'        => 'No. NPWP',
+        'alamat'         => 'Alamat',
+        'alamat_non_bpn' => 'Alamat (Non-BPN)',
+    ];
+    $petunjukNomor = [
+        'nik_ktp' => '16 digit sesuai KTP',
+        'no_kk'   => '16 digit sesuai Kartu Keluarga',
+        'no_npwp' => '15 digit (format lama) atau 16 digit (format baru)',
+    ];
     $selectFields = [
         'status_pernikahan' => ['', 'Belum Menikah', 'Menikah', 'Cerai'],
         'agama'             => ['', 'Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'],
@@ -319,7 +394,11 @@ $infoFields = [
             <div class="form-text small">Skrg: <?= esc($employee[$f] ?? '') ?: '—' ?></div>
         </div>
         <div class="col-8">
-            <input type="<?= $f === 'email' ? 'email' : 'text' ?>" id="in_<?= $f ?>" name="<?= $f ?>" class="form-control form-control-sm" value="<?= esc($employee[$f] ?? '') ?>" disabled>
+            <input type="<?= $f === 'email' ? 'email' : 'text' ?>" id="in_<?= $f ?>" name="<?= $f ?>" class="form-control form-control-sm" value="<?= esc($employee[$f] ?? '') ?>"
+                   <?= isset($petunjukNomor[$f]) ? 'inputmode="numeric"' : '' ?> disabled>
+            <?php if (isset($petunjukNomor[$f])): ?>
+            <div class="form-text small"><?= $petunjukNomor[$f] ?></div>
+            <?php endif; ?>
         </div>
     </div>
     <?php endforeach; ?>
@@ -437,6 +516,88 @@ $infoFields = [
 <div class="modal-footer">
     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
     <button type="submit" class="btn btn-sm btn-primary">Upload</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+
+<!-- Modal Ajukan Sertifikat -->
+<div class="modal fade" id="certModal" tabindex="-1">
+<div class="modal-dialog modal-lg modal-dialog-scrollable">
+<div class="modal-content">
+<form method="POST" action="<?= base_url('profile/certificates/add') ?>" enctype="multipart/form-data">
+<?= csrf_field() ?>
+<div class="modal-header"><h5 class="modal-title fw-semibold">Ajukan Sertifikat</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-body">
+    <p class="small text-muted">Lengkapi data sertifikat keahlian Anda. Pengajuan akan diverifikasi HR sebelum tercatat resmi.</p>
+    <div class="row g-3">
+        <div class="col-md-8">
+            <label class="form-label small fw-semibold">Nama Sertifikat <span class="text-danger">*</span></label>
+            <input type="text" name="nama_sertifikat" class="form-control form-control-sm" required maxlength="200" placeholder="mis. Ahli K3 Umum">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">Jenis</label>
+            <select name="jenis" class="form-select form-select-sm">
+                <option value="">— pilih —</option>
+                <?php foreach ($jenisSertifikat as $k => $lbl): ?><option value="<?= $k ?>"><?= esc($lbl) ?></option><?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-8">
+            <label class="form-label small fw-semibold">Bidang Keahlian</label>
+            <input type="text" name="bidang" class="form-control form-control-sm" maxlength="150" placeholder="mis. Keselamatan Kerja, Akuntansi, Jaringan Komputer">
+            <div class="form-text small">Dipakai untuk mencari siapa saja yang menguasai bidang tertentu.</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">Level / Jenjang</label>
+            <select name="level" class="form-select form-select-sm">
+                <option value="">— pilih —</option>
+                <?php foreach ($levelSertifikat as $k => $lbl): ?><option value="<?= $k ?>"><?= esc($lbl) ?></option><?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Lembaga Penerbit</label>
+            <input type="text" name="penerbit" class="form-control form-control-sm" maxlength="200" placeholder="mis. BNSP / LSP Konstruksi">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Nomor Sertifikat</label>
+            <input type="text" name="nomor_sertifikat" class="form-control form-control-sm" maxlength="100">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Tanggal Terbit</label>
+            <input type="date" name="tanggal_terbit" class="form-control form-control-sm" max="<?= date('Y-m-d') ?>">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Tanggal Kadaluarsa</label>
+            <input type="date" name="tanggal_kadaluarsa" class="form-control form-control-sm">
+            <div class="form-text small">Kosongkan bila sertifikat berlaku selamanya.</div>
+        </div>
+        <div class="col-md-8">
+            <label class="form-label small fw-semibold">URL Verifikasi</label>
+            <input type="url" name="url_verifikasi" class="form-control form-control-sm" maxlength="255" placeholder="https://...">
+            <div class="form-text small">Bila lembaga penerbit menyediakan pengecekan online.</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">Pembiayaan</label>
+            <select name="pembiayaan" class="form-select form-select-sm">
+                <option value="">— pilih —</option>
+                <?php foreach ($pembiayaanSertifikat as $k => $lbl): ?><option value="<?= $k ?>"><?= esc($lbl) ?></option><?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-12">
+            <label class="form-label small fw-semibold">File Sertifikat</label>
+            <input type="file" name="file_sertifikat" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf">
+            <div class="form-text">JPG, PNG, atau PDF · maks 10 MB.</div>
+        </div>
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Catatan</label>
+            <input type="text" name="catatan" class="form-control form-control-sm" maxlength="255">
+        </div>
+    </div>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+    <button type="submit" class="btn btn-sm btn-primary">Kirim Pengajuan</button>
 </div>
 </form>
 </div>

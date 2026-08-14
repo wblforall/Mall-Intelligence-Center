@@ -79,6 +79,8 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             'Akhir Kontrak'      => ! empty($employee['tanggal_akhir_kontrak']) ? date('d M Y', strtotime($employee['tanggal_akhir_kontrak'])) : '',
             'Project (Sumber Gaji)' => $employee['project'] ?? '',
             'NIK KTP'            => $employee['nik_ktp'] ?? '',
+            'No. Kartu Keluarga' => $employee['no_kk'] ?? '',
+            'No. NPWP'           => $employee['no_npwp'] ?? '',
             // Digabung lewat array + implode, bukan sambung string: kalau
             // jenjangnya kosong sementara tahun/IPK terisi, penyambungan
             // langsung meninggalkan "·" menggantung di depan.
@@ -558,7 +560,18 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">NIK KTP</label>
-            <input type="text" name="nik_ktp" class="form-control" value="<?= esc($employee['nik_ktp'] ?? '') ?>">
+            <input type="text" name="nik_ktp" class="form-control" inputmode="numeric" value="<?= esc($employee['nik_ktp'] ?? '') ?>">
+            <div class="form-text small">16 digit</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">No. Kartu Keluarga</label>
+            <input type="text" name="no_kk" class="form-control" inputmode="numeric" value="<?= esc($employee['no_kk'] ?? '') ?>">
+            <div class="form-text small">16 digit</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">No. NPWP</label>
+            <input type="text" name="no_npwp" class="form-control" inputmode="numeric" value="<?= esc($employee['no_npwp'] ?? '') ?>">
+            <div class="form-text small">15 digit (lama) atau 16 digit (baru)</div>
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Pendidikan Terakhir</label>

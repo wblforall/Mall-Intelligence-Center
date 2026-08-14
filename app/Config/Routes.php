@@ -518,6 +518,8 @@ $routes->get('appraisal/saya',                         'AppraisalForm::saya',   
 $routes->get('people/change-requests',                 'PeopleEmployees::changeRequests',   ['filter' => 'auth']);
 $routes->post('people/change-requests/(:num)/approve', 'PeopleEmployees::approveChange/$1', ['filter' => 'auth']);
 $routes->post('people/change-requests/(:num)/reject',  'PeopleEmployees::rejectChange/$1',  ['filter' => 'auth']);
+$routes->post('people/certificates/(:num)/approve',    'PeopleEmployees::approveCertificate/$1', ['filter' => 'auth']);
+$routes->post('people/certificates/(:num)/reject',     'PeopleEmployees::rejectCertificate/$1',  ['filter' => 'auth']);
 $routes->get('people/photo/(:segment)',                     'PeopleEmployees::viewPhoto/$1',      ['filter' => 'auth']);
 $routes->get('people/certificates/(:num)/view',             'PeopleEmployees::viewCertificate/$1', ['filter' => 'auth']);
 $routes->get('people/trainings/(:num)/view',                'PeopleEmployees::viewTraining/$1',   ['filter' => 'auth']);
@@ -620,6 +622,8 @@ $routes->post('profile', 'Users::updateProfile', ['filter' => 'auth']);
 $routes->post('profile/theme', 'Users::updateTheme', ['filter' => 'auth']);
 $routes->post('profile/request-change', 'Users::submitChange', ['filter' => 'auth']);
 $routes->post('profile/upload-document', 'Users::uploadDocument', ['filter' => 'auth']);
+$routes->post('profile/certificates/add', 'Users::storeCertificate', ['filter' => 'auth']);
+$routes->post('profile/certificates/(:num)/delete', 'Users::deleteCertificate/$1', ['filter' => 'auth']);
 
 // ── Legal ────────────────────────────────────────────────────────────────
 $routes->get ('legal',                                    'Legal\LegalController::index',                   ['filter' => 'auth']);

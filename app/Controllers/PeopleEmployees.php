@@ -53,8 +53,15 @@ class PeopleEmployees extends BaseController
      * (Users::validasiFieldPengajuan) supaya HR dan karyawan tidak tunduk pada
      * batasan yang berbeda untuk data yang sama.
      */
-    private function validasiPendidikanHr(array $post): ?string
+    private function validasiDataHr(array $post): ?string
     {
+        // Nomor identitas: aturan sama persis dengan jalur ESS.
+        foreach (['nik_ktp', 'no_kk', 'no_npwp'] as $f) {
+            $v = trim($post[$f] ?? '');
+            if ($v === '') continue;
+            if ($err = Users::validasiNomorIdentitas($f, $v)) return $err;
+        }
+
         $M   = \App\Models\EmployeeChangeRequestModel::class;
         $jen = trim($post['pendidikan'] ?? '');
         $ipk = trim($post['ipk'] ?? '');
@@ -87,6 +94,8 @@ class PeopleEmployees extends BaseController
         $data = [
             'email_kerja'        => $f('email_kerja'),
             'nik_ktp'            => $f('nik_ktp'),
+            'no_kk'              => $f('no_kk'),
+            'no_npwp'            => $f('no_npwp'),
             'status_kontrak'     => $f('status_kontrak'),
             'tanggal_akhir_kontrak' => $f('tanggal_akhir_kontrak'),
             'project'            => $f('project'),
@@ -236,6 +245,9 @@ class PeopleEmployees extends BaseController
             'processed'   => array_merge($model->inbox('approved'), $model->inbox('rejected')),
             'pendingDocs' => (new EmployeeDocumentModel())->pendingInbox(),
             'jenisDok'    => EmployeeDocumentModel::JENIS,
+            'pendingCerts'=> (new EmployeeCertificateModel())->pendingInbox(),
+            'jenisSert'   => EmployeeCertificateModel::JENIS,
+            'levelSert'   => EmployeeCertificateModel::LEVEL,
         ]);
     }
 
@@ -499,7 +511,7 @@ class PeopleEmployees extends BaseController
         if (! $this->canViewMenu('people_dev') && ! $this->canViewMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $employees = (new EmployeeModel())->getWithDept();
 
-        $cols = ['No', 'NIK', 'NIK KTP', 'Nama', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Masuk', 'Masa Kerja',
+        $cols = ['No', 'NIK', 'NIK KTP', 'No. KK', 'No. NPWP', 'Nama', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Masuk', 'Masa Kerja',
                  'Departemen', 'Divisi', 'Jabatan', 'Grade', 'Atasan', 'Status Kontrak', 'Project (Sumber Gaji)',
                  'Pendidikan', 'Sekolah/Perguruan Tinggi', 'Jurusan/Fakultas', 'IPK', 'Tahun Lulus',
                  'Status Pernikahan', 'Agama', 'Jabatan Sebelumnya',
@@ -510,7 +522,7 @@ class PeopleEmployees extends BaseController
         $i = 1;
         foreach ($employees as $e) {
             $row = [
-                $i++, $e['nik'] ?? '', $e['nik_ktp'] ?? '', $e['nama'] ?? '',
+                $i++, $e['nik'] ?? '', $e['nik_ktp'] ?? '', $e['no_kk'] ?? '', $e['no_npwp'] ?? '', $e['nama'] ?? '',
                 ($e['jenis_kelamin'] === 'P' ? 'Perempuan' : ($e['jenis_kelamin'] === 'L' ? 'Laki-laki' : '')),
                 $e['tanggal_lahir'] ?? '', $e['tanggal_masuk'] ?? '',
                 EmployeeModel::getMasaKerja($e['tanggal_masuk'] ?? null),
@@ -587,7 +599,7 @@ class PeopleEmployees extends BaseController
     {
         if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
-        if ($err = $this->validasiPendidikanHr($post)) return redirect()->back()->withInput()->with('error', $err);
+        if ($err = $this->validasiDataHr($post)) return redirect()->back()->withInput()->with('error', $err);
         $model = new EmployeeModel();
 
         $fotoName = null;
@@ -647,7 +659,7 @@ class PeopleEmployees extends BaseController
     {
         if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
-        if ($err = $this->validasiPendidikanHr($post)) {
+        if ($err = $this->validasiDataHr($post)) {
             return redirect()->to('/people/employees/' . $id)->withInput()->with('error', $err);
         }
         $model = new EmployeeModel();
@@ -771,37 +783,85 @@ class PeopleEmployees extends BaseController
     public function storeCertificate(int $id)
     {
         if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
-        $post = $this->request->getPost();
 
-        $fileName = null;
-        $fileOrig = null;
-        $file = $this->request->getFile('file_sertifikat');
-        if ($file && $file->isValid() && ! $file->hasMoved()) {
-            if ($err = $this->validateUpload($file, self::MIME_DOC, 10)) {
-                return redirect()->back()->with('error', $err);
-            }
-            $uploadPath = WRITEPATH . 'uploads/certificates/';
-            if (! is_dir($uploadPath)) mkdir($uploadPath, 0755, true);
-            $fileName = 'cert_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $this->safeExt($file);
-            $fileOrig = $file->getClientName();
-            $file->move($uploadPath, $fileName);
-            \App\Libraries\ImageCompressor::compress($uploadPath . '/' . $fileName);
+        // HR menginput langsung → sudah terverifikasi, tak perlu antre lagi.
+        $res = (new \App\Services\EmployeeCertificateService())->simpan(
+            $id, $this->request->getPost(), $this->request->getFile('file_sertifikat'),
+            (int) session()->get('user_id'), 'approved'
+        );
+        if (! $res['ok']) return redirect()->back()->withInput()->with('error', $res['msg']);
+
+        ActivityLog::write('create', 'employee_certificate', (string) $id, trim((string) $this->request->getPost('nama_sertifikat')));
+        return redirect()->to('/people/employees/' . $id . '#certificates')->with('success', $res['msg']);
+    }
+
+    /** Setujui sertifikat yang diajukan karyawan lewat ESS. */
+    public function approveCertificate(int $cid)
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+
+        $m    = new EmployeeCertificateModel();
+        $cert = $m->find($cid);
+        if (! $cert || $cert['status'] !== 'pending') {
+            return redirect()->to('/people/change-requests')->with('error', 'Sertifikat tidak valid atau sudah diproses.');
         }
 
-        (new EmployeeCertificateModel())->insert([
-            'employee_id'        => $id,
-            'nama_sertifikat'    => trim($post['nama_sertifikat']),
-            'nomor_sertifikat'   => trim($post['nomor_sertifikat'] ?? '') ?: null,
-            'penerbit'           => trim($post['penerbit'] ?? '') ?: null,
-            'tanggal_terbit'     => $post['tanggal_terbit'] ?: null,
-            'tanggal_kadaluarsa' => $post['tanggal_kadaluarsa'] ?: null,
-            'file_name'          => $fileName,
-            'file_original'      => $fileOrig,
-            'catatan'            => trim($post['catatan'] ?? '') ?: null,
+        $m->update($cid, [
+            'status'      => 'approved',
+            'reviewed_by' => session()->get('user_id'),
+            'reviewed_at' => date('Y-m-d H:i:s'),
         ]);
 
-        ActivityLog::write('create', 'employee_certificate', (string)$id, trim($post['nama_sertifikat']));
-        return redirect()->to('/people/employees/' . $id . '#certificates')->with('success', 'Sertifikat berhasil ditambahkan.');
+        $emp = (new EmployeeModel())->find($cert['employee_id']);
+        ActivityLog::write('update', 'employee_certificate', (string) $cid, $cert['nama_sertifikat'],
+            ['employee_id' => $cert['employee_id'], 'aksi' => 'verifikasi', 'via' => 'pengajuan_karyawan']);
+
+        $this->kabariPengajuSertifikat($cert, 'Sertifikat diverifikasi: ' . $cert['nama_sertifikat'], null);
+
+        return redirect()->to('/people/change-requests')->with('success', 'Sertifikat diverifikasi.');
+    }
+
+    /** Tolak sertifikat yang diajukan karyawan. Alasan wajib. */
+    public function rejectCertificate(int $cid)
+    {
+        if (! $this->canManageRequests()) return redirect()->to('/events')->with('error', 'Akses ditolak.');
+
+        $catatan = trim((string) $this->request->getPost('catatan'));
+        if ($catatan === '') return redirect()->to('/people/change-requests')->with('error', 'Alasan penolakan wajib diisi.');
+
+        $m    = new EmployeeCertificateModel();
+        $cert = $m->find($cid);
+        if (! $cert || $cert['status'] !== 'pending') {
+            return redirect()->to('/people/change-requests')->with('error', 'Sertifikat tidak valid atau sudah diproses.');
+        }
+
+        // Baris DIPERTAHANKAN (bukan dihapus) supaya karyawan bisa melihat
+        // alasan penolakannya; berkasnya dibuang karena tak lagi dipakai.
+        $m->update($cid, [
+            'status'         => 'rejected',
+            'reviewed_by'    => session()->get('user_id'),
+            'reviewed_at'    => date('Y-m-d H:i:s'),
+            'catatan_review' => $catatan,
+        ]);
+        (new \App\Services\EmployeeCertificateService())->hapusBerkas($cert['file_name']);
+        $m->update($cid, ['file_name' => null]);
+
+        ActivityLog::write('update', 'employee_certificate', (string) $cid, $cert['nama_sertifikat'],
+            ['employee_id' => $cert['employee_id'], 'aksi' => 'tolak', 'alasan' => $catatan]);
+
+        $this->kabariPengajuSertifikat($cert, 'Sertifikat ditolak: ' . $cert['nama_sertifikat'], 'Alasan: ' . $catatan);
+
+        return redirect()->to('/people/change-requests')->with('success', 'Sertifikat ditolak.');
+    }
+
+    /** Beri tahu karyawan pengaju atas hasil verifikasi sertifikatnya. */
+    private function kabariPengajuSertifikat(array $cert, string $judul, ?string $isi): void
+    {
+        if (empty($cert['uploaded_by'])) return;
+        \App\Libraries\Notify::send(
+            [(int) $cert['uploaded_by']], (int) session()->get('user_id'), 'hr', 'result',
+            $judul, $isi, 'employee_certificate', (int) $cert['id'], 'profile'
+        );
     }
 
     public function deleteCertificate(int $id, int $cid)

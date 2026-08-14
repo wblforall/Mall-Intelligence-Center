@@ -23,6 +23,60 @@ class EmployeeDocumentModel extends Model
         'lainnya'   => 'Lainnya',
     ];
 
+    /**
+     * Dokumen yang WAJIB dimiliki setiap karyawan.
+     *
+     * "Wajib" di sini berarti dipantau dan ditagih, BUKAN memblokir akses:
+     * saat aturan ini dibuat belum ada satu pun dokumen terunggah dari 202
+     * karyawan, sehingga penegakan keras akan mengunci semua orang sekaligus.
+     * Kelengkapannya tampil sebagai daftar periksa di /profile dan rekap di
+     * sisi HR.
+     */
+    public const WAJIB = ['ktp', 'kk', 'npwp'];
+
+    /**
+     * Status kelengkapan dokumen wajib satu karyawan.
+     *
+     * Hanya dokumen berstatus `approved` yang dihitung lengkap — dokumen yang
+     * masih menunggu verifikasi ditandai tersendiri supaya karyawan tidak
+     * mengira urusannya sudah selesai padahal HR belum memeriksa.
+     *
+     * @return array{lengkap:bool, terverifikasi:int, total:int, per_jenis:array}
+     */
+    public function kelengkapanWajib(int $employeeId): array
+    {
+        $rows = $this->where('employee_id', $employeeId)
+            ->whereIn('jenis', self::WAJIB)
+            ->orderBy('created_at', 'DESC')
+            ->findAll();
+
+        $perJenis = [];
+        foreach (self::WAJIB as $j) {
+            $doc = null;
+            foreach ($rows as $r) {
+                // Baris terbaru per jenis menang; 'approved' mengalahkan
+                // 'rejected' yang lebih baru agar dokumen yang sudah sah tidak
+                // dianggap hilang hanya karena ada unggahan gagal sesudahnya.
+                if ($r['jenis'] !== $j) continue;
+                if ($doc === null || ($r['status'] === 'approved' && $doc['status'] !== 'approved')) $doc = $r;
+            }
+            $perJenis[$j] = [
+                'label'  => self::JENIS[$j],
+                'status' => $doc['status'] ?? null,   // null = belum diunggah
+                'id'     => $doc['id'] ?? null,
+            ];
+        }
+
+        $ok = count(array_filter($perJenis, static fn ($d) => $d['status'] === 'approved'));
+
+        return [
+            'lengkap'       => $ok === count(self::WAJIB),
+            'terverifikasi' => $ok,
+            'total'         => count(self::WAJIB),
+            'per_jenis'     => $perJenis,
+        ];
+    }
+
     public static function jenisLabel(string $jenis, ?string $nama = null): string
     {
         if ($jenis === 'lainnya' && $nama) return $nama;
