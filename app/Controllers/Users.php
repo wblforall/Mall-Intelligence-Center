@@ -393,7 +393,19 @@ class Users extends BaseController
         $catatan = $this->ajukanNomorDariDokumen($emp, (int) $id, $jenis, $nomor);
         if ($catatan) $pesan .= ' ' . $catatan;
 
-        return redirect()->to('/profile')->with('success', $pesan);
+        // Kartu NPWP memuat dua nomor sekaligus. NPWP-16 opsional — kartu
+        // terbitan lama belum mencantumkannya, jadi kosong bukan kesalahan.
+        if ($jenis === 'npwp') {
+            $n16 = trim((string) $this->request->getPost('nomor_npwp16'));
+            if ($n16 !== '') {
+                $err16 = self::validasiNomorIdentitas('no_npwp16', $n16);
+                $pesan .= $err16
+                    ? ' Namun NPWP-16 tidak disimpan: ' . $err16
+                    : ' ' . (string) $this->ajukanNomorLangsung($emp, (int) $id, 'no_npwp16', $n16);
+            }
+        }
+
+        return redirect()->to('/profile')->with('success', trim($pesan));
     }
 
     /**
@@ -408,6 +420,12 @@ class Users extends BaseController
         $field = \App\Models\EmployeeDocumentModel::PASANGAN_NOMOR[$jenis] ?? null;
         if (! $field || $nomor === '') return null;
 
+        return $this->ajukanNomorLangsung($emp, $userId, $field, $nomor);
+    }
+
+    /** Catat pengajuan perubahan untuk satu kolom nomor. */
+    private function ajukanNomorLangsung(array $emp, int $userId, string $field, string $nomor): ?string
+    {
         $label = \App\Models\EmployeeChangeRequestModel::EDITABLE[$field] ?? $field;
         $lama  = (string) ($emp[$field] ?? '');
         if ($nomor === $lama) return null;
@@ -710,20 +728,21 @@ class Users extends BaseController
      * tunduk pada aturan yang sama — nomor ini dipakai lintas sistem
      * (BPJS, pajak), jadi salah panjang satu digit membuatnya tak berguna.
      *
-     * NPWP menerima 15 digit (format lama) maupun 16 digit (format baru yang
-     * mengikuti NIK); menolak yang 15 digit akan memblokir karyawan yang
-     * kartunya memang belum diperbarui.
+     * NPWP dipisah dua kolom: `no_npwp` khusus format lama 15 digit dan
+     * `no_npwp16` khusus format baru. Sebelumnya satu kolom menerima keduanya,
+     * sehingga isinya bercampur tanpa bisa dibedakan selain dari panjangnya.
      */
     public static function validasiNomorIdentitas(string $field, string $nilai): ?string
     {
         $angka = preg_replace('/\D/', '', $nilai);   // toleran titik/strip/spasi
 
         return match ($field) {
-            'nik_ktp' => strlen($angka) !== 16 ? 'No. KTP (NIK) harus 16 digit angka.' : null,
-            'no_kk'   => strlen($angka) !== 16 ? 'No. Kartu Keluarga harus 16 digit angka.' : null,
-            'no_npwp' => ! in_array(strlen($angka), [15, 16], true)
-                ? 'No. NPWP harus 15 digit (format lama) atau 16 digit (format baru).' : null,
-            default   => null,
+            'nik_ktp'   => strlen($angka) !== 16 ? 'No. KTP (NIK) harus 16 digit angka.' : null,
+            'no_kk'     => strlen($angka) !== 16 ? 'No. Kartu Keluarga harus 16 digit angka.' : null,
+            'no_npwp'   => strlen($angka) !== 15
+                ? 'No. NPWP format lama harus 15 digit. Untuk NPWP 16 digit, isikan di kolom NPWP-16.' : null,
+            'no_npwp16' => strlen($angka) !== 16 ? 'No. NPWP-16 harus 16 digit angka.' : null,
+            default     => null,
         };
     }
 

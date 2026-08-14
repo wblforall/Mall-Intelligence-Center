@@ -382,14 +382,16 @@ $infoFields = [
         'email'          => 'Email',
         'nik_ktp'        => 'No. KTP (NIK)',
         'no_kk'          => 'No. Kartu Keluarga',
-        'no_npwp'        => 'No. NPWP',
+        'no_npwp'        => 'No. NPWP (15 digit)',
+        'no_npwp16'      => 'No. NPWP-16',
         'alamat'         => 'Alamat',
         'alamat_non_bpn' => 'Alamat (Non-BPN)',
     ];
     $petunjukNomor = [
-        'nik_ktp' => '16 digit sesuai KTP',
-        'no_kk'   => '16 digit sesuai Kartu Keluarga',
-        'no_npwp' => '15 digit (format lama) atau 16 digit (format baru)',
+        'nik_ktp'   => '16 digit sesuai KTP',
+        'no_kk'     => '16 digit sesuai Kartu Keluarga',
+        'no_npwp'   => '15 digit — format lama, tertulis bertitik seperti 09.254.294.5-017.000',
+        'no_npwp16' => '16 digit — format baru. Untuk WNI biasanya sama dengan NIK Anda.',
     ];
     $selectFields = [
         'status_pernikahan' => ['', 'Belum Menikah', 'Menikah', 'Cerai'],
@@ -544,6 +546,15 @@ $infoFields = [
         <label class="form-label small fw-semibold" id="docNomorLabel">Nomor <span class="text-danger">*</span></label>
         <input type="text" name="nomor_identitas" id="docNomor" class="form-control form-control-sm" inputmode="numeric">
         <div class="form-text small" id="docNomorHint"></div>
+
+        <!-- Kartu NPWP elektronik memuat DUA nomor sekaligus; sekali pindai
+             mengisi keduanya, jadi karyawan tak perlu mengunggah dua kali. -->
+        <div class="mt-3 d-none" id="docNpwp16Wrap">
+            <label class="form-label small fw-semibold">No. NPWP-16</label>
+            <input type="text" name="nomor_npwp16" id="docNpwp16" class="form-control form-control-sm" inputmode="numeric">
+            <div class="form-text small">16 digit — format baru. Untuk WNI biasanya sama dengan NIK. Boleh dikosongkan bila kartu Anda belum mencantumkannya.</div>
+        </div>
+
         <div class="mt-1 small text-muted" id="docOcrStatus"></div>
     </div>
 </div>
@@ -791,7 +802,7 @@ document.addEventListener('change', function (e) {
     var ATURAN = {
         ktp:  { field: 'nik_ktp', label: 'No. KTP (NIK)',      hint: '16 digit sesuai KTP' },
         kk:   { field: 'no_kk',   label: 'No. Kartu Keluarga', hint: '16 digit sesuai Kartu Keluarga' },
-        npwp: { field: 'no_npwp', label: 'No. NPWP',           hint: '15 digit (lama) atau 16 digit (baru)' }
+        npwp: { field: 'no_npwp', label: 'No. NPWP (15 digit)', hint: 'Format lama, tertulis bertitik seperti 09.254.294.5-017.000' }
     };
 
     var jenis  = document.getElementById('docJenis');
@@ -803,6 +814,8 @@ document.addEventListener('change', function (e) {
     var hint   = document.getElementById('docNomorHint');
     var input  = document.getElementById('docNomor');
     var status = document.getElementById('docOcrStatus');
+    var npwp16     = document.getElementById('docNpwp16');
+    var npwp16Wrap = document.getElementById('docNpwp16Wrap');
 
     function aturan() { return ATURAN[jenis.value] || null; }
 
@@ -814,6 +827,11 @@ document.addEventListener('change', function (e) {
         // saat kolomnya tersembunyi, form jadi tak bisa dikirim untuk jenis
         // dokumen lain dengan galat yang tak terlihat oleh pengguna.
         input.required = !!a;
+        // NPWP-16 hanya relevan pada kartu NPWP, dan sengaja TIDAK wajib:
+        // kartu terbitan lama belum mencantumkannya.
+        npwp16Wrap.classList.toggle('d-none', jenis.value !== 'npwp');
+        if (jenis.value !== 'npwp') npwp16.value = '';
+
         if (a) {
             label.innerHTML = a.label + ' <span class="text-danger">*</span>';
             hint.textContent = a.hint + ' · wajib diisi';
@@ -854,6 +872,17 @@ document.addEventListener('change', function (e) {
                     status.textContent = 'Terbaca dari berkas — WAJIB dicocokkan dengan kartu asli.';
                     status.className = 'mt-1 small text-warning';
                 }
+
+                // Kartu NPWP memuat dua nomor; ambil sekalian yang 16 digit.
+                if (jenis.value === 'npwp') {
+                    OcrIdentitas.baca(f, 'no_npwp16', null).then(function (h16) {
+                        if (h16.nomor && ! npwp16.value) {
+                            npwp16.value = h16.nomor;
+                            if (h16.sumber !== 'teks') npwp16.classList.add('border-warning');
+                            status.textContent += ' NPWP-16 juga terbaca.';
+                        }
+                    }).catch(function () { /* diabaikan — NPWP-16 memang opsional */ });
+                }
             })
             .catch(function () {
                 status.textContent = 'Gagal membaca berkas — ketik nomornya manual.';
@@ -866,5 +895,5 @@ document.addEventListener('change', function (e) {
 </script>
 <script>window.MIC_BASE_URL = '<?= base_url() ?>';</script>
 <script src="<?= base_url('lib/tesseract/tesseract.min.js') ?>"></script>
-<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.8"></script>
+<script src="<?= base_url('js/ocr-identitas.js') ?>?v=2.24.9"></script>
 <?= $this->endSection() ?>

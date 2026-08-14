@@ -56,7 +56,7 @@ class PeopleEmployees extends BaseController
     private function validasiDataHr(array $post): ?string
     {
         // Nomor identitas: aturan sama persis dengan jalur ESS.
-        foreach (['nik_ktp', 'no_kk', 'no_npwp'] as $f) {
+        foreach (['nik_ktp', 'no_kk', 'no_npwp', 'no_npwp16'] as $f) {
             $v = trim($post[$f] ?? '');
             if ($v === '') continue;
             if ($err = Users::validasiNomorIdentitas($f, $v)) return $err;
@@ -96,6 +96,7 @@ class PeopleEmployees extends BaseController
             'nik_ktp'            => $f('nik_ktp'),
             'no_kk'              => $f('no_kk'),
             'no_npwp'            => $f('no_npwp'),
+            'no_npwp16'          => $f('no_npwp16'),
             'status_kontrak'     => $f('status_kontrak'),
             'tanggal_akhir_kontrak' => $f('tanggal_akhir_kontrak'),
             'project'            => $f('project'),
@@ -538,7 +539,7 @@ class PeopleEmployees extends BaseController
         if (! $this->canViewMenu('people_dev') && ! $this->canViewMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $employees = (new EmployeeModel())->getWithDept();
 
-        $cols = ['No', 'NIK', 'NIK KTP', 'No. KK', 'No. NPWP', 'Nama', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Masuk', 'Masa Kerja',
+        $cols = ['No', 'NIK', 'NIK KTP', 'No. KK', 'No. NPWP', 'No. NPWP-16', 'Nama', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Masuk', 'Masa Kerja',
                  'Departemen', 'Divisi', 'Jabatan', 'Grade', 'Atasan', 'Status Kontrak', 'Project (Sumber Gaji)',
                  'Pendidikan', 'Sekolah/Perguruan Tinggi', 'Jurusan/Fakultas', 'IPK', 'Tahun Lulus',
                  'Status Pernikahan', 'Agama', 'Jabatan Sebelumnya',
@@ -549,7 +550,7 @@ class PeopleEmployees extends BaseController
         $i = 1;
         foreach ($employees as $e) {
             $row = [
-                $i++, $e['nik'] ?? '', $e['nik_ktp'] ?? '', $e['no_kk'] ?? '', $e['no_npwp'] ?? '', $e['nama'] ?? '',
+                $i++, $e['nik'] ?? '', $e['nik_ktp'] ?? '', $e['no_kk'] ?? '', $e['no_npwp'] ?? '', $e['no_npwp16'] ?? '', $e['nama'] ?? '',
                 ($e['jenis_kelamin'] === 'P' ? 'Perempuan' : ($e['jenis_kelamin'] === 'L' ? 'Laki-laki' : '')),
                 $e['tanggal_lahir'] ?? '', $e['tanggal_masuk'] ?? '',
                 EmployeeModel::getMasaKerja($e['tanggal_masuk'] ?? null),

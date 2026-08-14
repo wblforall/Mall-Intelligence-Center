@@ -80,7 +80,8 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             'Project (Sumber Gaji)' => $employee['project'] ?? '',
             'NIK KTP'            => $employee['nik_ktp'] ?? '',
             'No. Kartu Keluarga' => $employee['no_kk'] ?? '',
-            'No. NPWP'           => $employee['no_npwp'] ?? '',
+            'No. NPWP (15 digit)' => $employee['no_npwp'] ?? '',
+            'No. NPWP-16'        => $employee['no_npwp16'] ?? '',
             // Digabung lewat array + implode, bukan sambung string: kalau
             // jenjangnya kosong sementara tahun/IPK terisi, penyambungan
             // langsung meninggalkan "·" menggantung di depan.
@@ -569,9 +570,24 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             <div class="form-text small">16 digit</div>
         </div>
         <div class="col-md-6">
-            <label class="form-label small fw-semibold">No. NPWP</label>
+            <label class="form-label small fw-semibold">No. NPWP (15 digit)</label>
             <input type="text" name="no_npwp" class="form-control" inputmode="numeric" value="<?= esc($employee['no_npwp'] ?? '') ?>">
-            <div class="form-text small">15 digit (lama) atau 16 digit (baru)</div>
+            <div class="form-text small">Format lama, bertitik</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">No. NPWP-16</label>
+            <input type="text" name="no_npwp16" class="form-control" inputmode="numeric" value="<?= esc($employee['no_npwp16'] ?? '') ?>">
+            <?php
+            // Untuk WNI perorangan NPWP-16 = NIK. Bila berbeda, salah satunya
+            // pasti salah ketik — dan itu baru ketahuan saat pelaporan pajak
+            // kalau tidak diperiksa di sini.
+            $n16 = preg_replace('/\D/', '', (string) ($employee['no_npwp16'] ?? ''));
+            $nik = preg_replace('/\D/', '', (string) ($employee['nik_ktp'] ?? ''));
+            if ($n16 !== '' && $nik !== '' && $n16 !== $nik): ?>
+            <div class="form-text small text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Berbeda dari NIK (<?= esc($nik) ?>) — periksa ulang, salah satu kemungkinan salah ketik.</div>
+            <?php else: ?>
+            <div class="form-text small">Format baru; untuk WNI biasanya sama dengan NIK</div>
+            <?php endif; ?>
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Pendidikan Terakhir</label>

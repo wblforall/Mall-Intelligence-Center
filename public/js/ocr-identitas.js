@@ -17,11 +17,18 @@
     var BASE   = (global.MIC_BASE_URL || '/').replace(/\/?$/, '/');
     var VENDOR = BASE + 'lib/tesseract/';
 
-    /** Panjang digit yang sah per jenis nomor. */
+    /**
+     * Panjang digit yang sah per jenis nomor.
+     *
+     * NPWP dipisah dua: `no_npwp` khusus format lama 15 digit, `no_npwp16`
+     * khusus format baru. Satu kartu NPWP elektronik memuat KEDUANYA, jadi
+     * sekali pindai bisa mengisi dua kolom sekaligus.
+     */
     var PANJANG = {
-        nik_ktp: [16],
-        no_kk:   [16],
-        no_npwp: [15, 16]
+        nik_ktp:   [16],
+        no_kk:     [16],
+        no_npwp:   [15],
+        no_npwp16: [16]
     };
 
     var workerPromise = null;
@@ -131,7 +138,14 @@
             /KARTU\s*KELUARGA[^0-9]{0,60}(\d[\d.\-\s]{14,32})/i,
             /\bNo\.?\s*(?:KK|K\.?\s*K\.?)\b[^0-9]{0,15}(\d[\d.\-\s]{14,32})/i
         ],
-        no_npwp: [/\bNPWP\b[^0-9]{0,25}(\d[\d.\-\s]{13,32})/i]
+        // NPWP lama ditulis bertitik (66.924.913.8-721.000) dan TIDAK boleh
+        // tertangkap oleh label "NPWP16"; karena itu pola pertama menuntut
+        // pemisah titik, dan pola cadangan menolak "NPWP" yang diikuti angka.
+        no_npwp:   [
+            /\bNPWP\b[^0-9]{0,25}(\d{2}\.\d{3}\.\d{3}\.\d[\-.]\d{3}\.\d{3})/i,
+            /\bNPWP(?![0-9])\b[^0-9]{0,25}(\d[\d.\-\s]{13,32})/i
+        ],
+        no_npwp16: [/\bNPWP\s*[-]?\s*16\b[^0-9]{0,25}(\d[\d.\-\s]{14,32})/i]
     };
 
     function digit(s) { return String(s).replace(/\D/g, ''); }
@@ -150,12 +164,13 @@
                 if (panjangSah(n, jenis)) return n;
 
                 // Deret bisa kepanjangan karena menyerempet angka kolom
-                // berikutnya. Dipotong dari panjang sah TERPANJANG dulu —
-                // kalau dari yang terpendek, NPWP 16 digit (format baru)
-                // akan terpangkas jadi 15 dan tampak sahih padahal salah.
+                // berikutnya, dan itu boleh dipotong. Tapi selisih kecil
+                // BUKAN kelebihan tangkap — itu tanda nomornya memang format
+                // lain: NPWP 16 digit yang dipotong jadi 15 akan tampak sahih
+                // padahal salah, dan diam-diam masuk ke kolom yang keliru.
                 var urut = (PANJANG[jenis] || [16]).slice().sort(function (a, b) { return b - a; });
                 for (var p = 0; p < urut.length; p++) {
-                    if (n.length > urut[p]) return n.slice(0, urut[p]);
+                    if (n.length >= urut[p] + 3) return n.slice(0, urut[p]);
                 }
             }
         }
@@ -203,7 +218,12 @@
 
     /** Label jenis ini muncul di teks? Bukti bahwa kartunya memang jenis itu. */
     function adaLabel(teks, jenis) {
-        var kata = { nik_ktp: /\bNIK\b/i, no_kk: /KARTU\s*KELUARGA|\bNo\.?\s*KK\b/i, no_npwp: /\bNPWP/i };
+        var kata = {
+            nik_ktp:   /\bNIK\b/i,
+            no_kk:     /KARTU\s*KELUARGA|\bNo\.?\s*KK\b/i,
+            no_npwp:   /\bNPWP/i,
+            no_npwp16: /\bNPWP\s*[-]?\s*16\b/i
+        };
         return kata[jenis] ? kata[jenis].test(teks) : false;
     }
 

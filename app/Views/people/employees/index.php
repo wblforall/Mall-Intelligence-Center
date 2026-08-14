@@ -254,8 +254,12 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
             <input type="text" name="no_kk" class="form-control" inputmode="numeric">
         </div>
         <div class="col-md-6">
-            <label class="form-label small fw-semibold">No. NPWP</label>
+            <label class="form-label small fw-semibold">No. NPWP (15 digit)</label>
             <input type="text" name="no_npwp" class="form-control" inputmode="numeric">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">No. NPWP-16</label>
+            <input type="text" name="no_npwp16" class="form-control" inputmode="numeric">
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Pendidikan Terakhir</label>

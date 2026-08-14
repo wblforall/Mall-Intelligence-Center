@@ -9,7 +9,7 @@ class EmployeeModel extends Model
     protected $table         = 'employees';
     protected $primaryKey    = 'id';
     protected $allowedFields = [
-        'nik', 'nik_ktp', 'no_kk', 'no_npwp', 'nama', 'jenis_kelamin', 'tanggal_lahir', 'tanggal_masuk',
+        'nik', 'nik_ktp', 'no_kk', 'no_npwp', 'no_npwp16', 'nama', 'jenis_kelamin', 'tanggal_lahir', 'tanggal_masuk',
         'dept_id', 'division_id', 'jabatan', 'jabatan_id', 'atasan_id',
         'no_hp', 'email', 'email_kerja', 'status', 'status_kontrak', 'tanggal_akhir_kontrak', 'project',
         'pendidikan', 'institusi', 'jurusan', 'ipk', 'tahun_lulus',
