@@ -79,7 +79,16 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             'Akhir Kontrak'      => ! empty($employee['tanggal_akhir_kontrak']) ? date('d M Y', strtotime($employee['tanggal_akhir_kontrak'])) : '',
             'Project (Sumber Gaji)' => $employee['project'] ?? '',
             'NIK KTP'            => $employee['nik_ktp'] ?? '',
-            'Pendidikan'         => trim(($employee['pendidikan'] ?? '') . ' ' . ($employee['jurusan'] ?? '')),
+            // Digabung lewat array + implode, bukan sambung string: kalau
+            // jenjangnya kosong sementara tahun/IPK terisi, penyambungan
+            // langsung meninggalkan "·" menggantung di depan.
+            'Pendidikan Terakhir' => implode(' · ', array_filter([
+                $employee['pendidikan'] ?? '',
+                ! empty($employee['tahun_lulus']) ? 'lulus ' . $employee['tahun_lulus'] : '',
+                ! empty($employee['ipk']) ? 'IPK ' . number_format((float) $employee['ipk'], 2) : '',
+            ], static fn ($v) => $v !== '')),
+            'Sekolah / Perguruan Tinggi' => $employee['institusi'] ?? '',
+            'Jurusan / Fakultas' => $employee['jurusan'] ?? '',
             'Status Pernikahan'  => $employee['status_pernikahan'] ?? '',
             'Agama'              => $employee['agama'] ?? '',
             'Jabatan Sebelumnya' => $employee['jabatan_sebelumnya'] ?? '',
@@ -561,8 +570,21 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
             </select>
         </div>
         <div class="col-md-6">
-            <label class="form-label small fw-semibold">Jurusan</label>
+            <label class="form-label small fw-semibold">Nama Sekolah / Perguruan Tinggi</label>
+            <input type="text" name="institusi" class="form-control" maxlength="150" value="<?= esc($employee['institusi'] ?? '') ?>">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Jurusan / Fakultas</label>
             <input type="text" name="jurusan" class="form-control" value="<?= esc($employee['jurusan'] ?? '') ?>">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">IPK</label>
+            <input type="text" inputmode="decimal" name="ipk" class="form-control" placeholder="0.00 – 4.00" value="<?= esc($employee['ipk'] ?? '') ?>">
+            <div class="form-text small">Hanya tersimpan bila jenjang D1 ke atas.</div>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Tahun Lulus</label>
+            <input type="number" name="tahun_lulus" class="form-control" min="1950" max="<?= date('Y') ?>" value="<?= esc($employee['tahun_lulus'] ?? '') ?>">
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Status Pernikahan</label>

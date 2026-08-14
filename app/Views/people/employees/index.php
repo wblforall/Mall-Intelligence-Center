@@ -256,8 +256,21 @@ $resign = count(array_filter($employees, fn($e) => $e['status'] === 'resign'));
             </select>
         </div>
         <div class="col-md-6">
-            <label class="form-label small fw-semibold">Jurusan</label>
+            <label class="form-label small fw-semibold">Nama Sekolah / Perguruan Tinggi</label>
+            <input type="text" name="institusi" class="form-control" maxlength="150">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Jurusan / Fakultas</label>
             <input type="text" name="jurusan" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">IPK</label>
+            <input type="text" inputmode="decimal" name="ipk" class="form-control" placeholder="0.00 – 4.00">
+            <div class="form-text small">Hanya untuk jenjang D1 ke atas.</div>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Tahun Lulus</label>
+            <input type="number" name="tahun_lulus" class="form-control" min="1950" max="<?= date('Y') ?>">
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Status Pernikahan</label>

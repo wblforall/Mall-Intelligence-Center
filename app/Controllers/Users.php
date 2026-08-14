@@ -407,6 +407,16 @@ class Users extends BaseController
         $editable = \App\Models\EmployeeChangeRequestModel::EDITABLE;
         $reqModel = new \App\Models\EmployeeChangeRequestModel();
         $created  = 0;
+        $tolak    = [];
+
+        // Jenjang yang berlaku untuk pengajuan ini: yang sedang diajukan bila
+        // dicentang, kalau tidak ya yang tersimpan sekarang. Dipakai untuk
+        // memutuskan apakah IPK relevan — tanpa ini karyawan bisa mengirim IPK
+        // untuk jenjang SMA dan angkanya diam-diam tersimpan.
+        $jenjangBaru = trim((string) $this->request->getPost('pendidikan'));
+        $jenjang = ($this->request->getPost('pendidikan_chk') && $jenjangBaru !== '')
+            ? $jenjangBaru
+            : (string) ($emp['pendidikan'] ?? '');
 
         foreach ($editable as $field => $label) {
             if ($field === 'foto') continue;
@@ -414,6 +424,17 @@ class Users extends BaseController
             $new = trim((string) $this->request->getPost($field));
             $old = (string) ($emp[$field] ?? '');
             if ($new === '' || $new === $old) continue;
+
+            $salah = $this->validasiFieldPengajuan($field, $new, $jenjang);
+            if ($salah !== null) { $tolak[] = $salah; continue; }
+
+            // "3,45" → "3.45". Tanpa ini kolom DECIMAL memotongnya jadi 3.00
+            // tanpa error, dan IPK tersimpan salah tanpa jejak.
+            if ($field === 'ipk') {
+                $new = number_format((float) str_replace(',', '.', $new), 2, '.', '');
+                if ($new === $old) continue;
+            }
+
             if ($reqModel->where('employee_id', $emp['id'])->where('field', $field)->where('status', 'pending')->countAllResults()) continue;
             $reqModel->insert([
                 'employee_id' => $emp['id'], 'requested_by' => $id, 'field' => $field,
@@ -439,7 +460,13 @@ class Users extends BaseController
             }
         }
 
-        if ($created === 0) return redirect()->to('/profile')->with('error', 'Tidak ada perubahan untuk diajukan (atau sudah ada pengajuan pending yang sama).');
+        // Data yang ditolak jangan hilang diam-diam — karyawan harus tahu
+        // persis mana yang tidak masuk dan kenapa, supaya bisa mengulang.
+        if ($created === 0) {
+            return redirect()->to('/profile')->with('error', $tolak
+                ? implode(' ', $tolak)
+                : 'Tidak ada perubahan untuk diajukan (atau sudah ada pengajuan pending yang sama).');
+        }
         ActivityLog::write('create', 'employee_change_request', (string) $emp['id'], $emp['nama'], ['jumlah_field' => $created]);
 
         // Notifikasi ke pengelola data (HR / People Dev)
@@ -453,7 +480,59 @@ class Users extends BaseController
             $created . ' field menunggu verifikasi.', 'employee_change_request', (int) $emp['id'], 'people/change-requests'
         );
 
-        return redirect()->to('/profile')->with('success', "$created pengajuan perubahan dikirim. Menunggu persetujuan HR.");
+        $pesan = "$created pengajuan perubahan dikirim. Menunggu persetujuan HR.";
+        if ($tolak) $pesan .= ' Namun: ' . implode(' ', $tolak);
+
+        return redirect()->to('/profile')->with('success', $pesan);
+    }
+
+    /**
+     * Validasi satu field pengajuan ESS. Mengembalikan pesan penolakan, atau
+     * null bila lolos.
+     *
+     * Dijalankan di server dan bukan hanya di form: kolom `pendidikan` sempat
+     * terisi 120 variasi teks bebas hasil impor lama, dan kontrol di sisi
+     * browser saja tidak menahan kiriman POST langsung.
+     *
+     * @param string $jenjang Jenjang yang berlaku untuk pengajuan ini.
+     */
+    private function validasiFieldPengajuan(string $field, string $nilai, string $jenjang): ?string
+    {
+        $M = \App\Models\EmployeeChangeRequestModel::class;
+
+        if ($field === 'pendidikan' && ! in_array($nilai, $M::JENJANG, true)) {
+            return 'Jenjang pendidikan harus dipilih dari daftar yang tersedia.';
+        }
+
+        if ($field === 'ipk') {
+            if (! $M::jenjangPunyaIpk($jenjang)) {
+                // Bisa terjadi karena jenjang tersimpan masih berupa teks lama
+                // ("UNIBA", "SMU"), bukan karena karyawannya salah. Arahkan ke
+                // solusinya, jangan sekadar menolak.
+                return 'IPK hanya berlaku untuk jenjang D1 ke atas — centang juga "Pendidikan Terakhir" dan pilih jenjang Anda pada pengajuan yang sama.';
+            }
+            if (! is_numeric(str_replace(',', '.', $nilai))) {
+                return 'IPK harus berupa angka, contoh: 3.45.';
+            }
+            $ipk = (float) str_replace(',', '.', $nilai);
+            if ($ipk < 0 || $ipk > 4) {
+                return 'IPK harus berada di rentang 0,00 sampai 4,00.';
+            }
+        }
+
+        if ($field === 'tahun_lulus') {
+            if (! ctype_digit($nilai)) return 'Tahun lulus harus berupa angka 4 digit, contoh: 2015.';
+            $th = (int) $nilai;
+            if ($th < 1950 || $th > (int) date('Y')) {
+                return 'Tahun lulus harus antara 1950 sampai ' . date('Y') . '.';
+            }
+        }
+
+        if ($field === 'institusi' && mb_strlen($nilai) > 150) {
+            return 'Nama sekolah / perguruan tinggi maksimal 150 karakter.';
+        }
+
+        return null;
     }
 
     public function updateProfile()

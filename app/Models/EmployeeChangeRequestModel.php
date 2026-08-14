@@ -20,12 +20,29 @@ class EmployeeChangeRequestModel extends Model
         'email'             => 'Email',
         'alamat'            => 'Alamat',
         'alamat_non_bpn'    => 'Alamat (Non-BPN)',
-        'pendidikan'        => 'Pendidikan',
-        'jurusan'           => 'Jurusan',
+        'pendidikan'        => 'Pendidikan Terakhir',
+        'institusi'         => 'Nama Sekolah / Perguruan Tinggi',
+        'jurusan'           => 'Jurusan / Fakultas',
+        'ipk'               => 'IPK',
+        'tahun_lulus'       => 'Tahun Lulus',
         'status_pernikahan' => 'Status Pernikahan',
         'agama'             => 'Agama',
         'foto'              => 'Foto Profil',
     ];
+
+    /** Jenjang baku — satu-satunya nilai yang boleh masuk kolom `pendidikan`. */
+    public const JENJANG = ['SD', 'SMP', 'SMA', 'SMK', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3'];
+
+    /**
+     * Jenjang yang mengenal IPK. SD s/d SMK memakai nilai rapor/UN, bukan IPK,
+     * jadi mengisinya di sana hanya menghasilkan angka yang tak bisa dibandingkan.
+     */
+    public const JENJANG_BER_IPK = ['D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3'];
+
+    public static function jenjangPunyaIpk(?string $jenjang): bool
+    {
+        return in_array(strtoupper(trim((string) $jenjang)), self::JENJANG_BER_IPK, true);
+    }
 
     public function pendingForEmployee(int $employeeId): array
     {

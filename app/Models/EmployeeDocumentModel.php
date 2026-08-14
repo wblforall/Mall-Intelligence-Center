@@ -18,8 +18,9 @@ class EmployeeDocumentModel extends Model
         'ktp'     => 'KTP',
         'npwp'    => 'NPWP',
         'kk'      => 'Kartu Keluarga',
-        'ijazah'  => 'Ijazah',
-        'lainnya' => 'Lainnya',
+        'ijazah'    => 'Ijazah',
+        'transkrip' => 'Transkrip Nilai',
+        'lainnya'   => 'Lainnya',
     ];
 
     public static function jenisLabel(string $jenis, ?string $nama = null): string

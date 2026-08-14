@@ -37,24 +37,83 @@ class PeopleEmployees extends BaseController
         ]);
     }
 
+    /** "3,45" → "3.45", di luar rentang 0–4 dibuang. Null bila kosong/bukan angka. */
+    private function normalIpk(?string $v): ?string
+    {
+        if ($v === null || trim($v) === '') return null;
+        $v = str_replace(',', '.', trim($v));
+        if (! is_numeric($v)) return null;
+        $n = (float) $v;
+        return ($n < 0 || $n > 4) ? null : number_format($n, 2, '.', '');
+    }
+
+    /**
+     * Validasi field pendidikan dari form HR. Mengembalikan pesan galat, atau
+     * null bila lolos. Aturannya sengaja disamakan dengan jalur ESS
+     * (Users::validasiFieldPengajuan) supaya HR dan karyawan tidak tunduk pada
+     * batasan yang berbeda untuk data yang sama.
+     */
+    private function validasiPendidikanHr(array $post): ?string
+    {
+        $M   = \App\Models\EmployeeChangeRequestModel::class;
+        $jen = trim($post['pendidikan'] ?? '');
+        $ipk = trim($post['ipk'] ?? '');
+        $thn = trim($post['tahun_lulus'] ?? '');
+
+        if ($ipk !== '') {
+            if (! $M::jenjangPunyaIpk($jen)) {
+                return 'IPK hanya berlaku untuk jenjang D1 ke atas. Pilih jenjang yang sesuai atau kosongkan IPK.';
+            }
+            $n = str_replace(',', '.', $ipk);
+            if (! is_numeric($n))            return 'IPK harus berupa angka, contoh: 3.45.';
+            if ((float) $n < 0 || (float) $n > 4) return 'IPK harus berada di rentang 0,00 sampai 4,00.';
+        }
+
+        if ($thn !== '') {
+            if (! ctype_digit($thn)) return 'Tahun lulus harus berupa angka 4 digit, contoh: 2015.';
+            $th = (int) $thn;
+            if ($th < 1950 || $th > (int) date('Y')) {
+                return 'Tahun lulus harus antara 1950 sampai ' . date('Y') . '.';
+            }
+        }
+
+        return null;
+    }
+
     // Field profil tambahan (status kontrak, project/payroll, dll) dari form
     private function profileData(array $post): array
     {
         $f = fn($k) => trim($post[$k] ?? '') ?: null;
-        return [
+        $data = [
             'email_kerja'        => $f('email_kerja'),
             'nik_ktp'            => $f('nik_ktp'),
             'status_kontrak'     => $f('status_kontrak'),
             'tanggal_akhir_kontrak' => $f('tanggal_akhir_kontrak'),
             'project'            => $f('project'),
             'pendidikan'         => $f('pendidikan'),
+            'institusi'          => $f('institusi'),
             'jurusan'            => $f('jurusan'),
+            'tahun_lulus'        => $f('tahun_lulus'),
             'status_pernikahan'  => $f('status_pernikahan'),
             'agama'              => $f('agama'),
             'jabatan_sebelumnya' => $f('jabatan_sebelumnya'),
             'alamat'             => $f('alamat'),
             'alamat_non_bpn'     => $f('alamat_non_bpn'),
         ];
+
+        // IPK ditentukan oleh jenjang, dengan satu pengecualian penting:
+        // bila jenjang masih berupa teks lama hasil impor ("UNIBA", "SMU"),
+        // kita TIDAK tahu apakah IPK relevan — kolomnya sengaja tidak disentuh
+        // agar penyuntingan field lain tidak menghapus IPK yang sudah benar.
+        $M   = \App\Models\EmployeeChangeRequestModel::class;
+        $jen = $f('pendidikan');
+        if ($M::jenjangPunyaIpk($jen)) {
+            $data['ipk'] = $this->normalIpk($f('ipk'));
+        } elseif ($jen !== null && in_array(strtoupper($jen), $M::JENJANG, true)) {
+            $data['ipk'] = null;   // jenjang dikenal dan memang tidak ber-IPK
+        }
+
+        return $data;
     }
 
     // Buatkan akun login untuk karyawan (link employees.user_id ke users)
@@ -362,7 +421,28 @@ class PeopleEmployees extends BaseController
             if (! empty($emp['foto']) && file_exists($dir . $emp['foto'])) @unlink($dir . $emp['foto']);
         }
 
-        $empModel->update($req['employee_id'], [$req['field'] => $req['value_new']]);
+        // Setiap field disetujui terpisah, jadi aturan yang berlaku saat
+        // pengajuan dibuat belum tentu masih berlaku saat disetujui. Tanpa
+        // pemeriksaan ulang di sini, menyetujui IPK tapi menolak jenjangnya
+        // menghasilkan kombinasi mustahil seperti "SMA · IPK 4.00".
+        $M    = EmployeeChangeRequestModel::class;
+        $tulis = [$req['field'] => $req['value_new']];
+
+        if ($req['field'] === 'ipk' && ! $M::jenjangPunyaIpk($emp['pendidikan'] ?? '')) {
+            return redirect()->to('/people/change-requests')->with('error',
+                'Jenjang pendidikan karyawan saat ini "' . ($emp['pendidikan'] ?: '—')
+                . '" tidak mengenal IPK. Setujui dulu pengajuan Pendidikan Terakhir-nya, baru IPK ini bisa disetujui.');
+        }
+
+        // Jenjang turun ke tingkat tanpa IPK → IPK lama ikut dibersihkan,
+        // kalau tidak angkanya tertinggal dan tampil sebagai "SMA · IPK 3.45".
+        if ($req['field'] === 'pendidikan'
+            && ! $M::jenjangPunyaIpk($req['value_new'])
+            && ($emp['ipk'] ?? null) !== null) {
+            $tulis['ipk'] = null;
+        }
+
+        $empModel->update($req['employee_id'], $tulis);
 
         // Jika email berubah & karyawan punya akun login → email login ikut berubah
         if ($req['field'] === 'email' && ! empty($emp['user_id'])) {
@@ -421,7 +501,8 @@ class PeopleEmployees extends BaseController
 
         $cols = ['No', 'NIK', 'NIK KTP', 'Nama', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Masuk', 'Masa Kerja',
                  'Departemen', 'Divisi', 'Jabatan', 'Grade', 'Atasan', 'Status Kontrak', 'Project (Sumber Gaji)',
-                 'Pendidikan', 'Jurusan', 'Status Pernikahan', 'Agama', 'Jabatan Sebelumnya',
+                 'Pendidikan', 'Sekolah/Perguruan Tinggi', 'Jurusan/Fakultas', 'IPK', 'Tahun Lulus',
+                 'Status Pernikahan', 'Agama', 'Jabatan Sebelumnya',
                  'No HP', 'Email', 'Alamat', 'Alamat Non-BPN', 'Status', 'Catatan'];
         $esc = fn($v) => '"' . str_replace('"', '""', (string) ($v ?? '')) . '"';
 
@@ -436,7 +517,8 @@ class PeopleEmployees extends BaseController
                 $e['dept_name'] ?? '', $e['division_nama'] ?? '',
                 $e['jabatan'] ?? '', $e['jabatan_grade'] ?? '', $e['atasan_nama'] ?? '',
                 $e['status_kontrak'] ?? '', $e['project'] ?? '',
-                $e['pendidikan'] ?? '', $e['jurusan'] ?? '', $e['status_pernikahan'] ?? '', $e['agama'] ?? '', $e['jabatan_sebelumnya'] ?? '',
+                $e['pendidikan'] ?? '', $e['institusi'] ?? '', $e['jurusan'] ?? '', $e['ipk'] ?? '', $e['tahun_lulus'] ?? '',
+                $e['status_pernikahan'] ?? '', $e['agama'] ?? '', $e['jabatan_sebelumnya'] ?? '',
                 $e['no_hp'] ?? '', $e['email'] ?? '', $e['alamat'] ?? '', $e['alamat_non_bpn'] ?? '', $e['status'] ?? '', $e['catatan'] ?? '',
             ];
             $csv .= implode(',', array_map($esc, $row)) . "\r\n";
@@ -505,6 +587,7 @@ class PeopleEmployees extends BaseController
     {
         if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
+        if ($err = $this->validasiPendidikanHr($post)) return redirect()->back()->withInput()->with('error', $err);
         $model = new EmployeeModel();
 
         $fotoName = null;
@@ -564,6 +647,9 @@ class PeopleEmployees extends BaseController
     {
         if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main')) return redirect()->to('/events')->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
+        if ($err = $this->validasiPendidikanHr($post)) {
+            return redirect()->to('/people/employees/' . $id)->withInput()->with('error', $err);
+        }
         $model = new EmployeeModel();
         $employee = $model->find($id);
         if (! $employee) return redirect()->to('/people/employees')->with('error', 'Karyawan tidak ditemukan.');

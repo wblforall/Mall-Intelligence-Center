@@ -298,12 +298,16 @@ $infoFields = [
 <div class="modal-body">
     <p class="small text-muted">Centang data yang ingin diubah, lalu isi nilai barunya. Pengajuan akan ditinjau & disetujui HR sebelum berlaku.</p>
     <?php
-    $textFields = ['no_hp'=>'No. HP','email'=>'Email','alamat'=>'Alamat','alamat_non_bpn'=>'Alamat (Non-BPN)','jurusan'=>'Jurusan'];
+    $textFields = ['no_hp'=>'No. HP','email'=>'Email','alamat'=>'Alamat','alamat_non_bpn'=>'Alamat (Non-BPN)'];
     $selectFields = [
-        'pendidikan'        => ['', 'SD', 'SMP', 'SMA', 'SMK', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3'],
         'status_pernikahan' => ['', 'Belum Menikah', 'Menikah', 'Cerai'],
         'agama'             => ['', 'Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'],
     ];
+    // Pendidikan dipisah ke bloknya sendiri: field-fieldnya saling terkait
+    // (IPK hanya relevan untuk D1 ke atas), jadi tak bisa ikut perulangan
+    // generik seperti field lain.
+    $jenjangOpts = \App\Models\EmployeeChangeRequestModel::JENJANG;
+    $pendNow     = (string) ($employee['pendidikan'] ?? '');
     ?>
     <?php foreach ($textFields as $f => $lbl): ?>
     <div class="mb-3 row align-items-center">
@@ -337,6 +341,53 @@ $infoFields = [
         </div>
     </div>
     <?php endforeach; ?>
+    <!-- ── Riwayat Pendidikan ── -->
+    <hr class="my-3">
+    <div class="fw-semibold small mb-1">Pendidikan Terakhir</div>
+    <p class="small text-muted mb-3">Isi jenjang tertinggi yang Anda selesaikan. Lampirkan ijazah dan transkrip lewat tombol <em>Unggah Dokumen</em> agar HR dapat memverifikasi.</p>
+
+    <?php
+    $pendFields = [
+        'pendidikan'  => 'Jenjang',
+        'institusi'   => 'Nama Sekolah / Perguruan Tinggi',
+        'jurusan'     => 'Jurusan / Fakultas',
+        'ipk'         => 'IPK',
+        'tahun_lulus' => 'Tahun Lulus',
+    ];
+    foreach ($pendFields as $f => $lbl):
+        $isIpk = $f === 'ipk'; ?>
+    <div class="mb-3 row align-items-center<?= $isIpk ? ' baris-ipk' : '' ?>">
+        <div class="col-4">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="<?= $f ?>_chk" id="chk_<?= $f ?>" onchange="document.getElementById('in_<?= $f ?>').disabled=!this.checked">
+                <label class="form-check-label small fw-semibold" for="chk_<?= $f ?>"><?= $lbl ?></label>
+            </div>
+            <div class="form-text small">Skrg: <?= esc($employee[$f] ?? '') ?: '—' ?></div>
+        </div>
+        <div class="col-8">
+            <?php if ($f === 'pendidikan'): ?>
+            <select id="in_pendidikan" name="pendidikan" class="form-select form-select-sm" disabled onchange="aturIpk()">
+                <option value="">— pilih —</option>
+                <?php foreach ($jenjangOpts as $o): ?>
+                <option value="<?= $o ?>" <?= $pendNow === $o ? 'selected' : '' ?>><?= $o ?></option>
+                <?php endforeach; ?>
+            </select>
+            <?php if ($pendNow !== '' && ! in_array($pendNow, $jenjangOpts, true)): ?>
+            <div class="form-text small text-warning">Data lama Anda tercatat sebagai "<?= esc($pendNow) ?>" — mohon pilih jenjang yang sesuai.</div>
+            <?php endif; ?>
+            <?php elseif ($isIpk): ?>
+            <input type="text" inputmode="decimal" id="in_ipk" name="ipk" class="form-control form-control-sm" value="<?= esc($employee['ipk'] ?? '') ?>" placeholder="contoh: 3.45" disabled>
+            <div class="form-text small">Skala 0,00–4,00. Hanya untuk jenjang D1 ke atas.</div>
+            <?php elseif ($f === 'tahun_lulus'): ?>
+            <input type="number" id="in_tahun_lulus" name="tahun_lulus" class="form-control form-control-sm" value="<?= esc($employee['tahun_lulus'] ?? '') ?>" min="1950" max="<?= date('Y') ?>" placeholder="contoh: 2015" disabled>
+            <?php else: ?>
+            <input type="text" id="in_<?= $f ?>" name="<?= $f ?>" class="form-control form-control-sm" value="<?= esc($employee[$f] ?? '') ?>" disabled>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endforeach; ?>
+    <hr class="my-3">
+
     <div class="mb-2 row align-items-center">
         <div class="col-4">
             <div class="form-check">
@@ -453,5 +504,38 @@ document.querySelectorAll('.theme-radio').forEach(function(radio) {
         }
     });
 })();
+
+/**
+ * IPK hanya masuk akal untuk jenjang D1 ke atas, jadi barisnya disembunyikan
+ * untuk jenjang di bawahnya. Jenjang yang dipakai = pilihan dropdown bila
+ * karyawan sedang mengubahnya, kalau tidak ya jenjang yang tersimpan.
+ * Aturan yang sama ditegakkan ulang di server (Users::validasiFieldPengajuan).
+ */
+function aturIpk() {
+    const baris = document.querySelector('.baris-ipk');
+    if (!baris) return;
+
+    const sel  = document.getElementById('in_pendidikan');
+    const chk  = document.getElementById('chk_pendidikan');
+    const kini = <?= json_encode((string) ($employee['pendidikan'] ?? '')) ?>;
+    const pakaiPilihan = chk && chk.checked && sel && sel.value !== '';
+    const jenjang = (pakaiPilihan ? sel.value : kini).toUpperCase().trim();
+
+    const boleh = ['D1','D2','D3','D4','S1','S2','S3'].includes(jenjang);
+    baris.classList.toggle('d-none', !boleh);
+
+    // Jangan biarkan nilai yang tersembunyi ikut terkirim.
+    if (!boleh) {
+        const c = document.getElementById('chk_ipk');
+        const i = document.getElementById('in_ipk');
+        if (c) c.checked = false;
+        if (i) i.disabled = true;
+    }
+}
+document.addEventListener('DOMContentLoaded', function () {
+    const chk = document.getElementById('chk_pendidikan');
+    if (chk) chk.addEventListener('change', aturIpk);
+    aturIpk();
+});
 </script>
 <?= $this->endSection() ?>
