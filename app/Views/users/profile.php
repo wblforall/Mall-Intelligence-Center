@@ -234,7 +234,7 @@ $infoFields = [
     </div>
     <div class="card-body p-0">
     <?php if (empty($documents)): ?>
-    <p class="text-muted text-center py-4 small mb-0">Belum ada dokumen. Upload KTP, NPWP, KK, atau ijazah — akan diverifikasi HR.</p>
+    <p class="text-muted text-center py-4 small mb-0">Belum ada dokumen. KTP, Kartu Keluarga, NPWP, ijazah, dan transkrip dilampirkan lewat <strong>Ajukan Perubahan Data</strong>; tombol di atas hanya untuk dokumen lain.</p>
     <?php else: ?>
     <?php $sb = ['pending'=>'warning','approved'=>'success','rejected'=>'danger']; ?>
     <div class="table-responsive">
@@ -404,7 +404,11 @@ $infoFields = [
     $pendNow     = (string) ($employee['pendidikan'] ?? '');
     ?>
     <?php foreach ($textFields as $f => $lbl): ?>
-    <div class="mb-3 row align-items-center">
+    <?php // Baris bernomor identitas jauh lebih tinggi (input + petunjuk +
+          // lampiran). Dengan align-items-center, labelnya ter-center dan
+          // tampak menempel ke input baris DI ATASNYA — rata atas menjaga
+          // label tetap sejajar dengan kolom isinya sendiri. ?>
+    <div class="mb-3 row <?= isset($petunjukNomor[$f]) ? 'align-items-start' : 'align-items-center' ?>">
         <div class="col-4">
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" name="<?= $f ?>_chk" id="chk_<?= $f ?>" onchange="document.getElementById('in_<?= $f ?>').disabled=!this.checked">
