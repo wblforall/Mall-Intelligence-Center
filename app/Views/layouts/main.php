@@ -416,6 +416,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('appraisal') ?>" class="nav-link <?= str_starts_with(uri_string(), 'appraisal') && !str_starts_with(uri_string(), 'appraisal/saya') ? 'active' : '' ?>">
             <i class="bi bi-clipboard-data-fill"></i> Appraisal
         </a>
+        <a href="<?= base_url('people/status-login') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/status-login') ? 'active' : '' ?>">
+            <i class="bi bi-door-open"></i> Status Login
+        </a>
         <a href="<?= base_url('people/change-requests') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/change-requests') ? 'active' : '' ?>">
             <i class="bi bi-pencil-square"></i> Pengajuan Data
             <?php if (($_changeReqCount ?? 0) > 0): ?><span class="badge bg-danger ms-auto"><?= $_changeReqCount ?></span><?php endif; ?>
@@ -457,6 +460,9 @@ body { min-height: 100vh; }
         </a>
         <a href="<?= base_url('people/orgchart') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/orgchart') ? 'active' : '' ?>">
             <i class="bi bi-diagram-3-fill"></i> Struktur Organisasi
+        </a>
+        <a href="<?= base_url('people/status-login') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/status-login') ? 'active' : '' ?>">
+            <i class="bi bi-door-open"></i> Status Login
         </a>
         <a href="<?= base_url('people/change-requests') ?>" class="nav-link <?= str_starts_with(uri_string(), 'people/change-requests') ? 'active' : '' ?>">
             <i class="bi bi-pencil-square"></i> Pengajuan Data

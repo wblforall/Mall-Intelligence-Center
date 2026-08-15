@@ -515,6 +515,7 @@ $routes->post('appraisal/forms/(:num)/release',        'AppraisalForm::release/$
 $routes->get('appraisal/saya',                         'AppraisalForm::saya',               ['filter' => 'auth']);
 
 // HR: approval pengajuan perubahan data
+$routes->get('people/status-login',                    'PeopleEmployees::statusLogin',      ['filter' => 'auth']);
 $routes->get('people/change-requests',                 'PeopleEmployees::changeRequests',   ['filter' => 'auth']);
 $routes->post('people/change-requests/(:num)/approve', 'PeopleEmployees::approveChange/$1', ['filter' => 'auth']);
 $routes->post('people/change-requests/(:num)/reject',  'PeopleEmployees::rejectChange/$1',  ['filter' => 'auth']);

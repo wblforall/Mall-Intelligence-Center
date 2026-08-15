@@ -278,6 +278,77 @@ class PeopleEmployees extends BaseController
         ]);
     }
 
+    /**
+     * Status Login Karyawan — memantau siapa yang sudah benar-benar memakai
+     * MIC setelah didaftarkan. Dibuat untuk masa pengkinian data: membuat
+     * ratusan akun tak ada gunanya bila tak ada yang tahu siapa yang belum
+     * pernah masuk.
+     */
+    public function statusLogin()
+    {
+        if (! $this->canViewMenu('people_dev') && ! $this->canViewMenu('hr_main')) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+
+        $model = new EmployeeModel();
+        $rows  = $model->statusLogin();
+
+        $dept = (int) $this->request->getGet('dept');
+        if ($dept > 0) {
+            $rows = array_values(array_filter($rows, static fn ($r) => (int) $r['dept_id'] === $dept));
+        }
+        $keadaan = (string) $this->request->getGet('keadaan');
+        if ($keadaan !== '' && isset(array_flip(['belum_akun','belum_login','belum_ganti','aktif'])[$keadaan])) {
+            $rows = array_values(array_filter($rows, static fn ($r) => $r['keadaan'] === $keadaan));
+        }
+
+        // Yang bermasalah ditaruh di atas — itu yang perlu ditindaklanjuti.
+        $bobot = ['belum_akun' => 0, 'belum_login' => 1, 'belum_ganti' => 2, 'aktif' => 3];
+        usort($rows, static fn ($a, $b) =>
+            [$bobot[$a['keadaan']], $a['dept_name'] ?? '', $a['nama']]
+            <=> [$bobot[$b['keadaan']], $b['dept_name'] ?? '', $b['nama']]);
+
+        if ($this->request->getGet('export') === 'csv') {
+            return $this->exportStatusLogin($rows);
+        }
+
+        return view('people/status_login', [
+            'user'        => $this->currentUser(),
+            'rows'        => $rows,
+            'rekap'       => EmployeeModel::rekapStatusLogin($model->statusLogin()),
+            'departments' => (new DepartmentModel())->selectable(),
+            'fDept'       => $dept,
+            'fKeadaan'    => $keadaan,
+        ]);
+    }
+
+    private function exportStatusLogin(array $rows)
+    {
+        $label = [
+            'belum_akun'  => 'Belum dibuatkan akun',
+            'belum_login' => 'Belum pernah login',
+            'belum_ganti' => 'Login, belum ganti password',
+            'aktif'       => 'Aktif',
+        ];
+        $esc = fn ($v) => '"' . str_replace('"', '""', (string) ($v ?? '')) . '"';
+        $csv = "\xEF\xBB\xBF" . implode(',', array_map($esc,
+            ['No', 'Departemen', 'Nama', 'Email Login', 'Status', 'Login Terakhir', 'Umur Akun (hari)'])) . "\r\n";
+
+        $i = 1;
+        foreach ($rows as $r) {
+            $csv .= implode(',', array_map($esc, [
+                $i++, $r['dept_name'] ?: '(tanpa departemen)', $r['nama'],
+                $r['email_login'] ?: '', $label[$r['keadaan']],
+                $r['last_login_at'] ?: '', $r['umur_akun'] ?? '',
+            ])) . "\r\n";
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="status_login_karyawan_' . date('Ymd') . '.csv"')
+            ->setBody($csv);
+    }
+
     // Serve file sertifikat karyawan lewat auth (HR/People Dev atau karyawan pemilik).
     public function viewCertificate(int $id)
     {
