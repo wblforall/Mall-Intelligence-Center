@@ -22,12 +22,18 @@ class EmployeeModel extends Model
      * Status akun & login tiap karyawan aktif — untuk memantau sejauh mana
      * karyawan sudah benar-benar memakai MIC setelah didaftarkan.
      *
-     * Empat keadaan yang dibedakan, karena tindak lanjutnya berbeda:
-     *   belum_akun   → IT perlu membuatkan akun
-     *   belum_login  → akun sudah ada, kredensialnya mungkin tak sampai
-     *   belum_ganti  → sempat masuk tapi berhenti di layar ganti password,
-     *                  jadi akunnya MASIH memakai password awal
-     *   aktif        → beres
+     * Lima keadaan yang dibedakan, karena tindak lanjutnya berbeda:
+     *   belum_akun     → IT perlu membuatkan akun
+     *   akun_nonaktif  → akun ADA tapi dimatikan; bukan tugas IT membuat baru
+     *   belum_login    → akun sudah ada, kredensialnya mungkin tak sampai
+     *   belum_ganti    → sempat masuk tapi berhenti di layar ganti password,
+     *                    jadi akunnya MASIH memakai password awal
+     *   aktif          → beres
+     *
+     * `is_active` sengaja TIDAK ikut di kondisi JOIN. Bila ikut, akun yang
+     * dinonaktifkan membuat join gagal sehingga karyawannya tampak "belum
+     * dibuatkan akun" — lalu IT menuruti anjuran itu dan ditolak createAccount()
+     * dengan "sudah punya akun login", tanpa penjelasan apa pun.
      */
     public function statusLogin(): array
     {
@@ -37,16 +43,19 @@ class EmployeeModel extends Model
                       u.id AS user_id, u.email AS email_login, u.is_active,
                       u.last_login_at, u.must_change_password, u.created_at AS akun_dibuat")
             ->join('departments d', 'd.id = e.dept_id', 'left')
-            ->join('users u', 'u.id = e.user_id AND u.is_active = 1', 'left')
+            ->join('users u', 'u.id = e.user_id', 'left')
             ->where('e.status', 'aktif')
             ->orderBy('d.name', 'ASC')
             ->orderBy('e.nama', 'ASC')
             ->get()->getResultArray();
 
         foreach ($rows as &$r) {
-            $r['keadaan'] = $r['user_id'] === null            ? 'belum_akun'
-                          : ($r['last_login_at'] === null     ? 'belum_login'
-                          : ((int) $r['must_change_password'] ? 'belum_ganti' : 'aktif'));
+            if ($r['user_id'] === null)                 $r['keadaan'] = 'belum_akun';
+            elseif (! (int) $r['is_active'])            $r['keadaan'] = 'akun_nonaktif';
+            elseif ($r['last_login_at'] === null)       $r['keadaan'] = 'belum_login';
+            elseif ((int) $r['must_change_password'])   $r['keadaan'] = 'belum_ganti';
+            else                                        $r['keadaan'] = 'aktif';
+
             $r['umur_akun'] = $r['akun_dibuat']
                 ? (int) floor((time() - strtotime($r['akun_dibuat'])) / 86400) : null;
         }
@@ -56,7 +65,7 @@ class EmployeeModel extends Model
     /** Ringkasan per keadaan + rekap per departemen dari hasil statusLogin(). */
     public static function rekapStatusLogin(array $rows): array
     {
-        $kosong = ['belum_akun' => 0, 'belum_login' => 0, 'belum_ganti' => 0, 'aktif' => 0];
+        $kosong = ['belum_akun' => 0, 'akun_nonaktif' => 0, 'belum_login' => 0, 'belum_ganti' => 0, 'aktif' => 0];
         $urut   = $kosong;
         $dept   = [];
         foreach ($rows as $r) {

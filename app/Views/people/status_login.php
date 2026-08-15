@@ -2,11 +2,16 @@
 <?= $this->section('content') ?>
 
 <?php
+// [label, warna, ikon, kelas teks badge]
+// Kelas teks ikut di sini, bukan ditambal per pemakaian: bg-warning butuh
+// text-dark agar terbaca (putih di atas kuning hanya ~1,6:1), dan kalau warna
+// keadaan lain suatu saat diubah, penyesuaiannya cukup di satu tempat.
 $L = [
-    'belum_akun'  => ['Belum dibuatkan akun',        'secondary', 'bi-person-slash'],
-    'belum_login' => ['Belum pernah login',          'danger',    'bi-door-closed'],
-    'belum_ganti' => ['Login, belum ganti password', 'warning',   'bi-shield-exclamation'],
-    'aktif'       => ['Aktif',                       'success',   'bi-check-circle'],
+    'belum_akun'    => ['Belum dibuatkan akun',        'secondary', 'bi-person-slash',        ''],
+    'akun_nonaktif' => ['Akun dinonaktifkan',          'dark',      'bi-slash-circle',        ''],
+    'belum_login'   => ['Belum pernah login',          'danger',    'bi-door-closed',         ''],
+    'belum_ganti'   => ['Login, belum ganti password', 'warning',   'bi-shield-exclamation', ' text-dark'],
+    'aktif'         => ['Aktif',                       'success',   'bi-check-circle',        ''],
 ];
 $qs = fn (array $ubah) => '?' . http_build_query(array_filter(
     ['dept' => $fDept ?: null, 'keadaan' => $fKeadaan ?: null] + [], fn ($v) => $v !== null) + $ubah);
@@ -27,8 +32,12 @@ $qs = fn (array $ubah) => '?' . http_build_query(array_filter(
 
 <!-- Ringkasan -->
 <div class="row g-3 mb-4">
-    <?php foreach ($L as $k => [$lbl, $warna, $ikon]):
+    <?php foreach ($L as $k => [$lbl, $warna, $ikon, $teks]):
         $n = $rekap['per_keadaan'][$k] ?? 0;
+        // "Akun dinonaktifkan" jarang terjadi. Ditampilkan hanya bila memang
+        // ada — sebagai kartu "0" permanen ia cuma jadi kolom kosong yang
+        // mengganggu, dan justru muncul tepat saat perlu diperhatikan.
+        if ($k === 'akun_nonaktif' && $n === 0 && $fKeadaan !== $k) continue;
         $pct = $rekap['total'] ? round($n / $rekap['total'] * 100) : 0; ?>
     <div class="col-6 col-lg-3">
         <a href="<?= base_url('people/status-login') . '?' . http_build_query(array_filter(['dept' => $fDept ?: null, 'keadaan' => $fKeadaan === $k ? null : $k])) ?>"
@@ -81,14 +90,14 @@ $qs = fn (array $ubah) => '?' . http_build_query(array_filter(
     <th class="ps-3">Karyawan</th><th>Email Login</th><th>Status</th><th>Login Terakhir</th><th>Umur Akun</th>
 </tr></thead>
 <tbody>
-<?php foreach ($rows as $r): [$lbl, $warna] = $L[$r['keadaan']]; ?>
+<?php foreach ($rows as $r): [$lbl, $warna, , $teks] = $L[$r['keadaan']]; ?>
 <tr>
     <td class="ps-3">
         <div class="fw-semibold small"><?= esc($r['nama']) ?></div>
         <div class="text-muted" style="font-size:.72rem"><?= esc($r['dept_name'] ?: '—') ?></div>
     </td>
     <td class="small text-muted"><?= esc($r['email_login'] ?: '') ?: '—' ?></td>
-    <td><span class="badge bg-<?= $warna ?>"><?= $lbl ?></span></td>
+    <td><span class="badge bg-<?= $warna . $teks ?>"><?= $lbl ?></span></td>
     <td class="small text-nowrap"><?= $r['last_login_at'] ? date('d M Y H:i', strtotime($r['last_login_at'])) : '—' ?></td>
     <td class="small text-nowrap text-muted"><?= $r['umur_akun'] !== null ? $r['umur_akun'] . ' hari' : '—' ?></td>
 </tr>
@@ -108,7 +117,9 @@ $qs = fn (array $ubah) => '?' . http_build_query(array_filter(
 <table class="table table-sm align-middle mb-0">
 <thead class="table-light"><tr>
     <th class="ps-3">Departemen</th><th class="text-center">Jumlah</th>
-    <th class="text-center">Belum Ada Akun</th><th class="text-center">Belum Login</th>
+    <th class="text-center">Belum Ada Akun</th>
+    <?php if ($rekap['per_keadaan']['akun_nonaktif'] > 0): ?><th class="text-center">Nonaktif</th><?php endif; ?>
+    <th class="text-center">Belum Login</th>
     <th class="text-center">Belum Ganti PW</th><th class="text-center">Aktif</th>
 </tr></thead>
 <tbody>
@@ -117,6 +128,9 @@ $qs = fn (array $ubah) => '?' . http_build_query(array_filter(
     <td class="ps-3 fw-semibold small"><?= esc($nama) ?></td>
     <td class="text-center small"><?= $d['total'] ?></td>
     <td class="text-center small<?= $d['belum_akun']  ? ' text-secondary fw-semibold' : ' text-muted' ?>"><?= $d['belum_akun'] ?: '—' ?></td>
+    <?php if ($rekap['per_keadaan']['akun_nonaktif'] > 0): ?>
+    <td class="text-center small<?= $d['akun_nonaktif'] ? ' fw-semibold' : ' text-muted' ?>"><?= $d['akun_nonaktif'] ?: '—' ?></td>
+    <?php endif; ?>
     <td class="text-center small<?= $d['belum_login'] ? ' text-danger fw-semibold'    : ' text-muted' ?>"><?= $d['belum_login'] ?: '—' ?></td>
     <td class="text-center small<?= $d['belum_ganti'] ? ' text-warning fw-semibold'   : ' text-muted' ?>"><?= $d['belum_ganti'] ?: '—' ?></td>
     <td class="text-center small<?= $d['aktif']       ? ' text-success fw-semibold'   : ' text-muted' ?>"><?= $d['aktif'] ?: '—' ?></td>
@@ -132,7 +146,15 @@ $qs = fn (array $ubah) => '?' . http_build_query(array_filter(
     <b>Cara membaca:</b>
     <span class="badge bg-secondary">Belum dibuatkan akun</span> perlu ditindaklanjuti Divisi IT.
     <span class="badge bg-danger">Belum pernah login</span> akunnya ada tapi belum pernah dipakai — kemungkinan email kredensial tidak sampai.
-    <span class="badge bg-warning">Login, belum ganti password</span> sempat masuk lalu berhenti di layar ganti password, sehingga akunnya <b>masih memakai password awal</b>.
+    <span class="badge bg-warning text-dark">Login, belum ganti password</span> sempat masuk lalu berhenti di layar ganti password, sehingga akunnya <b>masih memakai password awal</b>.
+    <?php if ($rekap['per_keadaan']['akun_nonaktif'] > 0): ?>
+    <span class="badge bg-dark">Akun dinonaktifkan</span> akunnya sudah ada tetapi dimatikan — <b>bukan</b> perlu dibuatkan akun baru; aktifkan kembali lewat menu Users bila memang masih bekerja.
+    <?php endif; ?>
 </div>
+
+<p class="small text-muted mt-2 mb-0">
+    Angka pada kartu dan Rekap per Departemen mengikuti <b>filter departemen</b>, tetapi
+    sengaja tidak mengikuti filter keadaan — supaya Anda tetap bisa berpindah antar keadaan.
+</p>
 
 <?= $this->endSection() ?>

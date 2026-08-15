@@ -291,19 +291,27 @@ class PeopleEmployees extends BaseController
         }
 
         $model = new EmployeeModel();
-        $rows  = $model->statusLogin();
+        $semua = $model->statusLogin();          // satu kali saja untuk seluruh halaman
 
+        // Penyaringan BERTINGKAT, dan urutannya penting.
+        // Kartu ringkasan bukan sekadar angka — ia juga tombol filter keadaan.
+        // Karena itu kartu dihitung dari data yang sudah disaring DEPARTEMEN
+        // saja: kalau ikut tersaring keadaan, kartu lain jadi nol dan filternya
+        // mengunci diri sendiri — tak ada lagi jalan berpindah keadaan.
         $dept = (int) $this->request->getGet('dept');
-        if ($dept > 0) {
-            $rows = array_values(array_filter($rows, static fn ($r) => (int) $r['dept_id'] === $dept));
-        }
+        $rows = $dept > 0
+            ? array_values(array_filter($semua, static fn ($r) => (int) $r['dept_id'] === $dept))
+            : $semua;
+
+        $rekap = EmployeeModel::rekapStatusLogin($rows);
+
         $keadaan = (string) $this->request->getGet('keadaan');
-        if ($keadaan !== '' && isset(array_flip(['belum_akun','belum_login','belum_ganti','aktif'])[$keadaan])) {
+        if ($keadaan !== '' && isset($rekap['per_keadaan'][$keadaan])) {
             $rows = array_values(array_filter($rows, static fn ($r) => $r['keadaan'] === $keadaan));
         }
 
         // Yang bermasalah ditaruh di atas — itu yang perlu ditindaklanjuti.
-        $bobot = ['belum_akun' => 0, 'belum_login' => 1, 'belum_ganti' => 2, 'aktif' => 3];
+        $bobot = ['belum_akun' => 0, 'akun_nonaktif' => 1, 'belum_login' => 2, 'belum_ganti' => 3, 'aktif' => 4];
         usort($rows, static fn ($a, $b) =>
             [$bobot[$a['keadaan']], $a['dept_name'] ?? '', $a['nama']]
             <=> [$bobot[$b['keadaan']], $b['dept_name'] ?? '', $b['nama']]);
@@ -315,7 +323,7 @@ class PeopleEmployees extends BaseController
         return view('people/status_login', [
             'user'        => $this->currentUser(),
             'rows'        => $rows,
-            'rekap'       => EmployeeModel::rekapStatusLogin($model->statusLogin()),
+            'rekap'       => $rekap,
             'departments' => (new DepartmentModel())->selectable(),
             'fDept'       => $dept,
             'fKeadaan'    => $keadaan,
@@ -325,10 +333,11 @@ class PeopleEmployees extends BaseController
     private function exportStatusLogin(array $rows)
     {
         $label = [
-            'belum_akun'  => 'Belum dibuatkan akun',
-            'belum_login' => 'Belum pernah login',
-            'belum_ganti' => 'Login, belum ganti password',
-            'aktif'       => 'Aktif',
+            'belum_akun'    => 'Belum dibuatkan akun',
+            'akun_nonaktif' => 'Akun dinonaktifkan',
+            'belum_login'   => 'Belum pernah login',
+            'belum_ganti'   => 'Login, belum ganti password',
+            'aktif'         => 'Aktif',
         ];
         $esc = fn ($v) => '"' . str_replace('"', '""', (string) ($v ?? '')) . '"';
         $csv = "\xEF\xBB\xBF" . implode(',', array_map($esc,
