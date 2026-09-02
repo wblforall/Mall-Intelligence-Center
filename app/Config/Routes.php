@@ -362,6 +362,10 @@ $routes->post('roles/(:num)/edit', 'Roles::update/$1', ['filter' => 'auth:admin'
 $routes->post('roles/(:num)/delete', 'Roles::delete/$1', ['filter' => 'auth:admin']);
 
 // Departments (admin only)
+$routes->get('app-access', 'AppAccess::index', ['filter' => 'auth']);
+$routes->get('app-access/(:num)/edit', 'AppAccess::edit/$1', ['filter' => 'auth']);
+$routes->post('app-access/(:num)/edit', 'AppAccess::update/$1', ['filter' => 'auth']);
+
 $routes->get('departments', 'Departments::index', ['filter' => 'auth:admin']);
 $routes->post('departments/add', 'Departments::store', ['filter' => 'auth:admin']);
 $routes->get('departments/(:num)/edit', 'Departments::edit/$1', ['filter' => 'auth:admin']);

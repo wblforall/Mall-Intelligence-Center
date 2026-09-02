@@ -571,6 +571,15 @@ body { min-height: 100vh; }
         </a>
         <?php endif; ?>
 
+        <?php
+        if ($navCanView('app_access')):
+        ?>
+        <div class="nav-label">Portal</div>
+        <a href="<?= base_url('app-access') ?>" class="nav-link <?= str_starts_with(uri_string(), 'app-access') ? 'active' : '' ?>">
+            <i class="bi bi-grid-3x3-gap"></i> Akses Aplikasi
+        </a>
+        <?php endif; ?>
+
         <?php if (session()->get('role_perms')['can_view_logs'] ?? session()->get('role_is_admin') || session()->get('user_role') === 'admin'): ?>
         <div class="nav-label">System</div>
         <a href="<?= base_url('logs') ?>" class="nav-link <?= str_starts_with(uri_string(), 'logs') ? 'active' : '' ?>">
