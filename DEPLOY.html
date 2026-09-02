@@ -195,6 +195,17 @@ database.default.DBDriver = MySQLi</code>
         <div class="note">Untuk memastikan semua migration sudah jalan, terutama jika SQL export lebih lama dari kode.</div>
       </div>
     </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Jalankan seeder data acuan</div>
+        <code class="cmd">php spark db:seed AppAccessSeeder</code>
+        <div class="note">Mengisi data acuan portal: unit bisnis, katalog aplikasi, dan kosakata peran tiap aplikasi. <strong>Kalau dilewati, halaman Akses Aplikasi tampil tanpa pilihan apa pun</strong> — bukan error, jadi mudah tidak disadari. Idempotent: aman dijalankan berulang, tidak menduplikasi baris.</div>
+      </div>
+    </div>
   </div>
 
   <!-- BAGIAN C: SERVER TUJUAN — UPDATE -->
@@ -243,6 +254,17 @@ database.default.DBDriver = MySQLi</code>
     <div class="step">
       <div class="step-num">4</div>
       <div class="step-body">
+        <div class="step-title">Jalankan seeder data acuan (jika ada perubahan)</div>
+        <code class="cmd">php spark db:seed AppAccessSeeder</code>
+        <div class="note">Perlu dijalankan setiap kali ada penambahan unit bisnis, aplikasi, atau peran aplikasi di seeder. Idempotent — aman dijalankan setiap update meski tidak ada perubahan.</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
         <div class="step-title">Clear cache (opsional)</div>
         <code class="cmd">php spark cache:clear</code>
       </div>
@@ -271,8 +293,9 @@ xcopy /E E:\uploads_mic C:\xampp\htdocs\mall-intelligence-center\public\uploads<
     <div class="label">Di server tujuan — setiap ada update</div>
     <code class="cmd">cd C:\xampp\htdocs\mall-intelligence-center
 git pull usb main
-php spark migrate</code>
-    <div class="note" style="margin-top:4px">Tiga baris ini sudah cukup untuk update rutin.</div>
+php spark migrate
+php spark db:seed AppAccessSeeder</code>
+    <div class="note" style="margin-top:4px">Empat baris ini sudah cukup untuk update rutin. Baris seeder aman dijalankan setiap kali — idempotent, tidak menduplikasi data.</div>
   </div>
 
   <p class="note" style="text-align:center; margin-top:32px">Mall Intelligence Center — PT. Wulandari Bangun Laksana Tbk. · IT Department</p>
