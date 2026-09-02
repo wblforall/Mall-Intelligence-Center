@@ -22,6 +22,7 @@ class AppAccessSeeder extends Seeder
         $this->seedApps();
         $this->markHoldingDepartments();
         $this->backfillEmployeeCompany($companies);
+        $this->seedCompanyMappings($companies);
     }
 
     /** 6 unit bisnis — disemai dari daftar `units` yang sudah berjalan di PAM e-Sign. */
@@ -63,7 +64,13 @@ class AppAccessSeeder extends Seeder
                 'peran' => ['superadmin' => 'Superadmin', 'admin' => 'Admin', 'purchasing' => 'Purchasing',
                             'store' => 'Store', 'divisi' => 'Divisi']],
             'esign'     => ['nama' => 'PAM e-Sign', 'ikon' => 'bi-file-earmark-check',
-                'peran' => ['admin' => 'Admin', 'user' => 'User']],
+                // `unit_admin` BUKAN nilai kolom `users.role` di PAM e-Sign — ia kolom
+                // boolean tersendiri. Disemai sebagai peran di sini karena INILAH
+                // dimensi wewenang yang sungguhan: `role` isinya 60 `user` + 1 `admin`
+                // (praktis tak membedakan apa pun), sementara `unit_admin` membuka
+                // kelola pengguna unit DAN ubah template alur persetujuan.
+                'peran' => ['admin' => 'Admin', 'user' => 'User',
+                            'unit_admin' => 'Unit Admin']],
             'clara'     => ['nama' => 'Clara', 'ikon' => 'bi-house-door',
                 // 'finance' & 'supervisor' ada di role_permissions Clara tapi tidak dipakai
                 // siapa pun saat pemeriksaan — sengaja tidak disemai, tambahkan manual
@@ -127,6 +134,55 @@ class AppAccessSeeder extends Seeder
         }
         if (isset($idByKode['PSV'])) {
             $this->db->table('employees')->where('project', 'Pentacity')->update(['company_id' => $idByKode['PSV']]);
+        }
+    }
+
+    /**
+     * Pemetaan unit bisnis MIC ke id lokal di tiap aplikasi.
+     *
+     * PENTING: ID tidak sinkron antar sistem, dan tidak boleh diasumsikan
+     * sama. Hasil pemeriksaan langsung 2 Sep 2026:
+     *
+     *   PAM e-Sign `units`   : EP=1 (eWalk & Pentacity DIGABUNG), PP=2 (PAM Plus)
+     *   FlowStore  `skema`   : 1=Pentacity, 2=Ewalk   <- TERBALIK dari MIC
+     *   Clara `properties`   : 1=E-Walk, 2=Pentacity
+     *
+     * Untuk esign, DUA unit MIC menunjuk SATU unit lokal (EP) — itu kenyataan,
+     * bukan kesalahan data: PAM e-Sign memang tidak memisah eWalk dari
+     * Pentacity. Constraint UNIQUE(company_id, app_id) tetap terpenuhi karena
+     * company_id-nya berbeda.
+     *
+     * Hanya esign yang disemai di sini; FlowStore dan Clara menyusul saat
+     * masing-masing benar-benar disambungkan, supaya tidak ada pemetaan yang
+     * tercatat sebelum diverifikasi.
+     */
+    private function seedCompanyMappings(array $idByKode): void
+    {
+        $esign = $this->db->table('apps')->select('id')->where('kode', 'esign')->get()->getRowArray();
+        if (! $esign) return;
+
+        $peta = [
+            'EWM' => ['kode_lokal' => 'EP', 'id_lokal' => '1'],
+            'PSV' => ['kode_lokal' => 'EP', 'id_lokal' => '1'],
+        ];
+
+        $now = date('Y-m-d H:i:s');
+        foreach ($peta as $kode => $lokal) {
+            if (! isset($idByKode[$kode])) continue;
+
+            $ada = $this->db->table('company_mappings')
+                ->where('company_id', $idByKode[$kode])
+                ->where('app_id', (int) $esign['id'])
+                ->get()->getRowArray();
+            if ($ada) continue;
+
+            $this->db->table('company_mappings')->insert([
+                'company_id' => $idByKode[$kode],
+                'app_id'     => (int) $esign['id'],
+                'kode_lokal' => $lokal['kode_lokal'],
+                'id_lokal'   => $lokal['id_lokal'],
+                'created_at' => $now,
+            ]);
         }
     }
 }
