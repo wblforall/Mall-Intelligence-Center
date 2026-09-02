@@ -106,6 +106,10 @@ class ActivityLog
         'dashboard'                     => 'Dashboard Utama',
         'profile'                       => 'Profil Akun',
         'work_initiative'               => 'Progress Report',
+        // Portal — Akses Aplikasi
+        'company'                       => 'Unit Bisnis',
+        'department_app_access'         => 'Akses Aplikasi Departemen',
+        'employee_app_access'           => 'Akses Aplikasi Karyawan',
     ];
 
     // Label ramah-baca untuk sebuah module key; fallback humanize bila tak terdaftar
