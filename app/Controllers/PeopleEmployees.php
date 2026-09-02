@@ -14,6 +14,10 @@ use App\Models\UserModel;
 use App\Models\RoleModel;
 use App\Models\EmployeeChangeRequestModel;
 use App\Models\EmployeeDocumentModel;
+use App\Models\AppModel;
+use App\Models\AppRoleModel;
+use App\Models\CompanyModel;
+use App\Models\EmployeeAppAccessModel;
 use App\Libraries\ActivityLog;
 
 class PeopleEmployees extends BaseController
@@ -700,7 +704,53 @@ class PeopleEmployees extends BaseController
                 ->orderBy('users.name')->findAll(),
             'documents'         => (new EmployeeDocumentModel())->forEmployee($id),
             'jenisDok'          => EmployeeDocumentModel::JENIS,
+            'appAccess'         => (new EmployeeAppAccessModel())->riwayatByEmployee($id),
+            'apps'              => (new AppModel())->aktifSaja(),
+            'roleByApp'         => (new AppRoleModel())->semuaDikelompokkan(),
+            'companies'         => (new CompanyModel())->aktifSaja(),
+            'canEditAppAccess'  => $this->canEditMenu('people_dev') || $this->canEditMenu('hr_main') || $this->canEditMenu('app_access'),
         ]);
+    }
+
+    /**
+     * Beri/ubah akses seorang karyawan ke satu aplikasi — jalur HR.
+     * Admin sistem per aplikasi memakai pintu yang sama lewat menu
+     * 'app_access'; keduanya lewat EmployeeAppAccessModel::grant() yang sama,
+     * jadi jejak siapa-melakukan-apa konsisten terlepas dari pintunya.
+     */
+    public function grantAppAccess(int $id)
+    {
+        if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main') && ! $this->canEditMenu('app_access')) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        $employee = (new EmployeeModel())->find($id);
+        if (! $employee) return redirect()->to('/people/employees')->with('error', 'Karyawan tidak ditemukan.');
+
+        $appId     = (int) $this->request->getPost('app_id');
+        $appRoleId = (int) $this->request->getPost('app_role_id');
+        $companyId = (int) $this->request->getPost('company_id') ?: null;
+        $catatan   = trim($this->request->getPost('catatan') ?? '') ?: null;
+
+        if (! $appId || ! $appRoleId) {
+            return redirect()->to('/people/employees/'.$id)->with('error', 'Aplikasi dan peran wajib dipilih.');
+        }
+
+        (new EmployeeAppAccessModel())->grant($id, $appId, $appRoleId, $companyId, (int) $this->currentUser()['id'], $catatan);
+
+        return redirect()->to('/people/employees/'.$id)->with('success', 'Akses aplikasi disimpan.');
+    }
+
+    /** Cabut akses seorang karyawan ke satu aplikasi. Riwayatnya tetap tersimpan, hanya ditandai nonaktif. */
+    public function revokeAppAccess(int $id)
+    {
+        if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main') && ! $this->canEditMenu('app_access')) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        $appId = (int) $this->request->getPost('app_id');
+        $ok = (new EmployeeAppAccessModel())->revoke($id, $appId, (int) $this->currentUser()['id']);
+
+        return redirect()->to('/people/employees/'.$id)
+            ->with($ok ? 'success' : 'error', $ok ? 'Akses aplikasi dicabut.' : 'Tidak ada akses aktif untuk dicabut.');
     }
 
     public function store()

@@ -188,6 +188,93 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
 </div>
 </div>
 
+<!-- Akses Aplikasi (Portal) -->
+<div class="card mb-4 anim-fade-up" id="app-access" style="animation-delay:.14s">
+<div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-grid-3x3-gap me-2"></i>Akses Aplikasi</h6></div>
+<div class="card-body">
+<?php $aktifSaja = array_filter($appAccess, fn($r) => (int) $r['aktif'] === 1); ?>
+<?php if (empty($aktifSaja)): ?>
+    <p class="small text-muted mb-3">Belum ada akses aplikasi khusus untuk karyawan ini — ia mengikuti default departemennya.</p>
+<?php else: ?>
+    <table class="table table-sm align-middle mb-3">
+    <thead><tr><th>Aplikasi</th><th>Peran</th><th>Unit Bisnis</th><th>Diberikan</th><th></th></tr></thead>
+    <tbody>
+    <?php foreach ($aktifSaja as $r): ?>
+        <tr>
+            <td><?= esc($r['app_nama']) ?></td>
+            <td><span class="badge text-bg-primary-subtle text-primary-emphasis"><?= esc($r['peran_label']) ?></span></td>
+            <td><?= esc($r['company_nama'] ?? 'ikut default') ?></td>
+            <td><small class="text-muted"><?= date('d M Y', strtotime($r['diberikan_pada'])) ?></small></td>
+            <td class="text-end">
+                <?php if ($canEditAppAccess): ?>
+                <form method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/app-access/revoke') ?>" onsubmit="return confirm('Cabut akses <?= esc($r['app_nama']) ?> untuk karyawan ini?')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="app_id" value="<?= $r['app_id'] ?>">
+                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i></button>
+                </form>
+                <?php endif; ?>
+            </td>
+        </tr>
+    <?php endforeach; ?>
+    </tbody>
+    </table>
+<?php endif; ?>
+
+<?php if ($canEditAppAccess): ?>
+<div class="d-flex align-items-center my-2"><hr class="flex-grow-1"><span class="small text-muted px-2">beri / ubah akses</span><hr class="flex-grow-1"></div>
+<form method="POST" action="<?= base_url('people/employees/'.$employee['id'].'/app-access/grant') ?>" class="row g-2 align-items-end">
+    <?= csrf_field() ?>
+    <div class="col-md-3">
+        <label class="form-label small mb-1">Aplikasi</label>
+        <select name="app_id" id="appAccessAppId" class="form-select form-select-sm" required onchange="appAccessIsiPeran()">
+            <option value="">— Pilih —</option>
+            <?php foreach ($apps as $a): ?>
+                <option value="<?= $a['id'] ?>"><?= esc($a['nama']) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small mb-1">Peran</label>
+        <select name="app_role_id" id="appAccessRoleId" class="form-select form-select-sm" required>
+            <option value="">— Pilih aplikasi dulu —</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small mb-1">Unit Bisnis <span class="text-muted">(opsional)</span></label>
+        <select name="company_id" class="form-select form-select-sm">
+            <option value="">— Ikut default karyawan —</option>
+            <?php foreach ($companies as $c): ?>
+                <option value="<?= $c['id'] ?>"><?= esc($c['kode']) ?> · <?= esc($c['nama']) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small mb-1">Catatan <span class="text-muted">(opsional)</span></label>
+        <input type="text" name="catatan" class="form-control form-control-sm">
+    </div>
+    <div class="col-md-1">
+        <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-check-lg"></i></button>
+    </div>
+</form>
+<script>
+const APP_ACCESS_ROLES = <?= json_encode($roleByApp, JSON_HEX_TAG) ?>;
+function appAccessIsiPeran() {
+    const appId = document.getElementById('appAccessAppId').value;
+    const sel = document.getElementById('appAccessRoleId');
+    sel.innerHTML = '';
+    const roles = APP_ACCESS_ROLES[appId] || [];
+    if (! roles.length) {
+        sel.innerHTML = '<option value="">— Tidak ada peran terdaftar —</option>';
+        return;
+    }
+    sel.innerHTML = '<option value="">— Pilih peran —</option>' +
+        roles.map(r => `<option value="${r.id}">${r.label}</option>`).join('');
+}
+</script>
+<?php endif; ?>
+</div>
+</div>
+
 <!-- Riwayat Jabatan -->
 <div class="card mb-4 anim-fade-up" id="positions" style="animation-delay:.15s">
 <div class="card-header d-flex justify-content-between align-items-center">
