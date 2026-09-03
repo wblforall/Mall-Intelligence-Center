@@ -287,6 +287,59 @@ xcopy /E E:\uploads_mic C:\xampp\htdocs\mall-intelligence-center\public\uploads<
     <div class="note">Gunakan flag <span class="inline-code">/Y</span> jika ingin skip konfirmasi overwrite.</div>
   </div>
 
+  <h2><span class="num">E</span> Penjadwalan Cron</h2>
+
+  <div class="card warning">
+    <div class="step-desc" style="margin-bottom:12px">
+      Sebagian fitur MIC <strong>tidak berjalan sendiri dari layar</strong> — ia menunggu
+      dijalankan cron. Kalau bagian ini terlewat saat pindah server, aplikasinya tetap
+      terbuka dan tidak menunjukkan galat apa pun, tetapi pengingat approval berhenti
+      terkirim, data parkir SPI berhenti diperbarui, dan pencabutan akses karyawan yang
+      keluar mengendap di antrean tanpa pernah sampai ke sistem tujuan. Diamnya itulah
+      yang membuatnya mudah terlupakan.
+    </div>
+    <div class="label">Sesuaikan path <span class="inline-code">~/public_html/mic</span> dengan lokasi sebenarnya</div>
+    <code class="cmd"><span class="comment"># Antrean notifikasi push — tiap menit</span>
+* * * * * cd ~/public_html/mic &amp;&amp; php spark mic:push-dispatch
+
+<span class="comment"># Antrean sinkronisasi akses antar sistem — tiap 5 menit</span>
+0,5,10,15,20,25,30,35,40,45,50,55 * * * * cd ~/public_html/mic &amp;&amp; php spark mic:sync-dispatch
+
+<span class="comment"># Snapshot parkir SPI — okupansi tiap 10 menit, + dashboard home tiap 30 menit</span>
+10,20,40,50 * * * * cd ~/public_html/mic &amp;&amp; php spark mic:spi-snapshot --prune-days 120
+0,30 * * * * cd ~/public_html/mic &amp;&amp; php spark mic:spi-snapshot --flows
+
+<span class="comment"># Rangkuman approval per approver — tiap pagi jam 7</span>
+0 7 * * * cd ~/public_html/mic &amp;&amp; php spark mic:approval-reminder
+
+<span class="comment"># Tarik data SPI harian — jam 8 (SPI baru update jam 7)</span>
+0 8 * * * cd ~/public_html/mic &amp;&amp; php spark mic:spi-sync
+
+<span class="comment"># Sinkron kalender libur nasional — tiap awal bulan</span>
+0 3 1 * * cd ~/public_html/mic &amp;&amp; php spark mic:holidays-sync</code>
+
+    <div class="note" style="margin-top:10px">
+      <strong>Kenapa <span class="inline-code">mic:sync-dispatch</span> ditulis sebagai daftar menit,
+      bukan <span class="inline-code">*/5</span>:</strong> sebagian panel cPanel menyimpan tanda bintang-garis miring
+      dengan tidak konsisten. Daftar menit yang ditulis penuh tidak bisa salah tafsir.
+    </div>
+    <div class="note">
+      Tidak perlu tiap menit: propagasi pencabutan akses tidak menuntut hitungan detik,
+      dan menjalankannya tiap menit hanya memperbanyak permintaan ke sistem tujuan tanpa
+      manfaat yang sepadan.
+    </div>
+    <div class="note">
+      Perintah lain di <span class="inline-code">app/Commands/</span>
+      (<span class="inline-code">mic:compress-images</span>,
+      <span class="inline-code">legal:check-expiry</span>,
+      <span class="inline-code">mic:pip-review-reminder</span>,
+      <span class="inline-code">mic:traffic-summary-email</span>,
+      <span class="inline-code">mic:work-report-reminder</span>)
+      belum menetapkan jadwal di kodenya. Sengaja tidak dicantumkan di sini supaya
+      jadwal yang tertulis di dokumen ini semuanya berasal dari kode, bukan tebakan.
+    </div>
+  </div>
+
   <!-- RINGKASAN -->
   <div class="card success">
     <h2 style="margin-bottom:14px"><span style="font-size:1.1rem">✅</span> Ringkasan Perintah Update Rutin</h2>
