@@ -13,6 +13,11 @@ class AppModel extends Model
 
     public function aktifSaja(): array
     {
-        return $this->where('aktif', 1)->orderBy('nama', 'ASC')->findAll();
+        // Urutan sama dengan portal (`apps.urutan`), supaya aplikasi tidak
+        // tersusun berbeda antara layar admin dan yang dilihat karyawan —
+        // beda urutan antar layar membuat orang mencari dua kali.
+        return $this->where('aktif', 1)
+            ->orderBy('urutan', 'ASC')->orderBy('nama', 'ASC')
+            ->findAll();
     }
 }

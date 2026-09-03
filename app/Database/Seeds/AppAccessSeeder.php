@@ -67,16 +67,19 @@ class AppAccessSeeder extends Seeder
             // dari daftar modul. Yang perlu ia tahu: kalau saya ke sini, saya
             // sedang mengerjakan apa.
             'mic'       => ['nama' => 'Mall Intelligence Center', 'ikon' => 'bi-buildings',
+                'urutan' => 2,
                 'url' => 'https://mic.wbl-bsb.com',
                 'deskripsi' => 'Data mal dan kepegawaian — traffic, parkir, karyawan, legal, dan laporan.',
                 'peran' => ['admin' => 'Admin', 'manager' => 'Manager', 'operator' => 'Operator',
                             'staff' => 'Staff', 'operasional' => 'Operasional', 'manager_lpss' => 'Manager LPSS']],
             'flowstore' => ['nama' => 'FlowStore', 'ikon' => 'bi-cart-check',
+                'urutan' => 4,
                 'url' => null,
                 'deskripsi' => 'Permintaan barang dan pengadaan — MR, PR, dan barang usulan.',
                 'peran' => ['superadmin' => 'Superadmin', 'admin' => 'Admin', 'purchasing' => 'Purchasing',
                             'store' => 'Store', 'divisi' => 'Divisi']],
             'esign'     => ['nama' => 'PAM e-Sign', 'ikon' => 'bi-file-earmark-check',
+                'urutan' => 5,
                 'url' => 'https://esign.wbl-bsb.com',
                 'deskripsi' => 'Tanda tangan dan paraf dokumen secara digital.',
                 // `unit_admin` BUKAN nilai kolom `users.role` di PAM e-Sign — ia kolom
@@ -86,7 +89,8 @@ class AppAccessSeeder extends Seeder
                 // kelola pengguna unit DAN ubah template alur persetujuan.
                 'peran' => ['admin' => 'Admin', 'user' => 'User',
                             'unit_admin' => 'Unit Admin']],
-            'clara'     => ['nama' => 'Clara', 'ikon' => 'bi-house-door',
+            'clara'     => ['nama' => 'CLARA', 'ikon' => 'bi-house-door',
+                'urutan' => 1,
                 'url' => 'https://clara.wbl-bsb.com',
                 // Diambil dari tagline di logo Clara sendiri: "Casual Leasing
                 // Achievement & Revenue Analytics" — lebih tepat daripada
@@ -98,6 +102,7 @@ class AppAccessSeeder extends Seeder
                 'peran' => ['superadmin' => 'Superadmin', 'administrasi' => 'Administrasi',
                             'sales' => 'Sales', 'viewer' => 'Viewer']],
             'opsjobs'   => ['nama' => 'OpsJobs', 'ikon' => 'bi-tools',
+                'urutan' => 3,
                 'url' => 'https://opsjobs.id',
                 'deskripsi' => 'Pekerjaan lapangan — relokasi tenant dan pembacaan meter utilitas.',
                 'peran' => ['l1_super_admin' => 'L1 · Super Admin', 'l1_admin_org' => 'L1 · Admin Organization',
@@ -110,7 +115,8 @@ class AppAccessSeeder extends Seeder
             if (! $app) {
                 $this->db->table('apps')->insert([
                     'kode' => $kode, 'nama' => $def['nama'], 'ikon' => $def['ikon'],
-                    'deskripsi' => $def['deskripsi'], 'url' => $def['url'], 'aktif' => 1,
+                    'deskripsi' => $def['deskripsi'], 'url' => $def['url'],
+                    'urutan' => $def['urutan'], 'aktif' => 1,
                     'created_at' => $now, 'updated_at' => $now,
                 ]);
                 $appId = (int) $this->db->insertID();
@@ -129,6 +135,17 @@ class AppAccessSeeder extends Seeder
                     $this->db->table('apps')->where('id', $appId)
                         ->update(['deskripsi' => $def['deskripsi'], 'updated_at' => $now]);
                 }
+
+                // `nama`, `ikon`, dan `urutan` SELALU disamakan — ketiganya
+                // menentukan jati diri aplikasi dan seeder inilah pemiliknya
+                // (tidak ada layar pengelola `apps`). Berbeda dari `url` dan
+                // `deskripsi` di atas yang hanya diisi bila masih kosong,
+                // sebab keduanya berbeda per lingkungan dan boleh disesuaikan
+                // tanpa ditimpa saat seeder dijalankan ulang.
+                $this->db->table('apps')->where('id', $appId)->update([
+                    'nama' => $def['nama'], 'ikon' => $def['ikon'],
+                    'urutan' => $def['urutan'], 'updated_at' => $now,
+                ]);
             }
 
             foreach ($def['peran'] as $kodePeran => $label) {

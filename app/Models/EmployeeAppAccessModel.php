@@ -64,7 +64,7 @@ class EmployeeAppAccessModel extends Model
         // ── Lapis 1: default departemen ──
         if (! empty($emp['dept_id'])) {
             $q = $this->db->table('department_app_access d')
-                ->select('d.app_id, a.kode AS app_kode, a.nama AS app_nama, a.deskripsi, a.url, a.ikon,
+                ->select('d.app_id, a.kode AS app_kode, a.nama AS app_nama, a.deskripsi, a.url, a.ikon, a.urutan,
                           r.kode AS peran_kode, r.label AS peran_label')
                 ->join('apps a', 'a.id = d.app_id')
                 ->join('app_roles r', 'r.id = d.app_role_id')
@@ -88,7 +88,7 @@ class EmployeeAppAccessModel extends Model
 
         // ── Lapis 2: grant per orang (menimpa) ──
         $pribadi = $this->db->table('employee_app_access x')
-            ->select('x.app_id, x.id_lokal, a.kode AS app_kode, a.nama AS app_nama, a.deskripsi, a.url, a.ikon,
+            ->select('x.app_id, x.id_lokal, a.kode AS app_kode, a.nama AS app_nama, a.deskripsi, a.url, a.ikon, a.urutan,
                       r.kode AS peran_kode, r.label AS peran_label')
             ->join('apps a', 'a.id = x.app_id')
             ->join('app_roles r', 'r.id = x.app_role_id')
@@ -102,8 +102,14 @@ class EmployeeAppAccessModel extends Model
             $hasil[(int) $b['app_id']] = $b;
         }
 
-        // Urutkan menurut nama aplikasi supaya susunan kartunya tidak berubah-ubah.
-        usort($hasil, fn ($a, $b) => strcmp($a['app_nama'], $b['app_nama']));
+        // Urutan tampil ditentukan `apps.urutan`, bukan nama. Mengurutkan
+        // menurut nama memang stabil, tapi urutannya kebetulan: aplikasi yang
+        // dibuka tiap hari bisa terdorong ke belakang hanya karena namanya
+        // berawalan huruf akhir. Nama tetap jadi pemecah seri supaya susunan
+        // kartu tidak berubah-ubah ketika dua aplikasi bernilai sama.
+        usort($hasil, function ($a, $b) {
+            return [(int) $a['urutan'], $a['app_nama']] <=> [(int) $b['urutan'], $b['app_nama']];
+        });
 
         return $hasil;
     }
