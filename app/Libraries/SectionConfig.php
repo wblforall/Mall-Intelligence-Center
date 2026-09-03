@@ -25,7 +25,12 @@ class SectionConfig
         'parking_revenue'    => 'Parkir — Revenue',
         'legal'              => 'Legal',
         'work_report'        => 'Progress Report',
-        'app_access'         => 'Akses Aplikasi (Portal)',
+        // Label menyebut "lintas sistem" dengan sengaja: inilah izin yang
+        // menentukan siapa boleh memberi orang akses ke PAM e-Sign, CLARA,
+        // FlowStore, dan OpsJobs — termasuk peran `unit_admin` yang bisa
+        // mengubah template alur persetujuan di sana. Nama yang terlalu
+        // jinak membuatnya diberikan tanpa dipikir saat menyusun izin.
+        'app_access'         => 'Akses Aplikasi & Penautan Akun (lintas sistem)',
     ];
 
     // Per-Event (Event Sub-menu)

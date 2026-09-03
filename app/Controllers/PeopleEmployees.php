@@ -708,19 +708,30 @@ class PeopleEmployees extends BaseController
             'apps'              => (new AppModel())->aktifSaja(),
             'roleByApp'         => (new AppRoleModel())->semuaDikelompokkan(),
             'companies'         => (new CompanyModel())->aktifSaja(),
-            'canEditAppAccess'  => $this->canEditMenu('people_dev') || $this->canEditMenu('hr_main') || $this->canEditMenu('app_access'),
+            // HANYA 'app_access'. Sebelumnya 'people_dev' dan 'hr_main' juga
+            // membuka pintu ini — artinya siapa pun yang boleh mengubah data
+            // karyawan bisa memberi akses lintas aplikasi, termasuk HR. Padahal
+            // pemberian akses itu bisa memberi orang peran `unit_admin` di PAM
+            // e-Sign (mengubah template alur persetujuan) dan, setelah Fase 6,
+            // memindahkan kredensialnya. HR tetap MELIHAT bagian ini —
+            // hanya tidak bisa mengubahnya.
+            'canEditAppAccess'  => $this->canEditMenu('app_access'),
         ]);
     }
 
     /**
-     * Beri/ubah akses seorang karyawan ke satu aplikasi — jalur HR.
-     * Admin sistem per aplikasi memakai pintu yang sama lewat menu
-     * 'app_access'; keduanya lewat EmployeeAppAccessModel::grant() yang sama,
-     * jadi jejak siapa-melakukan-apa konsisten terlepas dari pintunya.
+     * Beri/ubah akses seorang karyawan ke satu aplikasi — dari profil karyawan.
+     *
+     * Pintunya sama dengan layar Akses Aplikasi dan Penautan Akun: izin
+     * 'app_access'. Ketiganya lewat EmployeeAppAccessModel::grant() yang sama,
+     * jadi jejak siapa-melakukan-apa konsisten terlepas dari pintunya —
+     * dan tidak ada satu pintu pun yang syaratnya lebih longgar.
      */
     public function grantAppAccess(int $id)
     {
-        if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main') && ! $this->canEditMenu('app_access')) {
+        // Lihat catatan di detail(): mengelola akses aplikasi menuntut izin
+        // 'app_access' sendiri, bukan izin mengubah data karyawan.
+        if (! $this->canEditMenu('app_access')) {
             return redirect()->to('/events')->with('error', 'Akses ditolak.');
         }
         $employee = (new EmployeeModel())->find($id);
@@ -743,7 +754,9 @@ class PeopleEmployees extends BaseController
     /** Cabut akses seorang karyawan ke satu aplikasi. Riwayatnya tetap tersimpan, hanya ditandai nonaktif. */
     public function revokeAppAccess(int $id)
     {
-        if (! $this->canEditMenu('people_dev') && ! $this->canEditMenu('hr_main') && ! $this->canEditMenu('app_access')) {
+        // Lihat catatan di detail(): mengelola akses aplikasi menuntut izin
+        // 'app_access' sendiri, bukan izin mengubah data karyawan.
+        if (! $this->canEditMenu('app_access')) {
             return redirect()->to('/events')->with('error', 'Akses ditolak.');
         }
         $appId = (int) $this->request->getPost('app_id');
