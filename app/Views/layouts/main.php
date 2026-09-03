@@ -578,6 +578,9 @@ body { min-height: 100vh; }
         <a href="<?= base_url('app-access') ?>" class="nav-link <?= str_starts_with(uri_string(), 'app-access') ? 'active' : '' ?>">
             <i class="bi bi-grid-3x3-gap"></i> Akses Aplikasi
         </a>
+        <a href="<?= base_url('penautan-akun') ?>" class="nav-link <?= str_starts_with(uri_string(), 'penautan-akun') ? 'active' : '' ?>">
+            <i class="bi bi-link-45deg"></i> Penautan Akun
+        </a>
         <?php endif; ?>
 
         <?php if (session()->get('role_perms')['can_view_logs'] ?? session()->get('role_is_admin') || session()->get('user_role') === 'admin'): ?>

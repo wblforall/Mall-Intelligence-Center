@@ -366,6 +366,12 @@ $routes->post('roles/(:num)/delete', 'Roles::delete/$1', ['filter' => 'auth:admi
 
 // Departments (admin only)
 $routes->get('app-access', 'AppAccess::index', ['filter' => 'auth']);
+
+// Penautan akun aplikasi lain ke data karyawan. Dilakukan admin di layar —
+// TIDAK ADA jalur otomatis, dan tidak ada penautan lewat SQL.
+$routes->get('penautan-akun', 'PenautanAkun::index', ['filter' => 'auth']);
+$routes->get('penautan-akun/([a-z0-9_-]+)', 'PenautanAkun::tinjau/$1', ['filter' => 'auth']);
+$routes->post('penautan-akun/([a-z0-9_-]+)', 'PenautanAkun::simpan/$1', ['filter' => 'auth']);
 $routes->get('app-access/(:num)/edit', 'AppAccess::edit/$1', ['filter' => 'auth']);
 $routes->post('app-access/(:num)/edit', 'AppAccess::update/$1', ['filter' => 'auth']);
 
