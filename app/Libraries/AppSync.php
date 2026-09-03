@@ -147,6 +147,64 @@ class AppSync
         return ['failed', 'HTTP ' . $httpKode . ': ' . mb_substr((string) $isi, 0, 180)];
     }
 
+    /**
+     * Tarik daftar akun aplikasi tujuan, untuk dicocokkan importer.
+     *
+     * Sengaja lewat HTTP, bukan koneksi basis data kedua: aplikasi tujuan
+     * berada di server lain, jadi membaca basis datanya langsung hanya jalan
+     * di mesin pengembangan. Importer yang cuma jalan di laptop bukan
+     * importer.
+     *
+     * @return array{ok:bool, data:array<int,array<string,mixed>>, error:?string}
+     */
+    public static function ambilPengguna(string $kodeApp): array
+    {
+        if (! self::terkonfigurasi($kodeApp)) {
+            return ['ok' => false, 'data' => [], 'error' =>
+                'belum dikonfigurasi (apps.url dan/atau sync.token.' . $kodeApp . ')'];
+        }
+
+        [$httpKode, $isi] = self::httpGet(self::alamat($kodeApp) . '/api/sistem/pengguna', [
+            'Accept: application/json',
+            'X-Service-Token: ' . self::token($kodeApp),
+        ]);
+
+        if ($httpKode < 200 || $httpKode >= 300) {
+            return ['ok' => false, 'data' => [], 'error' =>
+                'HTTP ' . $httpKode . ': ' . mb_substr($isi, 0, 180)];
+        }
+
+        $data = json_decode($isi, true);
+        if (! is_array($data) || ! isset($data['data']) || ! is_array($data['data'])) {
+            return ['ok' => false, 'data' => [], 'error' => 'jawaban tidak dikenali'];
+        }
+
+        return ['ok' => true, 'data' => $data['data'], 'error' => null];
+    }
+
+    /**
+     * @param  string[]  $headers
+     * @return array{0:int, 1:string}
+     */
+    private static function httpGet(string $url, array $headers): array
+    {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            // Jangan ikuti pengalihan: X-Service-Token bisa terbawa ke host lain.
+            CURLOPT_FOLLOWLOCATION => false,
+        ]);
+        $isi  = curl_exec($ch);
+        $kode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($isi === false) $isi = 'curl: ' . curl_error($ch);
+        curl_close($ch);
+
+        return [$kode, (string) $isi];
+    }
+
     /** Peta aksi -> jalur endpoint di aplikasi tujuan. */
     private static function jalur(string $kodeApp, string $aksi, string $idLokal): ?string
     {

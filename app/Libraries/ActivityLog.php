@@ -7,6 +7,9 @@ class ActivityLog
     private static ?array $_before = null;
     private static ?array $_after  = null;
 
+    /** Pelaku untuk konteks tanpa sesi (CLI/cron). Lihat sebagai(). */
+    private static ?array $_aktor  = null;
+
     // Peta module key (nama tabel internal) → label ramah-baca untuk Activity Log
     public const MODULE_LABELS = [
         'auth'                          => 'Login / Autentikasi',
@@ -118,6 +121,34 @@ class ActivityLog
         return self::MODULE_LABELS[$key] ?? ucwords(str_replace('_', ' ', $key));
     }
 
+    /**
+     * Tetapkan pelaku secara eksplisit, untuk konteks yang TIDAK punya sesi.
+     *
+     * Perintah CLI dan cron tidak punya sesi, jadi write() akan mencatat
+     * "System" — padahal impor akses dijalankan atas tanggung jawab orang
+     * tertentu, dan jejak audit yang berbunyi "System" untuk 48 penautan
+     * tidak bisa dipakai menjawab "siapa menautkan ini".
+     *
+     * Sesi tetap menang bila ada: ini hanya mengisi yang kosong.
+     */
+    public static function sebagai(?int $userId): void
+    {
+        if ($userId === null) {
+            self::$_aktor = null;
+
+            return;
+        }
+
+        $u = db_connect()->table('users')->select('id, name, role')
+            ->where('id', $userId)->get()->getRowArray();
+
+        self::$_aktor = $u ? [
+            'user_id'   => (int) $u['id'],
+            'user_name' => (string) $u['name'],
+            'user_role' => (string) ($u['role'] ?? ''),
+        ] : null;
+    }
+
     public static function captureBefore(mixed $data): void
     {
         self::$_before = is_array($data) ? $data : null;
@@ -146,13 +177,19 @@ class ActivityLog
 
         $session = session();
         $ip      = service('request')->getIPAddress();
+
+        // Sesi lebih diutamakan; aktor eksplisit hanya mengisi konteks CLI.
+        $aktorId   = $session->get('user_id')   ?? (self::$_aktor['user_id']   ?? null);
+        $aktorNama = $session->get('user_name') ?? (self::$_aktor['user_name'] ?? 'System');
+        $aktorRole = $session->get('user_role') ?? (self::$_aktor['user_role'] ?? '');
+
         $loopback = ['127.0.0.1', '::1', '0:0:0:0:0:0:0:1'];
         $computerName = in_array($ip, $loopback) ? 'localhost' : $ip;
 
         db_connect()->table('activity_logs')->insert([
-            'user_id'      => $session->get('user_id'),
-            'user_name'    => $session->get('user_name') ?? 'System',
-            'user_role'    => $session->get('user_role') ?? '',
+            'user_id'      => $aktorId,
+            'user_name'    => $aktorNama,
+            'user_role'    => $aktorRole,
             'action'       => $action,
             'module'       => $module,
             'target_id'    => $targetId,

@@ -22,7 +22,7 @@ class EmployeeAppAccessModel extends Model
     protected $table         = 'employee_app_access';
     protected $primaryKey    = 'id';
     protected $allowedFields = [
-        'employee_id', 'app_id', 'app_role_id', 'company_id', 'aktif', 'catatan',
+        'employee_id', 'app_id', 'app_role_id', 'company_id', 'id_lokal', 'aktif', 'catatan',
         'diberikan_oleh', 'diberikan_pada', 'dicabut_oleh', 'dicabut_pada',
     ];
     protected $useTimestamps = false;
@@ -135,6 +135,13 @@ class EmployeeAppAccessModel extends Model
      * @param ?int   $companyId  null = ikut company_id karyawan sendiri
      * @param int    $olehUserId id user yang melakukan (WAJIB — HR atau admin sistem)
      * @param ?string $catatan
+     * @param ?string $idLokal   id akun di aplikasi tujuan. Inilah yang membuat
+     *                           tautan jadi fakta tersimpan, bukan hasil
+     *                           pencocokan yang dihitung ulang tiap kali:
+     *                           setelah tersimpan, email dan nama boleh
+     *                           berubah tanpa merusak tautannya. Tanpa ini
+     *                           dispatcher resign tidak tahu akun mana yang
+     *                           harus dinonaktifkan.
      */
     public function grant(
         int $employeeId,
@@ -142,7 +149,8 @@ class EmployeeAppAccessModel extends Model
         int $appRoleId,
         ?int $companyId,
         int $olehUserId,
-        ?string $catatan = null
+        ?string $catatan = null,
+        ?string $idLokal = null
     ): void {
         $now = date('Y-m-d H:i:s');
 
@@ -153,11 +161,18 @@ class EmployeeAppAccessModel extends Model
 
         if ($existing) {
             ActivityLog::captureBefore($existing);
-            $this->update($existing['id'], [
+            $ubah = [
                 'app_role_id' => $appRoleId,
                 'company_id'  => $companyId,
                 'catatan'     => $catatan,
-            ]);
+            ];
+
+            // id_lokal hanya ditulis bila memang dikirim. Pemanggil yang tidak
+            // tahu id_lokal (mis. layar HR) tidak boleh menghapus tautan yang
+            // sudah susah payah dicocokkan importer.
+            if ($idLokal !== null) $ubah['id_lokal'] = $idLokal;
+
+            $this->update($existing['id'], $ubah);
             ActivityLog::captureAfter(['app_role_id' => $appRoleId, 'company_id' => $companyId]);
             ActivityLog::write('update', 'employee_app_access', (string) $existing['id'], $konteks['label'], [
                 'karyawan' => $konteks['nama_karyawan'], 'aplikasi' => $konteks['nama_app'],
@@ -171,6 +186,7 @@ class EmployeeAppAccessModel extends Model
             'app_id'         => $appId,
             'app_role_id'    => $appRoleId,
             'company_id'     => $companyId,
+            'id_lokal'       => $idLokal,
             'aktif'          => 1,
             'catatan'        => $catatan,
             'diberikan_oleh' => $olehUserId,
