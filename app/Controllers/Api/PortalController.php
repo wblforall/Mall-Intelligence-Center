@@ -78,14 +78,23 @@ class PortalController extends BaseApiController
         // Bentuknya dipangkas ke yang benar-benar dipakai portal. `id_lokal`
         // TIDAK dikirim: itu id akun di aplikasi tujuan, urusan internal SSO,
         // dan tidak ada gunanya di peramban.
+        // `sumber_nama` menyertakan NAMA departemennya, bukan cuma kata
+        // 'departemen'. Portal memakainya untuk menjelaskan ASAL akses —
+        // "dari departemen IT / EDP" menjawab pertanyaan yang orang benar-benar
+        // punya ketika melihat daftar aplikasinya, dan menghilangkan kebutuhan
+        // bertanya ke IT hanya untuk tahu kenapa sebuah aplikasi ada di sana.
+        $namaDept = $dept['name'] ?? null;
+
         $aplikasi = array_map(fn ($a) => [
             'kode'        => $a['app_kode'],
             'nama'        => $a['app_nama'],
+            'deskripsi'   => $a['deskripsi'] ?: null,
             'url'         => $a['url'] ?: null,
             'ikon'        => $a['ikon'] ?: null,
             'peran'       => $a['peran_kode'],
             'peran_label' => $a['peran_label'],
             'sumber'      => $a['sumber'],
+            'sumber_nama' => $a['sumber'] === 'departemen' ? $namaDept : null,
         ], $akses);
 
         return $this->success([

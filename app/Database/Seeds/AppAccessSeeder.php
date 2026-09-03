@@ -63,16 +63,22 @@ class AppAccessSeeder extends Seeder
             // akan menghasilkan kartu yang tampak siap tapi mengarah ke
             // alamat mati. Portal menampilkan "Alamat belum diatur" untuk
             // yang null — keadaan yang jujur.
+            // Deskripsi ditulis dari sudut pandang orang yang MEMAKAI, bukan
+            // dari daftar modul. Yang perlu ia tahu: kalau saya ke sini, saya
+            // sedang mengerjakan apa.
             'mic'       => ['nama' => 'Mall Intelligence Center', 'ikon' => 'bi-buildings',
                 'url' => 'https://mic.wbl-bsb.com',
+                'deskripsi' => 'Data mal dan kepegawaian — traffic, parkir, karyawan, legal, dan laporan.',
                 'peran' => ['admin' => 'Admin', 'manager' => 'Manager', 'operator' => 'Operator',
                             'staff' => 'Staff', 'operasional' => 'Operasional', 'manager_lpss' => 'Manager LPSS']],
             'flowstore' => ['nama' => 'FlowStore', 'ikon' => 'bi-cart-check',
                 'url' => null,
+                'deskripsi' => 'Permintaan barang dan pengadaan — MR, PR, dan barang usulan.',
                 'peran' => ['superadmin' => 'Superadmin', 'admin' => 'Admin', 'purchasing' => 'Purchasing',
                             'store' => 'Store', 'divisi' => 'Divisi']],
             'esign'     => ['nama' => 'PAM e-Sign', 'ikon' => 'bi-file-earmark-check',
                 'url' => 'https://esign.wbl-bsb.com',
+                'deskripsi' => 'Tanda tangan dan paraf dokumen secara digital.',
                 // `unit_admin` BUKAN nilai kolom `users.role` di PAM e-Sign — ia kolom
                 // boolean tersendiri. Disemai sebagai peran di sini karena INILAH
                 // dimensi wewenang yang sungguhan: `role` isinya 60 `user` + 1 `admin`
@@ -82,6 +88,10 @@ class AppAccessSeeder extends Seeder
                             'unit_admin' => 'Unit Admin']],
             'clara'     => ['nama' => 'Clara', 'ikon' => 'bi-house-door',
                 'url' => 'https://clara.wbl-bsb.com',
+                // Diambil dari tagline di logo Clara sendiri: "Casual Leasing
+                // Achievement & Revenue Analytics" — lebih tepat daripada
+                // menebak dari daftar peran.
+                'deskripsi' => 'Casual leasing — permintaan kontrak, SKP, dan capaian pendapatan.',
                 // 'finance' & 'supervisor' ada di role_permissions Clara tapi tidak dipakai
                 // siapa pun saat pemeriksaan — sengaja tidak disemai, tambahkan manual
                 // lewat layar kalau memang mulai dipakai.
@@ -89,6 +99,7 @@ class AppAccessSeeder extends Seeder
                             'sales' => 'Sales', 'viewer' => 'Viewer']],
             'opsjobs'   => ['nama' => 'OpsJobs', 'ikon' => 'bi-tools',
                 'url' => 'https://opsjobs.id',
+                'deskripsi' => 'Pekerjaan lapangan — relokasi tenant dan pembacaan meter utilitas.',
                 'peran' => ['l1_super_admin' => 'L1 · Super Admin', 'l1_admin_org' => 'L1 · Admin Organization',
                             'l2_auditor' => 'L2 · Auditor', 'l3_admin_dept' => 'L3 · Admin Dept',
                             'l3_manager' => 'L3 · Manager', 'l3_supervisor' => 'L3 · Supervisor']],
@@ -99,7 +110,7 @@ class AppAccessSeeder extends Seeder
             if (! $app) {
                 $this->db->table('apps')->insert([
                     'kode' => $kode, 'nama' => $def['nama'], 'ikon' => $def['ikon'],
-                    'url' => $def['url'], 'aktif' => 1,
+                    'deskripsi' => $def['deskripsi'], 'url' => $def['url'], 'aktif' => 1,
                     'created_at' => $now, 'updated_at' => $now,
                 ]);
                 $appId = (int) $this->db->insertID();
@@ -112,6 +123,11 @@ class AppAccessSeeder extends Seeder
                 if ($def['url'] !== null && ($app['url'] ?? null) === null) {
                     $this->db->table('apps')->where('id', $appId)
                         ->update(['url' => $def['url'], 'updated_at' => $now]);
+                }
+
+                if (($app['deskripsi'] ?? null) === null) {
+                    $this->db->table('apps')->where('id', $appId)
+                        ->update(['deskripsi' => $def['deskripsi'], 'updated_at' => $now]);
                 }
             }
 

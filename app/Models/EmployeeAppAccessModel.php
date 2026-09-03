@@ -64,7 +64,7 @@ class EmployeeAppAccessModel extends Model
         // ── Lapis 1: default departemen ──
         if (! empty($emp['dept_id'])) {
             $q = $this->db->table('department_app_access d')
-                ->select('d.app_id, a.kode AS app_kode, a.nama AS app_nama, a.url, a.ikon,
+                ->select('d.app_id, a.kode AS app_kode, a.nama AS app_nama, a.deskripsi, a.url, a.ikon,
                           r.kode AS peran_kode, r.label AS peran_label')
                 ->join('apps a', 'a.id = d.app_id')
                 ->join('app_roles r', 'r.id = d.app_role_id')
@@ -88,7 +88,7 @@ class EmployeeAppAccessModel extends Model
 
         // ── Lapis 2: grant per orang (menimpa) ──
         $pribadi = $this->db->table('employee_app_access x')
-            ->select('x.app_id, x.id_lokal, a.kode AS app_kode, a.nama AS app_nama, a.url, a.ikon,
+            ->select('x.app_id, x.id_lokal, a.kode AS app_kode, a.nama AS app_nama, a.deskripsi, a.url, a.ikon,
                       r.kode AS peran_kode, r.label AS peran_label')
             ->join('apps a', 'a.id = x.app_id')
             ->join('app_roles r', 'r.id = x.app_role_id')
