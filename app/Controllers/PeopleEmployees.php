@@ -868,7 +868,49 @@ class PeopleEmployees extends BaseController
         ActivityLog::captureAfter($employeeData);
 
         ActivityLog::write('update', 'employee', (string)$id, trim($post['nama'] ?? ''));
-        return redirect()->to('/people/employees/' . $id)->with('success', 'Data karyawan diperbarui.');
+
+        $pesan = 'Data karyawan diperbarui.';
+        $pesan .= $this->antreCabutAksesBilaKeluar($id, $employee['status'] ?? null, $employeeData['status'] ?? null);
+
+        return redirect()->to('/people/employees/' . $id)->with('success', $pesan);
+    }
+
+    /**
+     * Begitu karyawan tidak lagi berstatus `aktif`, antrekan pencabutan
+     * aksesnya di aplikasi lain.
+     *
+     * SENGAJA hanya mengantrekan, tidak memanggil aplikasi tujuan di sini —
+     * lihat AppSync dan migrasi `app_sync_queue`. Penandaan resign-nya sendiri
+     * sudah benar dan harus tetap tersimpan meski PAM e-Sign sedang mati.
+     *
+     * Yang belum punya `id_lokal` dilaporkan ke user, karena aplikasi tujuan
+     * tidak bisa tahu akun mana yang dimaksud tanpa itu — dan diam-diam
+     * melewatinya berarti orang menyangka aksesnya sudah dicabut padahal belum.
+     *
+     * @return string tambahan untuk pesan sukses (kosong bila tak ada apa-apa)
+     */
+    private function antreCabutAksesBilaKeluar(int $employeeId, ?string $statusLama, ?string $statusBaru): string
+    {
+        if ($statusBaru === null || $statusBaru === $statusLama) return '';
+        if ($statusLama !== 'aktif' || $statusBaru === 'aktif') return '';
+
+        $hasil = \App\Libraries\AppSync::antreSemuaAplikasi(
+            $employeeId,
+            \App\Libraries\AppSync::AKSI_NONAKTIFKAN,
+            'status di MIC berubah menjadi ' . $statusBaru
+        );
+
+        $pesan = '';
+        if ($hasil['diantre'] > 0) {
+            $pesan .= ' Pencabutan akses di ' . $hasil['diantre']
+                . ' aplikasi masuk antrian dan akan diproses otomatis.';
+        }
+        if ($hasil['tanpa_tautan'] > 0) {
+            $pesan .= ' PERHATIAN: ' . $hasil['tanpa_tautan']
+                . ' akses aplikasi belum tertaut ke akun tujuan, jadi harus dicabut manual.';
+        }
+
+        return $pesan;
     }
 
     public function delete(int $id)

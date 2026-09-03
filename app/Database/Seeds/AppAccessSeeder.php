@@ -57,13 +57,22 @@ class AppAccessSeeder extends Seeder
         $now = date('Y-m-d H:i:s');
 
         $apps = [
+            // `url` dipakai WBL One sebagai tujuan kartu aplikasi. Domainnya
+            // mengikuti KONTEKS.md §1. FlowStore SENGAJA null: subdomain
+            // `flowstore.wbl-bsb.com` belum dibuat, dan menebaknya di sini
+            // akan menghasilkan kartu yang tampak siap tapi mengarah ke
+            // alamat mati. Portal menampilkan "Alamat belum diatur" untuk
+            // yang null — keadaan yang jujur.
             'mic'       => ['nama' => 'Mall Intelligence Center', 'ikon' => 'bi-buildings',
+                'url' => 'https://mic.wbl-bsb.com',
                 'peran' => ['admin' => 'Admin', 'manager' => 'Manager', 'operator' => 'Operator',
                             'staff' => 'Staff', 'operasional' => 'Operasional', 'manager_lpss' => 'Manager LPSS']],
             'flowstore' => ['nama' => 'FlowStore', 'ikon' => 'bi-cart-check',
+                'url' => null,
                 'peran' => ['superadmin' => 'Superadmin', 'admin' => 'Admin', 'purchasing' => 'Purchasing',
                             'store' => 'Store', 'divisi' => 'Divisi']],
             'esign'     => ['nama' => 'PAM e-Sign', 'ikon' => 'bi-file-earmark-check',
+                'url' => 'https://esign.wbl-bsb.com',
                 // `unit_admin` BUKAN nilai kolom `users.role` di PAM e-Sign — ia kolom
                 // boolean tersendiri. Disemai sebagai peran di sini karena INILAH
                 // dimensi wewenang yang sungguhan: `role` isinya 60 `user` + 1 `admin`
@@ -72,12 +81,14 @@ class AppAccessSeeder extends Seeder
                 'peran' => ['admin' => 'Admin', 'user' => 'User',
                             'unit_admin' => 'Unit Admin']],
             'clara'     => ['nama' => 'Clara', 'ikon' => 'bi-house-door',
+                'url' => 'https://clara.wbl-bsb.com',
                 // 'finance' & 'supervisor' ada di role_permissions Clara tapi tidak dipakai
                 // siapa pun saat pemeriksaan — sengaja tidak disemai, tambahkan manual
                 // lewat layar kalau memang mulai dipakai.
                 'peran' => ['superadmin' => 'Superadmin', 'administrasi' => 'Administrasi',
                             'sales' => 'Sales', 'viewer' => 'Viewer']],
             'opsjobs'   => ['nama' => 'OpsJobs', 'ikon' => 'bi-tools',
+                'url' => 'https://opsjobs.id',
                 'peran' => ['l1_super_admin' => 'L1 · Super Admin', 'l1_admin_org' => 'L1 · Admin Organization',
                             'l2_auditor' => 'L2 · Auditor', 'l3_admin_dept' => 'L3 · Admin Dept',
                             'l3_manager' => 'L3 · Manager', 'l3_supervisor' => 'L3 · Supervisor']],
@@ -88,11 +99,20 @@ class AppAccessSeeder extends Seeder
             if (! $app) {
                 $this->db->table('apps')->insert([
                     'kode' => $kode, 'nama' => $def['nama'], 'ikon' => $def['ikon'],
-                    'aktif' => 1, 'created_at' => $now, 'updated_at' => $now,
+                    'url' => $def['url'], 'aktif' => 1,
+                    'created_at' => $now, 'updated_at' => $now,
                 ]);
                 $appId = (int) $this->db->insertID();
             } else {
                 $appId = (int) $app['id'];
+
+                // Hanya diisi bila masih kosong. Alamat yang sudah diubah admin
+                // lewat layar TIDAK ditimpa — seeder ini idempoten dan boleh
+                // dijalankan ulang kapan saja, termasuk di produksi.
+                if ($def['url'] !== null && ($app['url'] ?? null) === null) {
+                    $this->db->table('apps')->where('id', $appId)
+                        ->update(['url' => $def['url'], 'updated_at' => $now]);
+                }
             }
 
             foreach ($def['peran'] as $kodePeran => $label) {

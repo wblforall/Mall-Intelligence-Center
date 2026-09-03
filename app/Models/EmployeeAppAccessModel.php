@@ -27,6 +27,87 @@ class EmployeeAppAccessModel extends Model
     ];
     protected $useTimestamps = false;
 
+    /**
+     * Akses aplikasi EFEKTIF seorang karyawan — inilah yang dipakai portal.
+     *
+     * Menggabungkan dua lapis, sama seperti MenuAccess menggabungkan grant
+     * departemen dengan grant per-user:
+     *
+     *   1. Default departemennya (`department_app_access`)
+     *   2. Grant/pengecualian per orang (`employee_app_access`, aktif saja)
+     *
+     * Grant per orang MENIMPA default departemen untuk aplikasi yang sama —
+     * itu memang gunanya: menampung orang yang butuh peran berbeda dari
+     * timnya.
+     *
+     * SENGAJA TIDAK ADA BYPASS ADMIN. Admin MIC belum tentu punya akun di
+     * FlowStore atau PAM e-Sign; menampilkan kartu aplikasi yang orangnya tak
+     * bisa masuki hanya memindahkan kebingungan ke halaman login aplikasi
+     * tujuan. Portal menampilkan apa yang tercatat, bukan apa yang mungkin.
+     *
+     * Default departemen dicocokkan dengan company_id karyawan: baris
+     * `company_id IS NULL` berlaku lintas unit (dipakai departemen bertingkat
+     * `holding`), baris yang terisi hanya berlaku untuk unit bisnis itu.
+     *
+     * @return array<int, array<string,mixed>> per aplikasi, sudah digabung
+     */
+    public function aksesEfektif(int $employeeId): array
+    {
+        $emp = $this->db->table('employees')
+            ->select('dept_id, company_id')
+            ->where('id', $employeeId)->get()->getRowArray();
+
+        if (! $emp) return [];
+
+        $hasil = [];
+
+        // ── Lapis 1: default departemen ──
+        if (! empty($emp['dept_id'])) {
+            $q = $this->db->table('department_app_access d')
+                ->select('d.app_id, a.kode AS app_kode, a.nama AS app_nama, a.url, a.ikon,
+                          r.kode AS peran_kode, r.label AS peran_label')
+                ->join('apps a', 'a.id = d.app_id')
+                ->join('app_roles r', 'r.id = d.app_role_id')
+                ->where('d.department_id', (int) $emp['dept_id'])
+                ->where('a.aktif', 1);
+
+            if (! empty($emp['company_id'])) {
+                $q->groupStart()
+                    ->where('d.company_id', null)
+                    ->orWhere('d.company_id', (int) $emp['company_id'])
+                  ->groupEnd();
+            } else {
+                $q->where('d.company_id', null);
+            }
+
+            foreach ($q->get()->getResultArray() as $b) {
+                $b['sumber'] = 'departemen';
+                $hasil[(int) $b['app_id']] = $b;
+            }
+        }
+
+        // ── Lapis 2: grant per orang (menimpa) ──
+        $pribadi = $this->db->table('employee_app_access x')
+            ->select('x.app_id, x.id_lokal, a.kode AS app_kode, a.nama AS app_nama, a.url, a.ikon,
+                      r.kode AS peran_kode, r.label AS peran_label')
+            ->join('apps a', 'a.id = x.app_id')
+            ->join('app_roles r', 'r.id = x.app_role_id')
+            ->where('x.employee_id', $employeeId)
+            ->where('x.aktif', 1)
+            ->where('a.aktif', 1)
+            ->get()->getResultArray();
+
+        foreach ($pribadi as $b) {
+            $b['sumber'] = 'perorangan';
+            $hasil[(int) $b['app_id']] = $b;
+        }
+
+        // Urutkan menurut nama aplikasi supaya susunan kartunya tidak berubah-ubah.
+        usort($hasil, fn ($a, $b) => strcmp($a['app_nama'], $b['app_nama']));
+
+        return $hasil;
+    }
+
     /** Seluruh riwayat (termasuk yang sudah dicabut) untuk satu karyawan — buat ditampilkan di profil. */
     public function riwayatByEmployee(int $employeeId): array
     {

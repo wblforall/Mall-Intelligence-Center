@@ -14,6 +14,9 @@ $routes->group('api', function ($routes) {
     $routes->post('auth/logout', 'Api\AuthController::logout');
     $routes->get('auth/me',      'Api\AuthController::me');
 
+    // WBL One — portal aplikasi (berdiri di DEPAN, MIC salah satu kartunya)
+    $routes->get('portal/akses', 'Api\PortalController::akses');
+
     // Dashboard
     $routes->get('dashboard/summary', 'Api\DashboardController::summary');
 
