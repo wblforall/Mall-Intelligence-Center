@@ -139,11 +139,19 @@ class PenautanAkun extends BaseController
             $idLokal = (string) $idLokal;
             if (! isset($akunSah[$idLokal]) || ! $akunSah[$idLokal]['sudah_tertaut']) continue;
 
+            // cabutDiTujuan = FALSE. Melepas tautan di layar ini berarti
+            // pencatatannya salah dan sedang dibetulkan — bukan bahwa orangnya
+            // kehilangan hak akses. Menonaktifkan akun tujuan di sini akan
+            // mematikan akun ORANG LAIN gara-gara kekeliruan penautan, dan
+            // justru orang yang tidak melakukan kesalahan apa pun yang
+            // menanggungnya. Pencabutan akses yang sesungguhnya dilakukan dari
+            // profil karyawan atau layar Akses Aplikasi.
             $model->revoke(
                 (int) $akunSah[$idLokal]['tautan_kini']['employee_id'],
                 (int) $app['id'],
                 (int) $this->currentUser()['id'],
-                'tautan dilepas dari layar Penautan Akun'
+                'tautan dilepas dari layar Penautan Akun',
+                false
             );
             $dilepas++;
         }

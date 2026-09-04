@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Libraries\ActivityLog;
+use App\Libraries\AppSync;
 use CodeIgniter\Model;
 
 /**
@@ -206,9 +207,38 @@ class EmployeeAppAccessModel extends Model
         ]);
     }
 
-    /** Cabut akses aktif seorang karyawan ke satu aplikasi. Baris TIDAK dihapus — cukup ditandai nonaktif. */
-    public function revoke(int $employeeId, int $appId, int $olehUserId, ?string $catatan = null): bool
-    {
+    /**
+     * Cabut akses aktif seorang karyawan ke satu aplikasi.
+     *
+     * Baris TIDAK dihapus — cukup ditandai nonaktif, supaya riwayatnya tetap
+     * bisa dibaca.
+     *
+     * @param bool $cabutDiTujuan Antrekan penonaktifan akun di aplikasi tujuan.
+     *
+     * Pembedaan ini WAJIB ada, dan sebelumnya tidak: revoke() hanya menandai
+     * baris di MIC dan tidak mengantre apa pun, sehingga mencabut akses
+     * seseorang meninggalkan akunnya di aplikasi tujuan tetap HIDUP. Yang
+     * menutupi bug itu adalah propagasi resign — satu-satunya jalur yang
+     * mengantre — sehingga pengujian lewat resign selalu lolos.
+     *
+     * Tapi tidak semua pencabutan berarti orangnya harus dinonaktifkan:
+     *
+     *   true  — akses dicabut karena orangnya memang tidak boleh lagi masuk.
+     *           Akun di tujuan harus ikut mati.
+     *   false — tautannya SALAH dan sedang dibetulkan (lihat layar Penautan
+     *           Akun). Menonaktifkan di sini berarti mematikan akun ORANG
+     *           LAIN gara-gara kekeliruan pencatatan.
+     *
+     * Bawaannya `true`: kalau lupa diisi, akibatnya akses tercabut di dua
+     * tempat — bukan akses yang tampak tercabut padahal masih terbuka.
+     */
+    public function revoke(
+        int $employeeId,
+        int $appId,
+        int $olehUserId,
+        ?string $catatan = null,
+        bool $cabutDiTujuan = true
+    ): bool {
         $existing = $this->where('employee_id', $employeeId)
             ->where('app_id', $appId)->where('aktif', 1)->first();
         if (! $existing) return false;
@@ -226,7 +256,23 @@ class EmployeeAppAccessModel extends Model
         ActivityLog::write('delete', 'employee_app_access', (string) $existing['id'], $konteks['label'], [
             'karyawan' => $konteks['nama_karyawan'], 'aplikasi' => $konteks['nama_app'],
             'peran_dicabut' => $konteks['label_peran'],
+            'cabut_di_tujuan' => $cabutDiTujuan,
         ]);
+
+        // Hanya baris yang punya id_lokal bisa diantre: tanpa itu aplikasi
+        // tujuan tidak tahu akun mana yang dimaksud. Diantre, TIDAK dikirim
+        // langsung — alasannya sama seperti propagasi resign: satu tujuan
+        // yang lambat tidak boleh menahan layar yang sedang dipakai orang.
+        if ($cabutDiTujuan && ! empty($existing['id_lokal'])) {
+            AppSync::antre(
+                $appId,
+                $employeeId,
+                AppSync::AKSI_NONAKTIFKAN,
+                (string) $existing['id_lokal'],
+                'akses dicabut di MIC'
+            );
+        }
+
         return true;
     }
 

@@ -18,8 +18,19 @@ use CodeIgniter\CLI\CLI;
  * Tidak perlu tiap menit: propagasi resign tidak menuntut hitungan detik, dan
  * jeda 5 menit mengurangi panggilan sia-sia saat antrian kosong.
  *
- * Aman dijalankan sebelum token layanan disiapkan: antrian ditandai `skipped`
- * dan tidak menumpuk selamanya sebagai `pending`.
+ * Aman dijalankan sebelum token layanan disiapkan: antrian ditandai `skipped`,
+ * dan `skipped` DIAMBIL LAGI setiap kali perintah ini jalan — jadi begitu
+ * tokennya diset, semua yang sempat dilewati ikut terkirim.
+ *
+ * Sebelumnya tidak begitu, dan klaim "aman dijalankan sebelum token disiapkan"
+ * di baris ini justru terbalik: kueri hanya mengambil `pending`, tidak ada
+ * yang pernah mengembalikan `skipped`, sehingga setiap pencabutan yang
+ * diantre sebelum token siap HILANG PERMANEN. Akun mantan karyawan tetap
+ * hidup di aplikasi tujuan, tanpa satu pun tanda bahwa ada yang gagal.
+ *
+ * `skipped` juga TIDAK menaikkan `attempts`: ia bukan percobaan yang gagal,
+ * melainkan percobaan yang tidak pernah terjadi. Kalau ikut dihitung, tiga
+ * kali cron sebelum token siap sudah cukup menghabiskan kuotanya.
  */
 class SyncDispatch extends BaseCommand
 {
@@ -40,7 +51,7 @@ class SyncDispatch extends BaseCommand
             ->select('q.*, a.kode AS app_kode, a.nama AS app_nama, e.nama AS karyawan')
             ->join('apps a', 'a.id = q.app_id')
             ->join('employees e', 'e.id = q.employee_id', 'left')
-            ->where('q.status', 'pending')
+            ->whereIn('q.status', ['pending', 'skipped'])
             ->where('q.attempts <', self::MAKS_PERCOBAAN)
             ->orderBy('q.created_at')
             ->limit($batas)
@@ -68,9 +79,10 @@ class SyncDispatch extends BaseCommand
             [$status, $galat] = AppSync::kirim($baris);
             $rekap[$status] = ($rekap[$status] ?? 0) + 1;
 
+            // `skipped` tidak menaikkan attempts — lihat catatan di docblock.
             $ubah = [
                 'status'     => $status,
-                'attempts'   => (int) $baris['attempts'] + 1,
+                'attempts'   => (int) $baris['attempts'] + ($status === 'skipped' ? 0 : 1),
                 'last_error' => $galat,
             ];
             if ($status === 'sent') $ubah['sent_at'] = date('Y-m-d H:i:s');
