@@ -19,6 +19,7 @@ use App\Models\AppRoleModel;
 use App\Models\CompanyModel;
 use App\Models\EmployeeAppAccessModel;
 use App\Libraries\ActivityLog;
+use App\Libraries\AppSync;
 
 class PeopleEmployees extends BaseController
 {
@@ -716,7 +717,49 @@ class PeopleEmployees extends BaseController
             // memindahkan kredensialnya. HR tetap MELIHAT bagian ini —
             // hanya tidak bisa mengubahnya.
             'canEditAppAccess'  => $this->canEditMenu('app_access'),
+            'langkahTertahan'   => $this->langkahTertahanTerkait($id, $employee['status'] ?? ''),
         ]);
+    }
+
+    /**
+     * Dokumen di aplikasi lain yang akan MACET bila karyawan ini dinonaktifkan.
+     *
+     * Menonaktifkan akun di aplikasi tujuan tidak menyentuh alur persetujuan
+     * di sana — tidak ada satu pun pemeriksaan status akun di model dokumennya.
+     * Jadi dokumen yang langkah berikutnya menunggu orang ini akan berhenti di
+     * tempat: ia tidak bisa masuk untuk menandatangani, dan tidak ada apa pun
+     * yang menandai atau mengalihkan. Peringatan ini muncul SEBELUM HR
+     * mengubah statusnya, karena setelah akunnya mati sudah terlambat menolong
+     * dokumennya.
+     *
+     * Dilewati untuk karyawan yang statusnya sudah bukan aktif: peringatannya
+     * tidak lagi bisa mencegah apa pun, dan halaman tidak perlu memanggil
+     * jaringan untuk itu.
+     *
+     * @return array<string, array<string,mixed>>  kode aplikasi => laporan
+     */
+    private function langkahTertahanTerkait(int $employeeId, string $status): array
+    {
+        if ($status !== 'aktif') return [];
+
+        $tautan = db_connect()->table('employee_app_access x')
+            ->select('a.kode, a.nama, x.id_lokal')
+            ->join('apps a', 'a.id = x.app_id')
+            ->where('x.employee_id', $employeeId)
+            ->where('x.aktif', 1)
+            ->where('x.id_lokal IS NOT NULL')
+            ->get()->getResultArray();
+
+        $hasil = [];
+        foreach ($tautan as $t) {
+            $laporan = AppSync::langkahTertahan($t['kode'], (string) $t['id_lokal']);
+            if (! $laporan['ok'] || $laporan['jumlah'] === 0) continue;
+
+            $laporan['app_nama'] = $t['nama'];
+            $hasil[$t['kode']] = $laporan;
+        }
+
+        return $hasil;
     }
 
     /**

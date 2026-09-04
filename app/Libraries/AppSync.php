@@ -183,17 +183,66 @@ class AppSync
     }
 
     /**
+     * Berapa langkah persetujuan yang akan TERTAHAN bila akun ini dinonaktifkan.
+     *
+     * Dipakai layar karyawan untuk memperingatkan HR SEBELUM resign disimpan.
+     * Menonaktifkan akun tidak menyentuh alur persetujuan di aplikasi tujuan,
+     * jadi dokumen yang menunggu orang itu akan menggantung tanpa tanda.
+     *
+     * GAGAL TERBUKA, dan itu disengaja: ini keterangan tambahan, bukan syarat.
+     * Kalau aplikasi tujuan sedang mati atau lambat, layar karyawan tetap
+     * terbuka dan resign tetap bisa disimpan — hanya peringatannya tidak
+     * muncul. Menahan pekerjaan HR karena sistem lain sedang mati adalah harga
+     * yang jauh lebih besar daripada satu peringatan yang terlewat.
+     *
+     * Batas waktunya pendek (4 detik) karena ini dipanggil dari halaman yang
+     * sering dibuka.
+     *
+     * @return array{ok:bool, jumlah:int, sekarang:int, nanti:int, dokumen:array<int,array<string,mixed>>}
+     */
+    public static function langkahTertahan(string $kodeApp, string $idLokal): array
+    {
+        $kosong = ['ok' => false, 'jumlah' => 0, 'sekarang' => 0, 'nanti' => 0, 'dokumen' => []];
+
+        if (! self::terkonfigurasi($kodeApp)) return $kosong;
+
+        [$httpKode, $isi] = self::httpGet(
+            self::alamat($kodeApp) . '/api/sistem/pengguna/' . rawurlencode($idLokal) . '/langkah-tertahan',
+            ['Accept: application/json', 'X-Service-Token: ' . self::token($kodeApp)],
+            4
+        );
+
+        if ($httpKode < 200 || $httpKode >= 300) {
+            log_message('warning', '[app-sync] langkah tertahan ' . $kodeApp . '/' . $idLokal
+                . ' gagal: HTTP ' . $httpKode);
+
+            return $kosong;
+        }
+
+        $data = json_decode($isi, true)['langkah_tertahan'] ?? null;
+        if (! is_array($data)) return $kosong;
+
+        return [
+            'ok'       => true,
+            'jumlah'   => (int) ($data['jumlah'] ?? 0),
+            'sekarang' => (int) ($data['sekarang'] ?? 0),
+            'nanti'    => (int) ($data['nanti'] ?? 0),
+            'dokumen'  => is_array($data['dokumen'] ?? null) ? $data['dokumen'] : [],
+        ];
+    }
+
+    /**
      * @param  string[]  $headers
      * @return array{0:int, 1:string}
      */
-    private static function httpGet(string $url, array $headers): array
+    private static function httpGet(string $url, array $headers, int $batasDetik = 20): array
     {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 20,
-            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT        => $batasDetik,
+            CURLOPT_CONNECTTIMEOUT => 4,
             // Jangan ikuti pengalihan: X-Service-Token bisa terbawa ke host lain.
             CURLOPT_FOLLOWLOCATION => false,
         ]);

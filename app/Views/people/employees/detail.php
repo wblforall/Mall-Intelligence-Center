@@ -192,6 +192,53 @@ $statusLabel = ucfirst(str_replace('_', ' ', $employee['status']));
 <div class="card mb-4 anim-fade-up" id="app-access" style="animation-delay:.14s">
 <div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-grid-3x3-gap me-2"></i>Akses Aplikasi</h6></div>
 <div class="card-body">
+
+<?php /* Peringatan SEBELUM status karyawan diubah. Menonaktifkan akun di
+         aplikasi tujuan tidak menyentuh alur persetujuan di sana, jadi dokumen
+         yang menunggu orang ini akan berhenti di tempat tanpa tanda apa pun.
+         Ditampilkan di sini, bukan setelah menyimpan, karena setelah akunnya
+         mati sudah terlambat menolong dokumennya. */ ?>
+<?php foreach (($langkahTertahan ?? []) as $kodeApp => $lt): ?>
+<div class="alert alert-warning d-flex gap-2 mb-3">
+    <i class="bi bi-exclamation-triangle mt-1"></i>
+    <div class="small">
+        <strong>
+            <?= (int) $lt['jumlah'] ?> dokumen di <?= esc($lt['app_nama']) ?>
+            akan tertahan bila karyawan ini dinonaktifkan.
+        </strong>
+        <?php if ((int) $lt['sekarang'] > 0): ?>
+            <span class="badge text-bg-danger ms-1"><?= (int) $lt['sekarang'] ?> menunggu sekarang</span>
+        <?php endif; ?>
+        <?php if ((int) $lt['nanti'] > 0): ?>
+            <span class="badge text-bg-secondary ms-1"><?= (int) $lt['nanti'] ?> menunggu di langkah berikutnya</span>
+        <?php endif; ?>
+
+        <div class="mt-1" style="font-size:.82rem">
+            Menandai karyawan ini <strong>resign</strong> akan menonaktifkan
+            akunnya di <?= esc($lt['app_nama']) ?>, dan dokumen berikut berhenti
+            karena tidak ada penanda tangan lain yang ditunjuk. Alihkan dulu
+            langkahnya di sana, atau minta <?= esc($lt['app_nama']) ?>
+            mengubah alur persetujuannya.
+        </div>
+
+        <ul class="mb-0 mt-2" style="font-size:.82rem">
+        <?php foreach (array_slice($lt['dokumen'], 0, 8) as $d): ?>
+            <li>
+                <code><?= esc($d['doc_number'] ?? '-') ?></code>
+                — <?= esc($d['judul'] ?? '-') ?>
+                <?php if (($d['keadaan'] ?? '') === 'current'): ?>
+                    <span class="badge text-bg-danger">menunggu sekarang</span>
+                <?php endif; ?>
+            </li>
+        <?php endforeach; ?>
+        <?php if (count($lt['dokumen']) > 8): ?>
+            <li class="text-muted">…dan <?= count($lt['dokumen']) - 8 ?> dokumen lainnya</li>
+        <?php endif; ?>
+        </ul>
+    </div>
+</div>
+<?php endforeach; ?>
+
 <?php $aktifSaja = array_filter($appAccess, fn($r) => (int) $r['aktif'] === 1); ?>
 <?php if (empty($aktifSaja)): ?>
     <p class="small text-muted mb-3">Belum ada akses aplikasi khusus untuk karyawan ini — ia mengikuti default departemennya.</p>
