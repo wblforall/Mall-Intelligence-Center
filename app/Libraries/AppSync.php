@@ -29,6 +29,12 @@ class AppSync
     public const AKSI_NONAKTIFKAN = 'nonaktifkan';
 
     /**
+     * Pembatalan pembekuan. Ada karena resign bisa salah input: tanpa ini,
+     * membatalkannya berarti membuka akun satu per satu di tiap aplikasi.
+     */
+    public const AKSI_AKTIFKAN = 'aktifkan';
+
+    /**
      * Antrekan satu perintah.
      *
      * `id_lokal` DISALIN ke antrian, tidak dibaca ulang saat kirim — supaya
@@ -261,6 +267,7 @@ class AppSync
 
         return match ($aksi) {
             self::AKSI_NONAKTIFKAN => $dasar . '/api/sistem/pengguna/' . rawurlencode($idLokal) . '/nonaktif',
+            self::AKSI_AKTIFKAN    => $dasar . '/api/sistem/pengguna/' . rawurlencode($idLokal) . '/aktif',
             default => null,
         };
     }

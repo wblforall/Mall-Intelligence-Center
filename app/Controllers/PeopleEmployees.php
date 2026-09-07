@@ -926,14 +926,21 @@ class PeopleEmployees extends BaseController
         ActivityLog::write('update', 'employee', (string)$id, trim($post['nama'] ?? ''));
 
         $pesan = 'Data karyawan diperbarui.';
-        $pesan .= $this->antreCabutAksesBilaKeluar($id, $employee['status'] ?? null, $employeeData['status'] ?? null);
+        $pesan .= $this->antreSinkronAksesBilaStatusBerubah($id, $employee['status'] ?? null, $employeeData['status'] ?? null);
 
         return redirect()->to('/people/employees/' . $id)->with('success', $pesan);
     }
 
     /**
-     * Begitu karyawan tidak lagi berstatus `aktif`, antrekan pencabutan
-     * aksesnya di aplikasi lain.
+     * Antrekan penyesuaian akses di aplikasi lain begitu status kepegawaian
+     * berpindah — DUA ARAH.
+     *
+     * Keluar dari `aktif`  → antrekan pencabutan.
+     * Kembali ke `aktif`   → antrekan pembukaan.
+     *
+     * Arah kedua bukan pelengkap: resign bisa salah input, dan tanpa jalur
+     * otomatis pembatalannya harus dikerjakan tangan di tiap aplikasi — persis
+     * saat orangnya sedang tidak bisa bekerja.
      *
      * SENGAJA hanya mengantrekan, tidak memanggil aplikasi tujuan di sini —
      * lihat AppSync dan migrasi `app_sync_queue`. Penandaan resign-nya sendiri
@@ -945,25 +952,32 @@ class PeopleEmployees extends BaseController
      *
      * @return string tambahan untuk pesan sukses (kosong bila tak ada apa-apa)
      */
-    private function antreCabutAksesBilaKeluar(int $employeeId, ?string $statusLama, ?string $statusBaru): string
+    private function antreSinkronAksesBilaStatusBerubah(int $employeeId, ?string $statusLama, ?string $statusBaru): string
     {
         if ($statusBaru === null || $statusBaru === $statusLama) return '';
-        if ($statusLama !== 'aktif' || $statusBaru === 'aktif') return '';
+
+        $keluar = ($statusLama === 'aktif' && $statusBaru !== 'aktif');
+        $kembali = ($statusLama !== 'aktif' && $statusBaru === 'aktif');
+
+        if (! $keluar && ! $kembali) return '';
 
         $hasil = \App\Libraries\AppSync::antreSemuaAplikasi(
             $employeeId,
-            \App\Libraries\AppSync::AKSI_NONAKTIFKAN,
+            $keluar ? \App\Libraries\AppSync::AKSI_NONAKTIFKAN
+                    : \App\Libraries\AppSync::AKSI_AKTIFKAN,
             'status di MIC berubah menjadi ' . $statusBaru
         );
 
         $pesan = '';
         if ($hasil['diantre'] > 0) {
-            $pesan .= ' Pencabutan akses di ' . $hasil['diantre']
-                . ' aplikasi masuk antrian dan akan diproses otomatis.';
+            $pesan .= $keluar
+                ? ' Pencabutan akses di ' . $hasil['diantre'] . ' aplikasi masuk antrian dan akan diproses otomatis.'
+                : ' Pembukaan kembali akses di ' . $hasil['diantre'] . ' aplikasi masuk antrian dan akan diproses otomatis.';
         }
         if ($hasil['tanpa_tautan'] > 0) {
-            $pesan .= ' PERHATIAN: ' . $hasil['tanpa_tautan']
-                . ' akses aplikasi belum tertaut ke akun tujuan, jadi harus dicabut manual.';
+            $pesan .= $keluar
+                ? ' PERHATIAN: ' . $hasil['tanpa_tautan'] . ' akses aplikasi belum tertaut ke akun tujuan, jadi harus dicabut manual.'
+                : ' PERHATIAN: ' . $hasil['tanpa_tautan'] . ' akses aplikasi belum tertaut ke akun tujuan, jadi harus dibuka manual.';
         }
 
         return $pesan;
