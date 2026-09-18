@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.25.0** (Agustus 2026)
+> Versi saat ini: **v2.26.0** (September 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,105 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.26.0
+
+**Tanggal Rilis:** 19 September 2026
+
+### Perubahan dari v2.25.0
+
+Rilis ini menambah satu modul baru: **Pest Control**. Pencatatan temuan hama selama
+ini hidup di dua berkas Excel yang direkap per bulan. Yang diminta sekarang
+pencatatan per minggu, lengkap dengan foto bukti — dan itu tidak bisa dikerjakan
+dengan menambah kolom di Excel.
+
+#### Temuan Dicatat per Kunjungan, Bukan per Minggu
+
+Persoalan pertama muncul sebelum satu baris kode ditulis: **tidak semua bulan berisi
+4 minggu**, sebagian berisi 5. Kalau tabelnya menyediakan kolom "minggu ke-1" sampai
+"minggu ke-5", kalender dipaksa masuk ke slot yang tidak pas — dan minggu yang
+menyeberang dua bulan (Senin 28 September sampai Minggu 4 Oktober) tidak punya tempat
+yang benar.
+
+Jalan keluarnya: yang disimpan adalah **satu kunjungan pada satu tanggal**. Nomor
+minggu tidak pernah disimpan, melainkan dihitung saat ditampilkan. Dengan begitu
+pertanyaan "bulan ini 4 atau 5 minggu" tidak pernah perlu dijawab — bulan yang punya
+5 minggu memunculkan 5 baris, yang 4 minggu memunculkan 4.
+
+Penomoran minggu memakai **ISO 8601 (Senin–Minggu)**, definisi yang sama dengan yang
+sudah dipakai modul Progress Report — jadi satu pengertian "minggu" untuk seluruh
+aplikasi, bukan dua.
+
+#### Nol yang Berarti Bersih, Dibedakan dari Belum Diisi
+
+Di Excel lama, angka 0 tidak bisa dibedakan antara *"sudah diperiksa, memang bersih"*
+dan *"belum sempat diinput"*. Kecoa eWalk 2026 punya lima bulan bernilai 0, dan sampai
+hari ini tidak ada cara mengetahui yang mana.
+
+Sekarang keduanya terpisah. Nol tidak pernah disimpan sebagai angka; yang membuktikan
+pemeriksaan benar dilakukan adalah **keberadaan catatan kunjungannya**. Untuk
+kunjungan tanpa temuan, tersedia tombol **"Nihil temuan"**. Di halaman tren, minggu
+tanpa kunjungan tampil berarsir dengan tanda titik, sedangkan yang nihil tampil
+sebagai angka 0.
+
+#### Form Input yang Menyimpan Sendiri
+
+Delapan baris item — Tikus, Kucing, Biawak, Kecoa, Lalat, Ular, Kelelawar, Kupu-kupu
+— dengan urutan yang sama seperti Excel lama, jadi tidak ada yang perlu dipelajari
+ulang. Angka tersimpan begitu berpindah kolom, tanpa tombol Simpan; baris yang sudah
+tersimpan terkunci dan dibuka lewat tombol pensil. Mekanismenya mengikuti input Daily
+Traffic yang sudah berjalan, termasuk tata letak kartu untuk ponsel — modul ini
+memang dipakai dari lapangan.
+
+**Foto bukti** bisa dilampirkan sampai 5 per item, maksimal 10 MB masing-masing, dan
+otomatis dikecilkan setelah diunggah.
+
+Dua item baru ditambahkan mengikuti berkas 2026: **Kelelawar** dan **Kupu-kupu**.
+Daftar item kini berupa master yang bisa disunting admin, bukan lagi daftar tetap —
+karena terbukti daftarnya memang berubah antar tahun. Item yang sudah punya temuan
+tidak bisa dihapus, hanya dinonaktifkan, agar angka historisnya tidak ikut lenyap.
+
+#### Rekap, Pembanding Tahun, dan Laporan Cetak
+
+- **Tren Mingguan** — perbandingan antar minggu ISO, 8 sampai 52 minggu terakhir.
+- **Rekap & Laporan** — rekap bulanan satu tahun penuh, plus pembanding tahun ini
+  melawan tahun lalu per jenis hama.
+- **Laporan Bulanan siap cetak** (A4 landscape) mengikuti pola baku lima modul yang
+  sudah ada, dengan tanda tangan Disusun / Diperiksa / Mengetahui yang terisi otomatis
+  dari struktur organisasi.
+
+Pada laporan bulanan, rincian mingguan sengaja **dipotong di batas bulan** dan minggu
+potongannya ditandai "sebagian", supaya jumlah baris mingguannya selalu sama dengan
+total bulan itu. Halaman Tren memakai minggu utuh 7 hari. Dua perlakuan yang berbeda,
+masing-masing untuk keperluan yang berbeda, dan keduanya diberi keterangan di layar.
+
+#### Data 2025–2026 Ikut Masuk, Tanpa Angka yang Dikarang
+
+Seluruh isi kedua berkas Excel diimpor: **120 baris temuan, 4.414 ekor**, terverifikasi
+sel demi sel sama persis dengan kolom TOTAL di berkas aslinya.
+
+Karena berkas itu rekap **bulanan** dan tidak memuat tanggal kunjungan, barisnya
+ditandai sebagai *rekap impor* — ikut dihitung pada rekap bulanan dan pembanding antar
+tahun, tetapi **dikecualikan** dari tren mingguan. Tanggal kunjungannya tidak dikarang;
+memasukkannya sebagai kunjungan mingguan palsu akan melahirkan tren yang terlihat sahih
+padahal fiktif.
+
+Ejaan diperbaiki dari berkas sumber: "Kekelawar" menjadi Kelelawar, "Kupu - Kupu"
+menjadi Kupu-kupu.
+
+#### Akses
+
+Modul dimiliki departemen **Operational & Building Maintenance** — departemen yang
+sama dengan pemilik Daily Traffic. Master item temuan hanya bisa diubah admin.
+
+#### Catatan untuk Pengembangan Berikutnya
+
+Rincian lokasi/area temuan **belum dibangun** di rilis ini; tabel dan kolomnya sudah
+disiapkan sehingga penambahannya nanti tidak menuntut migrasi ulang. Notifikasi
+lonjakan temuan juga ditunda sampai ada cukup data mingguan untuk menetapkan ambang
+yang masuk akal — ambang yang keliru hanya membuat orang berhenti membaca notifikasi.
 
 ---
 

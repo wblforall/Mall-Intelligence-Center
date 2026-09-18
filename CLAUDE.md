@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v2.25.0** (Agustus 2026).
+Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v2.26.0** (September 2026).
 
 Stack: CodeIgniter 4 (v4.4.x), MySQL (XAMPP), Bootstrap 5.3, Chart.js, Apache.  
 Base URL: `http://localhost/mall-intelligence-center/public/`
@@ -104,6 +104,47 @@ Saat menambah laporan modul baru, ikuti pola baku:
 - View standalone A4 landscape **font 11px**; pakai partial bersama `app/Views/_laporan/_style.php` (CSS + aturan page-break: `tbody.prog-block` per item, thead berulang) dan `_laporan/_ttd.php` (blok tanda tangan).
 - Tanda tangan via `App\Libraries\ReportSignatories::resolve(menuKey)` — dept penyusun = **dept pemilik modul** (pemegang `can_edit` di `department_menu_access`, non-outsource), bukan dept si pencetak. Disusun = Dept Head, Diperiksa = Senior Manager divisi (grade 4, bila ada) berdampingan Deputy GM (grade 3) dalam satu kolom, Mengetahui = GM.
 - Struktur isi: KPI (delta vs bulan lalu) → rekap per mall → Ringkasan Analisa (insight rule-based) + 2 grafik Chart.js (`animation:false`, palet CVD-safe) → tabel detail (pembanding `lalu · kum` untuk periode multi-bulan) → ttd.
+
+### Pest Control — v2.26
+
+**Satuan simpan = satu kunjungan pada satu tanggal.** Nomor minggu TIDAK pernah
+disimpan; dihitung saat tampil lewat `YEARWEEK(tanggal, 1)` (ISO, sama dengan
+`WorkReportCtrl`). Inilah yang membuat perbedaan bulan 4 dan 5 minggu tidak pernah
+perlu diputuskan di tingkat data. Rancangan lengkap: [PESTCARE_DESIGN.md](PESTCARE_DESIGN.md).
+
+⚠️ **`UNIQUE(mall, tanggal, sumber)`, bukan `(mall, tanggal)`.** Baris
+`sumber='rekap_legacy'` mewakili satu BULAN (hasil impor Excel), baris
+`sumber='kunjungan'` mewakili satu HARI. Kunci tanpa `sumber` membuat keduanya
+berebut tanggal dan kunjungan sungguhan tak bisa dicatat. `getByMallTanggal()`
+menyaring `sumber='kunjungan'` agar form tak pernah memungut baris impor.
+
+⚠️ **Nol tidak disimpan** — jumlah 0 menghapus barisnya. Yang membuktikan
+pemeriksaan dilakukan adalah keberadaan baris `pest_visits`, bukan angka nol. Karena
+itu tombol **"Nihil temuan"** wajib ada; tanpanya "diperiksa, bersih" tak bisa
+dibedakan dari "belum diinput" — persis lubang Excel lama.
+
+⚠️ **Dua definisi periode yang sengaja berbeda.** Tren mingguan (`/pest`) memakai
+minggu ISO penuh dan mengecualikan `rekap_legacy`. Laporan bulanan memotong minggu
+di batas bulan (ditandai "sebagian") dan memuat `rekap_legacy`. Jangan disamakan —
+keduanya diberi keterangan di layar.
+
+⚠️ **Urutan tulis berkas foto kebalikan dari urutan hapus, dan keduanya benar:**
+unggah menyimpan ke disk SEBELUM menulis DB (gagal di tengah → `unlink`, nol baris
+DB); hapus menghapus berkas SESUDAH `transComplete()`. Yang tidak bisa dibatalkan
+dikerjakan belakangan.
+
+⚠️ **`public/uploads/pest` harus 777**, bukan 755 — Apache berjalan sebagai user lain
+sehingga `mkdir` subfolder per-kunjungan gagal dan unggah menolak dengan 500.
+
+Importer legacy: `php spark mic:pest-import-legacy [--dry]`, sumber
+`data/pest-legacy-2025-2026.csv`. Aman dijalankan ulang — pemeriksaan "sudah
+terimpor" dilakukan **per bulan, bukan per tanggal**, karena tanggal bulan berjalan
+dibatasi ke hari ini dan akan berbeda bila dijalankan di hari lain.
+
+⚠️ **Tombol filter aktif: jangan pakai `.active`.** `theme.css` menimpa
+`.btn-outline-*` dan `.btn-secondary` dengan `!important`, sehingga label tombol aktif
+jadi tak terbaca. Pola MIC: tukar kelasnya — aktif `btn-primary`, nonaktif
+`btn-outline-secondary`.
 
 ### Pengkinian Data Mandiri (ESS) — v2.25
 
