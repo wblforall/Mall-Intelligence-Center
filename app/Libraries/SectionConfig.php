@@ -23,6 +23,7 @@ class SectionConfig
         'parking_live'       => 'Parkir — Live (real-time)',
         'parking_vehicles'   => 'Parkir — Traffic Kendaraan',
         'parking_revenue'    => 'Parkir — Revenue',
+        'pest_control'       => 'Pest Control',
         'legal'              => 'Legal',
         'work_report'        => 'Progress Report',
         // Label menyebut "lintas sistem" dengan sengaja: inilah izin yang

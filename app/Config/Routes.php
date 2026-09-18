@@ -342,6 +342,29 @@ $routes->get('parking/occupancy',        'ParkingOccupancy::index',  ['filter' =
 $routes->get('parking/recon',            'ParkingRecon::index',      ['filter' => 'auth']); // analisa: rekaman vs SPI final
 $routes->post('parking/sync',            'ParkingSync::run',         ['filter' => 'auth']); // tarik data SPI manual
 
+// Pest Control — temuan pest per kunjungan bertanggal (mingguan dihitung saat
+// tampil, lihat PESTCARE_DESIGN.md §2). Rute statis didaftarkan SEBELUM rute
+// ber-placeholder agar 'pest/kunjungan' tidak tertelan 'pest/(:alpha)'.
+$routes->get('pest',                      'PestCtrl::index',           ['filter' => 'auth']);
+$routes->get('pest/kunjungan',            'PestCtrl::kunjungan',       ['filter' => 'auth']);
+$routes->get('pest/summary',              'PestCtrl::summary',         ['filter' => 'auth']);
+$routes->get('pest/laporan-bulanan',      'PestCtrl::laporanBulanan',  ['filter' => 'auth']);
+$routes->get('pest/input',                'PestCtrl::form',            ['filter' => 'auth']);
+$routes->get('pest/input/(:alpha)',       'PestCtrl::form/$1',         ['filter' => 'auth']);
+$routes->get('pest/input/(:alpha)/(:any)','PestCtrl::form/$1/$2',      ['filter' => 'auth']);
+$routes->post('pest/save-cell',           'PestCtrl::saveCell',        ['filter' => 'auth']);
+$routes->post('pest/nihil',               'PestCtrl::nihil',           ['filter' => 'auth']);
+$routes->post('pest/foto',                'PestCtrl::unggahFoto',      ['filter' => 'auth']);
+$routes->post('pest/foto/(:num)/hapus',   'PestCtrl::hapusFoto/$1',    ['filter' => 'auth']);
+$routes->get('pest/foto-list/(:num)',     'PestCtrl::daftarFoto/$1',   ['filter' => 'auth']);
+$routes->post('pest/delete/(:num)',       'PestCtrl::hapusKunjungan/$1', ['filter' => 'auth']);
+
+// Pest — master item (admin only). Master area menyusul di Fase 2.
+$routes->get('pest-items',                'PestItems::index',   ['filter' => 'auth:admin']);
+$routes->post('pest-items/add',           'PestItems::store',   ['filter' => 'auth:admin']);
+$routes->post('pest-items/(:num)/edit',   'PestItems::update/$1',  ['filter' => 'auth:admin']);
+$routes->post('pest-items/(:num)/delete', 'PestItems::delete/$1',  ['filter' => 'auth:admin']);
+
 // Event Locations master (admin only)
 $routes->get('event-locations', 'EventLocations::index', ['filter' => 'auth:admin']);
 $routes->post('event-locations/add', 'EventLocations::store', ['filter' => 'auth:admin']);
