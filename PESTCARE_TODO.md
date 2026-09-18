@@ -193,15 +193,43 @@ found` — ekstensi `intl` tidak terpasang di PHP XAMPP. Diperiksa dengan
       foto. Kalau token basi, submit ditolak **diam-diam**.
 - [x] **H3** Uji `UNIQUE(mall, tanggal)` — buka form tanggal yang sama dua kali,
       pastikan tidak lahir kunjungan ganda.
-- [ ] **H4** ⚠️ **Verifikasi di produksi, bukan lokal**: id dept Operational &
+- [x] **H4** ⚠️ **Verifikasi di produksi, bukan lokal**: id dept Operational &
       Building Maintenance, dan isi blok Disusun/Diperiksa/Mengetahui di laporan.
       Angka di rancangan dibaca dari basis data lokal.
-- [ ] **H5** `php spark migrate` di produksi + seed izin C5.
-- [ ] **H6** Uji satu URL sungguhan setelah deploy — **uji perilakunya, bukan
+- [x] **H5** `php spark migrate` di produksi + seed izin C5.
+- [x] **H6** Uji satu URL sungguhan setelah deploy — **uji perilakunya, bukan
       penandanya**. `git log`, berkas di disk, dan `route:list` bisa benar semua
       sementara yang dilayani ke pengguna tetap 404.
-- [ ] **H7** Rilis: pakai skill `/finishing` (bump versi, RELEASE_NOTE.md, commit,
+- [x] **H7** Rilis: pakai skill `/finishing` (bump versi, RELEASE_NOTE.md, commit,
       push).
+
+---
+
+## Deploy produksi — 19 Sep 2026
+
+Rilis **v2.26.0** (`6da91cd`) sudah hidup di `mic.wbl-bsb.com`.
+
+| Langkah | Hasil |
+|---|---|
+| `git pull origin main` | `4b7a32f` → `6da91cd`. Server cPanel **bisa** menjangkau GitHub (beda dari VPS PAM e-Sign). |
+| `php spark migrate` | Dua migrasi jalan. `area_id` NOT NULL DEFAULT 0 ✓, `mall_tanggal_sumber` ✓, seed 8 item ✓. |
+| Izin dept Ops | `pest_control` can_view+can_edit untuk dept **4** — id terverifikasi **di produksi**, sama dengan lokal. |
+| Folder unggah | `public/uploads/pest` **755**, bukan 777. Di cPanel PHP berjalan sebagai pemilik berkas, jadi 777 tak perlu dan tak sehat. Diuji: PHP bisa `mkdir`. |
+| Impor legacy | 42 kunjungan, 120 temuan, **4.414 ekor** — cocok dengan Excel. Nol tanggal masa depan. |
+| `perms_changed_at` | Disetel untuk 4 pengguna dept Ops. **Wajib** — izin disisipkan lewat SQL, melewati mekanisme di `Departments::update()` yang biasanya memaksa sesi disegarkan. Tanpa ini menu tidak muncul sampai mereka login ulang. |
+
+**Uji perilaku, bukan penanda** — rute terdaftar menjawab **302** (pengalihan ke
+login), rute karangan menjawab **404**. Kontras itu yang membuktikan rutenya
+benar-benar dilayani, bukan sekadar semua-dialihkan.
+
+Penanda tangan laporan terverifikasi di produksi: Musfiandi Taqwin (Manager
+Operational & Building Maintenance) / Christian Y.r. Pangkerego (Deputy GM
+divisi yang sama) / Alfialdy (General Manager). Tidak ada Senior Manager grade
+4 di divisi itu, jadi kolom "Diperiksa" hanya berisi Deputy GM — sesuai
+rancangan.
+
+**Masih terbuka:** H1 (uji unggah HEIC dari iPhone sungguhan) — belum bisa
+dikerjakan tanpa perangkat.
 
 ---
 
