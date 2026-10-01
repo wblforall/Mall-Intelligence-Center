@@ -40,6 +40,68 @@ class AiMonitor extends BaseController
         return (new \DateTime('now', new \DateTimeZone(self::TZ)))->format('Y-m-d');
     }
 
+    // ── Dashboard overview ───────────────────────────────────────────────
+
+    public function dashboard()
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $today     = $this->hariIni();
+        $weekStart = date('Y-m-d', strtotime($today . ' -6 days'));   // 7 hari inklusif
+        $start14   = date('Y-m-d', strtotime($today . ' -13 days'));  // 14 hari inklusif
+
+        $sess = $this->sessions;
+
+        // ── Status perangkat (satu aturan, lihat statusPerangkat) ────────
+        $devices = db_connect()->table('ai_devices')
+            ->select('aktif, disetujui_at, diblokir')->get()->getResultArray();
+        $statusCounts = ['aktif' => 0, 'pending' => 0, 'diblokir' => 0, 'nonaktif' => 0];
+        foreach ($devices as $d) {
+            $statusCounts[$this->statusPerangkat($d)]++;
+        }
+        $totalKomputer = count($devices);
+
+        // ── Deret 14 hari (isi celah tanggal yang kosong dgn 0) ──────────
+        $promptHarian = $sess->promptHarian($start14, $today);
+        $tokenHarian  = $sess->tokenHarian($start14, $today);
+        $deret14 = [];
+        for ($i = 13; $i >= 0; $i--) {
+            $t = date('Y-m-d', strtotime($today . ' -' . $i . ' days'));
+            $deret14[] = [
+                'tanggal' => $t,
+                'label'   => date('d/m', strtotime($t)),
+                'prompt'  => $promptHarian[$t] ?? 0,
+                'token'   => $tokenHarian[$t]  ?? 0,
+            ];
+        }
+
+        $hariIni = $sess->totalEntriRentang($today, $today);
+        $tujuh   = $sess->totalEntriRentang($weekStart, $today);
+
+        $data = [
+            'tanggal' => $today,
+            'kpi' => [
+                'total_komputer'    => $totalKomputer,
+                'komputer_aktif'    => $statusCounts['aktif'],
+                'komputer_pending'  => $statusCounts['pending'],
+                'komputer_diblokir' => $statusCounts['diblokir'],
+                'prompt_hari_ini'   => $hariIni['prompt'],
+                'prompt_7hari'      => $tujuh['prompt'],
+                'sesi_7hari'        => $tujuh['sesi'],
+                'token_7hari'       => $sess->totalTokenRentang($weekStart, $today),
+            ],
+            'deret14'       => $deret14,
+            'status_counts' => $statusCounts,
+            'top_komputer'  => $sess->topKomputer($weekStart, $today, 5),
+            'top_karyawan'  => $sess->topKaryawan($weekStart, $today, 5),
+            'sesi_terbaru'  => $sess->sesiTerbaru(10),
+        ];
+
+        return view('ai_monitor/dashboard', $data);
+    }
+
     // ── Rekap per karyawan ───────────────────────────────────────────────
 
     public function index()
@@ -146,6 +208,110 @@ class AiMonitor extends BaseController
         if ($tanggal === '') return null;
         $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
         return ($d && $d->format('Y-m-d') === $tanggal) ? $tanggal : null;
+    }
+
+    /**
+     * Status perangkat untuk ditampilkan — satu aturan dipakai bersama oleh
+     * halaman rekap komputer (urutan: diblokir menang, lalu menunggu, aktif,
+     * baru nonaktif). Sama dengan logika badge di view perangkat.
+     */
+    private function statusPerangkat(array $d): string
+    {
+        if (! empty($d['diblokir']))      return 'diblokir';
+        if (empty($d['disetujui_at']))    return 'pending';
+        if (! empty($d['aktif']))         return 'aktif';
+        return 'nonaktif';
+    }
+
+    // ── Rekap per komputer (per perangkat) ───────────────────────────────
+    //
+    // Pelengkap rekap per karyawan: menghitung aktivitas per LAPTOP. Berguna
+    // saat satu karyawan punya beberapa laptop, atau saat perangkat belum
+    // ditautkan ke karyawan (hasil enroll yang menunggu persetujuan).
+
+    public function komputer()
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $today     = $this->hariIni();
+        $weekStart = date('Y-m-d', strtotime($today . ' -6 days')); // 7 hari inklusif
+
+        $sessModel = $this->sessions;
+        $hariIni   = $sessModel->rekapEntriPerPerangkat($today, $today);
+        $tujuh     = $sessModel->rekapEntriPerPerangkat($weekStart, $today);
+        $tokHari   = $sessModel->tokenPerPerangkat($today, $today);
+
+        $devices = db_connect()->table('ai_devices d')
+            ->select('d.id, d.label, d.aktif, d.disetujui_at, d.diblokir,
+                      d.host_terakhir, d.lapor_at, emp.nama AS nama, dept.name AS dept')
+            ->join('employees emp', 'emp.id = d.employee_id', 'left')
+            ->join('departments dept', 'dept.id = emp.dept_id', 'left')
+            ->orderBy('d.lapor_at IS NULL', 'ASC', false)
+            ->orderBy('d.lapor_at', 'DESC')
+            ->orderBy('d.label', 'ASC')
+            ->get()->getResultArray();
+
+        $rows = [];
+        foreach ($devices as $d) {
+            $did    = (int) $d['id'];
+            $rows[] = [
+                'device_id'     => $did,
+                'label'         => $d['label'],
+                'pemilik'       => $d['nama'] ?: '—',
+                'dept'          => $d['dept'] ?? '',
+                'status'        => $this->statusPerangkat($d),
+                'host_terakhir' => $d['host_terakhir'],
+                'lapor_at'      => $d['lapor_at'],
+                'sesi_hari_ini'   => $hariIni[$did]['sesi']   ?? 0,
+                'prompt_hari_ini' => $hariIni[$did]['prompt'] ?? 0,
+                'token_hari_ini'  => $tokHari[$did]           ?? 0,
+                'sesi_7hari'      => $tujuh[$did]['sesi']     ?? 0,
+                'prompt_7hari'    => $tujuh[$did]['prompt']   ?? 0,
+            ];
+        }
+
+        return view('ai_monitor/komputer', [
+            'tanggal' => $today,
+            'rows'    => $rows,
+        ]);
+    }
+
+    public function komputerDetail($deviceId)
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $deviceId = (int) $deviceId;
+        $dev = db_connect()->table('ai_devices d')
+            ->select('d.label, d.aktif, d.disetujui_at, d.diblokir, d.host_terakhir,
+                      emp.nama AS nama, dept.name AS dept')
+            ->join('employees emp', 'emp.id = d.employee_id', 'left')
+            ->join('departments dept', 'dept.id = emp.dept_id', 'left')
+            ->where('d.id', $deviceId)
+            ->get()->getRowArray();
+        if (! $dev) {
+            return redirect()->to('/ai-monitor/komputer')->with('error', 'Perangkat tidak ditemukan.');
+        }
+
+        $today  = $this->hariIni();
+        $dari   = $this->tanggalSah((string) $this->request->getGet('dari'))   ?? date('Y-m-d', strtotime($today . ' -6 days'));
+        $sampai = $this->tanggalSah((string) $this->request->getGet('sampai')) ?? $today;
+        if ($dari > $sampai) [$dari, $sampai] = [$sampai, $dari];
+
+        return view('ai_monitor/komputer_detail', [
+            'dev' => [
+                'label'         => $dev['label'],
+                'pemilik'       => $dev['nama'] ?: '—',
+                'dept'          => $dev['dept'] ?? '',
+                'status'        => $this->statusPerangkat($dev),
+                'host_terakhir' => $dev['host_terakhir'],
+            ],
+            'filter'   => ['dari' => $dari, 'sampai' => $sampai],
+            'sessions' => $this->sessions->byPerangkat($deviceId, $dari, $sampai),
+        ]);
     }
 
     // ── Perangkat (token per laptop) ─────────────────────────────────────

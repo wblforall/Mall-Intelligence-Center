@@ -373,8 +373,11 @@ $routes->post('pest/delete/(:num)',       'PestCtrl::hapusKunjungan/$1', ['filte
 // Pemantauan AI — halaman lihat (rekap per karyawan, sesi, transkrip). Akses
 // diatur lewat menu 'ai_monitor' di dalam controller; filter auth menjaga
 // agar hanya yang login yang masuk.
+$routes->get('ai-monitor/dashboard',         'AiMonitor::dashboard',      ['filter' => 'auth']);
 $routes->get('ai-monitor',                   'AiMonitor::index',          ['filter' => 'auth']);
 $routes->get('ai-monitor/karyawan/(:num)',   'AiMonitor::karyawan/$1',    ['filter' => 'auth']);
+$routes->get('ai-monitor/komputer',          'AiMonitor::komputer',       ['filter' => 'auth']);
+$routes->get('ai-monitor/komputer/(:num)',   'AiMonitor::komputerDetail/$1', ['filter' => 'auth']);
 $routes->get('ai-monitor/sesi/(:num)',       'AiMonitor::sesi/$1',        ['filter' => 'auth']);
 // Perangkat & token (pagar kedua di controller: canEditMenu 'ai_monitor').
 $routes->get ('ai-monitor/perangkat',               'AiMonitor::perangkat',            ['filter' => 'auth']);

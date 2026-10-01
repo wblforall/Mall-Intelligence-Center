@@ -114,6 +114,9 @@
             <?php if (! empty($d['machine_id'])): ?>
             <span class="d-block small text-muted"><i class="bi bi-upc me-1"></i><?= esc($d['machine_id']) ?><?= $d['enrolled_at'] ? ' · enroll ' . tgl_indo($d['enrolled_at'], true) : '' ?></span>
             <?php endif; ?>
+            <a href="<?= base_url('ai-monitor/komputer/' . (int) $d['id']) ?>" class="small text-decoration-none">
+                <i class="bi bi-bar-chart me-1"></i>Lihat rekap
+            </a>
         </td>
         <td>
             <?php if (! empty($d['employee_id'])): ?>
@@ -121,16 +124,13 @@
             <?php if (! empty($d['dept'])): ?><span class="d-block small text-muted"><?= esc($d['dept']) ?></span><?php endif; ?>
             <?php else: ?>
             <span class="badge bg-warning text-dark mb-1">Belum ditautkan</span>
-            <form method="POST" action="<?= base_url('ai-monitor/perangkat/tautkan') ?>" class="input-group input-group-sm" style="max-width:260px">
+            <form method="POST" action="<?= base_url('ai-monitor/perangkat/tautkan') ?>" class="input-group input-group-sm js-kar-form" style="max-width:260px">
                 <?= csrf_field() ?>
                 <input type="hidden" name="device_id" value="<?= (int) $d['id'] ?>">
-                <select name="employee_id" class="form-select form-select-sm" required>
-                    <option value="">— pilih pemilik —</option>
-                    <?php foreach ($karyawan as $k): ?>
-                    <option value="<?= (int) $k['id'] ?>"><?= esc($k['nama']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <button class="btn btn-outline-primary btn-sm" title="Tautkan"><i class="bi bi-link-45deg"></i></button>
+                <input type="text" class="form-control form-control-sm js-kar-input" list="karyawanList"
+                       placeholder="Ketik nama…" autocomplete="off" required>
+                <input type="hidden" name="employee_id" class="js-kar-id" value="">
+                <button type="submit" class="btn btn-outline-primary btn-sm js-kar-btn" title="Tautkan" disabled><i class="bi bi-link-45deg"></i></button>
             </form>
             <?php endif; ?>
         </td>
@@ -223,5 +223,39 @@
     </div>
 </div>
 </div>
+
+<?php // Daftar nama karyawan untuk input pencari (datalist, tanpa dependensi).
+      // ~200 karyawan → <select> terlalu panjang; ketik untuk mencari. Yang
+      // dikirim ke server tetap employee_id (int), dipetakan dari nama di JS. ?>
+<datalist id="karyawanList">
+    <?php foreach ($karyawan as $k): ?>
+    <option value="<?= esc($k['nama'], 'attr') ?>"></option>
+    <?php endforeach; ?>
+</datalist>
+
+<script>
+(function () {
+    // Peta nama → id. Bila ada nama kembar, id terakhir yang menang (jarang).
+    const KAR = <?= json_encode(array_column($karyawan, 'id', 'nama')) ?>;
+    document.querySelectorAll('.js-kar-form').forEach(function (form) {
+        const inp = form.querySelector('.js-kar-input');
+        const hid = form.querySelector('.js-kar-id');
+        const btn = form.querySelector('.js-kar-btn');
+        function sync() {
+            const nama = inp.value.trim();
+            const id   = Object.prototype.hasOwnProperty.call(KAR, nama) ? KAR[nama] : '';
+            hid.value  = id ? String(id) : '';
+            btn.disabled = !id;
+            inp.classList.toggle('is-invalid', nama !== '' && !id);
+        }
+        inp.addEventListener('input', sync);
+        inp.addEventListener('change', sync);
+        form.addEventListener('submit', function (e) {
+            if (!hid.value) { e.preventDefault(); inp.classList.add('is-invalid'); }
+        });
+        sync();
+    });
+})();
+</script>
 
 <?= $this->endSection() ?>

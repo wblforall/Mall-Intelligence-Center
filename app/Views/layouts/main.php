@@ -368,8 +368,14 @@ body { min-height: 100vh; }
         if ($navCanView('ai_monitor')):
         ?>
         <div class="nav-label">Pemantauan AI</div>
+        <a href="<?= base_url('ai-monitor/dashboard') ?>" class="nav-link <?= str_starts_with(uri_string(), 'ai-monitor/dashboard') ? 'active' : '' ?>">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
         <a href="<?= base_url('ai-monitor') ?>" class="nav-link <?= uri_string() === 'ai-monitor' || str_starts_with(uri_string(), 'ai-monitor/karyawan') || str_starts_with(uri_string(), 'ai-monitor/sesi') ? 'active' : '' ?>">
             <i class="bi bi-robot"></i> Rekap Pemakaian
+        </a>
+        <a href="<?= base_url('ai-monitor/komputer') ?>" class="nav-link <?= str_starts_with(uri_string(), 'ai-monitor/komputer') ? 'active' : '' ?>">
+            <i class="bi bi-pc-display"></i> Rekap per Komputer
         </a>
         <?php if ($navCanEdit('ai_monitor')): ?>
         <a href="<?= base_url('ai-monitor/perangkat') ?>" class="nav-link <?= str_starts_with(uri_string(), 'ai-monitor/perangkat') ? 'active' : '' ?>">
