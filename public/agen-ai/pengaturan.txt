@@ -11,6 +11,10 @@
 #
 #  LABEL opsional; kosongkan agar otomatis pakai nama komputer. Label ini
 #  hanya nama AWAL; setelah itu IT bisa ganti nama dari dashboard MIC.
+#
+#  INTERVAL_DETIK opsional: cadens loop agen (detik). Kosong = default 30.
+#  Isi 15 bila ingin approve/blokir terasa lebih cepat (beban server naik).
 # ====================================================================
 ENDPOINT=https://mic.wbl-bsb.com/api/ai-monitor/enroll
 LABEL=
+INTERVAL_DETIK=

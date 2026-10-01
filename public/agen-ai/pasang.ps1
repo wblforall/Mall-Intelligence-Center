@@ -23,7 +23,10 @@ param(
     [string]$Endpoint,     # URL enroll, mis: https://mic.wbl-bsb.com/api/ai-monitor/enroll
 
     [Parameter(Mandatory = $false)]
-    [string]$Label         # alias perangkat (opsional); label AWAL saat enroll pertama
+    [string]$Label,        # alias perangkat (opsional); label AWAL saat enroll pertama
+
+    [Parameter(Mandatory = $false)]
+    [int]$IntervalDetik = 30  # cadens loop internal agen (detik); default 30, bisa 15
 )
 
 $ErrorActionPreference = 'Stop'
@@ -131,17 +134,36 @@ if ($Endpoint -match '/enroll/?$') {
 # "menunggu persetujuan" di MIC sampai IT menekan Setujui.
 # copot_hash juga tidak ditulis di sini; dikelola terpusat di MIC dan dikirim
 # server lewat respons enroll/ingest; kirim.ps1 yang menyimpannya ke config.
+if ($IntervalDetik -lt 5) { $IntervalDetik = 5 }   # jaga-jaga; default 30.
+
+# Re-run pemasang = UPDATE: pertahankan enrollment lama (device_token, copot_hash,
+# label) bila config sudah ada, agar perangkat TIDAK kembali ke "menunggu
+# persetujuan" hanya karena pemasang dijalankan ulang.
+$prevDeviceToken = $null
+$prevCopotHash   = $null
+$prevLabel       = $null
+if (Test-Path -LiteralPath $ConfigPath) {
+    try {
+        $old = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($old.PSObject.Properties.Name -contains 'device_token') { $prevDeviceToken = $old.device_token }
+        if ($old.PSObject.Properties.Name -contains 'copot_hash')   { $prevCopotHash   = $old.copot_hash }
+        if ($old.PSObject.Properties.Name -contains 'label')        { $prevLabel       = $old.label }
+    } catch { }
+}
+
 $config = [ordered]@{
     endpoint_enroll = $Endpoint
     endpoint_ingest = $endpointIngest
     machine_id      = $machineId
-    device_token    = $null
-    copot_hash      = $null
+    device_token    = $prevDeviceToken
+    copot_hash      = $prevCopotHash
+    interval_detik  = $IntervalDetik
 }
-# Alias perangkat opsional. Bila tidak diisi, biarkan tak di-set agar kirim.ps1
-# memakai default COMPUTERNAME saat enroll.
+# Alias perangkat: utamakan -Label bila diisi, selain itu pertahankan label lama.
 if (-not [string]::IsNullOrWhiteSpace($Label)) {
     $config['label'] = $Label
+} elseif (-not [string]::IsNullOrWhiteSpace($prevLabel)) {
+    $config['label'] = $prevLabel
 }
 ($config | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $ConfigPath -Encoding UTF8
 Write-Host "Config disimpan di: $ConfigPath" -ForegroundColor Green
@@ -182,37 +204,41 @@ try {
 }
 
 # =====================================================================
-#  6) DAFTARKAN SCHEDULED TASK sebagai SYSTEM (RunLevel Highest)
-#     Trigger: tiap 30 menit + saat startup. TERLIHAT di Task Scheduler.
+#  6) DAFTARKAN SCHEDULED TASK sebagai SYSTEM (RunLevel Highest) -- WATCHDOG
+#     kirim.ps1 memakai loop internal (tiap interval_detik). Task hanya menjaga
+#     loop tetap hidup: startup + cek tiap 1 menit, MultipleInstances=IgnoreNew
+#     (bila loop masih hidup, trigger diabaikan; bila mati, dihidupkan < 1 menit).
 # =====================================================================
 $psExe  = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $action = New-ScheduledTaskAction -Execute $psExe `
     -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$KirimDst`""
 
-# Trigger 1: sekali sekarang, lalu berulang tiap 30 menit tanpa batas.
-$triggerRepeat  = New-ScheduledTaskTrigger -Once -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 30)
-# Trigger 2: saat startup (agar jalan walau belum ada yang login).
+# Trigger 1: saat startup (jalan walau belum ada yang login).
 $triggerStartup = New-ScheduledTaskTrigger -AtStartup
+# Trigger 2: watchdog -- sekali sekarang, lalu cek tiap 1 menit tanpa batas.
+$triggerWatch   = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes 1)
 
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' `
     -LogonType ServiceAccount -RunLevel Highest
 
+# ExecutionTimeLimit = 0 (tak terbatas) karena kirim.ps1 memang loop tanpa akhir.
+# MultipleInstances IgnoreNew -> satu instance saja; trigger watchdog saat sudah
+# jalan diabaikan.
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
     -StartWhenAvailable `
-    -RestartCount 3 `
-    -RestartInterval (New-TimeSpan -Minutes 1) `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
+    -MultipleInstances IgnoreNew `
+    -ExecutionTimeLimit ([TimeSpan]::Zero)
 
 Register-ScheduledTask -TaskName $TaskName `
-    -Action $action -Trigger @($triggerRepeat, $triggerStartup) `
+    -Action $action -Trigger @($triggerStartup, $triggerWatch) `
     -Principal $principal -Settings $settings `
-    -Description 'Pemantauan AI (PT WBL/MIC): mengirim transkrip Claude Code ke server MIC. Dikelola IT, berjalan sebagai SYSTEM. Hanya Administrator yang dapat mencopot (copot.ps1).' `
+    -Description 'Pemantauan AI (PT WBL/MIC): loop internal mengirim transkrip Claude Code ke server MIC + menegakkan kunci akses. Dikelola IT, berjalan sebagai SYSTEM (watchdog 1 menit). Hanya Administrator + password IT yang dapat mencopot (copot.ps1).' `
     -Force | Out-Null
 
-Write-Host "Scheduled Task '$TaskName' didaftarkan (SYSTEM, tiap 30 menit + startup)." -ForegroundColor Green
+Write-Host "Scheduled Task '$TaskName' didaftarkan (SYSTEM, loop internal ${IntervalDetik}s + watchdog 1 menit)." -ForegroundColor Green
 
 # =====================================================================
 #  6b) TASK NOTIFIER di KONTEKS USER ("WBL AI Monitor Notice")
@@ -266,14 +292,14 @@ Write-Host '==================================================================' 
 Write-Host "  Program : $KirimDst"
 Write-Host "            $NoticeDst"
 Write-Host "  Data    : $DataDir  (config.json, state.json, kirim.log)"
-Write-Host "  Task    : $TaskName  (SYSTEM, RunLevel Highest) - PENEGAK"
+Write-Host "  Task    : $TaskName  (SYSTEM, RunLevel Highest) - PENEGAK (loop ${IntervalDetik}s + watchdog 1 mnt)"
 Write-Host "            $NoticeTaskName  (konteks user) - notifier kosmetik"
 Write-Host ''
 Write-Host 'TANPA kunci enrollment. Perangkat kini berstatus "Menunggu persetujuan"' -ForegroundColor Yellow
 Write-Host 'di dashboard MIC (menu Pemantauan AI > Perangkat). Sampai IT menekan' -ForegroundColor Yellow
 Write-Host 'Setujui: akses Claude Code TERKUNCI di perangkat ini (api.anthropic.com)' -ForegroundColor Yellow
 Write-Host 'dan transkrip BELUM dikirim. Setelah disetujui, agen otomatis membuka' -ForegroundColor Yellow
-Write-Host 'kunci dan mulai mengirim pada putaran berikutnya.' -ForegroundColor Yellow
+Write-Host "kunci dan mulai mengirim dalam hitungan detik (loop tiap ${IntervalDetik}s)." -ForegroundColor Yellow
 Write-Host ''
 Write-Host 'Folder pemasang ini boleh dihapus setelah pasang (agen sudah di Program Files).'
 Write-Host ''

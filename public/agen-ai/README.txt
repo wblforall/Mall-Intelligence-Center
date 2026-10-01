@@ -61,11 +61,13 @@ PRIVASI:
   ACL diset: SYSTEM + Administrators = FullControl; BUILTIN\Users =
   ReadAndExecute saja. User biasa bisa membaca (transparan), tak bisa ubah/hapus.
 - DUA Scheduled Task:
-    * "WBL AI Monitor" (PENEGAK): principal SYSTEM, RunLevel Highest, tiap 30
-      menit + startup. Dibuat admin & jalan sebagai SYSTEM, sehingga user biasa
-      TIDAK bisa unregister maupun End Task prosesnya. Diset -RestartCount 3
-      -RestartInterval 1 menit + AllowStartIfOnBatteries / DontStopIfGoingOnBatteries
-      / StartWhenAvailable -> andal & sulit dimatikan user biasa.
+    * "WBL AI Monitor" (PENEGAK): principal SYSTEM, RunLevel Highest. kirim.ps1
+      memakai LOOP INTERNAL (tiap `interval_detik`, default 30, bisa 15) supaya
+      approve/blokir/buka terasa dalam HITUNGAN DETIK. Task bertindak sebagai
+      WATCHDOG: trigger startup + cek tiap 1 menit dengan MultipleInstances=
+      IgnoreNew dan ExecutionTimeLimit=0 -> bila loop mati, dihidupkan lagi < 1
+      menit; bila masih hidup, trigger diabaikan. Dibuat admin & jalan sebagai
+      SYSTEM, sehingga user biasa TIDAK bisa unregister maupun End Task prosesnya.
     * "WBL AI Monitor Notice" (NOTIFIER, kosmetik): konteks user (grup
       BUILTIN\Users, RunLevel Limited), trigger AtLogOn, MultipleInstances=IgnoreNew.
       SENGAJA di sesi user agar bisa menampilkan toast. BOLEH dimatikan user;
@@ -114,9 +116,11 @@ DUA LAPIS (penegak vs notifier):
 
 NOTIFIKASI DARI PENEGAK: kirim.ps1 (SYSTEM) juga memakai msg.exe (andal dari
 SYSTEM ke sesi user; toast modern tidak andal dari SYSTEM karena isolasi
-session-0). Saat TERKUNCI, notifikasi dikirim SETIAP putaran (±30 menit) agar
-user terus diingatkan. Saat PULIH, notifikasi hanya sekali (saat transisi) agar
-tak mengganggu kerja. Keadaan terakhir (keadaan + alasan) disimpan di state.json.
+session-0). Saat TERKUNCI, notifikasi diulang dengan DEBOUNCE berbasis waktu
+(maksimal sekali tiap ~5 menit, timestamp di state.json) supaya tidak spam
+meski loop berjalan tiap ~30 detik. Saat PULIH, notifikasi hanya sekali (saat
+transisi) agar tak mengganggu kerja. Keadaan (keadaan + alasan + notif_ts)
+disimpan di state.json.
 
 Pesan notifier sesi-user saat user mencoba memakai Claude Code:
   - pending: "Akses Claude Code belum diizinkan Tim IT untuk perangkat ini
@@ -174,9 +178,9 @@ perangkat (nama, host, akun) sebelum menyetujui.
 6. CARA MEMASANG (SEBAGAI ADMINISTRATOR)
 ----------------------------------------------------------------
 Cara termudah: salin folder pemasang (pengaturan.txt, pasang.ps1, kirim.ps1,
-pasang-klik.ps1, KLIK-PASANG.bat) ke laptop target, lalu klik kanan
+notice.ps1, pasang-klik.ps1, KLIK-PASANG.bat) ke laptop target, lalu klik kanan
 KLIK-PASANG.bat > "Run as administrator". ENDPOINT sudah terisi di
-pengaturan.txt; LABEL opsional.
+pengaturan.txt; LABEL & INTERVAL_DETIK opsional.
 
 Cara manual (PowerShell "Run as administrator" di folder itu):
 
@@ -201,17 +205,31 @@ Pemasang akan:
   1. Memastikan dijalankan sebagai Administrator (kalau tidak, berhenti).
   2. Mencetak pemberitahuan terbuka (tanpa minta Enter, karena dipasang IT).
   3. Membuat C:\Program Files\WBL-AiMonitor dan C:\ProgramData\WBL-AiMonitor,
-     menyalin HANYA kirim.ps1 ke Program Files (copot.ps1 TIDAK disalin).
+     menyalin kirim.ps1 + notice.ps1 ke Program Files (copot.ps1 TIDAK disalin).
   4. Menulis config.json (endpoint_enroll, endpoint_ingest, machine_id,
-     device_token=null, copot_hash=null, label bila -Label diisi). TANPA
-     enroll_key. copot_hash akan diisi server lewat enroll/ingest berikutnya.
+     device_token, copot_hash, interval_detik, label bila ada). TANPA enroll_key.
+     Pada re-run, device_token/copot_hash/label LAMA dipertahankan (update).
   5. Menerapkan ACL folder data (SYSTEM/Admin=Full, Users=baca saja).
-  6. Mendaftarkan Scheduled Task SYSTEM (RunLevel Highest, tiap 30 menit +
-     startup, RestartCount 3) dan menjalankan putaran perdana (enroll).
+  6. Mendaftarkan 2 Scheduled Task: "WBL AI Monitor" (SYSTEM, loop internal +
+     watchdog 1 menit) dan "WBL AI Monitor Notice" (konteks user), lalu
+     menjalankan putaran perdana.
+
+Opsional -IntervalDetik (default 30): cadens loop internal agen dalam detik.
+Isi mis. 15 agar approve/blokir/buka terasa lebih cepat (beban server naik).
+Lewat KLIK-PASANG, isi INTERVAL_DETIK di pengaturan.txt.
 
 Setelah pasang, perangkat MENUNGGU PERSETUJUAN di MIC (akses terkunci sampai IT
 Setujui). Folder pemasang di laptop boleh dihapus setelah pasang (agen sudah di
 C:\Program Files\WBL-AiMonitor).
+
+MEMPERBARUI LAPTOP YANG SUDAH TERPASANG: cukup jalankan ulang KLIK-PASANG (atau
+pasang.ps1) sebagai Administrator. Pemasang idempoten (-Force): task & berkas
+diperbarui, dan enrollment lama (device_token, copot_hash, label) DIPERTAHANKAN
+sehingga perangkat TIDAK kembali ke "menunggu persetujuan".
+
+RESPONSIF: agen berjalan sebagai loop internal (default 30 detik). Setelah IT
+menekan Setujui / Blokir / Buka di dashboard, perubahan terasa di laptop dalam
+hitungan detik (bukan menunggu 30 menit).
 
 
 ----------------------------------------------------------------
@@ -226,9 +244,9 @@ GUI: Task Scheduler -> Task Scheduler Library -> "WBL AI Monitor" /
 "WBL AI Monitor Notice".
 
 Log & state (Administrator):
-  C:\ProgramData\WBL-AiMonitor\kirim.log    (catatan enroll/status/kunci/kirim/galat)
-  C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + keadaan + alasan)
-  C:\ProgramData\WBL-AiMonitor\config.json  (endpoint, device_token, copot_hash; tanpa enroll_key)
+  C:\ProgramData\WBL-AiMonitor\kirim.log    (transisi keadaan/enroll/error/401/unggah; idle tak dicatat)
+  C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + keadaan + alasan + notif_ts)
+  C:\ProgramData\WBL-AiMonitor\config.json  (endpoint, device_token, copot_hash, interval_detik; tanpa enroll_key)
 
 DIAGNOSA BLOKIR (bila blokir terasa tak berlaku):
   1. Paksa satu putaran agen:

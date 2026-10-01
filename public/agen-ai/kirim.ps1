@@ -1,16 +1,24 @@
 <#
     WBL AI Monitor - kirim.ps1  (DIKELOLA IT, berjalan sebagai SYSTEM)
     ==================================================================
-    Dipanggil oleh Scheduled Task "WBL AI Monitor" (principal SYSTEM, tiap 30
-    menit + saat startup). Mengirim baris transkrip Claude Code (*.jsonl) dari
-    profil TIAP user di laptop ini ke server MIC.
+    Dijalankan oleh Scheduled Task "WBL AI Monitor" (principal SYSTEM). Agar
+    approve/blokir/buka terasa dalam hitungan detik, skrip ini memakai LOOP
+    INTERNAL: satu putaran (enroll-jika-perlu, poll status, tegakkan kunci hosts,
+    kirim transkrip) diulang tiap `interval_detik` (default 30). Scheduled Task
+    hanya bertindak sebagai WATCHDOG (repetition 1 menit, MultipleInstances=
+    IgnoreNew) untuk menghidupkan loop bila prosesnya mati.
 
     Prinsip:
       - HANYA membaca berkas transkrip *.jsonl. Tidak membaca/mengirim berkas lain.
       - TIDAK PERNAH menghapus atau mengubah berkas transkrip.
       - Mengirim baris mentah; penyamaran kata sandi/token dilakukan DI SERVER.
-      - Bila server memerintahkan blokir, akses Claude Code (api.anthropic.com)
-        dimatikan via berkas hosts, dan user yang login diberi notifikasi.
+      - Bila server memerintahkan blokir/pending, akses Claude Code
+        (api.anthropic.com) dimatikan via berkas hosts + flushdns, dan user diberi
+        notifikasi (debounce berbasis waktu agar tak spam).
+
+    Anti-bloat log: putaran "idle" (tak ada perubahan keadaan & tak ada baris
+    baru) TIDAK menulis log. Log hanya saat transisi keadaan, enroll, error, 401,
+    atau saat benar-benar mengunggah baris baru.
 
     Tidak ada self-healing: skrip ini tidak memasang ulang dirinya bila dihapus.
 #>
@@ -28,6 +36,8 @@ $LogPath    = Join-Path $DataDir 'kirim.log'
 
 $HostsPath   = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
 $BlockMarker = '# WBL-AiMonitor BLOCK'
+$maxBatchBytes = 3.5MB
+$NotifDebounceSec = 300   # notifikasi "terkunci" maksimal sekali tiap 5 menit.
 
 # --- Log sederhana (tidak pernah melempar error ke pemanggil).
 function Write-Log {
@@ -43,13 +53,19 @@ if (-not (Test-Path -LiteralPath $ConfigPath)) {
     Write-Log "Config tidak ditemukan di '$ConfigPath'. Jalankan pasang.ps1 sebagai admin dulu."
     exit 0
 }
-
 try {
     $cfg = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
 } catch {
     Write-Log "Config rusak/tak terbaca: $($_.Exception.Message)"
     exit 0
 }
+
+# --- Interval loop (detik). Default 30; minimal 5 untuk jaga-jaga.
+$interval = 30
+if (($cfg.PSObject.Properties.Name -contains 'interval_detik') -and $cfg.interval_detik) {
+    try { $interval = [int]$cfg.interval_detik } catch { $interval = 30 }
+}
+if ($interval -lt 5) { $interval = 5 }
 
 # --- Tulis config secara aman (tmp lalu Move).
 function Save-Config {
@@ -64,8 +80,6 @@ function Save-Config {
 }
 
 # --- Simpan copot_hash dari respons server (enroll/ingest) ke config bila berubah.
-#     Password copot dikelola terpusat di MIC; laptop hanya menyimpan hash-nya
-#     agar validasi copot bisa dilakukan offline. Null -> simpan null (kosongkan).
 function Sync-CopotHash {
     param($Resp)
     if (-not $Resp) { return }
@@ -73,7 +87,6 @@ function Sync-CopotHash {
     $incoming = $Resp.copot_hash
     $current  = $null
     if ($cfg.PSObject.Properties.Name -contains 'copot_hash') { $current = $cfg.copot_hash }
-    # Bandingkan sebagai string (null -> ""), supaya tidak menulis bila sama.
     if ("$incoming" -ne "$current") {
         if ($cfg.PSObject.Properties.Name -contains 'copot_hash') {
             $cfg.copot_hash = $incoming
@@ -89,11 +102,12 @@ function Sync-CopotHash {
     }
 }
 
-# --- State: { files: { path -> jumlah baris terkirim }, keadaan: string, alasan: string }.
-#     keadaan: 'terkunci-pending' | 'terkunci-blokir' | 'terbuka' (deteksi transisi notif).
-#     alasan : teks alasan blokir dari server (kosong untuk pending); dipakai notice.ps1.
+# --- State: { files: {path->count}, keadaan, alasan, notif_ts }.
+#     keadaan : 'terkunci-pending' | 'terkunci-blokir' | 'terbuka'.
+#     alasan  : teks alasan blokir dari server (untuk notice.ps1).
+#     notif_ts: timestamp ISO notifikasi terkunci terakhir (debounce berbasis waktu).
 function Load-State {
-    $result = @{ files = @{}; keadaan = ''; alasan = '' }
+    $result = @{ files = @{}; keadaan = ''; alasan = ''; notif_ts = '' }
     if (Test-Path -LiteralPath $StatePath) {
         try {
             $raw = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8
@@ -104,12 +118,9 @@ function Load-State {
                         $result.files[$p.Name] = [int]$p.Value
                     }
                 }
-                if ($obj.PSObject.Properties.Name -contains 'keadaan') {
-                    $result.keadaan = [string]$obj.keadaan
-                }
-                if ($obj.PSObject.Properties.Name -contains 'alasan') {
-                    $result.alasan = [string]$obj.alasan
-                }
+                if ($obj.PSObject.Properties.Name -contains 'keadaan')  { $result.keadaan  = [string]$obj.keadaan }
+                if ($obj.PSObject.Properties.Name -contains 'alasan')   { $result.alasan   = [string]$obj.alasan }
+                if ($obj.PSObject.Properties.Name -contains 'notif_ts') { $result.notif_ts = [string]$obj.notif_ts }
             }
         } catch {
             Write-Log "State rusak atau tak terbaca, mulai dari kosong: $($_.Exception.Message)"
@@ -123,9 +134,10 @@ function Save-State {
     try {
         $tmp = "$StatePath.tmp"
         $out = [ordered]@{
-            files   = $State.files
-            keadaan = [string]$State.keadaan
-            alasan  = [string]$State.alasan
+            files    = $State.files
+            keadaan  = [string]$State.keadaan
+            alasan   = [string]$State.alasan
+            notif_ts = [string]$State.notif_ts
         }
         ($out | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $tmp -Encoding UTF8
         Move-Item -LiteralPath $tmp -Destination $StatePath -Force
@@ -134,8 +146,7 @@ function Save-State {
     }
 }
 
-# --- Akun (user) yang sedang login. Task jalan sebagai SYSTEM, jadi ambil dari
-#     sesi aktif; boleh null (mis. tidak ada yang login saat startup).
+# --- Akun (user) yang sedang login (task jalan sebagai SYSTEM). Boleh null.
 function Get-ActiveAccount {
     try {
         $u = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).UserName
@@ -161,9 +172,23 @@ function Send-UserNotice {
     }
 }
 
-# --- Terapkan/batalkan blokir akses Claude Code lewat hosts (api.anthropic.com).
-#     Idempoten, bertanda komentar agar mudah dicari & dihapus. Web claude.ai
-#     SENGAJA tidak diblok; yang dimatikan khusus akses Claude Code.
+# --- Notifikasi "terkunci" dengan DEBOUNCE berbasis waktu. Kirim bila: transisi
+#     keadaan, belum pernah, atau sudah >= $NotifDebounceSec sejak notif terakhir.
+function Send-LockedNotice {
+    param([hashtable]$State, [string]$Message, [bool]$Transition)
+    $now  = Get-Date
+    $last = $null
+    if (-not [string]::IsNullOrWhiteSpace($State.notif_ts)) {
+        try { $last = [datetime]$State.notif_ts } catch { $last = $null }
+    }
+    if ($Transition -or ($null -eq $last) -or (($now - $last).TotalSeconds -ge $NotifDebounceSec)) {
+        Send-UserNotice -Message $Message
+        $State.notif_ts = $now.ToString('o')
+    }
+}
+
+# --- Terapkan/batalkan kunci akses Claude Code lewat hosts (api.anthropic.com).
+#     Idempoten + flushdns saat konten berubah. Web claude.ai SENGAJA tidak diblok.
 function Set-HostsBlock {
     param([bool]$On)
     try {
@@ -171,7 +196,6 @@ function Set-HostsBlock {
         if (Test-Path -LiteralPath $HostsPath) {
             $lines = @(Get-Content -LiteralPath $HostsPath -Encoding UTF8 -ErrorAction Stop)
         }
-        # Buang baris lama bertanda (apa pun isinya) supaya idempoten.
         $kept = @($lines | Where-Object { $_ -notmatch [regex]::Escape($BlockMarker) })
         if ($On) {
             $kept += "0.0.0.0 api.anthropic.com $BlockMarker"
@@ -179,18 +203,14 @@ function Set-HostsBlock {
         $newContent = ($kept -join "`r`n")
         $oldContent = ($lines -join "`r`n")
         if ($newContent -ne $oldContent) {
-            # hosts memakai ASCII; SYSTEM berhak menulis berkas ini.
             Set-Content -LiteralPath $HostsPath -Value $kept -Encoding ASCII -ErrorAction Stop
-
-            # Flush cache DNS HANYA saat konten berubah, agar perubahan langsung
-            # berlaku untuk koneksi BARU (tanpa ini, blokir tertunda oleh cache DNS).
+            # Flush cache DNS HANYA saat konten berubah, agar berlaku untuk koneksi BARU.
             try {
                 Start-Process -FilePath "$env:SystemRoot\System32\ipconfig.exe" `
                     -ArgumentList '/flushdns' -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue
             } catch {
                 Write-Log "flushdns gagal (diabaikan): $($_.Exception.Message)"
             }
-
             if ($On) {
                 Write-Log 'Hosts dikunci (api.anthropic.com) + flushdns.'
             } else {
@@ -203,105 +223,44 @@ function Set-HostsBlock {
 }
 
 # --- Kunci akses + tandai pending. Dipakai saat token DITOLAK server (HTTP 401,
-#     mis. perangkat dihapus dari dashboard): akses Claude Code ikut MATI, bukan
-#     dibiarkan terbuka. Notifikasi dikirim SETIAP putaran selama terkunci.
+#     mis. perangkat dihapus): akses Claude Code ikut MATI, bukan dibiarkan terbuka.
 function Set-PendingLock {
     param([hashtable]$State)
     Set-HostsBlock -On $true
-    Send-UserNotice -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.'
-    Write-Log 'Keadaan terkunci-pending (token ditolak server); notifikasi dikirim.'
+    $trans = ($State.keadaan -ne 'terkunci-pending')
+    if ($trans) { Write-Log 'Keadaan -> terkunci-pending (token ditolak server).' }
+    Send-LockedNotice -State $State `
+        -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.' `
+        -Transition $trans
     $State.keadaan = 'terkunci-pending'
     $State.alasan  = ''
 }
 
-# =====================================================================
-#  ENROLL bila device_token masih null
-# =====================================================================
-$deviceToken = $null
-if ($cfg.PSObject.Properties.Name -contains 'device_token') { $deviceToken = $cfg.device_token }
-
-$account  = Get-ActiveAccount
-$hostName = $env:COMPUTERNAME
-
-if ([string]::IsNullOrWhiteSpace($deviceToken)) {
-    if ([string]::IsNullOrWhiteSpace($cfg.endpoint_enroll)) {
-        Write-Log 'endpoint_enroll kosong di config; tidak bisa enroll.'
-        exit 0
-    }
-    # TANPA kunci enrollment. Perangkat baru akan "menunggu persetujuan" di MIC
-    # sampai IT menekan Setujui.
-    # Label AWAL: pakai alias dari config bila ada & tidak kosong, selain itu COMPUTERNAME.
-    # Setelah enroll pertama, IT bisa mengganti nama perangkat dari dashboard MIC;
-    # server tidak menimpa label saat re-enroll, jadi nama dashboard yang berlaku.
-    $enrollLabel = $hostName
-    if (($cfg.PSObject.Properties.Name -contains 'label') -and -not [string]::IsNullOrWhiteSpace($cfg.label)) {
-        $enrollLabel = $cfg.label
-    }
-    $enrollBody = @{
-        machine_id = $cfg.machine_id
-        host       = $hostName
-        account    = $account
-        label      = $enrollLabel
-    } | ConvertTo-Json -Depth 5
-
-    try {
-        $resp = Invoke-RestMethod -Uri $cfg.endpoint_enroll -Method Post `
-            -Body $enrollBody -ContentType 'application/json' `
-            -TimeoutSec 60 -UseBasicParsing
-    } catch {
-        Write-Log "Enroll gagal: $($_.Exception.Message). Coba lagi putaran berikutnya."
-        exit 0
-    }
-
-    if ($resp -and $resp.success -and -not [string]::IsNullOrWhiteSpace($resp.device_token)) {
-        $deviceToken = $resp.device_token
-        # Simpan token (dan device_id bila ada) ke config.
-        if ($cfg.PSObject.Properties.Name -contains 'device_token') {
-            $cfg.device_token = $deviceToken
-        } else {
-            $cfg | Add-Member -NotePropertyName 'device_token' -NotePropertyValue $deviceToken -Force
-        }
-        if ($resp.PSObject.Properties.Name -contains 'device_id') {
-            $cfg | Add-Member -NotePropertyName 'device_id' -NotePropertyValue $resp.device_id -Force
-        }
-        Save-Config -Cfg $cfg
-        Sync-CopotHash -Resp $resp
-        Write-Log 'Enroll sukses; device_token disimpan.'
-    } else {
-        Write-Log 'Enroll menolak (success=false atau token kosong). Coba lagi putaran berikutnya.'
-        exit 0
-    }
-}
-
-# =====================================================================
-#  PERSIAPAN: muat state, header, variabel status terbaru dari server
-# =====================================================================
-$state = Load-State
-$maxBatchBytes = 3.5MB
-
-$headers = @{
-    'Authorization' = "Bearer $deviceToken"
-    'Content-Type'  = 'application/json'
-}
-
-# Status terbaru dari server (null jika belum ada respons).
-$script:lastStatus   = $null   # "pending" | "aktif"
+# --- Variabel status per-putaran (script-scope agar Send-Batch bisa menulis).
+$script:lastStatus   = $null
 $script:lastBlokir   = $null
 $script:lastAlasan   = ''
 $script:unauthorized = $false
+$script:netFailLogged = $false   # guard anti-bloat untuk kegagalan jaringan beruntun.
 
-# --- Kirim satu batch; kembalikan $true bila sukses (HTTP 2xx), simpan status blokir.
+# Variabel per-putaran yang dibaca Send-Batch (dynamic scope dari Invoke-Cycle).
+$script:deviceToken = $null
+$script:account     = $null
+$script:hostName    = $env:COMPUTERNAME
+$script:headers     = @{}
+
+# --- Kirim satu batch; $true bila sukses (2xx). Menyimpan status/blokir/copot_hash.
 function Send-Batch {
     param([array]$Lines)
     $payload = @{
-        device_token = $deviceToken
-        host         = $hostName
-        account      = $account
+        device_token = $script:deviceToken
+        host         = $script:hostName
+        account      = $script:account
         lines        = $Lines
     }
     $json = $payload | ConvertTo-Json -Depth 50 -Compress
     try {
-        $resp = Invoke-RestMethod -Uri $cfg.endpoint_ingest -Method Post -Headers $headers `
+        $resp = Invoke-RestMethod -Uri $cfg.endpoint_ingest -Method Post -Headers $script:headers `
             -Body $json -TimeoutSec 60 -UseBasicParsing
         if ($resp -and ($resp.PSObject.Properties.Name -contains 'status')) {
             $script:lastStatus = [string]$resp.status
@@ -313,6 +272,7 @@ function Send-Batch {
             }
         }
         Sync-CopotHash -Resp $resp
+        $script:netFailLogged = $false   # server terjangkau lagi.
         return $true
     } catch {
         $status = $null
@@ -320,198 +280,240 @@ function Send-Batch {
         if ($status -eq 401) {
             $script:unauthorized = $true
             Write-Log 'Ingest 401 (token ditolak).'
-        } else {
+        } elseif (-not $script:netFailLogged) {
             Write-Log "Gagal mengirim batch ($($Lines.Count) baris), status=$status : $($_.Exception.Message)"
+            $script:netFailLogged = $true
         }
         return $false
     }
 }
 
 # =====================================================================
-#  POLL STATUS (pending/aktif) + blokir + copot_hash  (ingest lines:[])
-#  Dilakukan SEBELUM kirim transkrip, agar kunci/buka hosts ditegakkan tiap
-#  putaran meski perangkat masih pending.
+#  SATU PUTARAN (dipanggil berulang oleh loop). Pakai 'return', bukan 'exit'.
 # =====================================================================
-$pollOk = Send-Batch -Lines @()
+function Invoke-Cycle {
+    # Reset status tiap putaran.
+    $script:lastStatus = $null
+    $script:lastBlokir = $null
+    $script:lastAlasan = ''
+    $script:unauthorized = $false
 
-if ($script:unauthorized) {
-    # HTTP 401: token ditolak (mis. perangkat DIHAPUS dari dashboard).
-    # (CATATAN: status "pending" datang sebagai HTTP 200, BUKAN 401, jadi
-    #  pending tidak akan sampai ke sini dan TIDAK mereset token.)
-    # 1) KUNCI akses Claude Code SEKARANG (jangan dibiarkan terbuka).
-    # 2) Tandai keadaan pending + notif transisi.
-    Set-PendingLock -State $state
-    # 3) Reset token agar putaran berikutnya enroll ulang sebagai pending.
-    if ($cfg.PSObject.Properties.Name -contains 'device_token') { $cfg.device_token = $null }
-    Save-Config -Cfg $cfg
-    Save-State -State $state
-    Write-Log 'device_token direset ke null (akan enroll ulang sebagai pending).'
-    exit 0
-}
+    $script:hostName = $env:COMPUTERNAME
+    $script:account  = Get-ActiveAccount
+    $script:deviceToken = $null
+    if ($cfg.PSObject.Properties.Name -contains 'device_token') { $script:deviceToken = $cfg.device_token }
 
-if (-not $pollOk) {
-    # Gagal menghubungi server (bukan 401). Jangan ubah hosts/state; coba lagi nanti.
-    Write-Log 'Poll status gagal (jaringan/server). Tidak mengubah apa pun putaran ini.'
-    exit 0
-}
-
-# =====================================================================
-#  TENTUKAN KEADAAN + TEGAKKAN KUNCI/BUKA + NOTIFIKASI TRANSISI
-#  Akses Claude Code BOLEH hanya bila status == "aktif" DAN blokir == false.
-#  Tiga keadaan: 'terkunci-pending', 'terkunci-blokir', 'terbuka'.
-# =====================================================================
-$status = $script:lastStatus
-$blokir = $script:lastBlokir
-
-if ($status -eq 'aktif') {
-    if ($blokir -eq $true) { $keadaan = 'terkunci-blokir' } else { $keadaan = 'terbuka' }
-} else {
-    # 'pending' atau status tak dikenal -> terkunci, menunggu persetujuan IT.
-    $keadaan = 'terkunci-pending'
-}
-
-$prevKeadaan = [string]$state.keadaan
-if ([string]::IsNullOrWhiteSpace($prevKeadaan)) { $prevKeadaan = 'terbuka' }
-
-# Terapkan hosts: 'terbuka' -> buka kunci; selain itu -> kunci api.anthropic.com.
-if ($keadaan -eq 'terbuka') {
-    Set-HostsBlock -On $false
-} else {
-    Set-HostsBlock -On $true
-}
-
-# Notifikasi (msg.exe, andal dari SYSTEM -> sesi user; toast modern tidak dipakai
-# karena isolasi session-0):
-#   - terkunci-pending / terkunci-blokir: SETIAP putaran (ingatkan user terus).
-#   - terbuka: HANYA saat transisi dari keadaan terkunci (jangan ganggu saat kerja).
-switch ($keadaan) {
-    'terkunci-pending' {
-        Send-UserNotice -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.'
-        Write-Log 'Keadaan terkunci-pending; notifikasi dikirim.'
-    }
-    'terkunci-blokir' {
-        $msg = 'Akses Claude Code dinonaktifkan sementara oleh Tim IT.'
-        if (-not [string]::IsNullOrWhiteSpace($script:lastAlasan)) {
-            $msg = "$msg Alasan: $($script:lastAlasan)"
+    # --- ENROLL bila device_token null (tanpa kunci enrollment).
+    if ([string]::IsNullOrWhiteSpace($script:deviceToken)) {
+        if ([string]::IsNullOrWhiteSpace($cfg.endpoint_enroll)) {
+            if (-not $script:netFailLogged) { Write-Log 'endpoint_enroll kosong di config; tidak bisa enroll.'; $script:netFailLogged = $true }
+            return
         }
-        Send-UserNotice -Message $msg
-        Write-Log 'Keadaan terkunci-blokir; notifikasi dikirim.'
-    }
-    'terbuka' {
-        if ($prevKeadaan -ne 'terbuka') {
-            Send-UserNotice -Message 'Akses Claude Code telah dipulihkan oleh Tim IT.'
-            Write-Log 'Keadaan -> terbuka (akses dipulihkan); notifikasi dikirim.'
+        $enrollLabel = $script:hostName
+        if (($cfg.PSObject.Properties.Name -contains 'label') -and -not [string]::IsNullOrWhiteSpace($cfg.label)) {
+            $enrollLabel = $cfg.label
         }
-    }
-}
-
-$state.keadaan = $keadaan
-if ($keadaan -eq 'terkunci-blokir') {
-    $state.alasan = [string]$script:lastAlasan
-} else {
-    $state.alasan = ''
-}
-
-# =====================================================================
-#  BELUM DISETUJUI (status != aktif): JANGAN kirim transkrip, JANGAN majukan
-#  penanda state, JANGAN reset token. Tunggu putaran berikutnya.
-# =====================================================================
-if ($status -ne 'aktif') {
-    Write-Log 'Menunggu persetujuan IT.'
-    Save-State -State $state
-    exit 0
-}
-
-# =====================================================================
-#  AKTIF -> KIRIM TRANSKRIP (profil TIAP user)
-#  C:\Users\*\.claude\projects\*\*.jsonl
-# =====================================================================
-$files = @()
-try {
-    $usersRoot = Join-Path $env:SystemDrive 'Users'
-    $files = Get-ChildItem -Path (Join-Path $usersRoot '*\.claude\projects\*\*.jsonl') `
-        -File -ErrorAction SilentlyContinue
-} catch {
-    Write-Log "Gagal menelusuri transkrip: $($_.Exception.Message)"
-}
-
-foreach ($file in $files) {
-    if ($script:unauthorized) { break }
-
-    $path = $file.FullName
-
-    $already = 0
-    if ($state.files.ContainsKey($path)) { $already = [int]$state.files[$path] }
-
-    try {
-        $allLines = Get-Content -LiteralPath $path -Encoding UTF8 -ErrorAction Stop
-    } catch {
-        # Folder/berkas tak terbaca (mis. profil user lain terkunci) -> lewati.
-        Write-Log "Lewati berkas tak terbaca '$path': $($_.Exception.Message)"
-        continue
-    }
-
-    if ($null -eq $allLines) { continue }
-    $allLines = @($allLines)
-    $total = $allLines.Count
-    if ($total -le $already) { continue }
-
-    $newLines = $allLines[$already..($total - 1)]
-
-    $batch      = New-Object System.Collections.ArrayList
-    $batchBytes = 0
-    $failed     = $false
-
-    foreach ($line in $newLines) {
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        $obj = $null
+        $enrollBody = @{
+            machine_id = $cfg.machine_id
+            host       = $script:hostName
+            account    = $script:account
+            label      = $enrollLabel
+        } | ConvertTo-Json -Depth 5
         try {
-            $obj = $line | ConvertFrom-Json
+            $resp = Invoke-RestMethod -Uri $cfg.endpoint_enroll -Method Post `
+                -Body $enrollBody -ContentType 'application/json' `
+                -TimeoutSec 60 -UseBasicParsing
         } catch {
-            Write-Log "Baris tak bisa di-parse (dilewati) di '$path'."
+            if (-not $script:netFailLogged) { Write-Log "Enroll gagal: $($_.Exception.Message)."; $script:netFailLogged = $true }
+            return
+        }
+        if ($resp -and $resp.success -and -not [string]::IsNullOrWhiteSpace($resp.device_token)) {
+            $script:deviceToken = $resp.device_token
+            if ($cfg.PSObject.Properties.Name -contains 'device_token') {
+                $cfg.device_token = $script:deviceToken
+            } else {
+                $cfg | Add-Member -NotePropertyName 'device_token' -NotePropertyValue $script:deviceToken -Force
+            }
+            if ($resp.PSObject.Properties.Name -contains 'device_id') {
+                $cfg | Add-Member -NotePropertyName 'device_id' -NotePropertyValue $resp.device_id -Force
+            }
+            Save-Config -Cfg $cfg
+            Sync-CopotHash -Resp $resp
+            $script:netFailLogged = $false
+            Write-Log 'Enroll sukses; device_token disimpan.'
+        } else {
+            Write-Log 'Enroll menolak (success=false atau token kosong).'
+            return
+        }
+    }
+
+    $script:headers = @{
+        'Authorization' = "Bearer $($script:deviceToken)"
+        'Content-Type'  = 'application/json'
+    }
+
+    $state = Load-State
+
+    # --- POLL STATUS (ingest lines:[]) sebelum kirim transkrip.
+    $pollOk = Send-Batch -Lines @()
+
+    if ($script:unauthorized) {
+        # 401: token ditolak -> kunci akses, tandai pending, reset token (enroll ulang).
+        Set-PendingLock -State $state
+        if ($cfg.PSObject.Properties.Name -contains 'device_token') { $cfg.device_token = $null }
+        Save-Config -Cfg $cfg
+        Save-State -State $state
+        Write-Log 'device_token direset ke null (akan enroll ulang sebagai pending).'
+        return
+    }
+    if (-not $pollOk) {
+        # Offline transien (bukan 401): Send-Batch sudah mencatat sekali. Jangan ubah
+        # hosts/state; tidak menotifikasi. Coba lagi putaran berikutnya.
+        return
+    }
+
+    # --- Tentukan keadaan. Akses BOLEH hanya bila status=aktif DAN blokir=false.
+    $status = $script:lastStatus
+    $blokir = $script:lastBlokir
+    if ($status -eq 'aktif') {
+        if ($blokir -eq $true) { $keadaan = 'terkunci-blokir' } else { $keadaan = 'terbuka' }
+    } else {
+        $keadaan = 'terkunci-pending'
+    }
+
+    $prevKeadaan = [string]$state.keadaan
+    if ([string]::IsNullOrWhiteSpace($prevKeadaan)) { $prevKeadaan = 'terbuka' }
+    $transition = ($keadaan -ne $prevKeadaan)
+
+    # Terapkan hosts.
+    if ($keadaan -eq 'terbuka') { Set-HostsBlock -On $false } else { Set-HostsBlock -On $true }
+    if ($transition) { Write-Log "Keadaan: $prevKeadaan -> $keadaan." }
+
+    # Notifikasi (debounce waktu untuk keadaan terkunci; sekali saja saat pulih).
+    switch ($keadaan) {
+        'terkunci-pending' {
+            Send-LockedNotice -State $state `
+                -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.' `
+                -Transition $transition
+        }
+        'terkunci-blokir' {
+            $msg = 'Akses Claude Code dinonaktifkan sementara oleh Tim IT.'
+            if (-not [string]::IsNullOrWhiteSpace($script:lastAlasan)) {
+                $msg = "$msg Alasan: $($script:lastAlasan)"
+            }
+            Send-LockedNotice -State $state -Message $msg -Transition $transition
+        }
+        'terbuka' {
+            if ($transition) { Send-UserNotice -Message 'Akses Claude Code telah dipulihkan oleh Tim IT.' }
+            $state.notif_ts = ''   # reset debounce saat terbuka.
+        }
+    }
+
+    $state.keadaan = $keadaan
+    if ($keadaan -eq 'terkunci-blokir') { $state.alasan = [string]$script:lastAlasan } else { $state.alasan = '' }
+
+    # --- Belum disetujui (status != aktif): jangan kirim transkrip / majukan penanda.
+    if ($status -ne 'aktif') {
+        Save-State -State $state
+        return
+    }
+
+    # --- AKTIF -> kirim transkrip profil TIAP user.
+    $files = @()
+    try {
+        $usersRoot = Join-Path $env:SystemDrive 'Users'
+        $files = Get-ChildItem -Path (Join-Path $usersRoot '*\.claude\projects\*\*.jsonl') `
+            -File -ErrorAction SilentlyContinue
+    } catch {
+        Write-Log "Gagal menelusuri transkrip: $($_.Exception.Message)"
+    }
+
+    $cycleSent = 0
+    foreach ($file in $files) {
+        if ($script:unauthorized) { break }
+        $path = $file.FullName
+
+        $already = 0
+        if ($state.files.ContainsKey($path)) { $already = [int]$state.files[$path] }
+
+        try {
+            $allLines = Get-Content -LiteralPath $path -Encoding UTF8 -ErrorAction Stop
+        } catch {
+            Write-Log "Lewati berkas tak terbaca '$path': $($_.Exception.Message)"
             continue
         }
 
-        $lineBytes = [System.Text.Encoding]::UTF8.GetByteCount($line)
-        if (($batchBytes + $lineBytes) -gt $maxBatchBytes -and $batch.Count -gt 0) {
-            if (Send-Batch -Lines ($batch.ToArray())) {
-                $batch.Clear() | Out-Null
-                $batchBytes = 0
-            } else {
-                $failed = $true
-                break
+        if ($null -eq $allLines) { continue }
+        $allLines = @($allLines)
+        $total = $allLines.Count
+        if ($total -le $already) { continue }
+
+        $newLines = $allLines[$already..($total - 1)]
+
+        $batch      = New-Object System.Collections.ArrayList
+        $batchBytes = 0
+        $failed     = $false
+
+        foreach ($line in $newLines) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $obj = $null
+            try {
+                $obj = $line | ConvertFrom-Json
+            } catch {
+                Write-Log "Baris tak bisa di-parse (dilewati) di '$path'."
+                continue
             }
+            $lineBytes = [System.Text.Encoding]::UTF8.GetByteCount($line)
+            if (($batchBytes + $lineBytes) -gt $maxBatchBytes -and $batch.Count -gt 0) {
+                if (Send-Batch -Lines ($batch.ToArray())) {
+                    $batch.Clear() | Out-Null
+                    $batchBytes = 0
+                } else {
+                    $failed = $true
+                    break
+                }
+            }
+            [void]$batch.Add($obj)
+            $batchBytes += $lineBytes
         }
 
-        [void]$batch.Add($obj)
-        $batchBytes += $lineBytes
+        if (-not $failed -and $batch.Count -gt 0) {
+            if (-not (Send-Batch -Lines ($batch.ToArray()))) { $failed = $true }
+        }
+
+        if ($script:unauthorized) { break }
+
+        if ($failed) {
+            Write-Log "Berkas '$path': kirim gagal, penanda tetap di $already dari $total."
+        } else {
+            $cycleSent += ($total - $already)
+            $state.files[$path] = $total
+        }
     }
 
-    if (-not $failed -and $batch.Count -gt 0) {
-        if (-not (Send-Batch -Lines ($batch.ToArray()))) { $failed = $true }
+    # Token ditolak di tengah kirim: kunci + reset token.
+    if ($script:unauthorized) {
+        Set-PendingLock -State $state
+        if ($cfg.PSObject.Properties.Name -contains 'device_token') { $cfg.device_token = $null }
+        Save-Config -Cfg $cfg
+        Save-State -State $state
+        Write-Log 'device_token direset ke null (akan enroll ulang sebagai pending).'
+        return
     }
 
-    if ($script:unauthorized) { break }
-
-    if ($failed) {
-        # Jangan majukan penanda: baris dikirim ulang putaran berikutnya.
-        Write-Log "Berkas '$path': kirim gagal, penanda tetap di $already dari $total."
-    } else {
-        $state.files[$path] = $total
-    }
-}
-
-# --- Token ditolak saat kirim transkrip (mis. perangkat dihapus di tengah jalan):
-#     KUNCI akses, tandai pending, lalu reset token agar enroll ulang sebagai pending.
-if ($script:unauthorized) {
-    Set-PendingLock -State $state
-    if ($cfg.PSObject.Properties.Name -contains 'device_token') { $cfg.device_token = $null }
-    Save-Config -Cfg $cfg
+    if ($cycleSent -gt 0) { Write-Log "Mengunggah $cycleSent baris baru." }
     Save-State -State $state
-    Write-Log 'device_token direset ke null (akan enroll ulang sebagai pending).'
-    exit 0
 }
 
-Save-State -State $state
-Write-Log 'Selesai satu putaran kirim.'
-exit 0
+# =====================================================================
+#  LOOP INTERNAL: satu kesalahan per putaran tidak menghentikan loop.
+# =====================================================================
+Write-Log "Agen mulai (loop internal tiap $interval detik)."
+while ($true) {
+    try {
+        Invoke-Cycle
+    } catch {
+        Write-Log "Putaran error: $($_.Exception.Message)"
+    }
+    Start-Sleep -Seconds $interval
+}

@@ -25,6 +25,7 @@ if (Test-Path -LiteralPath $cfg) {
 
 $endpoint = $map['ENDPOINT']
 $label    = $map['LABEL']
+$interval = $map['INTERVAL_DETIK']
 
 Write-Host '=== Pemasangan WBL AI Monitor ===' -ForegroundColor Cyan
 
@@ -35,8 +36,19 @@ if ([string]::IsNullOrWhiteSpace($endpoint) -or $endpoint -like '*GANTI*') {
 
 if ([string]::IsNullOrWhiteSpace($label)) { $label = $env:COMPUTERNAME }
 
+# Susun argumen; teruskan -IntervalDetik hanya bila INTERVAL_DETIK terisi angka.
+$pasangArgs = @{ Endpoint = $endpoint; Label = $label }
+if (-not [string]::IsNullOrWhiteSpace($interval)) {
+    $n = 0
+    if ([int]::TryParse($interval, [ref]$n)) {
+        $pasangArgs['IntervalDetik'] = $n
+    } else {
+        Write-Host "INTERVAL_DETIK '$interval' bukan angka; memakai default 30." -ForegroundColor Yellow
+    }
+}
+
 Write-Host "Memasang untuk perangkat: $label" -ForegroundColor Cyan
-& (Join-Path $dir 'pasang.ps1') -Endpoint $endpoint -Label $label
+& (Join-Path $dir 'pasang.ps1') @pasangArgs
 
 Write-Host ''
 Write-Host 'Perangkat akan muncul di dashboard MIC sebagai "Menunggu persetujuan".' -ForegroundColor Yellow
