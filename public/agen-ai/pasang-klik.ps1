@@ -2,42 +2,46 @@
     WBL AI Monitor - pasang-klik.ps1
     ================================
     Dipanggil oleh KLIK-PASANG.bat (yang sudah menaikkan hak admin).
-    Membaca pengaturan.txt di folder yang sama, lalu menjalankan pasang.ps1
-    tanpa perlu mengetik apa pun di tiap laptop. Isi pengaturan.txt cukup
-    sekali oleh IT.
+    Membaca ENDPOINT dari pengaturan.txt. ENROLLKEY: jika belum diisi di
+    pengaturan.txt, pemasang MENANYAKANNYA saat dijalankan (ditempel dari
+    dashboard MIC), lalu pasang.ps1 menyimpannya ke config per-perangkat.
+    Dengan begitu kunci tak perlu ditaruh di berkas yang ada di server.
 #>
 $ErrorActionPreference = 'Stop'
 $dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $cfg = Join-Path $dir 'pengaturan.txt'
 
-if (-not (Test-Path -LiteralPath $cfg)) {
-    Write-Host '[GAGAL] pengaturan.txt tidak ditemukan di folder ini.' -ForegroundColor Red
-    Read-Host 'Tekan Enter untuk menutup'; exit 1
-}
-
-# Baca pasangan KUNCI=nilai, abaikan baris komentar (#) dan kosong.
+# Baca pengaturan (opsional). Baris '#' dan kosong diabaikan.
 $map = @{}
-foreach ($line in Get-Content -LiteralPath $cfg -Encoding UTF8) {
-    if ($line -match '^\s*#') { continue }
-    if ($line -match '=') {
-        $parts = $line -split '=', 2
-        $map[$parts[0].Trim().ToUpper()] = $parts[1].Trim()
+if (Test-Path -LiteralPath $cfg) {
+    foreach ($line in Get-Content -LiteralPath $cfg -Encoding UTF8) {
+        if ($line -match '^\s*#') { continue }
+        if ($line -match '=') {
+            $parts = $line -split '=', 2
+            $map[$parts[0].Trim().ToUpper()] = $parts[1].Trim()
+        }
     }
 }
 
 $endpoint = $map['ENDPOINT']
 $key      = $map['ENROLLKEY']
 $label    = $map['LABEL']
-if ([string]::IsNullOrWhiteSpace($label)) { $label = $env:COMPUTERNAME }
 
-if ([string]::IsNullOrWhiteSpace($endpoint) -or $endpoint -like '*GANTI*' -or
-    [string]::IsNullOrWhiteSpace($key) -or $key -like '*GANTI*') {
-    Write-Host '[GAGAL] ENDPOINT dan ENROLLKEY di pengaturan.txt belum diisi.' -ForegroundColor Red
-    Write-Host '        Buka pengaturan.txt, isi kedua baris itu, simpan, lalu klik lagi.' -ForegroundColor Yellow
-    Read-Host 'Tekan Enter untuk menutup'; exit 1
+Write-Host '=== Pemasangan WBL AI Monitor ===' -ForegroundColor Cyan
+
+# ENDPOINT: biasanya sudah terisi; minta hanya bila kosong/placeholder.
+if ([string]::IsNullOrWhiteSpace($endpoint) -or $endpoint -like '*GANTI*') {
+    $endpoint = Read-Host 'Masukkan ENDPOINT enroll MIC (mis. https://mic.wbl-bsb.com/api/ai-monitor/enroll)'
 }
 
-Write-Host "Memasang WBL AI Monitor untuk perangkat: $label" -ForegroundColor Cyan
+# ENROLLKEY: jika belum diisi, TANYAKAN sekarang (tempel dari dashboard MIC).
+while ([string]::IsNullOrWhiteSpace($key) -or $key -like '*GANTI*') {
+    $key = Read-Host 'Masukkan Enroll Key (dashboard MIC > Pemantauan AI > Perangkat & Token)'
+}
+
+if ([string]::IsNullOrWhiteSpace($label)) { $label = $env:COMPUTERNAME }
+
+Write-Host "Memasang untuk perangkat: $label" -ForegroundColor Cyan
 & (Join-Path $dir 'pasang.ps1') -Endpoint $endpoint -EnrollKey $key -Label $label
 
 Write-Host ''

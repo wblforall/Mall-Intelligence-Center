@@ -2,13 +2,13 @@
 #  PENGATURAN PEMASANGAN WBL AI MONITOR
 # --------------------------------------------------------------------
 #  ENDPOINT sudah diisi (alamat enroll MIC produksi).
-#  Tinggal isi ENROLLKEY dengan kunci dari dashboard MIC:
-#     menu Pemantauan AI > Perangkat & Token > "Kunci Enrollment".
+#  ENROLLKEY boleh DIKOSONGKAN — saat KLIK-PASANG dijalankan, pemasang
+#  akan MENANYAKAN Enroll Key dan Anda tinggal menempelnya dari dashboard
+#  MIC: menu Pemantauan AI > Perangkat & Token > "Kunci Enrollment".
 #  LABEL opsional; kosongkan agar otomatis pakai nama komputer.
 #
-#  PENTING (keamanan): isi ENROLLKEY HANYA pada salinan yang Anda bagikan
-#  ke laptop. JANGAN mengisi ENROLLKEY pada berkas yang berada di server
-#  (folder /agen-ai/ dapat diakses publik). Berkas di server biarkan kosong.
+#  Keamanan: biarkan ENROLLKEY kosong pada berkas ini (folder /agen-ai/
+#  dapat diakses publik). Kunci cukup ditempel saat pemasangan.
 # ====================================================================
 ENDPOINT=https://mic.wbl-bsb.com/api/ai-monitor/enroll
 ENROLLKEY=
