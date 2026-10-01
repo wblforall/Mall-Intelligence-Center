@@ -1,12 +1,15 @@
 # ====================================================================
 #  PENGATURAN PEMASANGAN WBL AI MONITOR
-#  Isi DUA baris di bawah SEKALI saja (oleh IT). Sesudah itu, folder ini
-#  bisa dipakai di SEMUA laptop — tinggal klik KLIK-PASANG.bat.
 # --------------------------------------------------------------------
-#  ENDPOINT  = alamat enroll MIC produksi (lihat contoh di bawah).
-#  ENROLLKEY = kunci dari dashboard MIC: menu Pemantauan AI > Perangkat & Token.
-#  LABEL     = (opsional) nama perangkat; kosongkan agar otomatis pakai nama komputer.
+#  ENDPOINT sudah diisi (alamat enroll MIC produksi).
+#  Tinggal isi ENROLLKEY dengan kunci dari dashboard MIC:
+#     menu Pemantauan AI > Perangkat & Token > "Kunci Enrollment".
+#  LABEL opsional; kosongkan agar otomatis pakai nama komputer.
+#
+#  PENTING (keamanan): isi ENROLLKEY HANYA pada salinan yang Anda bagikan
+#  ke laptop. JANGAN mengisi ENROLLKEY pada berkas yang berada di server
+#  (folder /agen-ai/ dapat diakses publik). Berkas di server biarkan kosong.
 # ====================================================================
-ENDPOINT=https://GANTI-ALAMAT-MIC/index.php/api/ai-monitor/enroll
-ENROLLKEY=GANTI-DENGAN-KUNCI-ENROLLMENT
+ENDPOINT=https://mic.wbl-bsb.com/api/ai-monitor/enroll
+ENROLLKEY=
 LABEL=
