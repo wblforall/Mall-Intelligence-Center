@@ -20,6 +20,9 @@ class AiSessionModel extends Model
         'device_id', 'employee_id', 'session_uuid', 'judul', 'cwd', 'proyek',
         'git_branch', 'model', 'versi_cc', 'mulai_at', 'terakhir_at',
         'jml_prompt', 'jml_alat', 'token_masuk', 'token_keluar',
+        // Klasifikasi sesi (migrasi 2026-10-02-000004).
+        'klasifikasi_jenis', 'klasifikasi_tema', 'klasifikasi_kantor',
+        'klasifikasi_metode', 'klasifikasi_at',
     ];
 
     // Tabel ini punya created_at & updated_at → timestamps dinyalakan.
@@ -261,6 +264,7 @@ class AiSessionModel extends Model
     {
         $rows = $this->db->table('ai_sessions s')
             ->select('s.id, s.judul, s.terakhir_at, s.jml_prompt,
+                      s.klasifikasi_jenis, s.klasifikasi_kantor,
                       dev.label AS komputer, emp.nama AS nama')
             ->join('ai_devices dev', 'dev.id = s.device_id', 'left')
             ->join('employees emp', 'emp.id = s.employee_id', 'left')
@@ -275,7 +279,58 @@ class AiSessionModel extends Model
             'nama'        => $r['nama'] ?: '—',
             'terakhir_at' => $r['terakhir_at'],
             'jml_prompt'  => (int) $r['jml_prompt'],
+            'jenis'       => $r['klasifikasi_jenis'],
+            'kantor'      => $r['klasifikasi_kantor'],
         ], $rows);
+    }
+
+    /**
+     * Jumlah sesi per jenis klasifikasi dalam rentang (DATE(terakhir_at)).
+     * Sesi yang belum terklasifikasi dikelompokkan 'Belum'. Map jenis => int.
+     */
+    public function jenisCounts(string $dari, string $sampai): array
+    {
+        $rows = $this->db->table('ai_sessions')
+            ->select('COALESCE(klasifikasi_jenis, "Belum") AS jenis, COUNT(*) AS n', false)
+            ->where('DATE(terakhir_at) >=', $dari)
+            ->where('DATE(terakhir_at) <=', $sampai)
+            ->groupBy('klasifikasi_jenis')
+            ->get()->getResultArray();
+        $map = [];
+        foreach ($rows as $r) $map[$r['jenis']] = (int) $r['n'];
+        return $map;
+    }
+
+    /** N tema teratas berdasar jumlah sesi dalam rentang. [{tema,jumlah}]. */
+    public function temaTop(string $dari, string $sampai, int $limit = 5): array
+    {
+        $rows = $this->db->table('ai_sessions')
+            ->select('klasifikasi_tema AS tema, COUNT(*) AS jumlah', false)
+            ->where('DATE(terakhir_at) >=', $dari)
+            ->where('DATE(terakhir_at) <=', $sampai)
+            ->where('klasifikasi_tema IS NOT NULL', null, false)
+            ->groupBy('klasifikasi_tema')
+            ->orderBy('jumlah', 'DESC')
+            ->limit($limit)
+            ->get()->getResultArray();
+        return array_map(fn($r) => ['tema' => $r['tema'], 'jumlah' => (int) $r['jumlah']], $rows);
+    }
+
+    /**
+     * Jumlah sesi per kategori kantor/pribadi dalam rentang (DATE(terakhir_at)).
+     * Sesi belum terklasifikasi → 'Belum'. Map kategori => int.
+     */
+    public function kantorCounts(string $dari, string $sampai): array
+    {
+        $rows = $this->db->table('ai_sessions')
+            ->select('COALESCE(klasifikasi_kantor, "Belum") AS kat, COUNT(*) AS n', false)
+            ->where('DATE(terakhir_at) >=', $dari)
+            ->where('DATE(terakhir_at) <=', $sampai)
+            ->groupBy('klasifikasi_kantor')
+            ->get()->getResultArray();
+        $map = [];
+        foreach ($rows as $r) $map[$r['kat']] = (int) $r['n'];
+        return $map;
     }
 
     /** Satu sesi + nama karyawan pemiliknya, untuk halaman transkrip. */

@@ -97,6 +97,10 @@ class AiMonitor extends BaseController
             'top_komputer'  => $sess->topKomputer($weekStart, $today, 5),
             'top_karyawan'  => $sess->topKaryawan($weekStart, $today, 5),
             'sesi_terbaru'  => $sess->sesiTerbaru(10),
+            // Klasifikasi sesi (window 7 hari, konsisten KPI lain).
+            'klas_jenis'  => $sess->jenisCounts($weekStart, $today),
+            'klas_tema'   => $sess->temaTop($weekStart, $today, 5),
+            'klas_kantor' => $sess->kantorCounts($weekStart, $today),
         ];
 
         return view('ai_monitor/dashboard', $data);

@@ -31,6 +31,23 @@
 
 <?= $this->section('content') ?>
 
+<?php
+// Label + kelas badge untuk jenis & kantor (dipakai di panel Sesi Terbaru).
+$jenisBadge = [
+    'coding'    => ['Coding',    'bg-primary-subtle text-primary'],
+    'debugging' => ['Debugging', 'bg-danger-subtle text-danger'],
+    'ideating'  => ['Ideating',  'bg-info-subtle text-info'],
+    'menulis'   => ['Menulis',   'bg-success-subtle text-success'],
+    'riset'     => ['Riset',     'bg-warning-subtle text-warning-emphasis'],
+    'lainnya'   => ['Lainnya',   'bg-secondary-subtle text-secondary'],
+];
+$kantorBadge = [
+    'kantor'    => ['Kantor',   'bg-success-subtle text-success'],
+    'pribadi'   => ['Pribadi',  'bg-warning-subtle text-warning-emphasis'],
+    'tak_jelas' => ['Tak jelas','bg-secondary-subtle text-secondary'],
+];
+?>
+
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <div>
         <h4 class="fw-bold mb-1 ai-dash-title"><i class="bi bi-cpu me-2"></i>Dashboard Pemantauan AI</h4>
@@ -125,6 +142,52 @@ $kpiTiles = [
     </div>
 </div>
 
+<?php
+// Apakah ada sesi terklasifikasi dalam rentang? (untuk kondisi tampil panel)
+$adaKlas = array_sum($klas_jenis) > 0;
+?>
+<div class="row g-3 mb-4">
+    <!-- Jenis aktivitas -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-diagram-3 me-2 text-muted"></i>Jenis Aktivitas <span class="text-muted fw-normal">(7 hari)</span></span></div>
+            <div class="card-body">
+                <?php if ($adaKlas): ?>
+                <div style="height:260px"><canvas id="aiJenis"></canvas></div>
+                <?php else: ?>
+                <div class="text-center text-muted py-5" style="font-size:.85rem"><i class="bi bi-diagram-3 d-block fs-2 mb-2 opacity-25"></i>Belum ada sesi terklasifikasi</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <!-- Top tema -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-tags me-2 text-muted"></i>Top Tema <span class="text-muted fw-normal">(7 hari)</span></span></div>
+            <div class="card-body">
+                <?php if (! empty($klas_tema)): ?>
+                <div style="height:<?= max(160, count($klas_tema) * 44 + 40) ?>px"><canvas id="aiTema"></canvas></div>
+                <?php else: ?>
+                <div class="text-center text-muted py-5" style="font-size:.85rem">Belum ada tema</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <!-- Kantor vs pribadi -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-building me-2 text-muted"></i>Kantor vs Pribadi <span class="text-muted fw-normal">(7 hari)</span></span></div>
+            <div class="card-body">
+                <?php if ($adaKlas): ?>
+                <div style="height:260px"><canvas id="aiKantor"></canvas></div>
+                <?php else: ?>
+                <div class="text-center text-muted py-5" style="font-size:.85rem"><i class="bi bi-building d-block fs-2 mb-2 opacity-25"></i>Belum ada data</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Sesi terbaru -->
 <div class="card">
 <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-clock-history me-2 text-muted"></i>Sesi Terbaru</span></div>
@@ -150,6 +213,14 @@ $kpiTiles = [
         <a href="<?= base_url('ai-monitor/sesi/' . (int) $s['id']) ?>" class="fw-medium text-decoration-none">
             <?= $s['judul'] !== '' && $s['judul'] !== null ? esc($s['judul']) : '(tanpa judul)' ?>
         </a>
+        <div class="mt-1 d-flex gap-1 flex-wrap">
+            <?php if (! empty($s['jenis']) && isset($jenisBadge[$s['jenis']])): ?>
+            <span class="badge <?= $jenisBadge[$s['jenis']][1] ?>"><?= esc($jenisBadge[$s['jenis']][0]) ?></span>
+            <?php endif; ?>
+            <?php if (! empty($s['kantor']) && isset($kantorBadge[$s['kantor']])): ?>
+            <span class="badge <?= $kantorBadge[$s['kantor']][1] ?>"><?= esc($kantorBadge[$s['kantor']][0]) ?></span>
+            <?php endif; ?>
+        </div>
     </td>
     <td><span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-laptop me-1"></i><?= esc($s['komputer']) ?></span></td>
     <td><?= esc($s['nama']) ?></td>
@@ -283,6 +354,63 @@ document.addEventListener('DOMContentLoaded', function () {
                 y: { ticks: { color: inkMuted, font: { size: 10 } }, grid: { display: false } },
             },
         },
+    });
+    <?php endif; ?>
+
+    const donutOpts = {
+        responsive: true, maintainAspectRatio: false, cutout: '58%',
+        plugins: { legend: { position: 'bottom', labels: { color: inkMuted, usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, font: { size: 11 } } } },
+    };
+
+    // ── Jenis aktivitas (donut) ─────────────────────────────────────────
+    <?php if ($adaKlas): ?>
+    const jenisWarna = { coding: C.indigo, debugging: C.red, ideating: C.violet, menulis: C.cyan, riset: C.amber, lainnya: C.slate, Belum: dark ? '#4b5563' : '#cbd5e1' };
+    const jenisLabel = { coding: 'Coding', debugging: 'Debugging', ideating: 'Ideating', menulis: 'Menulis', riset: 'Riset', lainnya: 'Lainnya', Belum: 'Belum' };
+    const jc = <?= json_encode($klas_jenis) ?>;
+    const jk = Object.keys(jc);
+    new Chart(document.getElementById('aiJenis'), {
+        type: 'doughnut',
+        data: {
+            labels: jk.map(k => jenisLabel[k] || k),
+            datasets: [{ data: jk.map(k => jc[k]), backgroundColor: jk.map(k => jenisWarna[k] || C.slate), borderColor: surface, borderWidth: 2 }],
+        },
+        options: donutOpts,
+    });
+    <?php endif; ?>
+
+    // ── Top tema (bar horizontal) ───────────────────────────────────────
+    <?php if (! empty($klas_tema)): ?>
+    const tema = <?= json_encode($klas_tema) ?>;
+    new Chart(document.getElementById('aiTema'), {
+        type: 'bar',
+        data: {
+            labels: tema.map(r => r.tema),
+            datasets: [{ label: 'Sesi', data: tema.map(r => r.jumlah), backgroundColor: hexA(C.violet, .85), borderColor: C.violet, borderWidth: 1, borderRadius: 5 }],
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, ticks: { color: inkMuted, precision: 0, font: { size: 10 } }, grid: { color: gridCol } },
+                y: { ticks: { color: inkMuted, font: { size: 10 } }, grid: { display: false } },
+            },
+        },
+    });
+    <?php endif; ?>
+
+    // ── Kantor vs pribadi (donut) ───────────────────────────────────────
+    <?php if ($adaKlas): ?>
+    const kantorWarna = { kantor: C.green, pribadi: C.amber, tak_jelas: C.slate, Belum: dark ? '#4b5563' : '#cbd5e1' };
+    const kantorLabel = { kantor: 'Kantor', pribadi: 'Pribadi', tak_jelas: 'Tak jelas', Belum: 'Belum' };
+    const kc = <?= json_encode($klas_kantor) ?>;
+    const kk = Object.keys(kc);
+    new Chart(document.getElementById('aiKantor'), {
+        type: 'doughnut',
+        data: {
+            labels: kk.map(k => kantorLabel[k] || k),
+            datasets: [{ data: kk.map(k => kc[k]), backgroundColor: kk.map(k => kantorWarna[k] || C.slate), borderColor: surface, borderWidth: 2 }],
+        },
+        options: donutOpts,
     });
     <?php endif; ?>
 });
