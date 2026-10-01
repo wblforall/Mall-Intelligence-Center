@@ -296,9 +296,15 @@ copot.ps1 akan:
       * copot_hash kosong -> "Tidak bisa memverifikasi: server tak terjangkau dan
         belum ada cadangan di perangkat ini. Sambungkan ke jaringan lalu coba
         lagi." (exit 1)
-  - Bila lolos: menghapus KEDUA Scheduled Task ("WBL AI Monitor" +
-    "WBL AI Monitor Notice"), folder Program Files (kirim.ps1 + notice.ps1) &
-    ProgramData, dan membersihkan baris "# WBL-AiMonitor BLOCK" dari hosts.
+  - Bila lolos: (1) menghapus KEDUA Scheduled Task ("WBL AI Monitor" +
+    "WBL AI Monitor Notice"); (2) MEMATIKAN proses PowerShell agen/notifier yang
+    masih loop di memori (kirim.ps1/notice.ps1) -- filter commandline cocok
+    WBL-AiMonitor/notice.ps1/kirim.ps1 saja, jadi PowerShell lain & copot.ps1
+    sendiri aman; (3) membersihkan baris "# WBL-AiMonitor BLOCK" dari hosts +
+    ipconfig /flushdns; (4) menghapus folder Program Files (kirim.ps1 +
+    notice.ps1) & ProgramData.
+  - Karena proses yang berjalan ikut dimatikan, notifikasi langsung berhenti dan
+    TIDAK perlu logoff/restart.
   - TIDAK menyentuh berkas transkrip Claude Code milik pengguna.
 
 Keuntungan verifikasi ke server: bila IT mengganti/mereset password copot di

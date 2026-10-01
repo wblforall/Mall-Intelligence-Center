@@ -4,10 +4,12 @@
     Mencopot fitur "Pemantauan AI" dari laptop ini:
       - Menghapus Scheduled Task "WBL AI Monitor" (penegak SYSTEM) DAN
         "WBL AI Monitor Notice" (notifier sesi user).
-      - Menghapus folder program C:\Program Files\WBL-AiMonitor (berisi kirim.ps1
-        dan notice.ps1).
-      - Menghapus folder data    C:\ProgramData\WBL-AiMonitor
-      - Membersihkan baris blokir bertanda "# WBL-AiMonitor BLOCK" dari hosts.
+      - MEMATIKAN proses PowerShell agen/notifier yang masih loop di memori
+        (kirim.ps1/notice.ps1) supaya notifikasi berhenti TANPA perlu restart.
+      - Membersihkan baris blokir bertanda "# WBL-AiMonitor BLOCK" dari hosts
+        (+ ipconfig /flushdns).
+      - Menghapus folder program C:\Program Files\WBL-AiMonitor (kirim.ps1 +
+        notice.ps1) dan folder data C:\ProgramData\WBL-AiMonitor.
 
     Hanya IT yang BISA mencopot:
       - Wajib dijalankan sebagai Administrator.
@@ -171,14 +173,41 @@ foreach ($tn in @($TaskName, $NoticeTaskName)) {
     }
 }
 
-# --- 3) Bersihkan baris blokir dari hosts (pulihkan akses Claude Code).
+# --- 2b) MATIKAN proses PowerShell agen/notifier yang masih loop di memori.
+#         Tanpa ini, instance lama (notice.ps1/kirim.ps1) tetap hidup sampai
+#         logoff/restart dan notifikasi masih bisa muncul. Filter commandline
+#         WAJIB cocok WBL-AiMonitor/notice.ps1/kirim.ps1 -> tidak mematikan
+#         PowerShell lain, dan TIDAK cocok dengan copot.ps1 (aman untuk diri sendiri).
+try {
+    $killed = 0
+    Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.CommandLine -and (
+                $_.CommandLine -like '*WBL-AiMonitor*' -or
+                $_.CommandLine -like '*notice.ps1*'    -or
+                $_.CommandLine -like '*kirim.ps1*'
+            )
+        } |
+        ForEach-Object {
+            try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop; $killed++ } catch { }
+        }
+    Write-Host "Proses agen/notifier yang berjalan dihentikan: $killed." -ForegroundColor Green
+} catch {
+    Write-Host "Gagal menghentikan proses agen/notifier: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# --- 3) Bersihkan baris blokir dari hosts (pulihkan akses Claude Code) + flushdns.
 try {
     if (Test-Path -LiteralPath $HostsPath) {
         $lines = @(Get-Content -LiteralPath $HostsPath -Encoding UTF8)
         $kept  = @($lines | Where-Object { $_ -notmatch [regex]::Escape($BlockMarker) })
         if (($kept -join "`r`n") -ne ($lines -join "`r`n")) {
             Set-Content -LiteralPath $HostsPath -Value $kept -Encoding ASCII
-            Write-Host 'Baris blokir dibersihkan dari hosts (akses Claude Code dipulihkan).' -ForegroundColor Green
+            try {
+                Start-Process -FilePath "$env:SystemRoot\System32\ipconfig.exe" `
+                    -ArgumentList '/flushdns' -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue
+            } catch { }
+            Write-Host 'Baris blokir dibersihkan dari hosts + flushdns (akses dipulihkan).' -ForegroundColor Green
         } else {
             Write-Host 'Tidak ada baris blokir di hosts.' -ForegroundColor Yellow
         }
