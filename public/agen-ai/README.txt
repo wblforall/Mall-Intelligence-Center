@@ -40,7 +40,10 @@ Contoh kalimat edaran tertulis ke tim:
 DIPANTAU / DIKIRIM:
   - Baris transkrip sesi Claude Code (*.jsonl) dari profil TIAP user:
         C:\Users\<user>\.claude\projects\<slug-proyek>\<uuid-sesi>.jsonl
-    Baris dikirim apa adanya (mentah); server MIC yang mengurai & menyimpan.
+    Isi baris dikirim sebagai BASE64 (field `enc`) lalu server MIC men-decode,
+    mengurai, dan menyimpan. Base64 dipakai bukan untuk menyandikan rahasia,
+    melainkan agar body OPAQUE sehingga tidak salah-blokir oleh WAF/ModSecurity
+    hosting (yang mengira isi prompt berisi kode/SQL/shell berbahaya).
 
 TIDAK DISENTUH / TIDAK DIKIRIM:
   - Berkas lain apa pun di laptop (dokumen, email, foto, kredensial sistem)
@@ -258,6 +261,12 @@ DIAGNOSA BLOKIR (bila blokir terasa tak berlaku):
   4. Ingat: blokir hanya untuk koneksi BARU. Tutup lalu buka lagi VSCode/terminal
      yang sudah berjalan agar blokir terasa. Agen sudah menjalankan ipconfig
      /flushdns otomatis setiap kali hosts berubah.
+
+DIAGNOSA UNGGAH (bila sesi tak muncul di dashboard):
+  - Transkrip dikirim sebagai BASE64 (field `enc`) justru agar TIDAK salah-blokir
+    WAF/ModSecurity hosting (dulu body berisi kode/SQL kena HTTP 400/403). Bila
+    kirim.log masih menampilkan "Gagal mengirim batch ... status=400/403",
+    laporkan ke admin server (aturan WAF pada endpoint ingest).
 
 
 ----------------------------------------------------------------

@@ -11,7 +11,8 @@
     Prinsip:
       - HANYA membaca berkas transkrip *.jsonl. Tidak membaca/mengirim berkas lain.
       - TIDAK PERNAH menghapus atau mengubah berkas transkrip.
-      - Mengirim baris mentah; penyamaran kata sandi/token dilakukan DI SERVER.
+      - Mengirim baris transkrip sebagai BASE64 (field `enc`) agar lolos WAF
+        hosting; penyamaran kata sandi/token tetap dilakukan DI SERVER.
       - Bila server memerintahkan blokir/pending, akses Claude Code
         (api.anthropic.com) dimatikan via berkas hosts + flushdns, dan user diberi
         notifikasi (debounce berbasis waktu agar tak spam).
@@ -250,15 +251,24 @@ $script:hostName    = $env:COMPUTERNAME
 $script:headers     = @{}
 
 # --- Kirim satu batch; $true bila sukses (2xx). Menyimpan status/blokir/copot_hash.
+#     Isi transkrip dikirim sebagai BASE64 (field `enc`) agar OPAQUE dan lolos
+#     WAF/ModSecurity hosting (yang memblokir body berisi kode/SQL/shell). Field
+#     `lines` mentah TIDAK dikirim lagi. Poll kosong -> enc='[]' (tetap lolos).
 function Send-Batch {
     param([array]$Lines)
+
+    # Bangun JSON array yang DIJAMIN array (hindari PowerShell merender 1 elemen
+    # sebagai objek tunggal). 0 elemen -> '[]'.
+    $arrJson = '[' + (($Lines | ForEach-Object { $_ | ConvertTo-Json -Depth 50 -Compress }) -join ',') + ']'
+    $enc = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($arrJson))
+
     $payload = @{
         device_token = $script:deviceToken
         host         = $script:hostName
         account      = $script:account
-        lines        = $Lines
+        enc          = $enc
     }
-    $json = $payload | ConvertTo-Json -Depth 50 -Compress
+    $json = $payload | ConvertTo-Json -Compress
     try {
         $resp = Invoke-RestMethod -Uri $cfg.endpoint_ingest -Method Post -Headers $script:headers `
             -Body $json -TimeoutSec 60 -UseBasicParsing
