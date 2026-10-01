@@ -98,23 +98,31 @@ ATURAN AKSES (ditegakkan agen tiap putaran, SEBELUM kirim transkrip):
   Ini mematikan KHUSUS akses Claude Code (api.anthropic.com). Web app claude.ai
   SENGAJA tidak diblok.
 
-TIGA KEADAAN (notifikasi msg.exe hanya saat BERPINDAH keadaan, agar tak spam;
-keadaan terakhir disimpan di state.json):
-  - terkunci-pending (status pending / belum disetujui / dinonaktifkan dari
-    daftar): hosts DIKUNCI. Transkrip TIDAK diupload, penanda state TIDAK maju,
-    token TIDAK direset. Notif saat masuk keadaan ini:
-        "Akses Claude Code pada perangkat ini terkunci. Perangkat menunggu
-         persetujuan Tim IT."
+NOTIFIKASI: pakai msg.exe (andal dari SYSTEM ke sesi user; toast modern TIDAK
+dipakai karena isolasi session-0). Saat TERKUNCI, notifikasi dikirim SETIAP
+putaran (±30 menit) agar user terus diingatkan. Saat PULIH, notifikasi hanya
+sekali (saat transisi) agar tak mengganggu kerja. Keadaan terakhir disimpan di
+state.json.
+
+TIGA KEADAAN:
+  - terkunci-pending (status pending / belum disetujui / token ditolak /
+    dinonaktifkan dari daftar): hosts DIKUNCI. Transkrip TIDAK diupload, penanda
+    state TIDAK maju, token TIDAK direset. Notif SETIAP putaran:
+        "Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang
+         menunggu persetujuan."
   - terkunci-blokir (status aktif TAPI blokir==true): hosts DIKUNCI, transkrip
-    tetap diupload. Notif saat masuk keadaan ini:
-        "Akses Claude Code pada perangkat ini dinonaktifkan sementara oleh Tim
-         IT. Hubungi IT untuk informasi lebih lanjut."  (+ alasan bila ada)
+    tetap diupload. Notif SETIAP putaran:
+        "Akses Claude Code dinonaktifkan sementara oleh Tim IT."  (+ " Alasan:
+         <alasan>" bila ada)
   - terbuka (status aktif DAN blokir==false): hosts DIBUKA (baris bertanda
-    dihapus), transkrip diupload normal. Notif saat pulih dari keadaan terkunci:
+    dihapus), transkrip diupload normal. Notif HANYA saat pulih dari keadaan
+    terkunci:
         "Akses Claude Code telah dipulihkan oleh Tim IT."
 
-Catatan: pengunciaan hosts tetap ditegakkan walau perangkat masih pending
-(status diambil dari poll ingest lines:[] di awal tiap putaran). Semua baris
+Catatan: penguncian hosts & notifikasi hanya dijalankan setelah poll status
+berhasil (diambil dari poll ingest lines:[] di awal tiap putaran). Bila server
+tak terjangkau karena OFFLINE TRANSIEN (bukan penolakan token/HTTP 401), agen
+TIDAK mengunci dan TIDAK memberi notifikasi apa pun putaran itu. Semua baris
 bertanda "# WBL-AiMonitor BLOCK" otomatis dibersihkan saat agen dicopot.
 
 
@@ -212,25 +220,39 @@ lalu:
   powershell -ExecutionPolicy Bypass -File copot.ps1
 
 Password copot diatur TERPUSAT di dashboard MIC (menu Perangkat & Token, khusus
-admin). Server mengirim hash sha256-nya ke laptop lewat enroll/ingest, lalu
-kirim.ps1 menyimpannya ke config.json di perangkat untuk validasi offline.
+admin). Saat mencopot, password DIVERIFIKASI KE SERVER (selalu ikut dashboard
+terbaru) lewat endpoint verify-copot; bila server tak terjangkau atau token
+perangkat ditolak, copot.ps1 jatuh ke CADANGAN LOKAL (hash sha256 yang pernah
+disinkron server ke config.json).
 
 copot.ps1 akan:
   - Menolak bila bukan Administrator.
-  - Membaca copot_hash dari config.json. Bila kosong/null -> ditolak:
-      "Password copot belum diatur di MIC atau belum tersinkron ke perangkat ini.
-       Atur di dashboard MIC lalu tunggu laptop melapor, baru copot." (exit 1)
+  - Membaca config.json (endpoint_ingest, device_token, copot_hash). URL verify
+    diturunkan dari endpoint_ingest ('/ingest' -> '/verify-copot').
   - Menanyakan password IT, menghitung sha256 HEX lowercase dari bytes UTF-8
-    (cocok dengan PHP hash('sha256',$pw)), membandingkan dengan copot_hash.
-    Bila tidak cocok -> dibatalkan (exit 1).
-  - Menghapus Scheduled Task, folder Program Files & ProgramData, dan
+    (cocok dengan PHP hash('sha256',$pw)).
+  - VERIFIKASI KE SERVER (POST verify-copot, Bearer device_token, body {hash}):
+      * ok:true            -> lanjut copot.
+      * ok:false,unset:true -> "Password copot belum diatur di MIC." (exit 1)
+      * ok:false           -> "Password copot salah." (exit 1)
+      * 401 / jaringan/timeout -> jatuh ke CADANGAN LOKAL.
+  - CADANGAN LOKAL (server tak terjangkau / token ditolak / belum ada token):
+      * copot_hash ada & cocok -> lanjut copot.
+      * copot_hash ada & tidak cocok -> "Password copot salah." (exit 1)
+      * copot_hash kosong -> "Tidak bisa memverifikasi: server tak terjangkau dan
+        belum ada cadangan di perangkat ini. Sambungkan ke jaringan lalu coba
+        lagi." (exit 1)
+  - Bila lolos: menghapus Scheduled Task, folder Program Files & ProgramData, dan
     membersihkan baris "# WBL-AiMonitor BLOCK" dari hosts.
   - TIDAK menyentuh berkas transkrip Claude Code milik pengguna.
 
-User biasa tanpa hak admin TIDAK bisa menjalankan ini. Bila password copot belum
-diatur/tersinkron, atur dulu di MIC dan tunggu laptop melapor. Bila terpaksa,
-pencopotan dapat dilakukan manual oleh admin (hapus task, folder, dan baris
-hosts bertanda).
+Keuntungan verifikasi ke server: bila IT mengganti/mereset password copot di
+dashboard, perubahan langsung berlaku tanpa menunggu laptop melapor. Cadangan
+lokal hanya dipakai saat benar-benar offline.
+
+User biasa tanpa hak admin TIDAK bisa menjalankan ini. Bila terpaksa (mis. lupa
+password & tak ada akses MIC), pencopotan dapat dilakukan manual oleh admin
+(hapus task, folder, dan baris hosts bertanda).
 
 
 ----------------------------------------------------------------

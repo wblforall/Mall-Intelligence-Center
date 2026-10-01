@@ -103,6 +103,34 @@ class AiMonitorController extends BaseApiController
         ]);
     }
 
+    // ── Verifikasi password copot (dipakai copot.ps1) ────────────────────
+    // copot.ps1 mengirim sha256 dari password yang diketik IT; server
+    // membandingkannya ke hash copot TERKINI (dari dashboard). Dengan begitu
+    // copot selalu ikut password terbaru di MIC tanpa menunggu sinkron ke
+    // laptop. Wajib token perangkat yang sah supaya bukan oracle terbuka;
+    // copot.ps1 tetap punya cadangan hash lokal bila laptop offline.
+    public function verifyCopot()
+    {
+        $header = $this->request->getHeaderLine('Authorization');
+        if (! $header || ! str_starts_with($header, 'Bearer ')) {
+            return $this->error('Token perangkat tidak ada.', 401);
+        }
+        $device = (new AiDeviceModel())
+            ->where('token_hash', hash('sha256', trim(substr($header, 7))))->first();
+        if (! $device) {
+            return $this->error('Token perangkat tidak dikenal.', 401);
+        }
+
+        $stored = AiCopotPassword::hashNow();
+        if (! $stored) {
+            // Password copot belum diatur di MIC.
+            return $this->json(['success' => true, 'ok' => false, 'unset' => true]);
+        }
+        $kirim = trim((string) ($this->request->getJsonVar('hash') ?? ''));
+        $ok = $kirim !== '' && hash_equals($stored, $kirim);
+        return $this->json(['success' => true, 'ok' => $ok]);
+    }
+
     public function ingest()
     {
         // ── Auth perangkat ───────────────────────────────────────────────

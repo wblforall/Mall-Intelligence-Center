@@ -183,6 +183,17 @@ function Set-HostsBlock {
     }
 }
 
+# --- Kunci akses + tandai pending. Dipakai saat token DITOLAK server (HTTP 401,
+#     mis. perangkat dihapus dari dashboard): akses Claude Code ikut MATI, bukan
+#     dibiarkan terbuka. Notifikasi dikirim SETIAP putaran selama terkunci.
+function Set-PendingLock {
+    param([hashtable]$State)
+    Set-HostsBlock -On $true
+    Send-UserNotice -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.'
+    Write-Log 'Keadaan terkunci-pending (token ditolak server); notifikasi dikirim.'
+    $State.keadaan = 'terkunci-pending'
+}
+
 # =====================================================================
 #  ENROLL bila device_token masih null
 # =====================================================================
@@ -304,12 +315,17 @@ function Send-Batch {
 $pollOk = Send-Batch -Lines @()
 
 if ($script:unauthorized) {
-    # HTTP 401: token benar-benar ditolak -> reset agar enroll ulang.
+    # HTTP 401: token ditolak (mis. perangkat DIHAPUS dari dashboard).
     # (CATATAN: status "pending" datang sebagai HTTP 200, BUKAN 401, jadi
     #  pending tidak akan sampai ke sini dan TIDAK mereset token.)
+    # 1) KUNCI akses Claude Code SEKARANG (jangan dibiarkan terbuka).
+    # 2) Tandai keadaan pending + notif transisi.
+    Set-PendingLock -State $state
+    # 3) Reset token agar putaran berikutnya enroll ulang sebagai pending.
     if ($cfg.PSObject.Properties.Name -contains 'device_token') { $cfg.device_token = $null }
     Save-Config -Cfg $cfg
-    Write-Log 'device_token direset ke null (akan enroll ulang).'
+    Save-State -State $state
+    Write-Log 'device_token direset ke null (akan enroll ulang sebagai pending).'
     exit 0
 }
 
@@ -344,22 +360,25 @@ if ($keadaan -eq 'terbuka') {
     Set-HostsBlock -On $true
 }
 
-# Notifikasi HANYA saat transisi keadaan (hindari spam tiap 30 menit).
-if ($keadaan -ne $prevKeadaan) {
-    switch ($keadaan) {
-        'terkunci-pending' {
-            Send-UserNotice -Message 'Akses Claude Code pada perangkat ini terkunci. Perangkat menunggu persetujuan Tim IT.'
-            Write-Log 'Keadaan -> terkunci-pending (menunggu persetujuan); notifikasi dikirim.'
+# Notifikasi (msg.exe, andal dari SYSTEM -> sesi user; toast modern tidak dipakai
+# karena isolasi session-0):
+#   - terkunci-pending / terkunci-blokir: SETIAP putaran (ingatkan user terus).
+#   - terbuka: HANYA saat transisi dari keadaan terkunci (jangan ganggu saat kerja).
+switch ($keadaan) {
+    'terkunci-pending' {
+        Send-UserNotice -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.'
+        Write-Log 'Keadaan terkunci-pending; notifikasi dikirim.'
+    }
+    'terkunci-blokir' {
+        $msg = 'Akses Claude Code dinonaktifkan sementara oleh Tim IT.'
+        if (-not [string]::IsNullOrWhiteSpace($script:lastAlasan)) {
+            $msg = "$msg Alasan: $($script:lastAlasan)"
         }
-        'terkunci-blokir' {
-            $msg = 'Akses Claude Code pada perangkat ini dinonaktifkan sementara oleh Tim IT. Hubungi IT untuk informasi lebih lanjut.'
-            if (-not [string]::IsNullOrWhiteSpace($script:lastAlasan)) {
-                $msg = "$msg Alasan: $($script:lastAlasan)"
-            }
-            Send-UserNotice -Message $msg
-            Write-Log 'Keadaan -> terkunci-blokir (dinonaktifkan IT); notifikasi dikirim.'
-        }
-        'terbuka' {
+        Send-UserNotice -Message $msg
+        Write-Log 'Keadaan terkunci-blokir; notifikasi dikirim.'
+    }
+    'terbuka' {
+        if ($prevKeadaan -ne 'terbuka') {
             Send-UserNotice -Message 'Akses Claude Code telah dipulihkan oleh Tim IT.'
             Write-Log 'Keadaan -> terbuka (akses dipulihkan); notifikasi dikirim.'
         }
@@ -457,12 +476,14 @@ foreach ($file in $files) {
     }
 }
 
-# --- Token ditolak saat kirim transkrip: reset agar enroll ulang.
+# --- Token ditolak saat kirim transkrip (mis. perangkat dihapus di tengah jalan):
+#     KUNCI akses, tandai pending, lalu reset token agar enroll ulang sebagai pending.
 if ($script:unauthorized) {
+    Set-PendingLock -State $state
     if ($cfg.PSObject.Properties.Name -contains 'device_token') { $cfg.device_token = $null }
     Save-Config -Cfg $cfg
     Save-State -State $state
-    Write-Log 'device_token direset ke null (akan enroll ulang).'
+    Write-Log 'device_token direset ke null (akan enroll ulang sebagai pending).'
     exit 0
 }
 

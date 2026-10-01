@@ -317,6 +317,49 @@ class AiMonitor extends BaseController
             ->with('success', 'Akses AI untuk "' . $dev['label'] . '" dipulihkan.');
     }
 
+    // ── Hapus perangkat ─────────────────────────────────────────────────
+    //
+    // Menghapus perangkat beserta seluruh riwayatnya (sesi, entri, pemakaian,
+    // token). Akses AI di laptop ikut MATI: tokennya tak lagi dikenal server,
+    // sehingga agen menguncinya lalu enroll ulang sebagai "menunggu
+    // persetujuan". Untuk benar-benar melepas agen dari laptop, tetap pakai
+    // copot (perkakas IT + password).
+    public function hapusPerangkat()
+    {
+        if (! $this->canEditMenu(self::MENU)) {
+            return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
+        }
+
+        $deviceId = (int) $this->request->getPost('device_id');
+        $model    = new AiDeviceModel();
+        $dev      = $model->find($deviceId);
+        if (! $dev) {
+            return redirect()->to('/ai-monitor/perangkat')->with('error', 'Perangkat tidak ditemukan.');
+        }
+
+        $db = db_connect();
+        $db->transStart();
+        // Hapus anak lebih dulu agar tak ada baris yatim: usage & entri milik
+        // sesi perangkat ini, lalu sesinya, baru perangkatnya.
+        $ids = array_column(
+            $db->table('ai_sessions')->select('id')->where('device_id', $deviceId)->get()->getResultArray(),
+            'id'
+        );
+        if ($ids) {
+            $db->table('ai_usage')->whereIn('ai_session_id', $ids)->delete();
+            $db->table('ai_entries')->whereIn('ai_session_id', $ids)->delete();
+            $db->table('ai_sessions')->where('device_id', $deviceId)->delete();
+        }
+        $db->table('ai_devices')->where('id', $deviceId)->delete();
+        $db->transComplete();
+
+        ActivityLog::write('delete', 'ai_monitor', (string) $deviceId,
+            'Hapus perangkat: ' . $dev['label'] . ' (akses AI di laptop ikut mati)');
+
+        return redirect()->to('/ai-monitor/perangkat')
+            ->with('success', 'Perangkat "' . $dev['label'] . '" dihapus. Akses AI di laptop itu akan mati pada kontak berikutnya.');
+    }
+
     // ── Regenerasi kunci enrollment ─────────────────────────────────────
     //
     // Memutar kunci = menutup pendaftaran laptop BARU dengan kunci lama.

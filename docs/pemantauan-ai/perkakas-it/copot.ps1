@@ -9,7 +9,9 @@
 
     Hanya IT yang BISA mencopot:
       - Wajib dijalankan sebagai Administrator.
-      - Wajib memasukkan password IT yang cocok dengan hash sha256 di config.json.
+      - Wajib memasukkan password IT. Password diverifikasi KE SERVER MIC (ikut
+        dashboard terbaru) lewat endpoint verify-copot; bila server tak terjangkau
+        atau token ditolak, jatuh ke CADANGAN LOKAL (hash sha256 di config.json).
 
     Berkas transkrip Claude Code milik pengguna TIDAK disentuh sama sekali.
 #>
@@ -34,9 +36,7 @@ if (-not $isAdmin) {
     exit 1
 }
 
-# --- 1) VERIFIKASI PASSWORD IT terhadap hash di config.json.
-#        copot_hash dikelola terpusat di MIC dan disinkron ke config oleh kirim.ps1
-#        lewat respons enroll/ingest. Di sini kita hanya memvalidasi.
+# --- 1) BACA CONFIG: endpoint_ingest, device_token, copot_hash (cadangan lokal).
 if (-not (Test-Path -LiteralPath $ConfigPath)) {
     Write-Host "Config tidak ditemukan di '$ConfigPath'. Agen mungkin belum terpasang." -ForegroundColor Red
     Write-Host 'Pencopotan dibatalkan. Jalankan pasang.ps1 lebih dulu, atau bersihkan manual.' -ForegroundColor Yellow
@@ -51,17 +51,27 @@ try {
     exit 1
 }
 
-$storedHash = $null
-if ($cfg -and ($cfg.PSObject.Properties.Name -contains 'copot_hash')) {
-    $storedHash = $cfg.copot_hash
+$endpointIngest = $null
+$deviceToken    = $null
+$storedHash     = $null
+if ($cfg) {
+    if ($cfg.PSObject.Properties.Name -contains 'endpoint_ingest') { $endpointIngest = $cfg.endpoint_ingest }
+    if ($cfg.PSObject.Properties.Name -contains 'device_token')    { $deviceToken    = $cfg.device_token }
+    if ($cfg.PSObject.Properties.Name -contains 'copot_hash')       { $storedHash     = $cfg.copot_hash }
 }
 
-if ([string]::IsNullOrWhiteSpace($storedHash)) {
-    Write-Host 'Password copot belum diatur di MIC atau belum tersinkron ke perangkat ini.' -ForegroundColor Red
-    Write-Host 'Atur di dashboard MIC lalu tunggu laptop melapor, baru copot.' -ForegroundColor Yellow
-    exit 1
+# URL verify diturunkan dari endpoint_ingest: '/ingest' di akhir -> '/verify-copot'.
+$verifyUrl = $null
+if (-not [string]::IsNullOrWhiteSpace($endpointIngest)) {
+    if ($endpointIngest -match '/ingest/?$') {
+        $verifyUrl = $endpointIngest -replace '/ingest/?$', '/verify-copot'
+    } else {
+        $verifyUrl = $endpointIngest.Replace('/ingest', '/verify-copot')
+    }
 }
 
+# --- 2) Minta password -> sha256 HEX lowercase dari BYTES UTF-8
+#        (cocok dengan PHP hash('sha256',$pw)).
 $secure = Read-Host 'Masukkan password IT untuk mencopot' -AsSecureString
 $bstr   = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 try {
@@ -69,9 +79,7 @@ try {
 } finally {
     [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 }
-
-# sha256 HEX lowercase dari BYTES UTF-8 password (cocok dengan PHP hash('sha256',$pw)).
-$sha   = [System.Security.Cryptography.SHA256]::Create()
+$sha = [System.Security.Cryptography.SHA256]::Create()
 try {
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($pwPlain)
     $hex   = ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLower()
@@ -80,8 +88,63 @@ try {
 }
 $pwPlain = $null
 
-if ($hex -ne ([string]$storedHash).ToLower()) {
-    Write-Host 'GAGAL: password IT salah. Pencopotan dibatalkan.' -ForegroundColor Red
+# --- 3) VERIFIKASI KE SERVER (ikut dashboard terbaru); cadangan lokal bila offline.
+$verified   = $false
+$serverDone = $false   # $true bila server memberi jawaban tegas (benar/salah/unset)
+
+if ($deviceToken -and $verifyUrl) {
+    $headers = @{
+        'Authorization' = "Bearer $deviceToken"
+        'Content-Type'  = 'application/json'
+    }
+    $body = @{ hash = $hex } | ConvertTo-Json -Compress
+    try {
+        $resp = Invoke-RestMethod -Uri $verifyUrl -Method Post -Headers $headers `
+            -Body $body -TimeoutSec 20 -UseBasicParsing
+        $serverDone = $true
+        if ($resp -and $resp.ok) {
+            $verified = $true
+            Write-Host 'Terverifikasi ke server MIC.' -ForegroundColor Green
+        } elseif ($resp -and $resp.unset) {
+            Write-Host 'Password copot belum diatur di MIC. Atur dulu di dashboard.' -ForegroundColor Red
+            exit 1
+        } else {
+            Write-Host 'GAGAL: password copot salah.' -ForegroundColor Red
+            exit 1
+        }
+    } catch {
+        $status = $null
+        try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch { }
+        if ($status -eq 401) {
+            Write-Host 'Token perangkat ditolak server (mungkin perangkat sudah dihapus).' -ForegroundColor Yellow
+        } else {
+            Write-Host 'Server verifikasi tak terjangkau (jaringan/timeout).' -ForegroundColor Yellow
+        }
+        Write-Host 'Beralih ke verifikasi cadangan lokal...' -ForegroundColor Yellow
+        # $serverDone tetap $false -> jatuh ke cadangan lokal (langkah 4).
+    }
+}
+
+# --- 4) CADANGAN LOKAL (server tak terjangkau / token ditolak / tak ada token).
+if (-not $verified -and -not $serverDone) {
+    if (-not [string]::IsNullOrWhiteSpace($storedHash)) {
+        if ($hex -eq ([string]$storedHash).ToLower()) {
+            $verified = $true
+            Write-Host 'Terverifikasi via cadangan lokal (offline).' -ForegroundColor Green
+        } else {
+            Write-Host 'GAGAL: password copot salah.' -ForegroundColor Red
+            exit 1
+        }
+    } else {
+        Write-Host 'Tidak bisa memverifikasi: server tak terjangkau dan belum ada cadangan di' -ForegroundColor Red
+        Write-Host 'perangkat ini. Sambungkan ke jaringan lalu coba lagi.' -ForegroundColor Yellow
+        exit 1
+    }
+}
+
+if (-not $verified) {
+    # Jaring pengaman; seharusnya tak tercapai.
+    Write-Host 'GAGAL: verifikasi password tidak berhasil.' -ForegroundColor Red
     exit 1
 }
 Write-Host 'Password IT cocok. Melanjutkan pencopotan...' -ForegroundColor Green

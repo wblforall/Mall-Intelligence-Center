@@ -54,6 +54,9 @@ $routes->group('api', function ($routes) {
     // Enrollment otomatis — laptop mendaftar sendiri dengan kunci bersama
     // (bukan token perangkat). Cek kunci di dalam controller.
     $routes->post('ai-monitor/enroll', 'Api\AiMonitorController::enroll');
+    // Verifikasi password copot (copot.ps1): bandingkan hash ke password
+    // copot terkini di dashboard. Butuh token perangkat (Bearer).
+    $routes->post('ai-monitor/verify-copot', 'Api\AiMonitorController::verifyCopot');
 });
 
 // Auth
@@ -383,6 +386,7 @@ $routes->post('ai-monitor/perangkat/setujui',       'AiMonitor::setujuiPerangkat
 $routes->post('ai-monitor/perangkat/tautkan',       'AiMonitor::tautkanPemilik',       ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/blokir',        'AiMonitor::blokir',               ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/buka-blokir',   'AiMonitor::bukaBlokir',           ['filter' => 'auth']);
+$routes->post('ai-monitor/perangkat/hapus',         'AiMonitor::hapusPerangkat',       ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/ubah-label',    'AiMonitor::ubahLabel',            ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/regen-enroll-key',  'AiMonitor::regenEnrollKey',       ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/set-copot-password','AiMonitor::setCopotPassword',     ['filter' => 'auth']);
