@@ -199,9 +199,9 @@
                     </button>
                 </form>
                 <?php endif; ?>
-                <?php // Hapus perangkat (untuk semua status). Akses AI di laptop ikut mati. ?>
+                <?php // Hapus perangkat (untuk semua status). Riwayat TETAP disimpan; akses AI di laptop mati. ?>
                 <form method="POST" action="<?= base_url('ai-monitor/perangkat/hapus') ?>"
-                      onsubmit="return confirm('HAPUS perangkat ini beserta seluruh riwayatnya? Akses AI di laptop itu akan mati pada kontak berikutnya. Tindakan ini tidak bisa dibatalkan.')">
+                      onsubmit="return confirm('Hapus perangkat ini? Riwayat pemakaiannya TETAP tersimpan, dan akses AI di laptop itu akan mati pada kontak berikutnya.')">
                     <?= csrf_field() ?>
                     <input type="hidden" name="device_id" value="<?= (int) $d['id'] ?>">
                     <button class="btn btn-sm btn-outline-danger" title="Hapus perangkat"><i class="bi bi-trash"></i></button>
@@ -217,7 +217,7 @@
         <small class="text-muted"><i class="bi bi-info-circle me-1"></i>
             <strong>Hentikan Sementara</strong> = agen laptop berhenti mengirim tapi tokennya tetap sah (bisa langsung dipulihkan).
             <strong>Nonaktifkan</strong> = token berhenti diterima server. Keduanya tak menghapus riwayat.
-            <strong>Hapus</strong> = perangkat + seluruh riwayatnya dihapus, dan akses AI di laptop itu mati (agen mengunci lalu meminta persetujuan ulang). Untuk melepas agen dari laptop, pakai copot (IT).
+            <strong>Hapus</strong> = entri perangkat dihapus (riwayat pemakaian TETAP tersimpan), dan akses AI di laptop itu mati (agen mengunci lalu meminta persetujuan ulang). Untuk melepas agen dari laptop, pakai copot (IT).
         </small>
     </div>
     </div>
