@@ -22,7 +22,7 @@
         </button>
     </div>
     <p class="small text-muted mb-0 mt-2">
-        Pasang di laptop (PowerShell, dari folder <code>public/ai-monitor/</code>):<br>
+        Pasang di laptop (PowerShell, dari folder <code>public/agen-ai/</code>):<br>
         <code>.\pasang.ps1 -Endpoint "<?= esc(base_url('api/ai-monitor/ingest')) ?>" -Token "<?= esc($tokenBaru['token']) ?>"</code>
     </p>
 </div>
@@ -46,7 +46,7 @@
             </button>
         </div>
         <p class="small text-muted mb-2">
-            Pasang di laptop (PowerShell, dari folder <code>public/ai-monitor/</code>):<br>
+            Pasang di laptop (PowerShell, dari folder <code>public/agen-ai/</code>):<br>
             <code>.\pasang.ps1 -Endpoint "<?= esc(base_url('api/ai-monitor/enroll')) ?>" -EnrollKey "<?= esc($enrollKey) ?>"</code>
         </p>
         <form method="POST" action="<?= base_url('ai-monitor/perangkat/regen-enroll-key') ?>"
