@@ -26,6 +26,10 @@ class SectionConfig
         'pest_control'       => 'Pest Control',
         'legal'              => 'Legal',
         'work_report'        => 'Progress Report',
+        // Pemantauan AI — memantau pemakaian Claude Code di laptop tim, secara
+        // terbuka. Didaftarkan di sini supaya otomatis muncul di layar hak
+        // akses user/departemen: admin yang memutuskan siapa boleh melihat.
+        'ai_monitor'         => 'Pemantauan AI',
         // Label menyebut "lintas sistem" dengan sengaja: inilah izin yang
         // menentukan siapa boleh memberi orang akses ke PAM e-Sign, CLARA,
         // FlowStore, dan OpsJobs — termasuk peran `unit_admin` yang bisa

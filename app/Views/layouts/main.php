@@ -362,6 +362,22 @@ body { min-height: 100vh; }
         <?php endif; ?>
         <?php endif; ?>
 
+        <?php
+        // Pemantauan AI — pemakaian Claude Code tim, terbuka. Satu link ke
+        // rekap; akses diatur lewat hak menu 'ai_monitor'.
+        if ($navCanView('ai_monitor')):
+        ?>
+        <div class="nav-label">Pemantauan AI</div>
+        <a href="<?= base_url('ai-monitor') ?>" class="nav-link <?= uri_string() === 'ai-monitor' || str_starts_with(uri_string(), 'ai-monitor/karyawan') || str_starts_with(uri_string(), 'ai-monitor/sesi') ? 'active' : '' ?>">
+            <i class="bi bi-robot"></i> Rekap Pemakaian
+        </a>
+        <?php if ($navCanEdit('ai_monitor')): ?>
+        <a href="<?= base_url('ai-monitor/perangkat') ?>" class="nav-link <?= str_starts_with(uri_string(), 'ai-monitor/perangkat') ? 'active' : '' ?>">
+            <i class="bi bi-laptop"></i> Perangkat &amp; Token
+        </a>
+        <?php endif; ?>
+        <?php endif; ?>
+
         <?php if (isset($event)):
             $isAdmin    = ($currentRole === 'admin');
             $canSeeMenu = function(string $key) use ($isAdmin, $_navDeptMenus, $navCanView): bool {

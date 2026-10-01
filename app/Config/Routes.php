@@ -46,6 +46,14 @@ $routes->group('api', function ($routes) {
 
     // Push token
     $routes->post('auth/push-token', 'Api\AuthController::savePushToken');
+
+    // Pemantauan AI — penerima kiriman laptop (auth token perangkat, BUKAN
+    // ApiTokenModel; cek sendiri di dalam controller). CSRF sudah dikecualikan
+    // untuk api/* di Config\Filters.
+    $routes->post('ai-monitor/ingest', 'Api\AiMonitorController::ingest');
+    // Enrollment otomatis — laptop mendaftar sendiri dengan kunci bersama
+    // (bukan token perangkat). Cek kunci di dalam controller.
+    $routes->post('ai-monitor/enroll', 'Api\AiMonitorController::enroll');
 });
 
 // Auth
@@ -358,6 +366,25 @@ $routes->post('pest/foto',                'PestCtrl::unggahFoto',      ['filter'
 $routes->post('pest/foto/(:num)/hapus',   'PestCtrl::hapusFoto/$1',    ['filter' => 'auth']);
 $routes->get('pest/foto-list/(:num)',     'PestCtrl::daftarFoto/$1',   ['filter' => 'auth']);
 $routes->post('pest/delete/(:num)',       'PestCtrl::hapusKunjungan/$1', ['filter' => 'auth']);
+
+// Pemantauan AI — halaman lihat (rekap per karyawan, sesi, transkrip). Akses
+// diatur lewat menu 'ai_monitor' di dalam controller; filter auth menjaga
+// agar hanya yang login yang masuk.
+$routes->get('ai-monitor',                   'AiMonitor::index',          ['filter' => 'auth']);
+$routes->get('ai-monitor/karyawan/(:num)',   'AiMonitor::karyawan/$1',    ['filter' => 'auth']);
+$routes->get('ai-monitor/sesi/(:num)',       'AiMonitor::sesi/$1',        ['filter' => 'auth']);
+// Perangkat & token (pagar kedua di controller: canEditMenu 'ai_monitor').
+$routes->get ('ai-monitor/perangkat',               'AiMonitor::perangkat',            ['filter' => 'auth']);
+$routes->post('ai-monitor/perangkat/buat',          'AiMonitor::buatPerangkat',        ['filter' => 'auth']);
+$routes->post('ai-monitor/perangkat/(:num)/nonaktif','AiMonitor::nonaktifPerangkat/$1', ['filter' => 'auth']);
+// Enrollment otomatis + blokir akses. device_id dibaca dari POST (konsisten
+// dengan method yang membacanya dari body), jadi rute tanpa parameter.
+$routes->post('ai-monitor/perangkat/tautkan',       'AiMonitor::tautkanPemilik',       ['filter' => 'auth']);
+$routes->post('ai-monitor/perangkat/blokir',        'AiMonitor::blokir',               ['filter' => 'auth']);
+$routes->post('ai-monitor/perangkat/buka-blokir',   'AiMonitor::bukaBlokir',           ['filter' => 'auth']);
+$routes->post('ai-monitor/perangkat/ubah-label',    'AiMonitor::ubahLabel',            ['filter' => 'auth']);
+$routes->post('ai-monitor/perangkat/regen-enroll-key',  'AiMonitor::regenEnrollKey',       ['filter' => 'auth']);
+$routes->post('ai-monitor/perangkat/set-copot-password','AiMonitor::setCopotPassword',     ['filter' => 'auth']);
 
 // Pest — master item (admin only). Master area menyusul di Fase 2.
 $routes->get('pest-items',                'PestItems::index',   ['filter' => 'auth:admin']);
