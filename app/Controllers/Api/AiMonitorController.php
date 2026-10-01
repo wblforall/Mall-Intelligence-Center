@@ -3,7 +3,6 @@
 namespace App\Controllers\Api;
 
 use App\Libraries\AiCopotPassword;
-use App\Libraries\AiEnrollKey;
 use App\Libraries\AiLog;
 use App\Models\AiDeviceModel;
 use App\Models\AiSessionModel;
@@ -24,32 +23,25 @@ use App\Models\AiSessionModel;
 class AiMonitorController extends BaseApiController
 {
     /**
-     * Enrollment otomatis — laptop mendaftarkan diri dengan kunci bersama.
+     * Enrollment otomatis — laptop mendaftarkan diri TANPA kunci.
      *
      * POST /api/ai-monitor/enroll, body JSON:
-     *   { enroll_key, machine_id, host, account, label }
+     *   { machine_id, host, account, label }   (enroll_key diabaikan bila ada)
      *
-     * Berbeda dari ingest (yang pakai token perangkat), endpoint ini diizinkan
-     * oleh KUNCI ENROLLMENT bersama (AiEnrollKey). Perangkat aset kantor
-     * dikelola IT dan terbuka bagi tim, jadi memasang dengan satu kunci
-     * bersama sudah memadai; token kirim per-laptop tetap diterbitkan unik di
-     * sini dan hanya dikembalikan SEKALI ke agen pemasang.
+     * Tak ada kunci bersama: perangkat baru masuk daftar sebagai "menunggu
+     * persetujuan" (aktif=0, disetujui_at=NULL) dan baru boleh mengirim data
+     * setelah IT menekan "Setujui" di dashboard. Token kirim per-laptop tetap
+     * diterbitkan unik di sini dan hanya dikembalikan SEKALI ke agen pemasang.
      *
-     * Idempoten lewat machine_id: pemasangan ulang pada mesin yang sama
-     * MEMUTAR token (hash baru) tanpa menggandakan baris dan tanpa menyentuh
-     * tautan pemiliknya. Mesin baru → baris baru, employee_id NULL (ditautkan
-     * IT belakangan lewat halaman perangkat).
+     * Idempoten lewat machine_id: pemasangan ulang pada mesin yang sama HANYA
+     * MEROTASI token (hash baru) — aktif, disetujui_at, employee_id, dan label
+     * tak disentuh, sehingga status persetujuan dan alias dari IT tak hilang.
      */
     public function enroll()
     {
         $body = json_decode((string) $this->request->getBody(), true);
         if (! is_array($body)) {
             return $this->error('Body JSON tidak valid.', 400);
-        }
-
-        $enrollKey = trim((string) ($body['enroll_key'] ?? ''));
-        if ($enrollKey === '' || ! hash_equals(AiEnrollKey::current(), $enrollKey)) {
-            return $this->error('Kunci enrollment salah.', 401);
         }
 
         $machineId = trim((string) ($body['machine_id'] ?? ''));
@@ -73,27 +65,30 @@ class AiMonitorController extends BaseApiController
         $existing = $model->where('machine_id', $machineId)->first();
 
         if ($existing) {
-            // ROTASI: token baru, metadata diperbarui. employee_id TIDAK diubah
-            // agar tautan pemilik yang sudah dibuat IT tidak hilang saat agen
-            // dipasang ulang.
+            // ROTASI TOKEN SAJA. aktif/disetujui_at/employee_id/label TIDAK
+            // disentuh — pemasangan ulang tak boleh mengubah status persetujuan
+            // atau menghapus tautan/alias yang sudah dibuat IT. (host/akun pun
+            // dibiarkan; nanti diperbarui sendiri lewat ingest.)
             $model->update((int) $existing['id'], [
-                'token_hash'    => hash('sha256', $token),
-                'host_terakhir' => $host    ?? $existing['host_terakhir'],
-                'akun_terakhir' => $account ?? $existing['akun_terakhir'],
-                'enrolled_at'   => $now,
+                'token_hash'  => hash('sha256', $token),
+                'enrolled_at' => $now,
             ]);
             $deviceId = (int) $existing['id'];
+            $disetujui = ! empty($existing['disetujui_at']);
         } else {
+            // Perangkat BARU → menunggu persetujuan: aktif=0, disetujui_at NULL.
             $deviceId = (int) $model->insert([
                 'employee_id'   => null,
                 'label'         => $label,
                 'machine_id'    => $machineId,
                 'token_hash'    => hash('sha256', $token),
-                'aktif'         => 1,
+                'aktif'         => 0,
+                'disetujui_at'  => null,
                 'host_terakhir' => $host,
                 'akun_terakhir' => $account,
                 'enrolled_at'   => $now,
             ], true);
+            $disetujui = false;
         }
 
         // Token mentah hanya dikembalikan di respons ini, tak pernah lagi.
@@ -104,24 +99,41 @@ class AiMonitorController extends BaseApiController
             'device_token' => $token,
             'device_id'    => $deviceId,
             'copot_hash'   => AiCopotPassword::hashNow(),
+            'status'       => $disetujui ? 'aktif' : 'pending',
         ]);
     }
 
     public function ingest()
     {
         // ── Auth perangkat ───────────────────────────────────────────────
-        // Header Bearer, cocokkan hash-nya ke perangkat yang masih aktif.
-        // Perangkat yang dinonaktifkan (aktif=0) ditolak seperti token asing,
-        // sehingga laptop yang ditarik dari tim langsung berhenti terdata.
+        // Header Bearer, cocokkan hash-nya SAJA (tanpa menyaring aktif di
+        // query). Token tak dikenal → 401, supaya agen tahu tokennya basi dan
+        // melakukan enroll ulang. Status aktif ditangani SETELAH ini.
         $header = $this->request->getHeaderLine('Authorization');
         if (! $header || ! str_starts_with($header, 'Bearer ')) {
             return $this->error('Token perangkat tidak ada.', 401);
         }
         $token  = trim(substr($header, 7));
         $hash   = hash('sha256', $token);
-        $device = (new AiDeviceModel())->where('token_hash', $hash)->where('aktif', 1)->first();
+        $device = (new AiDeviceModel())->where('token_hash', $hash)->first();
         if (! $device) {
-            return $this->error('Token perangkat tidak dikenal atau sudah nonaktif.', 401);
+            return $this->error('Token perangkat tidak dikenal.', 401);
+        }
+
+        // ── Belum disetujui / dinonaktifkan (aktif=0) ────────────────────
+        // JANGAN simpan apa pun, tapi balas 200 (BUKAN 401) agar agen tidak
+        // menghapus tokennya — ia hanya menunggu IT menekan "Setujui". Begitu
+        // aktif=1, kiriman berikutnya diproses normal.
+        if (empty($device['aktif'])) {
+            return $this->json([
+                'success'       => true,
+                'status'        => 'pending',
+                'diterima'      => 0,
+                'sesi'          => 0,
+                'blokir'        => false,
+                'blokir_alasan' => null,
+                'copot_hash'    => AiCopotPassword::hashNow(),
+            ]);
         }
 
         // ── Batas ukuran ─────────────────────────────────────────────────
@@ -304,6 +316,7 @@ class AiMonitorController extends BaseApiController
         // dan begitu diblokir=0 field ini kembali false pada kiriman berikut.
         return $this->json([
             'success'       => true,
+            'status'        => 'aktif',
             'diterima'      => count($lines),
             'sesi'          => count($sesi),
             'blokir'        => (bool) $device['diblokir'],

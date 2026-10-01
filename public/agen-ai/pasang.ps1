@@ -20,10 +20,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [string]$Endpoint,     # URL enroll, mis: https://<host>/mall-intelligence-center/public/index.php/api/ai-monitor/enroll
-
-    [Parameter(Mandatory = $true)]
-    [string]$EnrollKey,    # kunci enrollment rahasia dari menu "Perangkat & Token" di MIC
+    [string]$Endpoint,     # URL enroll, mis: https://mic.wbl-bsb.com/api/ai-monitor/enroll
 
     [Parameter(Mandatory = $false)]
     [string]$Label         # alias perangkat (opsional); label AWAL saat enroll pertama
@@ -121,12 +118,13 @@ if ($Endpoint -match '/enroll/?$') {
     $endpointIngest = $Endpoint.Replace('/enroll', '/ingest')
 }
 
-# copot_hash TIDAK ditulis di sini. Password copot dikelola terpusat di MIC dan
-# dikirim server lewat respons enroll/ingest; kirim.ps1 yang menyimpannya ke config.
+# TANPA kunci enrollment: enroll_key tidak ditulis. Perangkat baru akan
+# "menunggu persetujuan" di MIC sampai IT menekan Setujui.
+# copot_hash juga tidak ditulis di sini; dikelola terpusat di MIC dan dikirim
+# server lewat respons enroll/ingest; kirim.ps1 yang menyimpannya ke config.
 $config = [ordered]@{
     endpoint_enroll = $Endpoint
     endpoint_ingest = $endpointIngest
-    enroll_key      = $EnrollKey
     machine_id      = $machineId
     device_token    = $null
     copot_hash      = $null
@@ -208,11 +206,11 @@ Register-ScheduledTask -TaskName $TaskName `
 Write-Host "Scheduled Task '$TaskName' didaftarkan (SYSTEM, tiap 30 menit + startup)." -ForegroundColor Green
 
 # =====================================================================
-#  7) PUTARAN PERDANA (enroll + kirim pertama supaya langsung muncul di dashboard)
+#  7) PUTARAN PERDANA (enroll supaya perangkat muncul di dashboard MIC)
 # =====================================================================
 try {
     Start-ScheduledTask -TaskName $TaskName
-    Write-Host 'Putaran perdana dijalankan (enroll + kirim pertama).' -ForegroundColor Green
+    Write-Host 'Putaran perdana dijalankan (enroll; perangkat muncul di dashboard).' -ForegroundColor Green
 } catch {
     Write-Host "Catatan: gagal menjalankan task perdana ($($_.Exception.Message)). Akan jalan otomatis." -ForegroundColor Yellow
 }
@@ -227,6 +225,14 @@ Write-Host '==================================================================' 
 Write-Host "  Program : $KirimDst"
 Write-Host "  Data    : $DataDir  (config.json, state.json, kirim.log)"
 Write-Host "  Task    : $TaskName  (principal SYSTEM, RunLevel Highest)"
+Write-Host ''
+Write-Host 'TANPA kunci enrollment. Perangkat kini berstatus "Menunggu persetujuan"' -ForegroundColor Yellow
+Write-Host 'di dashboard MIC (menu Pemantauan AI > Perangkat). Sampai IT menekan' -ForegroundColor Yellow
+Write-Host 'Setujui: akses Claude Code TERKUNCI di perangkat ini (api.anthropic.com)' -ForegroundColor Yellow
+Write-Host 'dan transkrip BELUM dikirim. Setelah disetujui, agen otomatis membuka' -ForegroundColor Yellow
+Write-Host 'kunci dan mulai mengirim pada putaran berikutnya.' -ForegroundColor Yellow
+Write-Host ''
+Write-Host 'Folder pemasang ini boleh dihapus setelah pasang (agen sudah di Program Files).'
 Write-Host ''
 Write-Host 'Agen hanya dapat DICOPOT oleh Administrator + password IT:' -ForegroundColor Yellow
 Write-Host '    powershell -ExecutionPolicy Bypass -File copot.ps1   (Run as administrator)' -ForegroundColor White

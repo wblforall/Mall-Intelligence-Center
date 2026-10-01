@@ -22,6 +22,8 @@ class AiDeviceModel extends Model
         // Enrollment otomatis + blokir akses (migrasi 2026-10-02-000002).
         'machine_id', 'enrolled_at',
         'diblokir', 'alasan_blokir', 'blokir_oleh', 'blokir_at',
+        // Enrollment berbasis persetujuan (migrasi 2026-10-02-000003).
+        'disetujui_at',
     ];
 
     // Tabel ini punya created_at & updated_at → biarkan CI4 mengisinya.

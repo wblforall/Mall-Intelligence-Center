@@ -379,6 +379,7 @@ $routes->post('ai-monitor/perangkat/buat',          'AiMonitor::buatPerangkat', 
 $routes->post('ai-monitor/perangkat/(:num)/nonaktif','AiMonitor::nonaktifPerangkat/$1', ['filter' => 'auth']);
 // Enrollment otomatis + blokir akses. device_id dibaca dari POST (konsisten
 // dengan method yang membacanya dari body), jadi rute tanpa parameter.
+$routes->post('ai-monitor/perangkat/setujui',       'AiMonitor::setujuiPerangkat',     ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/tautkan',       'AiMonitor::tautkanPemilik',       ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/blokir',        'AiMonitor::blokir',               ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/buka-blokir',   'AiMonitor::bukaBlokir',           ['filter' => 'auth']);

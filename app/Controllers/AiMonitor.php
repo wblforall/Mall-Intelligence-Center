@@ -163,7 +163,7 @@ class AiMonitor extends BaseController
         $devices = db_connect()->table('ai_devices d')
             ->select('d.id, d.label, d.aktif, d.host_terakhir, d.akun_terakhir,
                       d.lapor_at, d.employee_id, d.machine_id, d.enrolled_at,
-                      d.diblokir, d.alasan_blokir, d.blokir_at,
+                      d.disetujui_at, d.diblokir, d.alasan_blokir, d.blokir_at,
                       emp.nama AS nama, dept.name AS dept')
             ->join('employees emp', 'emp.id = d.employee_id', 'left')
             ->join('departments dept', 'dept.id = emp.dept_id', 'left')
@@ -187,6 +187,40 @@ class AiMonitor extends BaseController
             // Token mentah hanya hidup satu kali, lewat flashdata sesudah dibuat.
             'tokenBaru' => session()->getFlashdata('token_baru'),
         ]);
+    }
+
+    // ── Setujui perangkat hasil enroll ──────────────────────────────────
+    //
+    // Perangkat yang mendaftar sendiri masuk sebagai "menunggu persetujuan"
+    // (aktif=0, disetujui_at=NULL) dan belum menyimpan kiriman apa pun. IT
+    // menekan Setujui di sini untuk mengaktifkannya.
+
+    public function setujuiPerangkat()
+    {
+        if (! $this->canEditMenu(self::MENU)) {
+            return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
+        }
+
+        $deviceId = (int) $this->request->getPost('device_id');
+        $model    = new AiDeviceModel();
+        $dev      = $model->find($deviceId);
+        if (! $dev) {
+            return redirect()->to('/ai-monitor/perangkat')->with('error', 'Perangkat tidak ditemukan.');
+        }
+
+        // disetujui_at diisi SEKALI (saat pertama disetujui); aktif=1 di sini
+        // juga berfungsi mengaktifkan ulang perangkat yang pernah disetujui.
+        $upd = ['aktif' => 1];
+        if (empty($dev['disetujui_at'])) {
+            $upd['disetujui_at'] = date('Y-m-d H:i:s');
+        }
+        $model->update($deviceId, $upd);
+
+        ActivityLog::write('approve', 'ai_monitor', (string) $deviceId,
+            'Setujui perangkat: ' . $dev['label']);
+
+        return redirect()->to('/ai-monitor/perangkat')
+            ->with('success', 'Perangkat "' . $dev['label'] . '" disetujui dan diaktifkan.');
     }
 
     // ── Tautkan pemilik perangkat hasil enroll ──────────────────────────

@@ -82,66 +82,80 @@ CATATAN JUJUR (penting):
 
 
 ----------------------------------------------------------------
-4. MENONAKTIFKAN AKSES CLAUDE CODE DARI DASHBOARD (BLOKIR)
+4. PERSETUJUAN IT & PENGUNCIAN AKSES CLAUDE CODE
 ----------------------------------------------------------------
-Dari dashboard MIC, IT bisa menandai perangkat untuk "blokir". Mekanismenya:
-  - Respons enroll & ingest juga memuat "copot_hash" (sha256 password copot, atau
-    null); laptop menyimpannya ke config.json untuk validasi copot.
-  - Respons ingest memuat field "blokir": true|false (opsional "blokir_alasan").
-  - blokir == true  -> agen menambahkan baris ke berkas hosts Windows:
+TANPA kunci enrollment. Perangkat baru yang di-enroll langsung berstatus
+"Menunggu persetujuan" di dashboard MIC. Respons enroll & ingest dari server
+memuat:
+  - "status": "pending" | "aktif"
+  - "blokir": true|false (opsional "blokir_alasan")
+  - "copot_hash": sha256 password copot (atau null) -> disimpan ke config.json.
+
+ATURAN AKSES (ditegakkan agen tiap putaran, SEBELUM kirim transkrip):
+  Akses Claude Code BOLEH hanya bila  status == "aktif" DAN blokir == false.
+  Selain itu, akses DIKUNCI dengan menambahkan ke berkas hosts Windows:
         0.0.0.0 api.anthropic.com   # WBL-AiMonitor BLOCK
-    Ini mematikan KHUSUS akses Claude Code (yang memakai api.anthropic.com).
-    Web app claude.ai SENGAJA tidak diblok.
-  - Saat blokir BARU diterapkan (transisi tidak-blokir -> blokir), user yang
-    sedang login diberi notifikasi (msg.exe):
+  Ini mematikan KHUSUS akses Claude Code (api.anthropic.com). Web app claude.ai
+  SENGAJA tidak diblok.
+
+TIGA KEADAAN (notifikasi msg.exe hanya saat BERPINDAH keadaan, agar tak spam;
+keadaan terakhir disimpan di state.json):
+  - terkunci-pending (status pending / belum disetujui / dinonaktifkan dari
+    daftar): hosts DIKUNCI. Transkrip TIDAK diupload, penanda state TIDAK maju,
+    token TIDAK direset. Notif saat masuk keadaan ini:
+        "Akses Claude Code pada perangkat ini terkunci. Perangkat menunggu
+         persetujuan Tim IT."
+  - terkunci-blokir (status aktif TAPI blokir==true): hosts DIKUNCI, transkrip
+    tetap diupload. Notif saat masuk keadaan ini:
         "Akses Claude Code pada perangkat ini dinonaktifkan sementara oleh Tim
-         IT. Hubungi IT untuk informasi lebih lanjut."
-    (Bila "blokir_alasan" diisi, alasannya ikut ditampilkan.)
-  - blokir == false -> agen menghapus baris bertanda "# WBL-AiMonitor BLOCK"
-    dari hosts (akses dipulihkan), dan bila sebelumnya terblokir, user diberi
-    tahu "Akses Claude Code telah dipulihkan oleh Tim IT."
-  - Status blokir terakhir disimpan di state.json agar notifikasi tidak spam
-    tiap 30 menit; notifikasi hanya dikirim saat TRANSISI.
+         IT. Hubungi IT untuk informasi lebih lanjut."  (+ alasan bila ada)
+  - terbuka (status aktif DAN blokir==false): hosts DIBUKA (baris bertanda
+    dihapus), transkrip diupload normal. Notif saat pulih dari keadaan terkunci:
+        "Akses Claude Code telah dipulihkan oleh Tim IT."
 
-Blokir juga otomatis dibersihkan saat agen dicopot (copot.ps1).
+Catatan: pengunciaan hosts tetap ditegakkan walau perangkat masih pending
+(status diambil dari poll ingest lines:[] di awal tiap putaran). Semua baris
+bertanda "# WBL-AiMonitor BLOCK" otomatis dibersihkan saat agen dicopot.
 
 
 ----------------------------------------------------------------
-5. MENDAPATKAN ENDPOINT & KUNCI ENROLLMENT
+5. ENDPOINT & MODEL PERSETUJUAN (TANPA KUNCI)
 ----------------------------------------------------------------
-Dari menu "Perangkat & Token" (Pemantauan AI) di MIC, ambil:
-  - Endpoint enroll, contoh:
-      https://<host-mic>/mall-intelligence-center/public/index.php/api/ai-monitor/enroll
-  - Kunci enrollment (enroll_key) -- RAHASIA.
+TANPA kunci enrollment. Yang diperlukan hanya Endpoint enroll MIC, contoh:
+      https://mic.wbl-bsb.com/api/ai-monitor/enroll
+(sudah terisi di pengaturan.txt untuk pemasangan via KLIK-PASANG).
 
 Endpoint ingest diturunkan otomatis dari endpoint enroll (ganti "/enroll" jadi
 "/ingest"). Agen melakukan enroll sendiri pada putaran pertama dan menerima
 device_token dari server (disimpan di config.json). Tidak perlu menyalin token
-per laptop secara manual.
+atau kunci per laptop.
 
-KEAMANAN KUNCI: enroll_key bersifat rahasia. Bila bocor, REGENERASI dari
-dashboard MIC; perangkat lama tetap aman karena sudah memakai device_token
-masing-masing.
+PENGAMANAN: karena tak ada kunci, perangkat baru TIDAK langsung aktif. Ia muncul
+di dashboard MIC (menu Pemantauan AI > Perangkat) sebagai "Menunggu persetujuan",
+dan akses Claude Code-nya terkunci sampai IT menekan "Setujui". IT memverifikasi
+perangkat (nama, host, akun) sebelum menyetujui.
 
 
 ----------------------------------------------------------------
 6. CARA MEMASANG (SEBAGAI ADMINISTRATOR)
 ----------------------------------------------------------------
-Salin folder ai-monitor\ ke laptop target, buka PowerShell "Run as
-administrator" di folder itu, lalu jalankan:
+Cara termudah: salin folder pemasang (pengaturan.txt, pasang.ps1, kirim.ps1,
+pasang-klik.ps1, KLIK-PASANG.bat) ke laptop target, lalu klik kanan
+KLIK-PASANG.bat > "Run as administrator". ENDPOINT sudah terisi di
+pengaturan.txt; LABEL opsional.
+
+Cara manual (PowerShell "Run as administrator" di folder itu):
 
   powershell -ExecutionPolicy Bypass -File pasang.ps1 `
-    -Endpoint "https://<host-mic>/mall-intelligence-center/public/index.php/api/ai-monitor/enroll" `
-    -EnrollKey "<KUNCI_ENROLLMENT>"
+    -Endpoint "https://mic.wbl-bsb.com/api/ai-monitor/enroll"
 
--Endpoint & -EnrollKey WAJIB. Password copot TIDAK diisi di sini (dikelola
-terpusat di MIC, lihat bagian 8).
+Hanya -Endpoint yang WAJIB. TIDAK ADA -EnrollKey (model tanpa kunci) dan
+password copot TIDAK diisi di sini (dikelola terpusat di MIC, lihat bagian 8).
 
 Opsional -Label: alias perangkat, berguna bila nama komputer acak. Contoh:
 
   powershell -ExecutionPolicy Bypass -File pasang.ps1 `
-    -Endpoint "https://<host-mic>/.../api/ai-monitor/enroll" `
-    -EnrollKey "<KUNCI_ENROLLMENT>" `
+    -Endpoint "https://mic.wbl-bsb.com/api/ai-monitor/enroll" `
     -Label "Laptop Budi - IT"
 
 Catatan: -Label hanya label AWAL saat enroll pertama. Setelah itu IT dapat
@@ -153,13 +167,17 @@ Pemasang akan:
   1. Memastikan dijalankan sebagai Administrator (kalau tidak, berhenti).
   2. Mencetak pemberitahuan terbuka (tanpa minta Enter, karena dipasang IT).
   3. Membuat C:\Program Files\WBL-AiMonitor dan C:\ProgramData\WBL-AiMonitor,
-     menyalin kirim.ps1 ke Program Files.
-  4. Menulis config.json (endpoint_enroll, endpoint_ingest, enroll_key,
-     machine_id, device_token=null, copot_hash=null, label bila -Label diisi).
-     copot_hash akan diisi server lewat enroll/ingest pada laporan berikutnya.
+     menyalin HANYA kirim.ps1 ke Program Files (copot.ps1 TIDAK disalin).
+  4. Menulis config.json (endpoint_enroll, endpoint_ingest, machine_id,
+     device_token=null, copot_hash=null, label bila -Label diisi). TANPA
+     enroll_key. copot_hash akan diisi server lewat enroll/ingest berikutnya.
   5. Menerapkan ACL folder data (SYSTEM/Admin=Full, Users=baca saja).
   6. Mendaftarkan Scheduled Task SYSTEM (RunLevel Highest, tiap 30 menit +
-     startup, RestartCount 3) dan menjalankan putaran perdana (enroll + kirim).
+     startup, RestartCount 3) dan menjalankan putaran perdana (enroll).
+
+Setelah pasang, perangkat MENUNGGU PERSETUJUAN di MIC (akses terkunci sampai IT
+Setujui). Folder pemasang di laptop boleh dihapus setelah pasang (agen sudah di
+C:\Program Files\WBL-AiMonitor).
 
 
 ----------------------------------------------------------------
@@ -172,21 +190,30 @@ Pemasang akan:
 GUI: Task Scheduler -> Task Scheduler Library -> "WBL AI Monitor".
 
 Log & state (Administrator):
-  C:\ProgramData\WBL-AiMonitor\kirim.log    (catatan kirim/galat/enroll/blokir)
-  C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + status blokir)
-  C:\ProgramData\WBL-AiMonitor\config.json  (endpoint, device_token, copot_hash)
+  C:\ProgramData\WBL-AiMonitor\kirim.log    (catatan enroll/status/kunci/kirim/galat)
+  C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + keadaan kunci)
+  C:\ProgramData\WBL-AiMonitor\config.json  (endpoint, device_token, copot_hash; tanpa enroll_key)
 
 
 ----------------------------------------------------------------
-8. CARA MENCOPOT (ADMINISTRATOR + PASSWORD IT)
+8. CARA MENCOPOT (ADMINISTRATOR + PASSWORD IT) - PERKAKAS MILIK IT
 ----------------------------------------------------------------
-Buka PowerShell "Run as administrator", lalu:
+PENTING: copot.ps1 dan KLIK-COPOT.bat adalah PERKAKAS MILIK IT. Keduanya TIDAK
+ikut dibagikan ke laptop anggota tim dan TIDAK ditinggal di mesin. pasang.ps1
+hanya menyalin kirim.ps1 ke C:\Program Files\WBL-AiMonitor (copot.ps1 tidak
+pernah disalin ke perangkat). Untuk mencopot, IT MEMBAWA/mengunduh berkas copot
+saat diperlukan, jalankan di mesin target sebagai Administrator, dan masukkan
+password copot (dari MIC). Dengan begitu user tidak bisa mencopot sendiri hanya
+karena menemukan berkas di laptopnya.
+
+Buka PowerShell "Run as administrator" di lokasi copot.ps1 (yang dibawa IT),
+lalu:
 
   powershell -ExecutionPolicy Bypass -File copot.ps1
 
 Password copot diatur TERPUSAT di dashboard MIC (menu Perangkat & Token, khusus
 admin). Server mengirim hash sha256-nya ke laptop lewat enroll/ingest, lalu
-kirim.ps1 menyimpannya ke config.json.
+kirim.ps1 menyimpannya ke config.json di perangkat untuk validasi offline.
 
 copot.ps1 akan:
   - Menolak bila bukan Administrator.
@@ -227,7 +254,19 @@ malware, dan perilakunya tetap jujur dan dapat diaudit.
 ----------------------------------------------------------------
 10. ISI FOLDER
 ----------------------------------------------------------------
-  pasang.ps1   - pemasang (admin; notifikasi + salin + ACL + daftar task SYSTEM)
-  kirim.ps1    - agen pengirim (dipanggil task sebagai SYSTEM; enroll + kirim + blokir)
-  copot.ps1    - pencopot (admin + password IT; hapus task/folder + bersihkan hosts)
-  README.txt   - dokumen ini
+PAKET PEMASANG (boleh dibagikan ke laptop target, boleh dihapus setelah pasang):
+  pengaturan.txt    - ENDPOINT (terisi) + LABEL (opsional); TANPA kunci
+  KLIK-PASANG.bat   - klik kanan > Run as administrator untuk memasang
+  pasang-klik.ps1   - baca pengaturan.txt, panggil pasang.ps1 (tanpa -EnrollKey)
+  pasang.ps1        - pemasang (admin; notifikasi + salin kirim.ps1 + ACL + task SYSTEM)
+  kirim.ps1         - agen pengirim (jalan sebagai SYSTEM; enroll + status + kunci + kirim)
+  README.txt        - dokumen ini
+  Edaran-Pemantauan-AI.docx - contoh edaran tertulis untuk tim
+
+PERKAKAS IT (JANGAN dibagikan ke laptop tim; simpan di tempat IT saja, bawa saat
+perlu mencopot):
+  copot.ps1         - pencopot (admin + password IT; hapus task/folder + bersihkan hosts)
+  KLIK-COPOT.bat    - pembungkus copot.ps1 (Run as administrator)
+
+Catatan: pasang.ps1 hanya menyalin kirim.ps1 ke C:\Program Files\WBL-AiMonitor.
+copot.ps1/KLIK-COPOT.bat TIDAK pernah disalin/ditinggal di mesin target.

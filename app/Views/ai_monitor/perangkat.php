@@ -5,7 +5,7 @@
     <a href="<?= base_url('ai-monitor') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-laptop me-2"></i>Perangkat &amp; Token</h4>
-        <small class="text-muted">Laptop bisa mendaftar otomatis dengan kunci enrollment, atau diberi token manual.</small>
+        <small class="text-muted">Laptop mendaftar sendiri dan menunggu persetujuan IT sebelum bisa mengirim data.</small>
     </div>
 </div>
 
@@ -28,32 +28,14 @@
 </div>
 <?php endif; ?>
 
-<?php // ── Kunci enrollment: pendaftaran otomatis laptop ──────────────── ?>
-<div class="card mb-3 border-primary-subtle">
-    <div class="card-header py-2 d-flex align-items-center justify-content-between">
-        <span class="fw-semibold small"><i class="bi bi-upc-scan me-1"></i>Kunci Enrollment</span>
-    </div>
-    <div class="card-body">
-        <p class="small text-muted mb-2">
-            Laptop yang dipasang dengan kunci ini <strong>muncul otomatis</strong> di daftar bawah (belum ditautkan ke
-            karyawan — tautkan sendiri setelah muncul). Satu kunci dipakai bersama seluruh tim.
-        </p>
-        <div class="input-group input-group-sm mb-2" style="max-width:640px">
-            <span class="input-group-text"><i class="bi bi-key"></i></span>
-            <input type="text" class="form-control font-monospace" id="enrollKey" value="<?= esc($enrollKey) ?>" readonly>
-            <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('enrollKey').value)">
-                <i class="bi bi-clipboard"></i> Salin
-            </button>
-        </div>
-        <p class="small text-muted mb-2">
-            Pasang di laptop (PowerShell, dari folder <code>public/agen-ai/</code>):<br>
-            <code>.\pasang.ps1 -Endpoint "<?= esc(base_url('api/ai-monitor/enroll')) ?>" -EnrollKey "<?= esc($enrollKey) ?>"</code>
-        </p>
-        <form method="POST" action="<?= base_url('ai-monitor/perangkat/regen-enroll-key') ?>"
-              onsubmit="return confirm('Regenerasi kunci enrollment? Pemasangan laptop BARU harus pakai kunci baru. Laptop yang sudah terdaftar tetap jalan.')">
-            <?= csrf_field() ?>
-            <button class="btn btn-sm btn-outline-warning"><i class="bi bi-arrow-repeat me-1"></i>Regenerasi</button>
-        </form>
+<?php // Enrollment tanpa kunci: laptop mendaftar sendiri lalu menunggu
+      // persetujuan IT. Kode AiEnrollKey masih ada namun tak lagi ditonjolkan. ?>
+<div class="alert alert-primary small d-flex align-items-start gap-2">
+    <i class="bi bi-upc-scan mt-1"></i>
+    <div>
+        Perangkat baru akan <strong>muncul otomatis</strong> di daftar bawah sebagai
+        <span class="badge bg-warning text-dark">Menunggu persetujuan</span> setelah agen dipasang.
+        Klik <strong>Setujui</strong> untuk mengaktifkannya — sebelum disetujui, perangkat tidak mengirim data apa pun.
     </div>
 </div>
 
@@ -99,33 +81,7 @@
 </div>
 
 <div class="row g-3">
-<div class="col-lg-4">
-    <div class="card">
-    <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-plus-lg me-1"></i>Terbitkan Token Perangkat</span></div>
-    <div class="card-body">
-        <p class="small text-muted mb-2">Untuk laptop yang tidak memakai enrollment otomatis (token dipasang manual).</p>
-        <form method="POST" action="<?= base_url('ai-monitor/perangkat/buat') ?>">
-            <?= csrf_field() ?>
-            <div class="mb-3">
-                <label class="form-label small fw-semibold">Pemilik (karyawan)</label>
-                <select name="employee_id" class="form-select" required>
-                    <option value="">— pilih karyawan —</option>
-                    <?php foreach ($karyawan as $k): ?>
-                    <option value="<?= (int) $k['id'] ?>"><?= esc($k['nama']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="form-label small fw-semibold">Label Perangkat</label>
-                <input type="text" name="label" class="form-control" required placeholder="mis. Laptop Budi - IT">
-            </div>
-            <button class="btn btn-primary btn-sm w-100"><i class="bi bi-key me-1"></i>Buat Token</button>
-        </form>
-    </div>
-    </div>
-</div>
-
-<div class="col-lg-8">
+<div class="col-12">
     <div class="card">
     <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-list-ul me-1"></i>Daftar Perangkat</span></div>
     <div class="table-responsive">
@@ -186,13 +142,20 @@
             <?php endif; ?>
         </td>
         <td class="text-center">
-            <?php if ($d['aktif']): ?>
+            <?php
+                $menunggu = empty($d['disetujui_at']);          // belum pernah disetujui
+                $diblokir = ! empty($d['diblokir']);
+            ?>
+            <?php if ($diblokir): ?>
+            <span class="badge bg-danger"><i class="bi bi-slash-circle me-1"></i>Diblokir</span>
+            <?php elseif ($menunggu): ?>
+            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Menunggu persetujuan</span>
+            <?php elseif ($d['aktif']): ?>
             <span class="badge bg-success">Aktif</span>
             <?php else: ?>
-            <span class="badge bg-secondary">Nonaktif</span>
+            <span class="badge bg-secondary">Dinonaktifkan</span>
             <?php endif; ?>
-            <?php if (! empty($d['diblokir'])): ?>
-            <span class="d-block mt-1"><span class="badge bg-danger"><i class="bi bi-slash-circle me-1"></i>Diblokir</span></span>
+            <?php if ($diblokir): ?>
             <?php if (! empty($d['alasan_blokir'])): ?>
             <span class="d-block small text-danger mt-1"><?= esc($d['alasan_blokir']) ?></span>
             <?php endif; ?>
@@ -203,6 +166,15 @@
         </td>
         <td class="text-end">
             <div class="d-inline-flex flex-column gap-1 align-items-end">
+                <?php if (empty($d['disetujui_at'])): ?>
+                <?php // Menunggu persetujuan — satu-satunya aksi: Setujui. ?>
+                <form method="POST" action="<?= base_url('ai-monitor/perangkat/setujui') ?>"
+                      onsubmit="return confirm('Setujui &amp; aktifkan perangkat ini? Sesudahnya perangkat mulai mengirim data.')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="device_id" value="<?= (int) $d['id'] ?>">
+                    <button class="btn btn-sm btn-success"><i class="bi bi-check-circle me-1"></i>Setujui</button>
+                </form>
+                <?php else: ?>
                 <?php if (empty($d['diblokir'])): ?>
                 <form method="POST" action="<?= base_url('ai-monitor/perangkat/blokir') ?>"
                       onsubmit="var a=prompt('Alasan menghentikan akses AI untuk &quot;<?= esc($d['label'], 'js') ?>&quot;:'); if(a===null||a.trim()===''){return false;} this.alasan.value=a; return true;">
@@ -226,6 +198,7 @@
                         <?= $d['aktif'] ? 'Nonaktifkan' : 'Aktifkan' ?>
                     </button>
                 </form>
+                <?php endif; ?>
             </div>
         </td>
     </tr>
