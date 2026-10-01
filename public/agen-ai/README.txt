@@ -107,50 +107,38 @@ ATURAN AKSES (ditegakkan agen tiap putaran, SEBELUM kirim transkrip):
   SENGAJA tidak diblok.
 
 DUA LAPIS (penegak vs notifier):
-  - PENEGAK (task SYSTEM "WBL AI Monitor" / kirim.ps1): mengunci hosts +
-    ipconfig /flushdns. Inilah yang benar-benar memutus akses. Tak bisa dimatikan
-    user biasa.
-  - NOTIFIER (task user "WBL AI Monitor Notice" / notice.ps1): KOSMETIK. Berjalan
-    di sesi user, memantau state.json, dan saat user MEMAKAI Claude Code sementara
-    akses terkunci (pending/blokir) ia memunculkan notifikasi (toast BurntToast
-    bila ada, lalu balloon NotifyIcon, fallback msg.exe) dengan debounce 60 detik.
-    Notifier BOLEH dimatikan user; bila dimatikan, PENEGAK SYSTEM tetap jalan dan
-    akses tetap terkunci.
+  - PENEGAK (task SYSTEM "WBL AI Monitor" / kirim.ps1): mengunci/membuka hosts +
+    ipconfig /flushdns secara DIAM-DIAM dan menulis `keadaan`+`alasan` ke
+    state.json. Inilah yang benar-benar memutus akses. TIDAK memunculkan popup
+    apa pun (tidak ada msg.exe dari konteks SYSTEM). Tak bisa dimatikan user biasa.
+  - NOTIFIER (task user "WBL AI Monitor Notice" / notice.ps1): SATU-SATUNYA sumber
+    notifikasi. Berjalan di sesi user, membaca state.json, dan HANYA memunculkan
+    notifikasi bila keadaan terkunci (pending/blokir) DAN user sedang MEMAKAI
+    Claude Code (proses terdeteksi). Debounce 10 MENIT: walau user terus mencoba,
+    notif maksimal sekali per 10 menit. Saat keadaan terbuka: TIDAK menampilkan
+    apa pun (tak ada notif "pulih"), hanya mereset timer debounce. Tampilan:
+    toast BurntToast bila ada -> balloon NotifyIcon -> fallback msg.exe. Notifier
+    BOLEH dimatikan user; bila dimatikan, PENEGAK SYSTEM tetap jalan & akses tetap
+    terkunci (hanya notifikasinya yang hilang).
 
-NOTIFIKASI DARI PENEGAK: kirim.ps1 (SYSTEM) juga memakai msg.exe (andal dari
-SYSTEM ke sesi user; toast modern tidak andal dari SYSTEM karena isolasi
-session-0). Saat TERKUNCI, notifikasi diulang dengan DEBOUNCE berbasis waktu
-(maksimal sekali tiap ~5 menit, timestamp di state.json) supaya tidak spam
-meski loop berjalan tiap ~30 detik. Saat PULIH, notifikasi hanya sekali (saat
-transisi) agar tak mengganggu kerja. Keadaan (keadaan + alasan + notif_ts)
-disimpan di state.json.
-
-Pesan notifier sesi-user saat user mencoba memakai Claude Code:
-  - pending: "Akses Claude Code belum diizinkan Tim IT untuk perangkat ini
-    (menunggu persetujuan)."
+Pesan notifier (notice.ps1):
+  - pending: "Akses Claude Code belum diizinkan Tim IT (menunggu persetujuan)."
   - blokir : "Akses Claude Code dinonaktifkan oleh Tim IT." (+ " Alasan: <alasan>"
     bila ada).
 
-TIGA KEADAAN:
+TIGA KEADAAN (ditegakkan DIAM-DIAM oleh PENEGAK; notifikasi oleh NOTIFIER):
   - terkunci-pending (status pending / belum disetujui / token ditolak /
     dinonaktifkan dari daftar): hosts DIKUNCI. Transkrip TIDAK diupload, penanda
-    state TIDAK maju, token TIDAK direset. Notif SETIAP putaran:
-        "Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang
-         menunggu persetujuan."
+    state TIDAK maju, token TIDAK direset.
   - terkunci-blokir (status aktif TAPI blokir==true): hosts DIKUNCI, transkrip
-    tetap diupload. Notif SETIAP putaran:
-        "Akses Claude Code dinonaktifkan sementara oleh Tim IT."  (+ " Alasan:
-         <alasan>" bila ada)
+    tetap diupload.
   - terbuka (status aktif DAN blokir==false): hosts DIBUKA (baris bertanda
-    dihapus), transkrip diupload normal. Notif HANYA saat pulih dari keadaan
-    terkunci:
-        "Akses Claude Code telah dipulihkan oleh Tim IT."
+    dihapus), transkrip diupload normal.
 
-Catatan: penguncian hosts & notifikasi hanya dijalankan setelah poll status
-berhasil (diambil dari poll ingest lines:[] di awal tiap putaran). Bila server
-tak terjangkau karena OFFLINE TRANSIEN (bukan penolakan token/HTTP 401), agen
-TIDAK mengunci dan TIDAK memberi notifikasi apa pun putaran itu. Semua baris
-bertanda "# WBL-AiMonitor BLOCK" otomatis dibersihkan saat agen dicopot.
+Catatan: penguncian hosts hanya dijalankan setelah poll status berhasil (poll
+ingest di awal tiap putaran). Bila server tak terjangkau karena OFFLINE TRANSIEN
+(bukan penolakan token/HTTP 401), agen TIDAK mengunci apa pun putaran itu. Semua
+baris bertanda "# WBL-AiMonitor BLOCK" otomatis dibersihkan saat agen dicopot.
 
 CACHE DNS & KONEKSI BARU: setiap kali agen BENAR-BENAR mengubah berkas hosts
 (mengunci maupun membuka), ia langsung menjalankan "ipconfig /flushdns" agar
@@ -248,7 +236,7 @@ GUI: Task Scheduler -> Task Scheduler Library -> "WBL AI Monitor" /
 
 Log & state (Administrator):
   C:\ProgramData\WBL-AiMonitor\kirim.log    (transisi keadaan/enroll/error/401/unggah; idle tak dicatat)
-  C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + keadaan + alasan + notif_ts)
+  C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + keadaan + alasan)
   C:\ProgramData\WBL-AiMonitor\config.json  (endpoint, device_token, copot_hash, interval_detik; tanpa enroll_key)
 
 DIAGNOSA BLOKIR (bila blokir terasa tak berlaku):

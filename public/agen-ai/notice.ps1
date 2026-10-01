@@ -22,7 +22,9 @@ $ErrorActionPreference = 'Continue'
 $DataDir   = Join-Path $env:ProgramData 'WBL-AiMonitor'
 $StatePath = Join-Path $DataDir 'state.json'
 
-# Debounce: jangan menotifikasi lebih sering dari sekali per 60 detik.
+# Debounce: notifikasi maksimal sekali per 10 menit (600 detik), walau user
+# terus mencoba memakai Claude Code saat terkunci.
+$NotifDebounceSec  = 600
 $script:lastNotify = [datetime]::MinValue
 
 # --- Baca keadaan + alasan dari state.json (read-only). Gagal -> kosong.
@@ -105,11 +107,13 @@ while ($true) {
         $st = Read-State
         $keadaan = $st.keadaan
         if ($keadaan -eq 'terkunci-pending' -or $keadaan -eq 'terkunci-blokir') {
+            # Hanya tampilkan bila user memang sedang memakai Claude Code,
+            # dan maksimal sekali per $NotifDebounceSec detik.
             if (Test-ClaudeInUse) {
                 $now = Get-Date
-                if (($now - $script:lastNotify).TotalSeconds -ge 60) {
+                if (($now - $script:lastNotify).TotalSeconds -ge $NotifDebounceSec) {
                     if ($keadaan -eq 'terkunci-pending') {
-                        $msg = 'Akses Claude Code belum diizinkan Tim IT untuk perangkat ini (menunggu persetujuan).'
+                        $msg = 'Akses Claude Code belum diizinkan Tim IT (menunggu persetujuan).'
                     } else {
                         $msg = 'Akses Claude Code dinonaktifkan oleh Tim IT.'
                         if (-not [string]::IsNullOrWhiteSpace($st.alasan)) {
@@ -120,6 +124,11 @@ while ($true) {
                     $script:lastNotify = $now
                 }
             }
+        } else {
+            # Keadaan terbuka (atau tak dikenal): JANGAN tampilkan apa pun.
+            # Reset timer debounce supaya bila nanti terkunci lagi, notif pertama
+            # bisa langsung muncul.
+            $script:lastNotify = [datetime]::MinValue
         }
     } catch { }
     Start-Sleep -Seconds 10

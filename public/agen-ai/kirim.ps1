@@ -14,8 +14,10 @@
       - Mengirim baris transkrip sebagai BASE64 (field `enc`) agar lolos WAF
         hosting; penyamaran kata sandi/token tetap dilakukan DI SERVER.
       - Bila server memerintahkan blokir/pending, akses Claude Code
-        (api.anthropic.com) dimatikan via berkas hosts + flushdns, dan user diberi
-        notifikasi (debounce berbasis waktu agar tak spam).
+        (api.anthropic.com) dimatikan via berkas hosts + flushdns secara DIAM-DIAM.
+        Agen SYSTEM TIDAK memunculkan popup apa pun; notifikasi ke user adalah
+        tugas notice.ps1 (konteks user). kirim.ps1 hanya menulis keadaan+alasan
+        ke state.json agar notice.ps1 bisa membacanya.
 
     Anti-bloat log: putaran "idle" (tak ada perubahan keadaan & tak ada baris
     baru) TIDAK menulis log. Log hanya saat transisi keadaan, enroll, error, 401,
@@ -38,7 +40,6 @@ $LogPath    = Join-Path $DataDir 'kirim.log'
 $HostsPath   = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
 $BlockMarker = '# WBL-AiMonitor BLOCK'
 $maxBatchBytes = 3.5MB
-$NotifDebounceSec = 300   # notifikasi "terkunci" maksimal sekali tiap 5 menit.
 
 # --- Log sederhana (tidak pernah melempar error ke pemanggil).
 function Write-Log {
@@ -103,12 +104,11 @@ function Sync-CopotHash {
     }
 }
 
-# --- State: { files: {path->count}, keadaan, alasan, notif_ts }.
+# --- State: { files: {path->count}, keadaan, alasan }.
 #     keadaan : 'terkunci-pending' | 'terkunci-blokir' | 'terbuka'.
-#     alasan  : teks alasan blokir dari server (untuk notice.ps1).
-#     notif_ts: timestamp ISO notifikasi terkunci terakhir (debounce berbasis waktu).
+#     alasan  : teks alasan blokir dari server (dibaca notice.ps1 untuk notifikasi).
 function Load-State {
-    $result = @{ files = @{}; keadaan = ''; alasan = ''; notif_ts = '' }
+    $result = @{ files = @{}; keadaan = ''; alasan = '' }
     if (Test-Path -LiteralPath $StatePath) {
         try {
             $raw = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8
@@ -119,9 +119,8 @@ function Load-State {
                         $result.files[$p.Name] = [int]$p.Value
                     }
                 }
-                if ($obj.PSObject.Properties.Name -contains 'keadaan')  { $result.keadaan  = [string]$obj.keadaan }
-                if ($obj.PSObject.Properties.Name -contains 'alasan')   { $result.alasan   = [string]$obj.alasan }
-                if ($obj.PSObject.Properties.Name -contains 'notif_ts') { $result.notif_ts = [string]$obj.notif_ts }
+                if ($obj.PSObject.Properties.Name -contains 'keadaan') { $result.keadaan = [string]$obj.keadaan }
+                if ($obj.PSObject.Properties.Name -contains 'alasan')  { $result.alasan  = [string]$obj.alasan }
             }
         } catch {
             Write-Log "State rusak atau tak terbaca, mulai dari kosong: $($_.Exception.Message)"
@@ -135,10 +134,9 @@ function Save-State {
     try {
         $tmp = "$StatePath.tmp"
         $out = [ordered]@{
-            files    = $State.files
-            keadaan  = [string]$State.keadaan
-            alasan   = [string]$State.alasan
-            notif_ts = [string]$State.notif_ts
+            files   = $State.files
+            keadaan = [string]$State.keadaan
+            alasan  = [string]$State.alasan
         }
         ($out | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $tmp -Encoding UTF8
         Move-Item -LiteralPath $tmp -Destination $StatePath -Force
@@ -158,35 +156,8 @@ function Get-ActiveAccount {
     }
 }
 
-# --- Notifikasi ke sesi konsol user (SYSTEM -> msg * ke sesi aktif).
-function Send-UserNotice {
-    param([string]$Message)
-    try {
-        $msgExe = Join-Path $env:SystemRoot 'System32\msg.exe'
-        if (Test-Path -LiteralPath $msgExe) {
-            & $msgExe '*' '/TIME:0' $Message 2>$null
-        } else {
-            Write-Log 'msg.exe tidak tersedia (edisi Windows ini); notifikasi user dilewati.'
-        }
-    } catch {
-        Write-Log "Gagal mengirim notifikasi user: $($_.Exception.Message)"
-    }
-}
-
-# --- Notifikasi "terkunci" dengan DEBOUNCE berbasis waktu. Kirim bila: transisi
-#     keadaan, belum pernah, atau sudah >= $NotifDebounceSec sejak notif terakhir.
-function Send-LockedNotice {
-    param([hashtable]$State, [string]$Message, [bool]$Transition)
-    $now  = Get-Date
-    $last = $null
-    if (-not [string]::IsNullOrWhiteSpace($State.notif_ts)) {
-        try { $last = [datetime]$State.notif_ts } catch { $last = $null }
-    }
-    if ($Transition -or ($null -eq $last) -or (($now - $last).TotalSeconds -ge $NotifDebounceSec)) {
-        Send-UserNotice -Message $Message
-        $State.notif_ts = $now.ToString('o')
-    }
-}
+# CATATAN: agen SYSTEM TIDAK menampilkan notifikasi apa pun (tidak ada msg.exe /
+# popup dari konteks SYSTEM). Notifikasi ke user adalah tugas notice.ps1.
 
 # --- Terapkan/batalkan kunci akses Claude Code lewat hosts (api.anthropic.com).
 #     Idempoten + flushdns saat konten berubah. Web claude.ai SENGAJA tidak diblok.
@@ -228,11 +199,9 @@ function Set-HostsBlock {
 function Set-PendingLock {
     param([hashtable]$State)
     Set-HostsBlock -On $true
-    $trans = ($State.keadaan -ne 'terkunci-pending')
-    if ($trans) { Write-Log 'Keadaan -> terkunci-pending (token ditolak server).' }
-    Send-LockedNotice -State $State `
-        -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.' `
-        -Transition $trans
+    if ($State.keadaan -ne 'terkunci-pending') {
+        Write-Log 'Keadaan -> terkunci-pending (token ditolak server).'
+    }
     $State.keadaan = 'terkunci-pending'
     $State.alasan  = ''
 }
@@ -395,29 +364,10 @@ function Invoke-Cycle {
     if ([string]::IsNullOrWhiteSpace($prevKeadaan)) { $prevKeadaan = 'terbuka' }
     $transition = ($keadaan -ne $prevKeadaan)
 
-    # Terapkan hosts.
+    # Terapkan hosts (diam-diam; tak ada popup dari SYSTEM). Notifikasi user
+    # ditangani notice.ps1 yang membaca state.json.
     if ($keadaan -eq 'terbuka') { Set-HostsBlock -On $false } else { Set-HostsBlock -On $true }
     if ($transition) { Write-Log "Keadaan: $prevKeadaan -> $keadaan." }
-
-    # Notifikasi (debounce waktu untuk keadaan terkunci; sekali saja saat pulih).
-    switch ($keadaan) {
-        'terkunci-pending' {
-            Send-LockedNotice -State $state `
-                -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.' `
-                -Transition $transition
-        }
-        'terkunci-blokir' {
-            $msg = 'Akses Claude Code dinonaktifkan sementara oleh Tim IT.'
-            if (-not [string]::IsNullOrWhiteSpace($script:lastAlasan)) {
-                $msg = "$msg Alasan: $($script:lastAlasan)"
-            }
-            Send-LockedNotice -State $state -Message $msg -Transition $transition
-        }
-        'terbuka' {
-            if ($transition) { Send-UserNotice -Message 'Akses Claude Code telah dipulihkan oleh Tim IT.' }
-            $state.notif_ts = ''   # reset debounce saat terbuka.
-        }
-    }
 
     $state.keadaan = $keadaan
     if ($keadaan -eq 'terkunci-blokir') { $state.alasan = [string]$script:lastAlasan } else { $state.alasan = '' }
