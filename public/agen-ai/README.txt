@@ -55,18 +55,21 @@ PRIVASI:
 ----------------------------------------------------------------
 3. MODEL KEAMANAN (IT-MANAGED)
 ----------------------------------------------------------------
-- Program:  C:\Program Files\WBL-AiMonitor\   (kirim.ps1). Hanya Administrator
-  yang bisa menulis/menghapus (ACL default Program Files).
+- Program:  C:\Program Files\WBL-AiMonitor\   (kirim.ps1 + notice.ps1). Hanya
+  Administrator yang bisa menulis/menghapus (ACL default Program Files).
 - Data:     C:\ProgramData\WBL-AiMonitor\     (config.json, state.json, kirim.log).
   ACL diset: SYSTEM + Administrators = FullControl; BUILTIN\Users =
   ReadAndExecute saja. User biasa bisa membaca (transparan), tak bisa ubah/hapus.
-- Scheduled Task "WBL AI Monitor": principal SYSTEM, RunLevel Highest, berjalan
-  tiap 30 menit + saat startup. Karena dibuat admin & berjalan sebagai SYSTEM:
-    * User biasa (non-admin) TIDAK bisa unregister task-nya.
-    * User biasa TIDAK bisa End Task proses SYSTEM di Task Manager (akses ditolak).
-    * Task diset -RestartCount 3 -RestartInterval 1 menit, AllowStartIfOnBatteries,
-      DontStopIfGoingOnBatteries, StartWhenAvailable -> andal dan sulit dimatikan
-      oleh user biasa.
+- DUA Scheduled Task:
+    * "WBL AI Monitor" (PENEGAK): principal SYSTEM, RunLevel Highest, tiap 30
+      menit + startup. Dibuat admin & jalan sebagai SYSTEM, sehingga user biasa
+      TIDAK bisa unregister maupun End Task prosesnya. Diset -RestartCount 3
+      -RestartInterval 1 menit + AllowStartIfOnBatteries / DontStopIfGoingOnBatteries
+      / StartWhenAvailable -> andal & sulit dimatikan user biasa.
+    * "WBL AI Monitor Notice" (NOTIFIER, kosmetik): konteks user (grup
+      BUILTIN\Users, RunLevel Limited), trigger AtLogOn, MultipleInstances=IgnoreNew.
+      SENGAJA di sesi user agar bisa menampilkan toast. BOLEH dimatikan user;
+      enforcement tetap di task SYSTEM. Mematikan notifier TIDAK membuka akses.
 - Copot hanya via copot.ps1 SEBAGAI ADMINISTRATOR dan WAJIB password IT (lihat
   bagian 8). Password copot DIKELOLA TERPUSAT di dashboard MIC (khusus admin);
   server mengirim HASH sha256-nya lewat respons enroll/ingest, dan kirim.ps1
@@ -98,11 +101,28 @@ ATURAN AKSES (ditegakkan agen tiap putaran, SEBELUM kirim transkrip):
   Ini mematikan KHUSUS akses Claude Code (api.anthropic.com). Web app claude.ai
   SENGAJA tidak diblok.
 
-NOTIFIKASI: pakai msg.exe (andal dari SYSTEM ke sesi user; toast modern TIDAK
-dipakai karena isolasi session-0). Saat TERKUNCI, notifikasi dikirim SETIAP
-putaran (±30 menit) agar user terus diingatkan. Saat PULIH, notifikasi hanya
-sekali (saat transisi) agar tak mengganggu kerja. Keadaan terakhir disimpan di
-state.json.
+DUA LAPIS (penegak vs notifier):
+  - PENEGAK (task SYSTEM "WBL AI Monitor" / kirim.ps1): mengunci hosts +
+    ipconfig /flushdns. Inilah yang benar-benar memutus akses. Tak bisa dimatikan
+    user biasa.
+  - NOTIFIER (task user "WBL AI Monitor Notice" / notice.ps1): KOSMETIK. Berjalan
+    di sesi user, memantau state.json, dan saat user MEMAKAI Claude Code sementara
+    akses terkunci (pending/blokir) ia memunculkan notifikasi (toast BurntToast
+    bila ada, lalu balloon NotifyIcon, fallback msg.exe) dengan debounce 60 detik.
+    Notifier BOLEH dimatikan user; bila dimatikan, PENEGAK SYSTEM tetap jalan dan
+    akses tetap terkunci.
+
+NOTIFIKASI DARI PENEGAK: kirim.ps1 (SYSTEM) juga memakai msg.exe (andal dari
+SYSTEM ke sesi user; toast modern tidak andal dari SYSTEM karena isolasi
+session-0). Saat TERKUNCI, notifikasi dikirim SETIAP putaran (±30 menit) agar
+user terus diingatkan. Saat PULIH, notifikasi hanya sekali (saat transisi) agar
+tak mengganggu kerja. Keadaan terakhir (keadaan + alasan) disimpan di state.json.
+
+Pesan notifier sesi-user saat user mencoba memakai Claude Code:
+  - pending: "Akses Claude Code belum diizinkan Tim IT untuk perangkat ini
+    (menunggu persetujuan)."
+  - blokir : "Akses Claude Code dinonaktifkan oleh Tim IT." (+ " Alasan: <alasan>"
+    bila ada).
 
 TIGA KEADAAN:
   - terkunci-pending (status pending / belum disetujui / token ditolak /
@@ -197,15 +217,17 @@ C:\Program Files\WBL-AiMonitor).
 ----------------------------------------------------------------
 7. CARA MENGECEK
 ----------------------------------------------------------------
-  Get-ScheduledTask     -TaskName "WBL AI Monitor"
-  Get-ScheduledTaskInfo -TaskName "WBL AI Monitor"      (waktu jalan terakhir)
-  Start-ScheduledTask   -TaskName "WBL AI Monitor"      (uji manual sekali)
+  Get-ScheduledTask     -TaskName "WBL AI Monitor"         (penegak SYSTEM)
+  Get-ScheduledTask     -TaskName "WBL AI Monitor Notice"  (notifier user)
+  Get-ScheduledTaskInfo -TaskName "WBL AI Monitor"         (waktu jalan terakhir)
+  Start-ScheduledTask   -TaskName "WBL AI Monitor"         (uji manual sekali)
 
-GUI: Task Scheduler -> Task Scheduler Library -> "WBL AI Monitor".
+GUI: Task Scheduler -> Task Scheduler Library -> "WBL AI Monitor" /
+"WBL AI Monitor Notice".
 
 Log & state (Administrator):
   C:\ProgramData\WBL-AiMonitor\kirim.log    (catatan enroll/status/kunci/kirim/galat)
-  C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + keadaan kunci)
+  C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + keadaan + alasan)
   C:\ProgramData\WBL-AiMonitor\config.json  (endpoint, device_token, copot_hash; tanpa enroll_key)
 
 DIAGNOSA BLOKIR (bila blokir terasa tak berlaku):
@@ -259,8 +281,9 @@ copot.ps1 akan:
       * copot_hash kosong -> "Tidak bisa memverifikasi: server tak terjangkau dan
         belum ada cadangan di perangkat ini. Sambungkan ke jaringan lalu coba
         lagi." (exit 1)
-  - Bila lolos: menghapus Scheduled Task, folder Program Files & ProgramData, dan
-    membersihkan baris "# WBL-AiMonitor BLOCK" dari hosts.
+  - Bila lolos: menghapus KEDUA Scheduled Task ("WBL AI Monitor" +
+    "WBL AI Monitor Notice"), folder Program Files (kirim.ps1 + notice.ps1) &
+    ProgramData, dan membersihkan baris "# WBL-AiMonitor BLOCK" dari hosts.
   - TIDAK menyentuh berkas transkrip Claude Code milik pengguna.
 
 Keuntungan verifikasi ke server: bila IT mengganti/mereset password copot di
@@ -297,15 +320,17 @@ PAKET PEMASANG (boleh dibagikan ke laptop target, boleh dihapus setelah pasang):
   pengaturan.txt    - ENDPOINT (terisi) + LABEL (opsional); TANPA kunci
   KLIK-PASANG.bat   - klik kanan > Run as administrator untuk memasang
   pasang-klik.ps1   - baca pengaturan.txt, panggil pasang.ps1 (tanpa -EnrollKey)
-  pasang.ps1        - pemasang (admin; notifikasi + salin kirim.ps1 + ACL + task SYSTEM)
-  kirim.ps1         - agen pengirim (jalan sebagai SYSTEM; enroll + status + kunci + kirim)
+  pasang.ps1        - pemasang (admin; salin kirim.ps1 + notice.ps1 + ACL + 2 task)
+  kirim.ps1         - PENEGAK (jalan sebagai SYSTEM; enroll + status + kunci + kirim)
+  notice.ps1        - NOTIFIER sesi user (kosmetik; toast saat akses terkunci)
   README.txt        - dokumen ini
   Edaran-Pemantauan-AI.docx - contoh edaran tertulis untuk tim
 
 PERKAKAS IT (JANGAN dibagikan ke laptop tim; simpan di tempat IT saja, bawa saat
 perlu mencopot):
-  copot.ps1         - pencopot (admin + password IT; hapus task/folder + bersihkan hosts)
+  copot.ps1         - pencopot (admin + password IT; hapus 2 task/folder + bersihkan hosts)
   KLIK-COPOT.bat    - pembungkus copot.ps1 (Run as administrator)
 
-Catatan: pasang.ps1 hanya menyalin kirim.ps1 ke C:\Program Files\WBL-AiMonitor.
-copot.ps1/KLIK-COPOT.bat TIDAK pernah disalin/ditinggal di mesin target.
+Catatan: pasang.ps1 hanya menyalin kirim.ps1 + notice.ps1 ke
+C:\Program Files\WBL-AiMonitor. copot.ps1/KLIK-COPOT.bat TIDAK pernah
+disalin/ditinggal di mesin target.

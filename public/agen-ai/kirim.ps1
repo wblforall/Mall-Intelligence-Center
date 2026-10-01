@@ -89,10 +89,11 @@ function Sync-CopotHash {
     }
 }
 
-# --- State: { files: { path -> jumlah baris terkirim }, keadaan: string }.
-#     keadaan: 'terkunci-pending' | 'terkunci-blokir' | 'terbuka' (untuk deteksi transisi notif).
+# --- State: { files: { path -> jumlah baris terkirim }, keadaan: string, alasan: string }.
+#     keadaan: 'terkunci-pending' | 'terkunci-blokir' | 'terbuka' (deteksi transisi notif).
+#     alasan : teks alasan blokir dari server (kosong untuk pending); dipakai notice.ps1.
 function Load-State {
-    $result = @{ files = @{}; keadaan = '' }
+    $result = @{ files = @{}; keadaan = ''; alasan = '' }
     if (Test-Path -LiteralPath $StatePath) {
         try {
             $raw = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8
@@ -105,6 +106,9 @@ function Load-State {
                 }
                 if ($obj.PSObject.Properties.Name -contains 'keadaan') {
                     $result.keadaan = [string]$obj.keadaan
+                }
+                if ($obj.PSObject.Properties.Name -contains 'alasan') {
+                    $result.alasan = [string]$obj.alasan
                 }
             }
         } catch {
@@ -121,6 +125,7 @@ function Save-State {
         $out = [ordered]@{
             files   = $State.files
             keadaan = [string]$State.keadaan
+            alasan  = [string]$State.alasan
         }
         ($out | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $tmp -Encoding UTF8
         Move-Item -LiteralPath $tmp -Destination $StatePath -Force
@@ -206,6 +211,7 @@ function Set-PendingLock {
     Send-UserNotice -Message 'Claude Code belum diotorisasi Tim IT untuk perangkat ini. Sedang menunggu persetujuan.'
     Write-Log 'Keadaan terkunci-pending (token ditolak server); notifikasi dikirim.'
     $State.keadaan = 'terkunci-pending'
+    $State.alasan  = ''
 }
 
 # =====================================================================
@@ -400,6 +406,11 @@ switch ($keadaan) {
 }
 
 $state.keadaan = $keadaan
+if ($keadaan -eq 'terkunci-blokir') {
+    $state.alasan = [string]$script:lastAlasan
+} else {
+    $state.alasan = ''
+}
 
 # =====================================================================
 #  BELUM DISETUJUI (status != aktif): JANGAN kirim transkrip, JANGAN majukan

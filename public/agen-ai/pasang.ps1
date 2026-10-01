@@ -45,7 +45,10 @@ $ConfigPath = Join-Path $DataDir 'config.json'
 $ScriptDir  = Split-Path -Parent $PSCommandPath
 $KirimSrc   = Join-Path $ScriptDir 'kirim.ps1'
 $KirimDst   = Join-Path $ProgramDir 'kirim.ps1'
-$TaskName   = 'WBL AI Monitor'
+$NoticeSrc  = Join-Path $ScriptDir 'notice.ps1'
+$NoticeDst  = Join-Path $ProgramDir 'notice.ps1'
+$TaskName       = 'WBL AI Monitor'
+$NoticeTaskName = 'WBL AI Monitor Notice'
 
 # =====================================================================
 #  1) PEMBERITAHUAN TERBUKA (dicetak; tidak perlu Enter karena dipasang IT)
@@ -86,12 +89,18 @@ if (-not (Test-Path -LiteralPath $KirimSrc)) {
     Write-Error "Tidak menemukan kirim.ps1 di '$ScriptDir'. Pastikan berkas satu folder."
     exit 1
 }
+if (-not (Test-Path -LiteralPath $NoticeSrc)) {
+    Write-Error "Tidak menemukan notice.ps1 di '$ScriptDir'. Pastikan berkas satu folder."
+    exit 1
+}
 
 New-Item -ItemType Directory -Path $ProgramDir -Force | Out-Null
 New-Item -ItemType Directory -Path $DataDir    -Force | Out-Null
 
-Copy-Item -LiteralPath $KirimSrc -Destination $KirimDst -Force
+Copy-Item -LiteralPath $KirimSrc  -Destination $KirimDst  -Force
+Copy-Item -LiteralPath $NoticeSrc -Destination $NoticeDst -Force
 Write-Host "Program disalin ke: $KirimDst" -ForegroundColor Green
+Write-Host "Notifier disalin ke: $NoticeDst" -ForegroundColor Green
 
 # =====================================================================
 #  3) machine_id (MachineGuid; fallback: nama komputer + serial BIOS)
@@ -206,13 +215,45 @@ Register-ScheduledTask -TaskName $TaskName `
 Write-Host "Scheduled Task '$TaskName' didaftarkan (SYSTEM, tiap 30 menit + startup)." -ForegroundColor Green
 
 # =====================================================================
+#  6b) TASK NOTIFIER di KONTEKS USER ("WBL AI Monitor Notice")
+#      Kosmetik: memberi tahu user saat akses Claude Code terkunci. Jalan di
+#      sesi user (agar bisa toast). Boleh dimatikan user; enforcement tetap di
+#      task SYSTEM di atas.
+# =====================================================================
+$noticeAction = New-ScheduledTaskAction -Execute $psExe `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$NoticeDst`""
+$noticeTrigger = New-ScheduledTaskTrigger -AtLogOn
+# Principal: user interaktif (grup BUILTIN\Users), hak biasa.
+$noticePrincipal = New-ScheduledTaskPrincipal -GroupId 'BUILTIN\Users' -RunLevel Limited
+$noticeSettings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -MultipleInstances IgnoreNew `
+    -ExecutionTimeLimit ([TimeSpan]::Zero)
+
+Register-ScheduledTask -TaskName $NoticeTaskName `
+    -Action $noticeAction -Trigger $noticeTrigger `
+    -Principal $noticePrincipal -Settings $noticeSettings `
+    -Description 'Notifier sesi-user (KOSMETIK) Pemantauan AI: memberi tahu user saat akses Claude Code terkunci (pending/blokir). Penegakan sebenarnya ada di task SYSTEM "WBL AI Monitor".' `
+    -Force | Out-Null
+
+Write-Host "Scheduled Task '$NoticeTaskName' didaftarkan (konteks user, AtLogOn)." -ForegroundColor Green
+
+# =====================================================================
 #  7) PUTARAN PERDANA (enroll supaya perangkat muncul di dashboard MIC)
+#     + jalankan notifier untuk sesi yang sedang aktif.
 # =====================================================================
 try {
     Start-ScheduledTask -TaskName $TaskName
     Write-Host 'Putaran perdana dijalankan (enroll; perangkat muncul di dashboard).' -ForegroundColor Green
 } catch {
     Write-Host "Catatan: gagal menjalankan task perdana ($($_.Exception.Message)). Akan jalan otomatis." -ForegroundColor Yellow
+}
+try {
+    Start-ScheduledTask -TaskName $NoticeTaskName
+    Write-Host 'Notifier dijalankan untuk sesi aktif.' -ForegroundColor Green
+} catch {
+    Write-Host "Catatan: notifier akan jalan saat user berikutnya login ($($_.Exception.Message))." -ForegroundColor Yellow
 }
 
 # =====================================================================
@@ -223,8 +264,10 @@ Write-Host '==================================================================' 
 Write-Host '   RINGKASAN PEMASANGAN' -ForegroundColor Cyan
 Write-Host '==================================================================' -ForegroundColor Cyan
 Write-Host "  Program : $KirimDst"
+Write-Host "            $NoticeDst"
 Write-Host "  Data    : $DataDir  (config.json, state.json, kirim.log)"
-Write-Host "  Task    : $TaskName  (principal SYSTEM, RunLevel Highest)"
+Write-Host "  Task    : $TaskName  (SYSTEM, RunLevel Highest) - PENEGAK"
+Write-Host "            $NoticeTaskName  (konteks user) - notifier kosmetik"
 Write-Host ''
 Write-Host 'TANPA kunci enrollment. Perangkat kini berstatus "Menunggu persetujuan"' -ForegroundColor Yellow
 Write-Host 'di dashboard MIC (menu Pemantauan AI > Perangkat). Sampai IT menekan' -ForegroundColor Yellow

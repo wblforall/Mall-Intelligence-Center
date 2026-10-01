@@ -2,9 +2,11 @@
     WBL AI Monitor - copot.ps1  (WAJIB Administrator + password IT)
     ===============================================================
     Mencopot fitur "Pemantauan AI" dari laptop ini:
-      - Menghapus Scheduled Task "WBL AI Monitor".
-      - Menghapus folder program  C:\Program Files\WBL-AiMonitor
-      - Menghapus folder data     C:\ProgramData\WBL-AiMonitor
+      - Menghapus Scheduled Task "WBL AI Monitor" (penegak SYSTEM) DAN
+        "WBL AI Monitor Notice" (notifier sesi user).
+      - Menghapus folder program C:\Program Files\WBL-AiMonitor (berisi kirim.ps1
+        dan notice.ps1).
+      - Menghapus folder data    C:\ProgramData\WBL-AiMonitor
       - Membersihkan baris blokir bertanda "# WBL-AiMonitor BLOCK" dari hosts.
 
     Hanya IT yang BISA mencopot:
@@ -21,7 +23,8 @@ param()
 
 $ErrorActionPreference = 'Continue'
 
-$TaskName    = 'WBL AI Monitor'
+$TaskName       = 'WBL AI Monitor'
+$NoticeTaskName = 'WBL AI Monitor Notice'
 $ProgramDir  = Join-Path $env:ProgramFiles 'WBL-AiMonitor'
 $DataDir     = Join-Path $env:ProgramData  'WBL-AiMonitor'
 $ConfigPath  = Join-Path $DataDir 'config.json'
@@ -153,17 +156,19 @@ Write-Host ''
 Write-Host 'Mencopot WBL AI Monitor...' -ForegroundColor Cyan
 Write-Host ''
 
-# --- 2) Hapus Scheduled Task.
-$task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-if ($task) {
-    try {
-        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-        Write-Host "Scheduled Task '$TaskName' telah dihapus." -ForegroundColor Green
-    } catch {
-        Write-Host "Gagal menghapus task: $($_.Exception.Message)" -ForegroundColor Red
+# --- 2) Hapus Scheduled Task (penegak SYSTEM + notifier user).
+foreach ($tn in @($TaskName, $NoticeTaskName)) {
+    $task = Get-ScheduledTask -TaskName $tn -ErrorAction SilentlyContinue
+    if ($task) {
+        try {
+            Unregister-ScheduledTask -TaskName $tn -Confirm:$false
+            Write-Host "Scheduled Task '$tn' telah dihapus." -ForegroundColor Green
+        } catch {
+            Write-Host "Gagal menghapus task '$tn': $($_.Exception.Message)" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "Scheduled Task '$tn' tidak ditemukan (mungkin sudah dihapus)." -ForegroundColor Yellow
     }
-} else {
-    Write-Host "Scheduled Task '$TaskName' tidak ditemukan (mungkin sudah dihapus)." -ForegroundColor Yellow
 }
 
 # --- 3) Bersihkan baris blokir dari hosts (pulihkan akses Claude Code).
