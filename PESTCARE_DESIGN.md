@@ -102,6 +102,7 @@ Lima tabel. Semua berdiri sendiri, tidak terikat `event_id` — sejajar dengan
 | `created_at` | DATETIME | |
 
 Seed: Tikus, Kucing, Biawak, Kecoa, Lalat, Ular, Kelelawar, Kupu-kupu.
+Ditambah lewat master sesudah rilis: **Nyamuk** (1 Okt 2026, id 9).
 
 Ejaan diperbaiki dari berkas sumber: **Kelelawar** (di Excel 2026 tertulis
 "Kekelawar"), **Kupu-kupu** (di Excel "Kupu - Kupu").

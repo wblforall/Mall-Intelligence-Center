@@ -233,6 +233,19 @@ dikerjakan tanpa perangkat.
 
 ---
 
+## Item baru: Nyamuk — 1 Okt 2026
+
+Ditambahkan sebagai **data, bukan kode** — persis alasan daftar item dijadikan
+tabel master (§3.1 rancangan). `pest_items` id **9**, urutan 9 (di bawah
+Kupu-kupu), aktif. Diisi di produksi lewat SQL oleh user, lalu diperiksa
+langsung di server (`php spark db:table pest_items`): satu baris, tidak ganda.
+Lokal disamakan (id 9 juga).
+
+Tidak ada migrasi atau seed yang diubah — seed 8 item di A2 tetap catatan
+keadaan awal. Item berikutnya cukup lewat `/pest-items`.
+
+---
+
 ## Fase 2 — JANGAN dikerjakan sekarang
 
 Ditunda karena **prasyaratnya data, bukan kode**. Dikerjakan sebelum prasyaratnya
