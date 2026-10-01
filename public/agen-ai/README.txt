@@ -125,6 +125,12 @@ tak terjangkau karena OFFLINE TRANSIEN (bukan penolakan token/HTTP 401), agen
 TIDAK mengunci dan TIDAK memberi notifikasi apa pun putaran itu. Semua baris
 bertanda "# WBL-AiMonitor BLOCK" otomatis dibersihkan saat agen dicopot.
 
+CACHE DNS & KONEKSI BARU: setiap kali agen BENAR-BENAR mengubah berkas hosts
+(mengunci maupun membuka), ia langsung menjalankan "ipconfig /flushdns" agar
+perubahan berlaku untuk koneksi BARU. Catatan penting: blokir hanya berlaku
+untuk koneksi baru -- aplikasi/VSCode yang SUDAH terbuka dengan koneksi hidup ke
+api.anthropic.com mungkin perlu DITUTUP lalu DIBUKA lagi agar blokir terasa.
+
 
 ----------------------------------------------------------------
 5. ENDPOINT & MODEL PERSETUJUAN (TANPA KUNCI)
@@ -201,6 +207,17 @@ Log & state (Administrator):
   C:\ProgramData\WBL-AiMonitor\kirim.log    (catatan enroll/status/kunci/kirim/galat)
   C:\ProgramData\WBL-AiMonitor\state.json   (penanda baris terkirim + keadaan kunci)
   C:\ProgramData\WBL-AiMonitor\config.json  (endpoint, device_token, copot_hash; tanpa enroll_key)
+
+DIAGNOSA BLOKIR (bila blokir terasa tak berlaku):
+  1. Paksa satu putaran agen:
+        schtasks /Run /TN "WBL AI Monitor"
+  2. Cek baris blokir di hosts:
+        findstr "WBL-AiMonitor BLOCK" %SystemRoot%\System32\drivers\etc\hosts
+     (harus ada "0.0.0.0 api.anthropic.com   # WBL-AiMonitor BLOCK" saat terkunci)
+  3. Cek kirim.log -> cari "Hosts dikunci ... + flushdns" / "Hosts dibuka + flushdns".
+  4. Ingat: blokir hanya untuk koneksi BARU. Tutup lalu buka lagi VSCode/terminal
+     yang sudah berjalan agar blokir terasa. Agen sudah menjalankan ipconfig
+     /flushdns otomatis setiap kali hosts berubah.
 
 
 ----------------------------------------------------------------

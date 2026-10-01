@@ -176,7 +176,21 @@ function Set-HostsBlock {
         if ($newContent -ne $oldContent) {
             # hosts memakai ASCII; SYSTEM berhak menulis berkas ini.
             Set-Content -LiteralPath $HostsPath -Value $kept -Encoding ASCII -ErrorAction Stop
-            Write-Log "Hosts diperbarui (blokir=$On)."
+
+            # Flush cache DNS HANYA saat konten berubah, agar perubahan langsung
+            # berlaku untuk koneksi BARU (tanpa ini, blokir tertunda oleh cache DNS).
+            try {
+                Start-Process -FilePath "$env:SystemRoot\System32\ipconfig.exe" `
+                    -ArgumentList '/flushdns' -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue
+            } catch {
+                Write-Log "flushdns gagal (diabaikan): $($_.Exception.Message)"
+            }
+
+            if ($On) {
+                Write-Log 'Hosts dikunci (api.anthropic.com) + flushdns.'
+            } else {
+                Write-Log 'Hosts dibuka + flushdns.'
+            }
         }
     } catch {
         Write-Log "Gagal memperbarui hosts (blokir=$On): $($_.Exception.Message)"
