@@ -177,7 +177,17 @@ class AiMonitorController extends BaseApiController
         if (! is_array($body)) {
             return $this->error('Body JSON tidak valid.', 400);
         }
-        $lines = $body['lines'] ?? [];
+        // Baris transkrip dikirim sebagai `enc`: base64 dari JSON array baris.
+        // Ini perlu karena WAF/ModSecurity di hosting memblokir body yang
+        // memuat kode/SQL/shell (isi prompt) dengan 400/403 sebelum sampai ke
+        // aplikasi. Base64 membuat payload "tak mencurigakan". Field `lines`
+        // mentah tetap didukung untuk kompatibilitas & poll kosong.
+        if (isset($body['enc']) && is_string($body['enc']) && $body['enc'] !== '') {
+            $decoded = base64_decode($body['enc'], true);
+            $lines   = $decoded === false ? [] : json_decode($decoded, true);
+        } else {
+            $lines = $body['lines'] ?? [];
+        }
         if (! is_array($lines)) $lines = [];
 
         $deviceId   = (int) $device['id'];
