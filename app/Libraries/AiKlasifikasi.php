@@ -11,10 +11,12 @@ namespace App\Libraries;
  * function ai(...)) dengan kontrak keluaran yang sama — pemanggil tinggal
  * memilih method dan menyimpan klasifikasi_metode yang sesuai.
  *
- * Keluaran selalu: ['jenis' => ..., 'tema' => ..., 'kantor' => ...].
- *   jenis  : coding|debugging|ideating|menulis|riset|lainnya
- *   tema   : label manusiawi (mis. nama proyek dirapikan) atau 'Lainnya'
- *   kantor : kantor|pribadi|tak_jelas
+ * Keluaran selalu: ['jenis' => ..., 'tema' => ..., 'kantor' => ..., 'ringkasan' => ...].
+ *   jenis     : coding|debugging|ideating|menulis|riset|lainnya
+ *   tema      : label manusiawi (mis. nama proyek dirapikan) atau 'Lainnya'
+ *   kantor    : kantor|pribadi|tak_jelas
+ *   ringkasan : 1–2 kalimat (string) APA yang dikerjakan di sesi, atau null
+ *               (kata kunci tak membuat ringkasan → selalu null di kataKunci()).
  */
 class AiKlasifikasi
 {
@@ -85,7 +87,7 @@ class AiKlasifikasi
      * penyedia LLM.
      *
      * @param string[] $promptTeks
-     * @return array{jenis:string, tema:string, kantor:string}|null
+     * @return array{jenis:string, tema:string, kantor:string, ringkasan:?string}|null
      */
     public static function ai(array $promptTeks, ?string $proyek, ?string $gitBranch, int $jmlAlat): ?array
     {
@@ -105,7 +107,8 @@ class AiKlasifikasi
             . 'Jawab HANYA satu objek JSON tanpa teks lain, berbentuk: '
             . '{"jenis": "<coding|debugging|ideating|menulis|riset|lainnya>", '
             . '"tema": "<ringkas, maksimal 60 karakter>", '
-            . '"kantor": "<kantor|pribadi|tak_jelas>"}. '
+            . '"kantor": "<kantor|pribadi|tak_jelas>", '
+            . '"ringkasan": "<1-2 kalimat Bahasa Indonesia, maksimal ~280 karakter>"}. '
             . 'Arti jenis: coding = mengembangkan/mengubah perangkat lunak/fitur/sistem nyata; '
             . 'debugging = memperbaiki error/bug; ideating = menggagas ide/rencana/rancangan; '
             . 'menulis = menghasilkan dokumen/laporan/teks, TERMASUK bila kode hanya dipakai untuk MENGHASILKAN '
@@ -116,7 +119,12 @@ class AiKlasifikasi
             . 'tenant, loyalty, parkir, event, housekeeping, meteran) atau sistem internal '
             . '(OpsJobs/Optera, Clara, MIC, PAM e-Sign, FlowStore, ERP). '
             . 'pribadi = urusan pribadi ATAU tugas kuliah/sekolah (mis. LCOI, skripsi, makalah, PR, ujian). '
-            . 'tak_jelas = tidak cukup petunjuk. Bila ragu, pilih tak_jelas.';
+            . 'tak_jelas = tidak cukup petunjuk. Bila ragu, pilih tak_jelas. '
+            . 'Arti ringkasan: 1-2 kalimat padat yang menjelaskan APA yang sebenarnya '
+            . 'DIKERJAKAN dan DIHASILKAN pada sesi (aktivitas & hasil nyata), '
+            . 'lebih kaya dari tema. JANGAN menyalin judul atau prompt pertama; '
+            . 'nilai dari keseluruhan prompt. Tulis ringkas, maksimal ~280 karakter. '
+            . 'Bila benar-benar tak ada petunjuk, boleh string kosong.';
 
         $pengguna = 'Proyek: ' . ($proyek ?: '(tidak ada)')
             . "\nBranch git: " . ($gitBranch ?: '(tidak ada)')
@@ -179,7 +187,7 @@ class AiKlasifikasi
      * (segala kegagalan) agar pemanggil failover ke provider berikutnya.
      *
      * @param array{base:string, model:string, key:string, label:string} $p
-     * @return array{jenis:string, tema:string, kantor:string}|null
+     * @return array{jenis:string, tema:string, kantor:string, ringkasan:?string}|null
      */
     private static function panggilProvider(array $p, string $sistem, string $pengguna, ?string $proyek): ?array
     {
@@ -258,7 +266,11 @@ class AiKlasifikasi
                     ? self::rapikanLabel(trim($proyek)) : 'Lainnya';
             }
 
-            return ['jenis' => $jenis, 'tema' => $tema, 'kantor' => $kantor];
+            // Ringkasan: trim ≤300 char; kosong → null.
+            $ringkasan = trim((string) ($parsed['ringkasan'] ?? ''));
+            $ringkasan = $ringkasan === '' ? null : mb_substr($ringkasan, 0, 300);
+
+            return ['jenis' => $jenis, 'tema' => $tema, 'kantor' => $kantor, 'ringkasan' => $ringkasan];
         } catch (\Throwable $e) {
             return null; // timeout/hang/koneksi/segala error → provider berikutnya
         }
@@ -302,7 +314,7 @@ class AiKlasifikasi
      * @param string|null $proyek     Nama proyek (dari cwd) bila ada.
      * @param string|null $gitBranch  Branch git bila ada.
      * @param int         $jmlAlat    Jumlah pemanggilan alat pada sesi.
-     * @return array{jenis:string, tema:string, kantor:string}
+     * @return array{jenis:string, tema:string, kantor:string, ringkasan:null}
      */
     public static function kataKunci(array $promptTeks, ?string $proyek, ?string $gitBranch, int $jmlAlat): array
     {
@@ -311,9 +323,10 @@ class AiKlasifikasi
         $gabung   = $hay . "\n" . $proyekLc; // untuk cek kantor & ekstensi kode
 
         return [
-            'jenis'  => self::tentukanJenis($hay, $proyekLc, $gabung, $jmlAlat),
-            'tema'   => self::tentukanTema($hay, $proyek, $gitBranch),
-            'kantor' => self::tentukanKantor($gabung),
+            'jenis'     => self::tentukanJenis($hay, $proyekLc, $gabung, $jmlAlat),
+            'tema'      => self::tentukanTema($hay, $proyek, $gitBranch),
+            'kantor'    => self::tentukanKantor($gabung),
+            'ringkasan' => null, // kata kunci tak membuat ringkasan
         ];
     }
 

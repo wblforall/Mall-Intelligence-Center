@@ -120,13 +120,20 @@ class AiKlasifikasi extends BaseCommand
             }
 
             if (! $dryRun) {
-                $db->table('ai_sessions')->where('id', $sesiId)->update([
+                $data = [
                     'klasifikasi_jenis'  => $hasil['jenis'],
                     'klasifikasi_tema'   => $hasil['tema'],
                     'klasifikasi_kantor' => $hasil['kantor'],
                     'klasifikasi_metode' => $metode,
                     'klasifikasi_at'     => $now,
-                ]);
+                ];
+                // Ringkasan hanya di-set bila hasil punya nilai (dari AI); saat
+                // fallback kata kunci (ringkasan null) ringkasan lama dibiarkan
+                // agar tak tertimpa kosong.
+                if (! empty($hasil['ringkasan'])) {
+                    $data['ringkasan'] = $hasil['ringkasan'];
+                }
+                $db->table('ai_sessions')->where('id', $sesiId)->update($data);
             }
             $metode === 'ai' ? $viaAi++ : $viaKw++;
 

@@ -41,6 +41,10 @@
         <a href="<?= base_url('ai-monitor/sesi/' . $s['id']) ?>" class="fw-medium text-decoration-none">
             <?= $s['judul'] !== '' && $s['judul'] !== null ? esc($s['judul']) : '(tanpa judul)' ?>
         </a>
+        <?php $sub = $s['ringkasan'] ?? null; if (empty($sub)) { $sub = $s['klasifikasi_tema'] ?? null; } ?>
+        <?php if (! empty($sub)): ?>
+        <div class="small text-muted text-truncate" style="max-width:32rem" title="<?= esc($sub) ?>"><?= esc(mb_strimwidth($sub, 0, 90, '…')) ?></div>
+        <?php endif; ?>
     </td>
     <td>
         <?php if (! empty($s['proyek'])): ?>

@@ -30,6 +30,8 @@ class AiSessionModel extends Model
         // Klasifikasi sesi (migrasi 2026-10-02-000004).
         'klasifikasi_jenis', 'klasifikasi_tema', 'klasifikasi_kantor',
         'klasifikasi_metode', 'klasifikasi_at',
+        // Ringkasan sesi (migrasi 2026-10-03-000001).
+        'ringkasan',
     ];
 
     // Tabel ini punya created_at & updated_at → timestamps dinyalakan.
@@ -123,7 +125,7 @@ class AiSessionModel extends Model
      */
     public function byPerangkat(int $deviceId, string $dari, string $sampai): array
     {
-        return $this->select('id, judul, proyek, git_branch, model, mulai_at,
+        return $this->select('id, judul, ringkasan, klasifikasi_tema, proyek, git_branch, model, mulai_at,
                               terakhir_at, jml_prompt, jml_alat, token_masuk, token_keluar')
             ->where('device_id', $deviceId)
             ->where('DATE(terakhir_at) >=', $dari)
@@ -157,7 +159,7 @@ class AiSessionModel extends Model
      */
     public function byKaryawan(int $employeeId, string $dari, string $sampai): array
     {
-        return $this->select('id, judul, proyek, git_branch, model, mulai_at,
+        return $this->select('id, judul, ringkasan, klasifikasi_tema, proyek, git_branch, model, mulai_at,
                               terakhir_at, jml_prompt, jml_alat, token_masuk, token_keluar')
             ->where('employee_id', $employeeId)
             ->where('DATE(terakhir_at) >=', $dari)
@@ -270,7 +272,7 @@ class AiSessionModel extends Model
     public function sesiTerbaru(int $limit = 10): array
     {
         $rows = $this->db->table('ai_sessions s')
-            ->select('s.id, s.judul, s.terakhir_at, s.jml_prompt,
+            ->select('s.id, s.judul, s.ringkasan, s.klasifikasi_tema, s.terakhir_at, s.jml_prompt,
                       s.klasifikasi_jenis, s.klasifikasi_kantor,
                       dev.label AS komputer, emp.nama AS nama')
             ->join('ai_devices dev', 'dev.id = s.device_id', 'left')
@@ -282,6 +284,8 @@ class AiSessionModel extends Model
         return array_map(fn($r) => [
             'id'          => (int) $r['id'],
             'judul'       => $r['judul'],
+            'ringkasan'   => $r['ringkasan'] ?? null,
+            'tema'        => $r['klasifikasi_tema'] ?? null,
             'komputer'    => $r['komputer'] ?? '(tanpa label)',
             'nama'        => $r['nama'] ?: '—',
             'terakhir_at' => $r['terakhir_at'],

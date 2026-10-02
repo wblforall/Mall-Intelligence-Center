@@ -222,6 +222,10 @@ $adaKlas = array_sum($klas_jenis) > 0;
         <a href="<?= base_url('ai-monitor/sesi/' . (int) $s['id']) ?>" class="fw-medium text-decoration-none">
             <?= $s['judul'] !== '' && $s['judul'] !== null ? esc($s['judul']) : '(tanpa judul)' ?>
         </a>
+        <?php $sub = $s['ringkasan'] ?? null; if (empty($sub)) { $sub = $s['tema'] ?? null; } ?>
+        <?php if (! empty($sub)): ?>
+        <div class="small text-muted text-truncate" style="max-width:30rem" title="<?= esc($sub) ?>"><?= esc(mb_strimwidth($sub, 0, 90, '…')) ?></div>
+        <?php endif; ?>
         <div class="mt-1 d-flex gap-1 flex-wrap">
             <?php if (! empty($s['jenis']) && isset($jenisBadge[$s['jenis']])): ?>
             <span class="badge <?= $jenisBadge[$s['jenis']][1] ?>"><?= esc($jenisBadge[$s['jenis']][0]) ?></span>

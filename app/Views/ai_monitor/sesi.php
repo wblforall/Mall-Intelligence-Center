@@ -12,6 +12,8 @@
 .ai-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .ai-alat { font-size: .82rem; }
 .ai-alat code { font-size: .8rem; }
+.ai-ringkasan { border-left: 4px solid var(--bs-primary); background: var(--bs-primary-bg-subtle); border-radius: .5rem; }
+.ai-ringkasan .ai-ringkasan-teks { font-size: 1rem; line-height: 1.55; }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -27,6 +29,15 @@
     <a href="<?= base_url('ai-monitor') ?>" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-arrow-left me-1"></i>Kembali
     </a>
+</div>
+
+<div class="ai-ringkasan p-3 mb-3">
+    <div class="small text-primary fw-semibold mb-1"><i class="bi bi-stars me-1"></i>Ringkasan</div>
+    <?php if (! empty($sesi['ringkasan'])): ?>
+    <div class="ai-ringkasan-teks"><?= esc($sesi['ringkasan']) ?></div>
+    <?php else: ?>
+    <div class="text-muted fst-italic">(belum ada ringkasan)</div>
+    <?php endif; ?>
 </div>
 
 <div class="card mb-3">
