@@ -45,11 +45,12 @@ class AiKlasifikasi extends BaseCommand
         $db     = db_connect();
 
         // Mode: 'ai' memakai LLM dengan fallback kata kunci; selain itu
-        // (termasuk kosong) murni kata kunci. AI hanya aktif bila key tersedia.
+        // (termasuk kosong) murni kata kunci. AI hanya aktif bila setidaknya
+        // satu provider terkonfigurasi (numbered p1_* atau format lama).
         $mode      = strtolower((string) (env('aiklas.mode') ?: 'kata_kunci'));
-        $punyaKey  = ((string) env('aiklas.api_key')) !== '';
+        $punyaKey  = Klasifikator::terkonfigurasi();
         $pakaiAi   = ($mode === 'ai') && $punyaKey;
-        CLI::write('Mode: ' . ($pakaiAi ? 'ai (fallback kata_kunci)' : 'kata_kunci'), 'cyan');
+        CLI::write('Mode: ' . ($pakaiAi ? 'ai (multi-provider, fallback kata_kunci)' : 'kata_kunci'), 'cyan');
 
         // Sesi yang perlu (re)klasifikasi: belum pernah, atau sudah bertambah
         // entrinya sejak terakhir diklasifikasi.
@@ -71,6 +72,7 @@ class AiKlasifikasi extends BaseCommand
         $viaAi   = 0;
         $viaKw   = 0;
         $beruntun429 = 0;
+        $perProvider = []; // label provider => jumlah sukses
         $now     = date('Y-m-d H:i:s');
 
         foreach ($sesi as $s) {
@@ -97,16 +99,19 @@ class AiKlasifikasi extends BaseCommand
                 $hasil = Klasifikator::ai($teks, $proyek, $branch, $alat);
                 if ($hasil !== null) {
                     $metode = 'ai';
+                    $prov   = Klasifikator::$providerTerakhir ?: '?';
+                    $perProvider[$prov] = ($perProvider[$prov] ?? 0) + 1;
                     $beruntun429 = 0; // sukses → reset penghitung rate-limit
                 } else {
-                    // Gagal (bisa 429/err/JSON invalid). Deteksi 429 beruntun:
-                    // ai() menelan detail, jadi kita pakai heuristik — bila
-                    // model sedang dibatasi, kegagalan terjadi terus-menerus.
+                    // Semua provider gagal untuk sesi ini (bisa 429/hang/err/
+                    // JSON invalid). ai() menelan detail; bila layanan sedang
+                    // dibatasi/mati, kegagalan terjadi terus-menerus.
                     $beruntun429++;
                 }
-                // Hormati batas per-menit model gratis (~20/menit): jeda
-                // ~3,5 dtk/panggilan menjaga laju di bawah ambang itu.
-                usleep(3500000); // 3,5 detik
+                // Jeda antar sesi. Provider utama (p1) di prod BUKAN tier
+                // "free-per-day" OpenRouter, jadi 1 dtk sudah cukup sopan dan
+                // jauh lebih cepat daripada 3,5 dtk.
+                usleep(1000000); // 1 detik
             }
 
             if ($hasil === null) {
@@ -133,8 +138,18 @@ class AiKlasifikasi extends BaseCommand
             }
         }
 
+        $rincian = '';
+        if ($perProvider !== []) {
+            arsort($perProvider);
+            $bagian = [];
+            foreach ($perProvider as $label => $n) {
+                $bagian[] = "{$label}={$n}";
+            }
+            $rincian = ' [' . implode(', ', $bagian) . ']';
+        }
+
         CLI::write(
-            "Selesai. via ai: {$viaAi} · via kata_kunci: {$viaKw}" . ($dryRun ? ' (dry-run, tidak disimpan)' : ''),
+            "Selesai. via ai: {$viaAi}{$rincian} · via kata_kunci: {$viaKw}" . ($dryRun ? ' (dry-run, tidak disimpan)' : ''),
             'green'
         );
     }

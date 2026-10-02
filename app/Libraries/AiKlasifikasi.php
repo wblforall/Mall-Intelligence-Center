@@ -52,14 +52,33 @@ class AiKlasifikasi
     private const JENIS_SAH  = ['coding', 'debugging', 'ideating', 'menulis', 'riset', 'lainnya'];
     private const KANTOR_SAH = ['kantor', 'pribadi', 'tak_jelas'];
 
+    /** Batas waktu per panggilan HTTP ke satu provider (detik).
+     *  Cukup longgar untuk model "reasoning" yang lambat, tapi tetap membuat
+     *  provider yang hang (mis. NVIDIA chat yang pernah HTTP 000) gugur tepat
+     *  waktu lalu failover ke provider berikutnya. */
+    private const AI_TIMEOUT = 40;
+
+    /** max_tokens per panggilan. Harus cukup besar: sebagian model adalah
+     *  "reasoning" yang membakar token untuk berpikir di message.reasoning_content
+     *  SEBELUM menuliskan JSON di message.content; bila terlalu kecil,
+     *  finish_reason='length' dan content tetap null. */
+    private const AI_MAX_TOKENS = 1024;
+
+    /** Label provider yang BERHASIL dipakai pada panggilan ai() terakhir
+     *  (mis. 'p1'), atau null bila semua gagal. Dibaca command untuk log. */
+    public static ?string $providerTerakhir = null;
+
     /**
-     * Klasifikasi berbasis LLM (provider-agnostik, OpenAI-compatible).
+     * Klasifikasi berbasis LLM (provider-agnostik, OpenAI-compatible) dengan
+     * MULTI-PROVIDER AUTO-FAILOVER.
      *
-     * Memanggil endpoint {base_url}/chat/completions via HTTP (bukan SDK apa
-     * pun) dengan konfigurasi dari env(): aiklas.base_url, aiklas.model,
-     * aiklas.api_key. Kembalikan ['jenis','tema','kantor'] bila sukses, atau
-     * NULL untuk SEGALA kegagalan (key kosong, HTTP != 200, 429, JSON tak
-     * valid, exception) — pemanggil lalu jatuh ke {@see kataKunci}.
+     * Membaca daftar provider berurut dari env (lihat {@see daftarProvider}),
+     * lalu mencoba satu per satu: provider PERTAMA yang mengembalikan
+     * {jenis,tema,kantor} valid dipakai. Bila sebuah provider gagal (HTTP != 200,
+     * timeout/hang, 429, JSON tak valid, content kosong, exception) → lanjut ke
+     * provider berikutnya. Semua gagal → NULL (pemanggil jatuh ke {@see kataKunci}).
+     *
+     * Label provider yang berhasil disimpan di {@see $providerTerakhir}.
      *
      * Catatan privasi: isi prompt yang dikirim SUDAH disamarkan rahasianya di
      * server oleh AiLog::samarkan() sebelum disimpan, jadi aman dikirim ke
@@ -70,10 +89,10 @@ class AiKlasifikasi
      */
     public static function ai(array $promptTeks, ?string $proyek, ?string $gitBranch, int $jmlAlat): ?array
     {
-        $baseUrl = rtrim((string) env('aiklas.base_url'), '/');
-        $model   = (string) env('aiklas.model');
-        $apiKey  = (string) env('aiklas.api_key');
-        if ($apiKey === '' || $baseUrl === '' || $model === '') {
+        self::$providerTerakhir = null;
+
+        $providers = self::daftarProvider();
+        if ($providers === []) {
             return null; // belum dikonfigurasi → fallback
         }
 
@@ -99,23 +118,88 @@ class AiKlasifikasi
             . "\nJumlah pemanggilan alat: " . $jmlAlat
             . "\n\nCuplikan prompt pengguna:\n" . ($cuplikan !== '' ? $cuplikan : '(kosong)');
 
+        foreach ($providers as $p) {
+            $hasil = self::panggilProvider($p, $sistem, $pengguna, $proyek);
+            if ($hasil !== null) {
+                self::$providerTerakhir = $p['label'];
+                return $hasil;
+            }
+        }
+
+        return null; // semua provider gagal → fallback kata kunci
+    }
+
+    /**
+     * Susun daftar provider BERURUT dari env.
+     *
+     * Didukung dua format (numbered diutamakan bila ada):
+     *   aiklas.p1_base_url / aiklas.p1_model / aiklas.p1_key, p2_*, p3_*, …
+     *     (berhenti pada nomor pertama yang base_url-nya kosong)
+     *   aiklas.base_url / aiklas.model / aiklas.api_key  (format lama; dipakai
+     *     HANYA bila tak ada satupun entri numbered — demi kompatibilitas)
+     *
+     * @return array<int, array{base:string, model:string, key:string, label:string}>
+     */
+    private static function daftarProvider(): array
+    {
+        $out = [];
+        for ($i = 1; $i <= 20; $i++) {
+            $base = rtrim((string) env("aiklas.p{$i}_base_url"), '/');
+            if ($base === '') {
+                break; // nomor berurut; nomor kosong = akhir daftar
+            }
+            $model = (string) env("aiklas.p{$i}_model");
+            $key   = (string) env("aiklas.p{$i}_key");
+            if ($model === '' || $key === '') {
+                continue; // entri tak lengkap → lewati, jangan putus daftar
+            }
+            $out[] = ['base' => $base, 'model' => $model, 'key' => $key, 'label' => "p{$i}"];
+        }
+
+        if ($out === []) {
+            // Format lama (satu provider).
+            $base  = rtrim((string) env('aiklas.base_url'), '/');
+            $model = (string) env('aiklas.model');
+            $key   = (string) env('aiklas.api_key');
+            if ($base !== '' && $model !== '' && $key !== '') {
+                $out[] = ['base' => $base, 'model' => $model, 'key' => $key, 'label' => 'p1'];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Panggil SATU provider. Kembalikan {jenis,tema,kantor} valid atau NULL
+     * (segala kegagalan) agar pemanggil failover ke provider berikutnya.
+     *
+     * @param array{base:string, model:string, key:string, label:string} $p
+     * @return array{jenis:string, tema:string, kantor:string}|null
+     */
+    private static function panggilProvider(array $p, string $sistem, string $pengguna, ?string $proyek): ?array
+    {
         try {
             $client = \Config\Services::curlrequest([
-                'timeout'     => 25,
-                'http_errors' => false, // jangan lempar pada status != 2xx
+                'timeout'         => self::AI_TIMEOUT,
+                'connect_timeout' => 10,
+                'http_errors'     => false, // jangan lempar pada status != 2xx
             ]);
-            $resp = $client->post($baseUrl . '/chat/completions', [
+            $resp = $client->post($p['base'] . '/chat/completions', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Authorization' => 'Bearer ' . $p['key'],
                     'Content-Type'  => 'application/json',
+                    'Accept'        => 'application/json',
                     // Disarankan OpenRouter (identifikasi aplikasi; opsional).
                     'HTTP-Referer'  => 'https://mic.wbl-bsb.com',
                     'X-Title'       => 'MIC AI Monitor',
                 ],
                 'json' => [
-                    'model'           => $model,
+                    'model'           => $p['model'],
                     'temperature'     => 0,
-                    'max_tokens'      => 200,
+                    'max_tokens'      => self::AI_MAX_TOKENS,
+                    // Eksplisit non-stream: beberapa provider stream default
+                    // sehingga respons non-stream bisa menggantung.
+                    'stream'          => false,
                     // Diminta bila didukung; parsing di bawah tetap defensif.
                     'response_format' => ['type' => 'json_object'],
                     'messages' => [
@@ -130,8 +214,23 @@ class AiKlasifikasi
             }
 
             $data = json_decode((string) $resp->getBody(), true);
-            $isi  = $data['choices'][0]['message']['content'] ?? null;
-            if (! is_string($isi) || $isi === '') {
+            $msg  = $data['choices'][0]['message'] ?? null;
+            if (! is_array($msg)) {
+                return null;
+            }
+
+            // Parsing TAHAN BANTING. Model "reasoning" kadang menaruh content
+            // null dan mengisi reasoning_content/reasoning; ambil yang pertama
+            // tak kosong.
+            $isi = '';
+            foreach (['content', 'reasoning_content', 'reasoning'] as $kolom) {
+                $kandidat = $msg[$kolom] ?? null;
+                if (is_string($kandidat) && trim($kandidat) !== '') {
+                    $isi = $kandidat;
+                    break;
+                }
+            }
+            if ($isi === '') {
                 return null;
             }
 
@@ -156,14 +255,27 @@ class AiKlasifikasi
 
             return ['jenis' => $jenis, 'tema' => $tema, 'kantor' => $kantor];
         } catch (\Throwable $e) {
-            return null; // segala error → fallback
+            return null; // timeout/hang/koneksi/segala error → provider berikutnya
         }
+    }
+
+    /** True bila setidaknya satu provider AI terkonfigurasi di env. */
+    public static function terkonfigurasi(): bool
+    {
+        return self::daftarProvider() !== [];
     }
 
     /** Ambil objek JSON pertama dari teks (toleran bila ada teks pembungkus). */
     private static function ekstrakJson(string $teks): ?array
     {
         $teks = trim($teks);
+
+        // Lepas pembungkus pagar kode ```json … ``` bila ada.
+        if (str_starts_with($teks, '```')) {
+            $teks = preg_replace('/^```[a-zA-Z]*\s*|\s*```$/', '', $teks);
+            $teks = trim((string) $teks);
+        }
+
         $j = json_decode($teks, true);
         if (is_array($j)) return $j;
 
