@@ -31,8 +31,11 @@ class AiKlasifikasi extends BaseCommand
     /** Maksimal entri prompt yang dibaca per sesi (jaga memori). */
     private const MAKS_ENTRI = 50;
 
-    /** Berapa kali 429 beruntun sebelum batch dihentikan rapi. */
-    private const MAKS_429_BERUNTUN = 3;
+    /** Berapa kali 429 beruntun sebelum batch dihentikan rapi.
+     *  Dilonggarkan (8) agar 429 sesekali tak langsung membatalkan batch;
+     *  dipasangkan dengan jeda ~3,5 dtk di bawah agar tetap di bawah
+     *  batas per-menit model gratis (~20/menit). */
+    private const MAKS_429_BERUNTUN = 8;
 
     public function run(array $params)
     {
@@ -97,8 +100,9 @@ class AiKlasifikasi extends BaseCommand
                     // model sedang dibatasi, kegagalan terjadi terus-menerus.
                     $beruntun429++;
                 }
-                // Hormati rate limit pool gratis.
-                usleep(300000); // 300 ms
+                // Hormati batas per-menit model gratis (~20/menit): jeda
+                // ~3,5 dtk/panggilan menjaga laju di bawah ambang itu.
+                usleep(3500000); // 3,5 detik
             }
 
             if ($hasil === null) {
