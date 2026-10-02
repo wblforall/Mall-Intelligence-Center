@@ -248,6 +248,7 @@ document.addEventListener('DOMContentLoaded', function () {
         green:  dark ? '#199e70' : '#1baf7a',
         amber:  dark ? '#c98500' : '#eda100',
         red:    '#d03b3b',
+        violet: dark ? '#a78bfa' : '#7c3aed',
         slate:  dark ? '#94a3b8' : '#64748b',
     };
     const surface  = dark ? '#0e1a2a' : '#ffffff';
