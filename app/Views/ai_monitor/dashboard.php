@@ -52,7 +52,7 @@ $kantorBadge = [
     <div>
         <h4 class="fw-bold mb-1 ai-dash-title"><i class="bi bi-cpu me-2"></i>Dashboard Pemantauan AI</h4>
         <div class="ai-accent-rule mb-2"></div>
-        <small class="text-muted">Ikhtisar pemakaian Claude Code tim &mdash; <?= tgl_indo($tanggal) ?></small>
+        <small class="text-muted">Ikhtisar pemakaian Claude Code tim &mdash; <span class="fw-semibold"><?= esc($periode['label']) ?></span></small>
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <a href="<?= base_url('ai-monitor') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-people me-1"></i>Per Karyawan</a>
@@ -60,12 +60,21 @@ $kantorBadge = [
     </div>
 </div>
 
+<?= $this->include('ai_monitor/_periode') ?>
+
+<?php if ($pct_kantor !== null && $pct_kantor < $ambang_kantor): ?>
+<div class="alert alert-danger d-flex align-items-center py-2 mb-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <span class="small">Porsi pemakaian untuk <strong>kantor</strong> pada periode ini baru <strong><?= $pct_kantor ?>%</strong> &mdash; di bawah ambang <?= $ambang_kantor ?>%.</span>
+</div>
+<?php endif; ?>
+
 <?php
 $kpiTiles = [
     ['k' => 'prompt_hari_ini',   'lbl' => 'Prompt hari ini',   'icon' => 'bi-chat-dots',       'ico' => 'ai-ico-indigo'],
-    ['k' => 'prompt_7hari',      'lbl' => 'Prompt 7 hari',     'icon' => 'bi-chat-left-text',  'ico' => 'ai-ico-cyan'],
-    ['k' => 'sesi_7hari',        'lbl' => 'Sesi 7 hari',       'icon' => 'bi-collection',      'ico' => 'ai-ico-violet'],
-    ['k' => 'token_7hari',       'lbl' => 'Token 7 hari',      'icon' => 'bi-coin',            'ico' => 'ai-ico-cyan'],
+    ['k' => 'prompt_periode',    'lbl' => 'Prompt periode',    'icon' => 'bi-chat-left-text',  'ico' => 'ai-ico-cyan'],
+    ['k' => 'sesi_periode',      'lbl' => 'Sesi periode',      'icon' => 'bi-collection',      'ico' => 'ai-ico-violet'],
+    ['k' => 'token_periode',     'lbl' => 'Token periode',     'icon' => 'bi-coin',            'ico' => 'ai-ico-cyan'],
     ['k' => 'total_komputer',    'lbl' => 'Total komputer',    'icon' => 'bi-pc-display',      'ico' => 'ai-ico-slate'],
     ['k' => 'komputer_aktif',    'lbl' => 'Komputer aktif',    'icon' => 'bi-check-circle',    'ico' => 'ai-ico-green'],
     ['k' => 'komputer_pending',  'lbl' => 'Menunggu setujui',  'icon' => 'bi-hourglass-split', 'ico' => 'ai-ico-amber'],
@@ -92,7 +101,7 @@ $kpiTiles = [
     <!-- Tren 14 hari -->
     <div class="col-12 col-lg-8">
         <div class="card h-100">
-            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-graph-up-arrow me-2 text-muted"></i>Tren 14 Hari <span class="text-muted fw-normal">(prompt &amp; token)</span></span></div>
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-graph-up-arrow me-2 text-muted"></i>Tren Harian <span class="text-muted fw-normal">(prompt &amp; token &middot; <?= esc($periode['label']) ?>)</span></span></div>
             <div class="card-body">
                 <div style="height:280px"><canvas id="aiTren"></canvas></div>
             </div>
@@ -117,7 +126,7 @@ $kpiTiles = [
     <!-- Top komputer -->
     <div class="col-12 col-lg-6">
         <div class="card h-100">
-            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-pc-display me-2 text-muted"></i>Top Komputer <span class="text-muted fw-normal">(prompt 7 hari)</span></span></div>
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-pc-display me-2 text-muted"></i>Top Komputer <span class="text-muted fw-normal">(prompt · <?= esc($periode["label"]) ?>)</span></span></div>
             <div class="card-body">
                 <?php if (! empty($top_komputer)): ?>
                 <div style="height:<?= max(160, count($top_komputer) * 44 + 40) ?>px"><canvas id="aiTopKomp"></canvas></div>
@@ -130,7 +139,7 @@ $kpiTiles = [
     <!-- Top karyawan -->
     <div class="col-12 col-lg-6">
         <div class="card h-100">
-            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-people me-2 text-muted"></i>Top Karyawan <span class="text-muted fw-normal">(prompt 7 hari)</span></span></div>
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-people me-2 text-muted"></i>Top Karyawan <span class="text-muted fw-normal">(prompt · <?= esc($periode["label"]) ?>)</span></span></div>
             <div class="card-body">
                 <?php if (! empty($top_karyawan)): ?>
                 <div style="height:<?= max(160, count($top_karyawan) * 44 + 40) ?>px"><canvas id="aiTopKar"></canvas></div>
@@ -150,7 +159,7 @@ $adaKlas = array_sum($klas_jenis) > 0;
     <!-- Jenis aktivitas -->
     <div class="col-12 col-lg-4">
         <div class="card h-100">
-            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-diagram-3 me-2 text-muted"></i>Jenis Aktivitas <span class="text-muted fw-normal">(7 hari)</span></span></div>
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-diagram-3 me-2 text-muted"></i>Jenis Aktivitas <span class="text-muted fw-normal">(<?= esc($periode["label"]) ?>)</span></span></div>
             <div class="card-body">
                 <?php if ($adaKlas): ?>
                 <div style="height:260px"><canvas id="aiJenis"></canvas></div>
@@ -163,7 +172,7 @@ $adaKlas = array_sum($klas_jenis) > 0;
     <!-- Top tema -->
     <div class="col-12 col-lg-4">
         <div class="card h-100">
-            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-tags me-2 text-muted"></i>Top Tema <span class="text-muted fw-normal">(7 hari)</span></span></div>
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-tags me-2 text-muted"></i>Top Tema <span class="text-muted fw-normal">(<?= esc($periode["label"]) ?>)</span></span></div>
             <div class="card-body">
                 <?php if (! empty($klas_tema)): ?>
                 <div style="height:<?= max(160, count($klas_tema) * 44 + 40) ?>px"><canvas id="aiTema"></canvas></div>
@@ -176,7 +185,7 @@ $adaKlas = array_sum($klas_jenis) > 0;
     <!-- Kantor vs pribadi -->
     <div class="col-12 col-lg-4">
         <div class="card h-100">
-            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-building me-2 text-muted"></i>Kantor vs Pribadi <span class="text-muted fw-normal">(7 hari)</span></span></div>
+            <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-building me-2 text-muted"></i>Kantor vs Pribadi <span class="text-muted fw-normal">(<?= esc($periode["label"]) ?>)</span></span></div>
             <div class="card-body">
                 <?php if ($adaKlas): ?>
                 <div style="height:260px"><canvas id="aiKantor"></canvas></div>
@@ -261,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ── Tren 14 hari: prompt (batang) + token (garis, sumbu kanan) ──────
-    const deret = <?= json_encode($deret14) ?>;
+    const deret = <?= json_encode($deret) ?>;
     new Chart(document.getElementById('aiTren'), {
         data: {
             labels: deret.map(d => d.label),

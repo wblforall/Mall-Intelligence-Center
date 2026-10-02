@@ -379,6 +379,8 @@ $routes->get('ai-monitor/karyawan/(:num)',   'AiMonitor::karyawan/$1',    ['filt
 $routes->get('ai-monitor/komputer',          'AiMonitor::komputer',       ['filter' => 'auth']);
 $routes->get('ai-monitor/komputer/(:num)',   'AiMonitor::komputerDetail/$1', ['filter' => 'auth']);
 $routes->get('ai-monitor/sesi/(:num)',       'AiMonitor::sesi/$1',        ['filter' => 'auth']);
+// Laporan bulanan cetak (A4, tanpa ttd) — scope global / karyawan / komputer.
+$routes->get('ai-monitor/laporan',           'AiMonitor::laporan',        ['filter' => 'auth']);
 // Perangkat & token (pagar kedua di controller: canEditMenu 'ai_monitor').
 $routes->get ('ai-monitor/perangkat',               'AiMonitor::perangkat',            ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/buat',          'AiMonitor::buatPerangkat',        ['filter' => 'auth']);

@@ -13,23 +13,9 @@
     </a>
 </div>
 
-<div class="card mb-3">
-<div class="card-body py-2">
-    <form method="GET" action="" class="row row-cols-auto g-2 align-items-end">
-        <div class="col">
-            <label class="form-label small mb-1 text-muted">Dari</label>
-            <input type="date" name="dari" value="<?= esc($filter['dari']) ?>" class="form-control form-control-sm">
-        </div>
-        <div class="col">
-            <label class="form-label small mb-1 text-muted">Sampai</label>
-            <input type="date" name="sampai" value="<?= esc($filter['sampai']) ?>" class="form-control form-control-sm">
-        </div>
-        <div class="col">
-            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        </div>
-    </form>
-</div>
-</div>
+<?= $this->include('ai_monitor/_periode', ['printScope' => '&employee_id=' . (int) $scope_id]) ?>
+
+<?= $this->include('ai_monitor/_analisa_panel') ?>
 
 <div class="card">
 <div class="table-responsive">
@@ -89,4 +75,8 @@
 </div>
 </div>
 
+<?= $this->endSection() ?>
+
+<?= $this->section('scripts') ?>
+<?= $this->include('ai_monitor/_analisa_js') ?>
 <?= $this->endSection() ?>

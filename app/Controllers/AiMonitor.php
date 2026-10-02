@@ -40,6 +40,53 @@ class AiMonitor extends BaseController
         return (new \DateTime('now', new \DateTimeZone(self::TZ)))->format('Y-m-d');
     }
 
+    /** YYYY-MM yang sah atau null (kosong/ngawur → null → pakai default). */
+    private function bulanSah(string $bulan): ?string
+    {
+        if ($bulan === '') return null;
+        $d = \DateTime::createFromFormat('Y-m', $bulan);
+        return ($d && $d->format('Y-m') === $bulan) ? $bulan : null;
+    }
+
+    /**
+     * Resolusi pemilih PERIODE dari query string:
+     *   ?periode=7h|30h|bulan  (+ ?bulan=YYYY-MM saat periode=bulan)
+     * Kembalikan ['dari','sampai','label','periode','bulan'] — 'bulan' selalu
+     * terisi (dipakai tombol cetak), default periode '7h'. Bulan ngawur →
+     * bulan berjalan (menurut Asia/Makassar). Rentang bulan = tgl 1 s/d akhir.
+     */
+    private function resolvePeriode(): array
+    {
+        helper('tanggal');
+        $today     = $this->hariIni();
+        $periode   = (string) $this->request->getGet('periode');
+        $bulan     = $this->bulanSah((string) $this->request->getGet('bulan'))
+            ?? substr($today, 0, 7);
+
+        if ($periode === 'bulan') {
+            $dari   = $bulan . '-01';
+            $sampai = date('Y-m-t', strtotime($dari));
+            $label  = bulan_indo((int) substr($bulan, 5, 2)) . ' ' . substr($bulan, 0, 4);
+            return compact('dari', 'sampai', 'label', 'periode', 'bulan');
+        }
+        if ($periode === '30h') {
+            return [
+                'dari'    => date('Y-m-d', strtotime($today . ' -29 days')),
+                'sampai'  => $today,
+                'label'   => '30 hari terakhir',
+                'periode' => '30h',
+                'bulan'   => $bulan,
+            ];
+        }
+        return [
+            'dari'    => date('Y-m-d', strtotime($today . ' -6 days')),
+            'sampai'  => $today,
+            'label'   => '7 hari terakhir',
+            'periode' => '7h',
+            'bulan'   => $bulan,
+        ];
+    }
+
     // ── Dashboard overview ───────────────────────────────────────────────
 
     public function dashboard()
@@ -48,9 +95,10 @@ class AiMonitor extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
-        $today     = $this->hariIni();
-        $weekStart = date('Y-m-d', strtotime($today . ' -6 days'));   // 7 hari inklusif
-        $start14   = date('Y-m-d', strtotime($today . ' -13 days'));  // 14 hari inklusif
+        $today = $this->hariIni();
+        $p     = $this->resolvePeriode();            // pemilih periode (default 7h)
+        $dari  = $p['dari'];
+        $sampai = $p['sampai'];
 
         $sess = $this->sessions;
 
@@ -63,44 +111,34 @@ class AiMonitor extends BaseController
         }
         $totalKomputer = count($devices);
 
-        // ── Deret 14 hari (isi celah tanggal yang kosong dgn 0) ──────────
-        $promptHarian = $sess->promptHarian($start14, $today);
-        $tokenHarian  = $sess->tokenHarian($start14, $today);
-        $deret14 = [];
-        for ($i = 13; $i >= 0; $i--) {
-            $t = date('Y-m-d', strtotime($today . ' -' . $i . ' days'));
-            $deret14[] = [
-                'tanggal' => $t,
-                'label'   => date('d/m', strtotime($t)),
-                'prompt'  => $promptHarian[$t] ?? 0,
-                'token'   => $tokenHarian[$t]  ?? 0,
-            ];
-        }
-
+        // ── Agregat global untuk periode terpilih (KPI, tren, klasifikasi) ─
+        $agg     = $sess->analisa($dari, $sampai);   // scope global
         $hariIni = $sess->totalEntriRentang($today, $today);
-        $tujuh   = $sess->totalEntriRentang($weekStart, $today);
 
         $data = [
-            'tanggal' => $today,
+            'tanggal'  => $today,
+            'periode'  => $p,
             'kpi' => [
                 'total_komputer'    => $totalKomputer,
                 'komputer_aktif'    => $statusCounts['aktif'],
                 'komputer_pending'  => $statusCounts['pending'],
                 'komputer_diblokir' => $statusCounts['diblokir'],
                 'prompt_hari_ini'   => $hariIni['prompt'],
-                'prompt_7hari'      => $tujuh['prompt'],
-                'sesi_7hari'        => $tujuh['sesi'],
-                'token_7hari'       => $sess->totalTokenRentang($weekStart, $today),
+                'prompt_periode'    => $agg['total']['prompt'],
+                'sesi_periode'      => $agg['total']['sesi'],
+                'token_periode'     => $agg['total']['token'],
             ],
-            'deret14'       => $deret14,
+            'deret'         => $agg['tren'],
+            'pct_kantor'    => $agg['pct_kantor'],
+            'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
             'status_counts' => $statusCounts,
-            'top_komputer'  => $sess->topKomputer($weekStart, $today, 5),
-            'top_karyawan'  => $sess->topKaryawan($weekStart, $today, 5),
+            'top_komputer'  => $sess->topKomputer($dari, $sampai, 5),
+            'top_karyawan'  => $sess->topKaryawan($dari, $sampai, 5),
             'sesi_terbaru'  => $sess->sesiTerbaru(10),
-            // Klasifikasi sesi (window 7 hari, konsisten KPI lain).
-            'klas_jenis'  => $sess->jenisCounts($weekStart, $today),
-            'klas_tema'   => $sess->temaTop($weekStart, $today, 5),
-            'klas_kantor' => $sess->kantorCounts($weekStart, $today),
+            // Klasifikasi sesi pada periode terpilih.
+            'klas_jenis'  => $agg['jenis'],
+            'klas_tema'   => $agg['tema'],
+            'klas_kantor' => $agg['kantor'],
         ];
 
         return view('ai_monitor/dashboard', $data);
@@ -168,17 +206,17 @@ class AiMonitor extends BaseController
             ->where('e.id', $employeeId)
             ->get()->getRowArray() ?? ['nama' => '(tidak ditemukan)', 'dept' => '-'];
 
-        // Default rentang: 7 hari terakhir. GET dari/sampai mengesampingkan,
-        // divalidasi agar tak ada tanggal ngawur yang masuk ke query.
-        $today  = $this->hariIni();
-        $dari   = $this->tanggalSah((string) $this->request->getGet('dari'))   ?? date('Y-m-d', strtotime($today . ' -6 days'));
-        $sampai = $this->tanggalSah((string) $this->request->getGet('sampai')) ?? $today;
-        if ($dari > $sampai) [$dari, $sampai] = [$sampai, $dari];
+        // Pemilih periode sama seperti dashboard (7h / 30h / bulan).
+        $p   = $this->resolvePeriode();
+        $agg = $this->sessions->analisa($p['dari'], $p['sampai'], ['employee_id' => $employeeId]);
 
         return view('ai_monitor/karyawan', [
-            'emp'      => $emp,
-            'filter'   => ['dari' => $dari, 'sampai' => $sampai],
-            'sessions' => $this->sessions->byKaryawan($employeeId, $dari, $sampai),
+            'emp'           => $emp,
+            'periode'       => $p,
+            'analisa'       => $agg,
+            'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
+            'scope_id'      => $employeeId,
+            'sessions'      => $this->sessions->byKaryawan($employeeId, $p['dari'], $p['sampai']),
         ]);
     }
 
@@ -204,14 +242,6 @@ class AiMonitor extends BaseController
             'sesi'    => $sesi,
             'entries' => (new AiEntryModel())->bySesi($sessionId),
         ]);
-    }
-
-    /** Y-m-d yang sah atau null (kosong/ngawur → null → pakai default). */
-    private function tanggalSah(string $tanggal): ?string
-    {
-        if ($tanggal === '') return null;
-        $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        return ($d && $d->format('Y-m-d') === $tanggal) ? $tanggal : null;
     }
 
     /**
@@ -300,10 +330,9 @@ class AiMonitor extends BaseController
             return redirect()->to('/ai-monitor/komputer')->with('error', 'Perangkat tidak ditemukan.');
         }
 
-        $today  = $this->hariIni();
-        $dari   = $this->tanggalSah((string) $this->request->getGet('dari'))   ?? date('Y-m-d', strtotime($today . ' -6 days'));
-        $sampai = $this->tanggalSah((string) $this->request->getGet('sampai')) ?? $today;
-        if ($dari > $sampai) [$dari, $sampai] = [$sampai, $dari];
+        // Pemilih periode sama seperti dashboard (7h / 30h / bulan).
+        $p   = $this->resolvePeriode();
+        $agg = $this->sessions->analisa($p['dari'], $p['sampai'], ['device_id' => $deviceId]);
 
         return view('ai_monitor/komputer_detail', [
             'dev' => [
@@ -313,8 +342,81 @@ class AiMonitor extends BaseController
                 'status'        => $this->statusPerangkat($dev),
                 'host_terakhir' => $dev['host_terakhir'],
             ],
-            'filter'   => ['dari' => $dari, 'sampai' => $sampai],
-            'sessions' => $this->sessions->byPerangkat($deviceId, $dari, $sampai),
+            'periode'       => $p,
+            'analisa'       => $agg,
+            'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
+            'scope_id'      => $deviceId,
+            'sessions'      => $this->sessions->byPerangkat($deviceId, $p['dari'], $p['sampai']),
+        ]);
+    }
+
+    // ── Laporan bulanan (cetak A4, TANPA tanda tangan) ───────────────────
+    //
+    // GET /ai-monitor/laporan?bulan=YYYY-MM[&employee_id=N|&device_id=N]
+    // Scope global (default), per karyawan, atau per komputer. Memakai style
+    // cetak _laporan/_style.php; sengaja TIDAK memakai _laporan/_ttd.
+
+    public function laporan()
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        helper('tanggal');
+        $today  = $this->hariIni();
+        $bulan  = $this->bulanSah((string) $this->request->getGet('bulan')) ?? substr($today, 0, 7);
+        $dari   = $bulan . '-01';
+        $sampai = date('Y-m-t', strtotime($dari));
+        $label  = bulan_indo((int) substr($bulan, 5, 2)) . ' ' . substr($bulan, 0, 4);
+
+        $employeeId = (int) $this->request->getGet('employee_id');
+        $deviceId   = (int) $this->request->getGet('device_id');
+
+        $scope      = [];
+        $scopeLabel = 'Semua karyawan & komputer';
+        $sesiList   = null;
+        $rekap      = null;
+        $komputerAktif = null;
+
+        if ($employeeId) {
+            $scope = ['employee_id' => $employeeId];
+            $emp = db_connect()->table('employees e')
+                ->select('e.nama AS nama, d.name AS dept')
+                ->join('departments d', 'd.id = e.dept_id', 'left')
+                ->where('e.id', $employeeId)
+                ->get()->getRowArray();
+            $scopeLabel = 'Karyawan: ' . ($emp['nama'] ?? '(tidak ditemukan)')
+                . (! empty($emp['dept']) ? ' — ' . $emp['dept'] : '');
+            $sesiList = $this->sessions->sesiRentangScope($dari, $sampai, $scope);
+        } elseif ($deviceId) {
+            $scope = ['device_id' => $deviceId];
+            $dev = db_connect()->table('ai_devices d')
+                ->select('d.label AS label, emp.nama AS nama')
+                ->join('employees emp', 'emp.id = d.employee_id', 'left')
+                ->where('d.id', $deviceId)
+                ->get()->getRowArray();
+            $scopeLabel = 'Komputer: ' . ($dev['label'] ?? '(tidak ditemukan)')
+                . (! empty($dev['nama']) ? ' — ' . $dev['nama'] : '');
+            $sesiList = $this->sessions->sesiRentangScope($dari, $sampai, $scope);
+        } else {
+            $rekap         = $this->sessions->rekapKaryawanRentang($dari, $sampai);
+            $komputerAktif = $this->sessions->jmlKomputerAktif($dari, $sampai);
+        }
+
+        $agg = $this->sessions->analisa($dari, $sampai, $scope);
+
+        return view('ai_monitor/laporan', [
+            'bulan'         => $bulan,
+            'bulanLabel'    => $label,
+            'scopeLabel'    => $scopeLabel,
+            'isGlobal'      => empty($scope),
+            'analisa'       => $agg,
+            'rekap'         => $rekap,
+            'komputerAktif' => $komputerAktif,
+            'sesiList'      => $sesiList,
+            'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
+            'printedBy'     => $this->currentUser()['name'] ?? '',
+            'printedAt'     => date('d M Y H:i'),
         ]);
     }
 
