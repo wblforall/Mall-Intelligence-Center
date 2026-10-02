@@ -44,6 +44,136 @@ class AiKlasifikasi
     private const EXT_KODE = ['.php', '.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.sql',
         '.css', '.scss', '.html', '.java', '.go', '.rb', '.sh', '.json', '.c', '.cpp', '.cs'];
 
+    /** Nilai enum sah — dipakai untuk validasi keluaran AI. */
+    private const JENIS_SAH  = ['coding', 'debugging', 'ideating', 'menulis', 'riset', 'lainnya'];
+    private const KANTOR_SAH = ['kantor', 'pribadi', 'tak_jelas'];
+
+    /**
+     * Klasifikasi berbasis LLM (provider-agnostik, OpenAI-compatible).
+     *
+     * Memanggil endpoint {base_url}/chat/completions via HTTP (bukan SDK apa
+     * pun) dengan konfigurasi dari env(): aiklas.base_url, aiklas.model,
+     * aiklas.api_key. Kembalikan ['jenis','tema','kantor'] bila sukses, atau
+     * NULL untuk SEGALA kegagalan (key kosong, HTTP != 200, 429, JSON tak
+     * valid, exception) — pemanggil lalu jatuh ke {@see kataKunci}.
+     *
+     * Catatan privasi: isi prompt yang dikirim SUDAH disamarkan rahasianya di
+     * server oleh AiLog::samarkan() sebelum disimpan, jadi aman dikirim ke
+     * penyedia LLM.
+     *
+     * @param string[] $promptTeks
+     * @return array{jenis:string, tema:string, kantor:string}|null
+     */
+    public static function ai(array $promptTeks, ?string $proyek, ?string $gitBranch, int $jmlAlat): ?array
+    {
+        $baseUrl = rtrim((string) env('aiklas.base_url'), '/');
+        $model   = (string) env('aiklas.model');
+        $apiKey  = (string) env('aiklas.api_key');
+        if ($apiKey === '' || $baseUrl === '' || $model === '') {
+            return null; // belum dikonfigurasi → fallback
+        }
+
+        // Cuplikan prompt, dipotong total agar hemat token & biaya.
+        $cuplikan = mb_substr(trim(implode("\n---\n", $promptTeks)), 0, 4000);
+
+        $sistem = 'Anda mengklasifikasi sesi penggunaan Claude Code (asisten coding) '
+            . 'berdasarkan cuplikan prompt pengguna dan nama proyek. '
+            . 'Jawab HANYA satu objek JSON tanpa teks lain, berbentuk: '
+            . '{"jenis": "<coding|debugging|ideating|menulis|riset|lainnya>", '
+            . '"tema": "<ringkas, maksimal 60 karakter>", '
+            . '"kantor": "<kantor|pribadi|tak_jelas>"}. '
+            . 'Arti jenis: coding = menulis/ubah kode; debugging = memperbaiki error/bug; '
+            . 'ideating = menggagas ide/rencana/rancangan; menulis = menyusun teks non-kode '
+            . '(email, artikel, ringkasan, terjemahan); riset = mencari tahu/menjelaskan/membandingkan; '
+            . 'lainnya = selain itu. '
+            . 'Arti kantor: kantor = berkaitan pekerjaan atau sistem internal perusahaan '
+            . '(termasuk bila nama proyek adalah sistem kerja); pribadi = urusan pribadi; '
+            . 'tak_jelas = tidak cukup petunjuk. Bila ragu pada kantor, pilih tak_jelas.';
+
+        $pengguna = 'Proyek: ' . ($proyek ?: '(tidak ada)')
+            . "\nBranch git: " . ($gitBranch ?: '(tidak ada)')
+            . "\nJumlah pemanggilan alat: " . $jmlAlat
+            . "\n\nCuplikan prompt pengguna:\n" . ($cuplikan !== '' ? $cuplikan : '(kosong)');
+
+        try {
+            $client = \Config\Services::curlrequest([
+                'timeout'     => 25,
+                'http_errors' => false, // jangan lempar pada status != 2xx
+            ]);
+            $resp = $client->post($baseUrl . '/chat/completions', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type'  => 'application/json',
+                    // Disarankan OpenRouter (identifikasi aplikasi; opsional).
+                    'HTTP-Referer'  => 'https://mic.wbl-bsb.com',
+                    'X-Title'       => 'MIC AI Monitor',
+                ],
+                'json' => [
+                    'model'           => $model,
+                    'temperature'     => 0,
+                    'max_tokens'      => 200,
+                    // Diminta bila didukung; parsing di bawah tetap defensif.
+                    'response_format' => ['type' => 'json_object'],
+                    'messages' => [
+                        ['role' => 'system', 'content' => $sistem],
+                        ['role' => 'user',   'content' => $pengguna],
+                    ],
+                ],
+            ]);
+
+            if ($resp->getStatusCode() !== 200) {
+                return null;
+            }
+
+            $data = json_decode((string) $resp->getBody(), true);
+            $isi  = $data['choices'][0]['message']['content'] ?? null;
+            if (! is_string($isi) || $isi === '') {
+                return null;
+            }
+
+            $parsed = self::ekstrakJson($isi);
+            if ($parsed === null) {
+                return null;
+            }
+
+            // Validasi enum + rapikan tema.
+            $jenis = strtolower(trim((string) ($parsed['jenis'] ?? '')));
+            if (! in_array($jenis, self::JENIS_SAH, true)) $jenis = 'lainnya';
+
+            $kantor = strtolower(trim((string) ($parsed['kantor'] ?? '')));
+            if (! in_array($kantor, self::KANTOR_SAH, true)) $kantor = 'tak_jelas';
+
+            $tema = trim((string) ($parsed['tema'] ?? ''));
+            $tema = mb_substr($tema, 0, 100);
+            if ($tema === '') {
+                $tema = ($proyek !== null && trim($proyek) !== '')
+                    ? self::rapikanLabel(trim($proyek)) : 'Lainnya';
+            }
+
+            return ['jenis' => $jenis, 'tema' => $tema, 'kantor' => $kantor];
+        } catch (\Throwable $e) {
+            return null; // segala error → fallback
+        }
+    }
+
+    /** Ambil objek JSON pertama dari teks (toleran bila ada teks pembungkus). */
+    private static function ekstrakJson(string $teks): ?array
+    {
+        $teks = trim($teks);
+        $j = json_decode($teks, true);
+        if (is_array($j)) return $j;
+
+        // Model kadang membungkus JSON dengan teks/```json. Ambil { ... } pertama.
+        $awal = strpos($teks, '{');
+        $akhir = strrpos($teks, '}');
+        if ($awal !== false && $akhir !== false && $akhir > $awal) {
+            $kandidat = substr($teks, $awal, $akhir - $awal + 1);
+            $j = json_decode($kandidat, true);
+            if (is_array($j)) return $j;
+        }
+        return null;
+    }
+
     /**
      * Klasifikasi berbasis kata kunci.
      *

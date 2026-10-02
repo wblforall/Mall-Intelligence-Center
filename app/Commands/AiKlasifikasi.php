@@ -31,11 +31,21 @@ class AiKlasifikasi extends BaseCommand
     /** Maksimal entri prompt yang dibaca per sesi (jaga memori). */
     private const MAKS_ENTRI = 50;
 
+    /** Berapa kali 429 beruntun sebelum batch dihentikan rapi. */
+    private const MAKS_429_BERUNTUN = 3;
+
     public function run(array $params)
     {
         $batas  = (int) (CLI::getOption('batas') ?: 500);
         $dryRun = (bool) CLI::getOption('dry-run');
         $db     = db_connect();
+
+        // Mode: 'ai' memakai LLM dengan fallback kata kunci; selain itu
+        // (termasuk kosong) murni kata kunci. AI hanya aktif bila key tersedia.
+        $mode      = strtolower((string) (env('aiklas.mode') ?: 'kata_kunci'));
+        $punyaKey  = ((string) env('aiklas.api_key')) !== '';
+        $pakaiAi   = ($mode === 'ai') && $punyaKey;
+        CLI::write('Mode: ' . ($pakaiAi ? 'ai (fallback kata_kunci)' : 'kata_kunci'), 'cyan');
 
         // Sesi yang perlu (re)klasifikasi: belum pernah, atau sudah bertambah
         // entrinya sejak terakhir diklasifikasi.
@@ -51,8 +61,11 @@ class AiKlasifikasi extends BaseCommand
 
         CLI::write('Sesi perlu diklasifikasi: ' . count($sesi), 'cyan');
 
-        $n   = 0;
-        $now = date('Y-m-d H:i:s');
+        $viaAi   = 0;
+        $viaKw   = 0;
+        $beruntun429 = 0;
+        $now     = date('Y-m-d H:i:s');
+
         foreach ($sesi as $s) {
             $sesiId = (int) $s['id'];
 
@@ -65,27 +78,56 @@ class AiKlasifikasi extends BaseCommand
                 ->orderBy('waktu', 'ASC')
                 ->limit(self::MAKS_ENTRI)
                 ->get()->getResultArray();
-            $teks = array_column($rows, 'isi');
+            $teks   = array_column($rows, 'isi');
+            $proyek = $s['proyek'] ?? null;
+            $branch = $s['git_branch'] ?? null;
+            $alat   = (int) $s['jml_alat'];
 
-            $hasil = Klasifikator::kataKunci(
-                $teks,
-                $s['proyek'] ?? null,
-                $s['git_branch'] ?? null,
-                (int) $s['jml_alat']
-            );
+            $hasil  = null;
+            $metode = 'kata_kunci';
+
+            if ($pakaiAi) {
+                $hasil = Klasifikator::ai($teks, $proyek, $branch, $alat);
+                if ($hasil !== null) {
+                    $metode = 'ai';
+                    $beruntun429 = 0; // sukses → reset penghitung rate-limit
+                } else {
+                    // Gagal (bisa 429/err/JSON invalid). Deteksi 429 beruntun:
+                    // ai() menelan detail, jadi kita pakai heuristik — bila
+                    // model sedang dibatasi, kegagalan terjadi terus-menerus.
+                    $beruntun429++;
+                }
+                // Hormati rate limit pool gratis.
+                usleep(300000); // 300 ms
+            }
+
+            if ($hasil === null) {
+                $hasil  = Klasifikator::kataKunci($teks, $proyek, $branch, $alat);
+                $metode = 'kata_kunci';
+            }
 
             if (! $dryRun) {
                 $db->table('ai_sessions')->where('id', $sesiId)->update([
                     'klasifikasi_jenis'  => $hasil['jenis'],
                     'klasifikasi_tema'   => $hasil['tema'],
                     'klasifikasi_kantor' => $hasil['kantor'],
-                    'klasifikasi_metode' => 'kata_kunci',
+                    'klasifikasi_metode' => $metode,
                     'klasifikasi_at'     => $now,
                 ]);
             }
-            $n++;
+            $metode === 'ai' ? $viaAi++ : $viaKw++;
+
+            // Bila AI gagal beruntun (kemungkinan rate-limited), hentikan batch
+            // dengan rapi; sisanya diproses run berikutnya (tetap idempoten).
+            if ($pakaiAi && $beruntun429 >= self::MAKS_429_BERUNTUN) {
+                CLI::write('Peringatan: AI gagal/rate-limited beruntun — batch dihentikan, sisanya menyusul di run berikutnya.', 'yellow');
+                break;
+            }
         }
 
-        CLI::write("Selesai. Diklasifikasi: {$n}" . ($dryRun ? ' (dry-run, tidak disimpan)' : ''), 'green');
+        CLI::write(
+            "Selesai. via ai: {$viaAi} · via kata_kunci: {$viaKw}" . ($dryRun ? ' (dry-run, tidak disimpan)' : ''),
+            'green'
+        );
     }
 }
