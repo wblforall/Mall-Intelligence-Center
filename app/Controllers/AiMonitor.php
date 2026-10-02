@@ -87,6 +87,61 @@ class AiMonitor extends BaseController
         ];
     }
 
+    /**
+     * RINGKASAN KESELURUHAN (agregat) untuk satu scope pada periode aktif.
+     *
+     * Mensintesis seluruh ringkasan per-sesi menjadi SATU paragraf lewat
+     * AiKlasifikasi::ringkasanPeriode(). Dibungkus cache CI4 (TTL 1 jam, key
+     * memuat rentang) agar refresh halaman tak memanggil AI berulang; null
+     * (AI gagal/tak dikonfigurasi) ikut di-cache sebagai '' supaya tak dicoba
+     * terus. Pemanggil yang menerima null menampilkan fallback rule-based.
+     *
+     * @param array $sessions Daftar sesi (byKaryawan/byPerangkat/sesiRentangScope):
+     *                        tiap baris punya judul, ringkasan, klasifikasi_*.
+     * @param array $analisa  Hasil AiSessionModel::analisa() (total, jenis, pct_kantor).
+     */
+    private function ringkasanPeriode(array $sessions, array $analisa, string $nama, string $labelPeriode, string $cacheKey): ?string
+    {
+        $cache = \Config\Services::cache();
+        $hit   = $cache->get($cacheKey);
+        if ($hit !== null) {
+            return $hit === '' ? null : $hit;   // '' = sudah dicoba, hasil kosong
+        }
+
+        $items = [];
+        foreach ($sessions as $s) {
+            $items[] = [
+                'judul'     => $s['judul'] ?? '',
+                'ringkasan' => $s['ringkasan'] ?? '',
+                'jenis'     => $s['klasifikasi_jenis'] ?? '',
+                'tema'      => $s['klasifikasi_tema'] ?? '',
+                'kantor'    => $s['klasifikasi_kantor'] ?? '',
+            ];
+        }
+
+        $meta = [
+            'nama'          => $nama,
+            'label_periode' => $labelPeriode,
+            'total_sesi'    => $analisa['total']['sesi'] ?? 0,
+            'total_prompt'  => $analisa['total']['prompt'] ?? 0,
+            'jenis_dominan' => $this->jenisDominan($analisa['jenis'] ?? []),
+            'pct_kantor'    => $analisa['pct_kantor'] ?? null,
+        ];
+
+        $hasil = \App\Libraries\AiKlasifikasi::ringkasanPeriode($items, $meta);
+        $cache->save($cacheKey, $hasil ?? '', 3600);
+        return $hasil;
+    }
+
+    /** Jenis dengan jumlah sesi tertinggi (abaikan 'Belum'); null bila kosong. */
+    private function jenisDominan(array $jenis): ?string
+    {
+        unset($jenis['Belum']);
+        if ($jenis === []) return null;
+        arsort($jenis);
+        return (string) array_key_first($jenis);
+    }
+
     // ── Dashboard overview ───────────────────────────────────────────────
 
     public function dashboard()
@@ -207,17 +262,24 @@ class AiMonitor extends BaseController
             ->get()->getRowArray() ?? ['nama' => '(tidak ditemukan)', 'dept' => '-'];
 
         // Pemilih periode sama seperti dashboard (7h / 30h / bulan).
-        $p   = $this->resolvePeriode();
-        $agg = $this->sessions->analisa($p['dari'], $p['sampai'], ['employee_id' => $employeeId]);
+        $p        = $this->resolvePeriode();
+        $agg      = $this->sessions->analisa($p['dari'], $p['sampai'], ['employee_id' => $employeeId]);
+        $sessions = $this->sessions->byKaryawan($employeeId, $p['dari'], $p['sampai']);
+
+        $ringkasanPeriode = $this->ringkasanPeriode(
+            $sessions, $agg, $emp['nama'] ?? '', $p['label'],
+            "ai_ringkasanperiode_emp{$employeeId}_{$p['dari']}_{$p['sampai']}"
+        );
 
         return view('ai_monitor/karyawan', [
-            'emp'           => $emp,
-            'periode'       => $p,
-            'analisa'       => $agg,
-            'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
-            'scope_id'      => $employeeId,
-            'printScope'    => '&employee_id=' . $employeeId,
-            'sessions'      => $this->sessions->byKaryawan($employeeId, $p['dari'], $p['sampai']),
+            'emp'              => $emp,
+            'periode'          => $p,
+            'analisa'          => $agg,
+            'ambang_kantor'    => AiSessionModel::AMBANG_KANTOR,
+            'scope_id'         => $employeeId,
+            'printScope'       => '&employee_id=' . $employeeId,
+            'sessions'         => $sessions,
+            'ringkasan_periode' => $ringkasanPeriode,
         ]);
     }
 
@@ -332,8 +394,15 @@ class AiMonitor extends BaseController
         }
 
         // Pemilih periode sama seperti dashboard (7h / 30h / bulan).
-        $p   = $this->resolvePeriode();
-        $agg = $this->sessions->analisa($p['dari'], $p['sampai'], ['device_id' => $deviceId]);
+        $p        = $this->resolvePeriode();
+        $agg      = $this->sessions->analisa($p['dari'], $p['sampai'], ['device_id' => $deviceId]);
+        $sessions = $this->sessions->byPerangkat($deviceId, $p['dari'], $p['sampai']);
+
+        $namaRingkas = ($dev['nama'] ?: '') !== '' ? $dev['nama'] : ('Komputer: ' . $dev['label']);
+        $ringkasanPeriode = $this->ringkasanPeriode(
+            $sessions, $agg, $namaRingkas, $p['label'],
+            "ai_ringkasanperiode_dev{$deviceId}_{$p['dari']}_{$p['sampai']}"
+        );
 
         return view('ai_monitor/komputer_detail', [
             'dev' => [
@@ -343,12 +412,13 @@ class AiMonitor extends BaseController
                 'status'        => $this->statusPerangkat($dev),
                 'host_terakhir' => $dev['host_terakhir'],
             ],
-            'periode'       => $p,
-            'analisa'       => $agg,
-            'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
-            'scope_id'      => $deviceId,
-            'printScope'    => '&device_id=' . $deviceId,
-            'sessions'      => $this->sessions->byPerangkat($deviceId, $p['dari'], $p['sampai']),
+            'periode'          => $p,
+            'analisa'          => $agg,
+            'ambang_kantor'    => AiSessionModel::AMBANG_KANTOR,
+            'scope_id'         => $deviceId,
+            'printScope'       => '&device_id=' . $deviceId,
+            'sessions'         => $sessions,
+            'ringkasan_periode' => $ringkasanPeriode,
         ]);
     }
 
@@ -402,15 +472,27 @@ class AiMonitor extends BaseController
                 . (! empty($dev['nama']) ? ' — ' . $dev['nama'] : '');
         }
 
+        $analisa  = $this->sessions->analisa($dari, $sampai, $scope);
+        $sesiList = $this->sessions->sesiRentangScope($dari, $sampai, $scope);
+
+        // Nama scope untuk prompt ringkasan (tanpa prefiks "Karyawan:/Komputer:").
+        $namaScope = $employeeId
+            ? ($emp['nama'] ?? '')
+            : (($dev['nama'] ?? '') !== '' ? $dev['nama'] : ('Komputer: ' . ($dev['label'] ?? '')));
+        $cacheKey  = $employeeId
+            ? "ai_ringkasanperiode_emp{$employeeId}_{$dari}_{$sampai}"
+            : "ai_ringkasanperiode_dev{$deviceId}_{$dari}_{$sampai}";
+
         return view('ai_monitor/laporan', [
-            'bulan'         => $bulan,
-            'bulanLabel'    => $label,
-            'scopeLabel'    => $scopeLabel,
-            'analisa'       => $this->sessions->analisa($dari, $sampai, $scope),
-            'sesiList'      => $this->sessions->sesiRentangScope($dari, $sampai, $scope),
-            'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
-            'printedBy'     => $this->currentUser()['name'] ?? '',
-            'printedAt'     => date('d M Y H:i'),
+            'bulan'            => $bulan,
+            'bulanLabel'       => $label,
+            'scopeLabel'       => $scopeLabel,
+            'analisa'          => $analisa,
+            'sesiList'         => $sesiList,
+            'ambang_kantor'    => AiSessionModel::AMBANG_KANTOR,
+            'printedBy'        => $this->currentUser()['name'] ?? '',
+            'printedAt'        => date('d M Y H:i'),
+            'ringkasan_periode' => $this->ringkasanPeriode($sesiList, $analisa, $namaScope, $label, $cacheKey),
         ]);
     }
 

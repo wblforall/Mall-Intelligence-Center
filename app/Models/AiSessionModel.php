@@ -125,7 +125,8 @@ class AiSessionModel extends Model
      */
     public function byPerangkat(int $deviceId, string $dari, string $sampai): array
     {
-        return $this->select('id, judul, ringkasan, klasifikasi_tema, proyek, git_branch, model, mulai_at,
+        return $this->select('id, judul, ringkasan, klasifikasi_jenis, klasifikasi_tema, klasifikasi_kantor,
+                              proyek, git_branch, model, mulai_at,
                               terakhir_at, jml_prompt, jml_alat, token_masuk, token_keluar')
             ->where('device_id', $deviceId)
             ->where('DATE(terakhir_at) >=', $dari)
@@ -159,7 +160,8 @@ class AiSessionModel extends Model
      */
     public function byKaryawan(int $employeeId, string $dari, string $sampai): array
     {
-        return $this->select('id, judul, ringkasan, klasifikasi_tema, proyek, git_branch, model, mulai_at,
+        return $this->select('id, judul, ringkasan, klasifikasi_jenis, klasifikasi_tema, klasifikasi_kantor,
+                              proyek, git_branch, model, mulai_at,
                               terakhir_at, jml_prompt, jml_alat, token_masuk, token_keluar')
             ->where('employee_id', $employeeId)
             ->where('DATE(terakhir_at) >=', $dari)
@@ -515,7 +517,7 @@ class AiSessionModel extends Model
     {
         [$col, $val] = $this->scopeKolom($scope);
         $b = $this->db->table('ai_sessions s')
-            ->select('s.id, s.judul, s.proyek, s.klasifikasi_jenis, s.klasifikasi_tema,
+            ->select('s.id, s.judul, s.ringkasan, s.proyek, s.klasifikasi_jenis, s.klasifikasi_tema,
                       s.klasifikasi_kantor, s.mulai_at, s.terakhir_at, s.jml_prompt,
                       s.token_masuk, s.token_keluar')
             ->where('DATE(s.terakhir_at) >=', $dari)

@@ -131,15 +131,122 @@ class AiKlasifikasi
             . "\nJumlah pemanggilan alat: " . $jmlAlat
             . "\n\nCuplikan prompt pengguna:\n" . ($cuplikan !== '' ? $cuplikan : '(kosong)');
 
-        foreach ($providers as $p) {
-            $hasil = self::panggilProvider($p, $sistem, $pengguna, $proyek);
-            if ($hasil !== null) {
-                self::$providerTerakhir = $p['label'];
-                return $hasil;
-            }
+        // Panggil provider (multi-provider failover di panggilProvider), lalu
+        // parse + validasi JSON di sini. $providerTerakhir di-set di dalam loop.
+        $isi = self::panggilProvider($sistem, $pengguna, self::AI_MAX_TOKENS);
+        if ($isi === null) {
+            return null; // semua provider gagal → fallback kata kunci
         }
 
-        return null; // semua provider gagal → fallback kata kunci
+        $parsed = self::ekstrakJson($isi);
+        if ($parsed === null) {
+            return null;
+        }
+
+        // Validasi enum + rapikan tema.
+        $jenis = strtolower(trim((string) ($parsed['jenis'] ?? '')));
+        if (! in_array($jenis, self::JENIS_SAH, true)) $jenis = 'lainnya';
+
+        $kantor = strtolower(trim((string) ($parsed['kantor'] ?? '')));
+        if (! in_array($kantor, self::KANTOR_SAH, true)) $kantor = 'tak_jelas';
+
+        $tema = trim((string) ($parsed['tema'] ?? ''));
+        $tema = mb_substr($tema, 0, 100);
+        if ($tema === '') {
+            $tema = ($proyek !== null && trim($proyek) !== '')
+                ? self::rapikanLabel(trim($proyek)) : 'Lainnya';
+        }
+
+        // Ringkasan: trim ≤300 char; kosong → null.
+        $ringkasan = trim((string) ($parsed['ringkasan'] ?? ''));
+        $ringkasan = $ringkasan === '' ? null : mb_substr($ringkasan, 0, 300);
+
+        return ['jenis' => $jenis, 'tema' => $tema, 'kantor' => $kantor, 'ringkasan' => $ringkasan];
+    }
+
+    /**
+     * RINGKASAN AGREGAT per orang/komputer untuk sebuah periode.
+     *
+     * Mensintesis ringkasan tiap sesi menjadi SATU paragraf (3-5 kalimat)
+     * Bahasa Indonesia: apa saja yang dikerjakan & dihasilkan, pola/fokus utama,
+     * dan porsi kerja (kantor) vs pribadi. Memakai {@see panggilProvider} yang
+     * sama (multi-provider failover). TIDAK melempar error — segala kegagalan
+     * (provider mati, kosong, exception) → NULL agar pemanggil pakai fallback.
+     *
+     * @param array<int, array{judul?:string, ringkasan?:string, jenis?:string,
+     *              tema?:string, kantor?:string}> $items Daftar per-sesi (maks ~40,
+     *              total dipotong ≤4000 char).
+     * @param array{nama?:string, label_periode?:string, total_sesi?:int,
+     *              total_prompt?:int, jenis_dominan?:string, pct_kantor?:int|null} $meta
+     * @return string|null Paragraf ringkasan (≤800 char) atau null.
+     */
+    public static function ringkasanPeriode(array $items, array $meta): ?string
+    {
+        try {
+            if ($items === [] || ! self::terkonfigurasi()) {
+                return null;
+            }
+
+            // Maks ~40 sesi, lalu potong total daftar ≤4000 char.
+            $items = array_slice($items, 0, 40);
+            $baris = [];
+            $panjang = 0;
+            foreach ($items as $it) {
+                $judul  = trim((string) ($it['judul'] ?? ''));
+                $ring   = trim((string) ($it['ringkasan'] ?? ''));
+                $jenis  = trim((string) ($it['jenis'] ?? ''));
+                $tema   = trim((string) ($it['tema'] ?? ''));
+                $kantor = trim((string) ($it['kantor'] ?? ''));
+
+                $teks = '- ' . ($judul !== '' ? $judul : '(tanpa judul)');
+                $tag  = array_filter([$jenis, $tema, $kantor], fn($v) => $v !== '');
+                if ($tag !== []) $teks .= ' [' . implode(', ', $tag) . ']';
+                if ($ring !== '') $teks .= ': ' . $ring;
+
+                if ($panjang + mb_strlen($teks) > 4000) break;
+                $baris[]  = $teks;
+                $panjang += mb_strlen($teks) + 1;
+            }
+            if ($baris === []) {
+                return null;
+            }
+
+            $sistem = 'Rangkum aktivitas penggunaan Claude Code (asisten coding) seseorang '
+                . 'selama sebuah periode, berdasarkan ringkasan tiap sesinya. '
+                . 'Tulis 3-5 kalimat Bahasa Indonesia dalam SATU paragraf. '
+                . 'Fokus: APA SAJA yang dikerjakan & dihasilkan, pola/fokus utama, '
+                . 'dan porsi kerja (kantor) vs pribadi. Netral & faktual, tanpa menghakimi. '
+                . 'Jangan mengarang di luar data. Jawab HANYA paragraf ringkasannya, '
+                . 'tanpa judul, tanpa poin, tanpa kata pembuka.';
+
+            $m = [];
+            if (! empty($meta['nama']))          $m[] = 'Nama: ' . $meta['nama'];
+            if (! empty($meta['label_periode'])) $m[] = 'Periode: ' . $meta['label_periode'];
+            if (isset($meta['total_sesi']))      $m[] = 'Total sesi: ' . (int) $meta['total_sesi'];
+            if (isset($meta['total_prompt']))    $m[] = 'Total prompt: ' . (int) $meta['total_prompt'];
+            if (! empty($meta['jenis_dominan'])) $m[] = 'Jenis dominan: ' . $meta['jenis_dominan'];
+            if (isset($meta['pct_kantor']) && $meta['pct_kantor'] !== null) {
+                $m[] = 'Porsi kantor: ' . (int) $meta['pct_kantor'] . '%';
+            }
+
+            $pengguna = "Konteks:\n" . implode("\n", $m)
+                . "\n\nRingkasan tiap sesi:\n" . implode("\n", $baris);
+
+            // jsonMode=false → minta prosa bebas, bukan objek JSON.
+            $teks = self::panggilProvider($sistem, $pengguna, 600, false);
+            if ($teks === null) {
+                return null;
+            }
+
+            $teks = trim($teks);
+            // Lepas pembungkus pagar kode bila model menambahkannya.
+            if (str_starts_with($teks, '```')) {
+                $teks = trim((string) preg_replace('/^```[a-zA-Z]*\s*|\s*```$/', '', $teks));
+            }
+            return $teks === '' ? null : mb_substr($teks, 0, 800);
+        } catch (\Throwable $e) {
+            return null; // tak pernah melempar
+        }
     }
 
     /**
@@ -183,13 +290,40 @@ class AiKlasifikasi
     }
 
     /**
-     * Panggil SATU provider. Kembalikan {jenis,tema,kantor} valid atau NULL
-     * (segala kegagalan) agar pemanggil failover ke provider berikutnya.
+     * Pemanggil LLM reusable dengan MULTI-PROVIDER AUTO-FAILOVER.
+     *
+     * Mencoba provider p1..pN berurut (lihat {@see daftarProvider}); provider
+     * PERTAMA yang mengembalikan teks content tak kosong dipakai, labelnya
+     * disimpan di {@see $providerTerakhir}. Mengembalikan TEKS MENTAH content
+     * (belum di-parse) agar bisa dipakai banyak keperluan: ai() memakainya untuk
+     * JSON klasifikasi, ringkasanPeriode() untuk prosa. Semua gagal → NULL.
+     *
+     * @param int  $maxTokens max_tokens per panggilan.
+     * @param bool $jsonMode  true → minta response_format json_object (klasifikasi);
+     *                        false → prosa bebas (ringkasan periode).
+     */
+    private static function panggilProvider(string $sistem, string $pengguna, int $maxTokens = 400, bool $jsonMode = true): ?string
+    {
+        self::$providerTerakhir = null;
+        foreach (self::daftarProvider() as $p) {
+            $isi = self::httpSatuProvider($p, $sistem, $pengguna, $maxTokens, $jsonMode);
+            if ($isi !== null && trim($isi) !== '') {
+                self::$providerTerakhir = $p['label'];
+                return $isi;
+            }
+        }
+        return null; // semua provider gagal
+    }
+
+    /**
+     * Panggil SATU provider (HTTP) dan kembalikan TEKS MENTAH content pertama
+     * yang tak kosong, atau NULL pada segala kegagalan (HTTP != 200, timeout,
+     * hang, content kosong, exception) agar pemanggil failover ke provider
+     * berikutnya.
      *
      * @param array{base:string, model:string, key:string, label:string} $p
-     * @return array{jenis:string, tema:string, kantor:string, ringkasan:?string}|null
      */
-    private static function panggilProvider(array $p, string $sistem, string $pengguna, ?string $proyek): ?array
+    private static function httpSatuProvider(array $p, string $sistem, string $pengguna, int $maxTokens, bool $jsonMode): ?string
     {
         try {
             $client = \Config\Services::curlrequest([
@@ -197,6 +331,23 @@ class AiKlasifikasi
                 'connect_timeout' => 10,
                 'http_errors'     => false, // jangan lempar pada status != 2xx
             ]);
+            $json = [
+                'model'       => $p['model'],
+                'temperature' => 0,
+                'max_tokens'  => $maxTokens,
+                // Eksplisit non-stream: beberapa provider stream default
+                // sehingga respons non-stream bisa menggantung.
+                'stream'      => false,
+                'messages'    => [
+                    ['role' => 'system', 'content' => $sistem],
+                    ['role' => 'user',   'content' => $pengguna],
+                ],
+            ];
+            // Diminta HANYA untuk mode JSON; parsing pemanggil tetap defensif.
+            if ($jsonMode) {
+                $json['response_format'] = ['type' => 'json_object'];
+            }
+
             $resp = $client->post($p['base'] . '/chat/completions', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $p['key'],
@@ -206,20 +357,7 @@ class AiKlasifikasi
                     'HTTP-Referer'  => 'https://mic.wbl-bsb.com',
                     'X-Title'       => 'MIC AI Monitor',
                 ],
-                'json' => [
-                    'model'           => $p['model'],
-                    'temperature'     => 0,
-                    'max_tokens'      => self::AI_MAX_TOKENS,
-                    // Eksplisit non-stream: beberapa provider stream default
-                    // sehingga respons non-stream bisa menggantung.
-                    'stream'          => false,
-                    // Diminta bila didukung; parsing di bawah tetap defensif.
-                    'response_format' => ['type' => 'json_object'],
-                    'messages' => [
-                        ['role' => 'system', 'content' => $sistem],
-                        ['role' => 'user',   'content' => $pengguna],
-                    ],
-                ],
+                'json' => $json,
             ]);
 
             if ($resp->getStatusCode() !== 200) {
@@ -235,42 +373,13 @@ class AiKlasifikasi
             // Parsing TAHAN BANTING. Model "reasoning" kadang menaruh content
             // null dan mengisi reasoning_content/reasoning; ambil yang pertama
             // tak kosong.
-            $isi = '';
             foreach (['content', 'reasoning_content', 'reasoning'] as $kolom) {
                 $kandidat = $msg[$kolom] ?? null;
                 if (is_string($kandidat) && trim($kandidat) !== '') {
-                    $isi = $kandidat;
-                    break;
+                    return $kandidat;
                 }
             }
-            if ($isi === '') {
-                return null;
-            }
-
-            $parsed = self::ekstrakJson($isi);
-            if ($parsed === null) {
-                return null;
-            }
-
-            // Validasi enum + rapikan tema.
-            $jenis = strtolower(trim((string) ($parsed['jenis'] ?? '')));
-            if (! in_array($jenis, self::JENIS_SAH, true)) $jenis = 'lainnya';
-
-            $kantor = strtolower(trim((string) ($parsed['kantor'] ?? '')));
-            if (! in_array($kantor, self::KANTOR_SAH, true)) $kantor = 'tak_jelas';
-
-            $tema = trim((string) ($parsed['tema'] ?? ''));
-            $tema = mb_substr($tema, 0, 100);
-            if ($tema === '') {
-                $tema = ($proyek !== null && trim($proyek) !== '')
-                    ? self::rapikanLabel(trim($proyek)) : 'Lainnya';
-            }
-
-            // Ringkasan: trim ≤300 char; kosong → null.
-            $ringkasan = trim((string) ($parsed['ringkasan'] ?? ''));
-            $ringkasan = $ringkasan === '' ? null : mb_substr($ringkasan, 0, 300);
-
-            return ['jenis' => $jenis, 'tema' => $tema, 'kantor' => $kantor, 'ringkasan' => $ringkasan];
+            return null;
         } catch (\Throwable $e) {
             return null; // timeout/hang/koneksi/segala error → provider berikutnya
         }

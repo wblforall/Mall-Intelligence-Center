@@ -122,6 +122,22 @@ $renderBreakdown = function (array $a) use ($jenisLabel, $kantorLabel, $n) {
     </div>
 </div>
 
+<?php
+// ── Ringkasan Aktivitas keseluruhan (sintesis semua sesi periode) ──
+$rp = $ringkasan_periode ?? null;
+if (empty($rp)) {
+    $jAgg = $analisa['jenis']; unset($jAgg['Belum']);
+    $jDom = '';
+    if ($jAgg) { arsort($jAgg); $jk = array_key_first($jAgg); $jDom = $jenisLabel[$jk] ?? $jk; }
+    $rp = $tot['sesi'] . ' sesi pada periode ini'
+        . ($jDom !== '' ? '; mayoritas ' . $jDom : '')
+        . ($pk !== null ? '; porsi kantor ' . $pk . '%' : '') . '.';
+}
+?>
+<div class="sec-title"><span>Ringkasan Aktivitas</span>
+    <span class="sec-sub"><?= esc($bulanLabel) ?></span></div>
+<p style="font-size:11.5px;line-height:1.6;margin:0 0 16px;text-align:justify"><?= esc($rp) ?></p>
+
 <?php $renderBreakdown($analisa); ?>
 
 <!-- ══ DAFTAR SESI (individu) ══ -->
@@ -138,7 +154,13 @@ $renderBreakdown = function (array $a) use ($jenisLabel, $kantorLabel, $n) {
 <?php else: foreach ($sesiList as $s): ?>
     <tr>
         <td><?= ($s['judul'] ?? '') !== '' ? esc($s['judul']) : '<span style="color:#94a3b8">(tanpa judul)</span>' ?>
-            <?php if (! empty($s['proyek'])): ?><div class="subnote"><?= esc($s['proyek']) ?></div><?php endif; ?></td>
+            <?php if (! empty($s['proyek'])): ?><div class="subnote"><?= esc($s['proyek']) ?></div><?php endif; ?>
+            <?php
+                // Ringkasan snapshot per sesi: pakai ringkasan, jatuh ke tema, lalu '—'.
+                $rsesi = trim((string) ($s['ringkasan'] ?? ''));
+                if ($rsesi === '') $rsesi = trim((string) ($s['klasifikasi_tema'] ?? ''));
+            ?>
+            <div class="subnote" style="color:#475569"><?= $rsesi !== '' ? esc($rsesi) : '—' ?></div></td>
         <td><?= $s['klasifikasi_tema'] ? esc($s['klasifikasi_tema']) : '<span style="color:#cbd5e1">—</span>' ?></td>
         <td class="text-center" style="text-align:center"><?= $s['klasifikasi_jenis'] ? esc($jenisLabel[$s['klasifikasi_jenis']] ?? $s['klasifikasi_jenis']) : '<span style="color:#cbd5e1">—</span>' ?></td>
         <td class="text-center" style="text-align:center"><?= $s['klasifikasi_kantor'] ? esc($kantorLabel[$s['klasifikasi_kantor']] ?? $s['klasifikasi_kantor']) : '<span style="color:#cbd5e1">—</span>' ?></td>

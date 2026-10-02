@@ -8,12 +8,37 @@ $tot = $analisa['total'];
 $pk  = $analisa['pct_kantor'];           // int|null
 $adaKlas = array_sum($analisa['jenis']) > 0;
 $kantorRendah = $pk !== null && $pk < $ambang_kantor;
+
+// Ringkasan aktivitas keseluruhan (dari controller; string|null).
+$rp = $ringkasan_periode ?? null;
+
+// Fallback rule-based bila AI gagal/kosong: jenis dominan + %kantor.
+$jenisLabelPanel = ['coding'=>'Coding','debugging'=>'Debugging','ideating'=>'Ideating',
+    'menulis'=>'Menulis','riset'=>'Riset','lainnya'=>'Lainnya'];
+$jenisAgg = $analisa['jenis']; unset($jenisAgg['Belum']);
+$jenisDom = '';
+if ($jenisAgg) { arsort($jenisAgg); $jk = array_key_first($jenisAgg); $jenisDom = $jenisLabelPanel[$jk] ?? $jk; }
+$rpFallback = $tot['sesi'] . ' sesi pada periode ini'
+    . ($jenisDom !== '' ? '; mayoritas ' . $jenisDom : '')
+    . ($pk !== null ? '; porsi kantor ' . $pk . '%' : '') . '.';
 ?>
 <div class="card mb-3">
   <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
     <span class="fw-semibold small"><i class="bi bi-bar-chart-line me-2 text-muted"></i>Analisa <span class="text-muted fw-normal">(<?= esc($periode['label']) ?>)</span></span>
   </div>
   <div class="card-body">
+
+    <!-- Ringkasan aktivitas keseluruhan (sintesis semua sesi periode ini) -->
+    <div class="border rounded p-3 mb-3 bg-body-tertiary">
+      <div class="small fw-semibold text-muted mb-1">
+        <i class="bi bi-stars me-1"></i>Ringkasan Aktivitas <span class="fw-normal">(<?= esc($periode['label']) ?>)</span>
+      </div>
+      <?php if (! empty($rp)): ?>
+      <p class="mb-0 small" style="line-height:1.55"><?= esc($rp) ?></p>
+      <?php else: ?>
+      <p class="mb-0 small text-muted fst-italic"><?= esc($rpFallback) ?></p>
+      <?php endif; ?>
+    </div>
 
     <!-- Kartu total + %kantor -->
     <div class="row g-2 mb-3">
