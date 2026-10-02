@@ -216,6 +216,7 @@ class AiMonitor extends BaseController
             'analisa'       => $agg,
             'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
             'scope_id'      => $employeeId,
+            'printScope'    => '&employee_id=' . $employeeId,
             'sessions'      => $this->sessions->byKaryawan($employeeId, $p['dari'], $p['sampai']),
         ]);
     }
@@ -346,6 +347,7 @@ class AiMonitor extends BaseController
             'analisa'       => $agg,
             'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
             'scope_id'      => $deviceId,
+            'printScope'    => '&device_id=' . $deviceId,
             'sessions'      => $this->sessions->byPerangkat($deviceId, $p['dari'], $p['sampai']),
         ]);
     }

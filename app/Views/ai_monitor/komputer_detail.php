@@ -20,7 +20,7 @@
     </a>
 </div>
 
-<?= $this->include('ai_monitor/_periode', ['printScope' => '&device_id=' . (int) $scope_id]) ?>
+<?= $this->include('ai_monitor/_periode') ?>
 
 <?= $this->include('ai_monitor/_analisa_panel') ?>
 
