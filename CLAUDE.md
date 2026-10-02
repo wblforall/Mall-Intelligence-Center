@@ -160,6 +160,17 @@ jadi tak terbaca. Pola MIC: tukar kelasnya — aktif `btn-primary`, nonaktif
 
 ⚠️ **Setiap mengubah `ocr-identitas.js` atau `theme.css`, naikkan `?v=` di view/layout pemanggilnya.** Tanpa itu browser karyawan memakai berkas lama dan perbaikan tak pernah aktif.
 
+### Pemantauan AI — pemakaian Claude Code tim (TERBUKA)
+
+Memantau pemakaian Claude Code di laptop kantor yang dikelola IT, **secara terbuka** (tim diberi tahu; edaran + lembar validasi di `docs/pemantauan-ai/`). Menu `ai_monitor` (akses per orang lewat hak menu). Membuka transkrip tercatat di ActivityLog.
+
+- **Tabel:** `ai_devices`, `ai_sessions`, `ai_entries`, `ai_usage`. Migrasi `2026-10-02-000001..000004`.
+- **Alur agen → server:** agen Windows (`public/agen-ai/`, jalan sebagai SYSTEM, loop ~30 dtk) mendaftar sendiri lewat `POST /api/ai-monitor/enroll` (TANPA kunci; perangkat masuk "menunggu persetujuan", `aktif=0`), lalu `POST /api/ai-monitor/ingest` (Bearer token perangkat). **Isi transkrip dikirim BASE64 di field `enc`** — WAJIB, karena WAF/ModSecurity hosting memblokir body berisi kode/SQL (400/403); `lines` mentah hanya untuk poll kosong. Server menyamarkan rahasia (`AiLog::samarkan`) sebelum simpan.
+- **Penguncian akses:** selama perangkat belum disetujui/diblokir, respons ingest `blokir/status` menyuruh agen mengunci akses Claude Code di laptop (hosts `api.anthropic.com` + `ipconfig /flushdns`). IT menyetujui/hentikan dari dashboard (Perangkat & Token). Copot = perkakas IT (`docs/pemantauan-ai/perkakas-it/`, butuh admin + password copot dari dashboard), TIDAK di webroot.
+- **Dashboard:** `/ai-monitor/dashboard` (KPI, tren, status, top komputer/karyawan, klasifikasi), `/ai-monitor` (rekap karyawan), `/ai-monitor/komputer`, `/ai-monitor/sesi/{id}` (transkrip).
+- **Klasifikasi sesi** (`App\Libraries\AiKlasifikasi` + command `mic:ai-klasifikasi`, cron tiap 10 mnt): tiap sesi dilabeli **jenis** (coding/debugging/ideating/menulis/riset/lainnya), **tema**, **kantor/pribadi/tak_jelas**. Mode `aiklas.mode=ai` → `ai()` MULTI-PROVIDER (OpenAI-compatible): baca `aiklas.pN_base_url/model/key` berurut dari `.env`, coba p1→pN (gagal/timeout/429 → provider berikut), semua gagal → fallback `kataKunci()`. Parsing tahan banting (content → reasoning_content → reasoning, strip ```json, stream:false, validasi enum). `--ulang` = klasifikasi ulang semua.
+- ⚠️ **Kunci API provider ada di `.env` prod saja** (bukan di git; `.env` & folder `API KEY/` gitignored). Set via STDIN saat SSH, jangan pernah dicetak/commit. CI4 membaca `.env` (BUKAN file `env`).
+
 ---
 
 ## Struktur Database

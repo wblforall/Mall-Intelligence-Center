@@ -84,3 +84,8 @@ public/userguide/
 # Sample data uji berisi dokumen identitas ASLI (KTP/KK/NPWP karyawan).
 # Jangan pernah ikut ter-commit — repo ini punya remote publik di GitHub.
 Sample data/
+
+# Catatan API key — JANGAN commit
+API Key Open Router.md
+deepseek-v4.1-flash API Key.md
+API KEY/
