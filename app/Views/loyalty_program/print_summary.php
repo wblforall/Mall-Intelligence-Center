@@ -6,40 +6,37 @@
 <?= $this->include('_laporan/_style') ?>
 <style>
 /* Hanya aturan KHUSUS laporan ini — dasar bersama dari _laporan/_style.php */
+/* Kepala kolom angka rata kanan (th.num kalah spesifik dari .main-table th). */
+.main-table th.num { text-align: right; }
+.kpi-num.kpi-rp { font-size: 16px; padding-top: 3px; }
+.deret-angka b.redup { color: #cbd5e1; }
+
+/* Satu program = satu blok tbody (baris angka + baris analisa), tak terpotong halaman. */
 tbody.prog-block { break-inside: avoid; page-break-inside: avoid; }
-.kpi-row, .chart-panel, .sign-row { break-inside: avoid; page-break-inside: avoid; }
-.kpi-num { font-size: 21px; font-weight: 700; line-height: 1.1; }
-.kpi-member { border-color: #bfdbfe; background: #eff6ff; }
-.kpi-member .kpi-num { color: #1d4ed8; }
-.kpi-aktif { border-color: #bbf7d0; background: #f0fdf4; }
-.kpi-aktif .kpi-num { color: #15803d; }
-.kpi-sebar { border-color: #fde68a; background: #fffbeb; }
-.kpi-sebar .kpi-num { color: #b45309; }
-.kpi-pakai { border-color: #fecaca; background: #fef2f2; }
-.kpi-pakai .kpi-num { color: #b91c1c; }
-.kpi-hadiah { border-color: #c4b5fd; background: #f5f3ff; }
-.kpi-hadiah .kpi-num { color: #6d28d9; }
-.sec-title {
-    font-size: 11px; font-weight: 700; color: #f1f5f9; text-transform: uppercase;
-    letter-spacing: .4px; background: #1e293b; padding: 5px 10px;
-    margin-bottom: 0; border-radius: 4px 4px 0 0;
-    display: flex; justify-content: space-between; align-items: center;
-}
-.main-table td { padding: 5px 7px; border: 1px solid #e2e8f0; font-size: 11px; vertical-align: middle; }
-.main-table tbody.prog-block:nth-of-type(even) tr:first-child td { background: #f8fafc; }
-.pill {
-    display: inline-block; padding: 1px 7px; border-radius: 3px;
-    font-size: 9px; font-weight: 700; border: 1px solid;
-}
-.pill-standalone { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
-.pill-event { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
-.pill-active { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-.pill-inactive { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
-.pill-locked { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
-.chart-panel {
-    display: flex; gap: 10px; margin-bottom: 18px; page-break-inside: avoid;
-    border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; padding: 10px;
-}
+.main-table tbody.prog-block tr td { background: #fff; }
+.main-table tbody.prog-block.genap tr td { background: var(--zebra); }
+/* Lebar kolom tetap (colgroup) supaya tabel ekor sejajar dengan tabel induknya. */
+.main-table.prog-tabel { table-layout: fixed; }
+.main-table.prog-tabel.ada-ekor { margin-bottom: 0; }
+.main-table.tabel-ekor { margin-top: 0; }
+.main-table tbody.prog-block tr:last-child td { border-bottom: 1px solid var(--garis); }
+.main-table tbody.prog-block tr.analisa-row td { border-bottom: 1px solid var(--garis); }
+.main-table tbody.prog-block tr:has(+ tr.analisa-row) td { border-bottom: 0; }
+.prog-nama strong { display: block; }
+.prog-mall { font-size: 9px; color: var(--redup); margin-top: 1px; }
+.prog-nama .lencana { margin-top: 3px; }
+.periode { color: var(--redup); font-size: 9.5px; white-space: nowrap; }
+.banding { font-size: 8.5px; color: var(--redup2); margin-top: 1px; white-space: nowrap; }
+.target  { font-size: 8.5px; color: var(--redup); white-space: nowrap; }
+
+/* Baris analisa: label sebagai lencana, isi di sebelahnya. */
+.main-table tr.analisa-row td { padding: 3px 8px 7px 8px; }
+.analisa-isi { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: baseline;
+    padding: 6px 9px; border-radius: 6px; background: #fbf8ef; border-left: 3px solid var(--emas); font-size: 9.5px; color: var(--teks); }
+.analisa-isi .lencana { justify-self: start; }
+.keterangan { font-size: 9px; color: var(--redup2); margin: -10px 0 0; }
+.keterangan em { color: var(--redup); }
+.penutup { break-inside: avoid; page-break-inside: avoid; }
 </style>
 </head>
 <body>
@@ -73,15 +70,23 @@ $programs = array_values(array_filter($programs, function ($p) use ($bMonthStart
 $totalProgram = count($programs);
 $activeProgram = count(array_filter($programs, fn($p) => $p['status'] === 'active'));
 
-function numF(int $n): string { return $n > 0 ? number_format($n) : '—'; }
+// Angka gaya Indonesia (titik ribuan).
+$nf   = fn($n): string => number_format((float)$n, 0, ',', '.');
+$numF = fn(int $n): string => $n > 0 ? number_format($n, 0, ',', '.') : '—';
+$pctF = fn($n): string => rtrim(rtrim(number_format((float)$n, 1, ',', '.'), '0'), ',');
 
+$blnPendek     = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 $prevDt        = \DateTime::createFromFormat('Y-m', $prevBulan ?? date('Y-m'));
-$prevLabel     = $prevDt ? strtr($prevDt->format('M Y'), ['Jan'=>'Jan','May'=>'Mei','Aug'=>'Agu','Oct'=>'Okt','Dec'=>'Des']) : '';
+$prevLabel     = $prevDt ? $blnPendek[(int)$prevDt->format('n') - 1] . ' ' . $prevDt->format('Y') : '';
 $mallLabel     = ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity', 'both' => 'eWalk & Pentacity'];
-$fmtPeriode    = function (?string $a, ?string $b): string {
+// Periode ringkas berbulan Indonesia: "01 Jul – 30 Sep 2026" (tahun sekali bila sama).
+$fmtPeriode    = function (?string $a, ?string $b) use ($blnPendek): string {
     if (! $a) return '—';
-    $s = date('d M Y', strtotime($a));
-    return $b && $b !== $a ? $s . ' – ' . date('d M Y', strtotime($b)) : $s;
+    $ta = strtotime($a);
+    $tgl = fn(int $t, bool $th = true) => date('d', $t) . ' ' . $blnPendek[(int)date('n', $t) - 1] . ($th ? ' ' . date('Y', $t) : '');
+    if (! $b || $b === $a) return $tgl($ta);
+    $tb = strtotime($b);
+    return $tgl($ta, date('Y', $ta) !== date('Y', $tb)) . ' – ' . $tgl($tb);
 };
 // Program multi-bulan = periode melintasi lebih dari satu bulan kalender
 $isMultiMonth = function (array $p) use ($bulan): bool {
@@ -115,22 +120,22 @@ $eventProg  = array_filter($programs, fn($p) => $p['source'] === 'event');
 <div class="kpi-row">
     <div class="kpi-box kpi-member">
         <div class="kpi-label">Member Baru</div>
-        <div class="kpi-num"><?= number_format($kpiMember) ?></div>
+        <div class="kpi-num"><?= $nf($kpiMember) ?></div>
         <div class="kpi-sub">bulan <?= $bulanLabel ?></div>
     </div>
     <div class="kpi-box kpi-aktif">
         <div class="kpi-label">Member Aktif</div>
-        <div class="kpi-num"><?= number_format($kpiMemberAktif) ?></div>
+        <div class="kpi-num"><?= $nf($kpiMemberAktif) ?></div>
         <div class="kpi-sub">bulan <?= $bulanLabel ?></div>
     </div>
     <div class="kpi-box kpi-sebar">
         <div class="kpi-label">Voucher Tersebar</div>
-        <div class="kpi-num"><?= number_format($kpiTersebar) ?></div>
+        <div class="kpi-num"><?= $nf($kpiTersebar) ?></div>
         <div class="kpi-sub">bulan <?= $bulanLabel ?></div>
     </div>
     <div class="kpi-box kpi-pakai">
         <div class="kpi-label">Voucher Terpakai</div>
-        <div class="kpi-num"><?= number_format($kpiTerpakai) ?></div>
+        <div class="kpi-num"><?= $nf($kpiTerpakai) ?></div>
         <div class="kpi-sub">
             <?php if ($kpiTersebar > 0): ?>
             <?= round($kpiTerpakai / $kpiTersebar * 100) ?>% penyerapan
@@ -139,36 +144,28 @@ $eventProg  = array_filter($programs, fn($p) => $p['source'] === 'event');
     </div>
     <div class="kpi-box kpi-hadiah">
         <div class="kpi-label">Hadiah Dibagikan</div>
-        <div class="kpi-num"><?= number_format($kpiHadiah) ?></div>
+        <div class="kpi-num"><?= $nf($kpiHadiah) ?></div>
         <div class="kpi-sub">bulan <?= $bulanLabel ?></div>
     </div>
-    <div class="kpi-box">
+    <div class="kpi-box kpi-gold">
         <div class="kpi-label">Nilai Realisasi vs Budget</div>
-        <div class="kpi-num" style="font-size:14px;padding-top:4px">Rp <?= number_format($nilaiRealisasi ?? 0, 0, ',', '.') ?></div>
+        <div class="kpi-num kpi-rp">Rp <?= $nf($nilaiRealisasi ?? 0) ?></div>
         <div class="kpi-sub"><?= ($totalBudgetActive ?? 0) > 0
-            ? 'budget program aktif Rp ' . number_format($totalBudgetActive, 0, ',', '.') . ' · serapan ' . $serapanPct . '%'
+            ? 'budget program aktif Rp ' . $nf($totalBudgetActive) . ' · serapan ' . $pctF($serapanPct) . '%'
             : 'bulan ' . $bulanLabel ?></div>
     </div>
 </div>
 
 <!-- ══ PROGRAM BARU PER MALL ══ -->
-<?php $mc = $mallCounts ?? []; $mcTotal = array_sum($mc); ?>
+<?php $mc = $mallCounts ?? []; $mcTotal = array_sum($mc); $mcUnset = (int)($mc['unset'] ?? 0); ?>
 <div class="sec-title"><span>Program Baru Bulan <?= $bulanLabel ?> — per Mall</span>
     <span class="sec-sub"><?= $mcTotal ?> program mulai berjalan bulan ini</span></div>
-<table class="main-table">
-<thead><tr>
-    <th class="text-center" style="width:25%">eWalk</th>
-    <th class="text-center" style="width:25%">Pentacity</th>
-    <th class="text-center" style="width:25%">Keduanya</th>
-    <th class="text-center" style="width:25%">Belum Diisi Mall</th>
-</tr></thead>
-<tbody><tr>
-    <td class="text-center" style="text-align:center;font-size:13px;font-weight:700"><?= (int)($mc['ewalk'] ?? 0) ?></td>
-    <td class="text-center" style="text-align:center;font-size:13px;font-weight:700"><?= (int)($mc['pentacity'] ?? 0) ?></td>
-    <td class="text-center" style="text-align:center;font-size:13px;font-weight:700"><?= (int)($mc['both'] ?? 0) ?></td>
-    <td class="text-center" style="text-align:center;font-size:13px;font-weight:700;color:<?= ($mc['unset'] ?? 0) > 0 ? '#b45309' : '#cbd5e1' ?>"><?= (int)($mc['unset'] ?? 0) ?></td>
-</tr></tbody>
-</table>
+<div class="deret-angka">
+    <div><span>eWalk</span><b><?= (int)($mc['ewalk'] ?? 0) ?></b></div>
+    <div><span>Pentacity</span><b><?= (int)($mc['pentacity'] ?? 0) ?></b></div>
+    <div><span>Keduanya</span><b><?= (int)($mc['both'] ?? 0) ?></b></div>
+    <div><span>Belum Diisi Mall</span><b class="<?= $mcUnset > 0 ? 'waspada' : 'redup' ?>"><?= $mcUnset ?></b></div>
+</div>
 
 <!-- ══ ANALISA & GRAFIK ══ -->
 <div class="sec-title"><span>Analisa &amp; Tren</span>
@@ -198,9 +195,18 @@ $sections = [
     ['label' => 'Program Loyalty Standalone', 'rows' => $standalone, 'src' => 'standalone'],
     ['label' => 'Program Loyalty — Support Event', 'rows' => $eventProg, 'src' => 'event'],
 ];
-foreach ($sections as $sec):
+// Program terakhir laporan dipisah ke tabel "ekor" di dalam .penutup bersama keterangan
+// + tanda tangan, supaya tanda tangan tak pernah terdorong sendirian ke halaman baru.
+$secTerakhir = null;
+foreach ($sections as $si => $sec) if (! empty($sec['rows'])) $secTerakhir = $si;
+$penutupDibuka = false;
+$kolom = '<colgroup><col style="width:25%"><col style="width:7%"><col style="width:14%"><col style="width:10%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:7%"><col style="width:10%"></colgroup>';
+foreach ($sections as $si => $sec):
     if (empty($sec['rows'])) continue;
     $isSt = $sec['src'] === 'standalone';
+    $sec['rows'] = array_values($sec['rows']);
+    $nBaris  = count($sec['rows']);
+    $adaEkor = $si === $secTerakhir && $nBaris > 1;
 
     // Section KPI totals
     $secMember  = $secAktif = $secSebar = $secPakai = $secHadiah = 0;
@@ -219,26 +225,31 @@ foreach ($sections as $sec):
 <div class="sec-title">
     <span><?= $sec['label'] ?> &nbsp;·&nbsp; <?= count($sec['rows']) ?> program</span>
     <span class="sec-sub">
-        Member <?= number_format($secMember) ?> &middot;
-        Voucher <?= number_format($secSebar) ?> sebar / <?= number_format($secPakai) ?> pakai &middot;
-        Hadiah <?= number_format($secHadiah) ?>
+        Member <?= $nf($secMember) ?> &middot;
+        Voucher <?= $nf($secSebar) ?> sebar / <?= $nf($secPakai) ?> pakai &middot;
+        Hadiah <?= $nf($secHadiah) ?>
     </span>
 </div>
-<table class="main-table">
+<table class="main-table prog-tabel<?= $adaEkor ? ' ada-ekor' : '' ?>">
+<?= $kolom ?>
 <thead>
     <tr>
-        <th style="width:22%">Nama Program</th>
-        <th style="width:6%">Status</th>
-        <th style="width:12%"><?= $isSt ? 'Periode' : 'Event' ?></th>
-        <th class="text-center" style="width:11%">Member Baru</th>
-        <th class="text-center" style="width:10%">Member Aktif</th>
-        <th class="text-center" style="width:11%">Voucher Sebar</th>
-        <th class="text-center" style="width:11%">Voucher Pakai</th>
-        <th class="text-center" style="width:6%">% Serap</th>
-        <th class="text-center" style="width:11%">Hadiah</th>
+        <th>Nama Program</th>
+        <th>Status</th>
+        <th><?= $isSt ? 'Periode' : 'Event' ?></th>
+        <th class="num">Member Baru</th>
+        <th class="num">Member Aktif</th>
+        <th class="num">Voucher Sebar</th>
+        <th class="num">Voucher Pakai</th>
+        <th class="num">% Serap</th>
+        <th class="num">Hadiah</th>
     </tr>
 </thead>
-<?php foreach ($sec['rows'] as $p):
+<?php foreach ($sec['rows'] as $ri => $p):
+    if ($adaEkor && $ri === $nBaris - 1) {
+        echo '</table><div class="penutup"><table class="main-table prog-tabel tabel-ekor">' . $kolom;
+        $penutupDibuka = true;
+    }
     $key    = ($isSt ? 's_' : 'e_') . $p['id'];
     $md     = $monthlyData[$key] ?? null;
     $vd     = $isSt ? ($voucherByProgram[$p['id']] ?? null) : ($evoucherByProgram[$p['id']] ?? null);
@@ -265,69 +276,66 @@ foreach ($sections as $sec):
     $multi  = $isMultiMonth($p);
     // sub-baris pembanding hanya bila relevan (multi-bulan / ada histori di luar bulan ini)
     $showCmp = $multi || $mPrev || $sPrev || $pPrev || $phd || $mCum > $member || $sCum > $sebar || $chd > $hd;
-    $cmp = fn(int $prev, int $cum) => '<div style="font-size:9px;color:#94a3b8;margin-top:1px;white-space:nowrap">'
-        . 'lalu ' . number_format($prev) . ' · kum ' . number_format($cum) . '</div>';
+    $cmp = fn(int $prev, int $cum) => '<div class="banding">lalu ' . $nf($prev) . ' · kum ' . $nf($cum) . '</div>';
 
-    $statusPill = match($p['status']) {
-        'active'   => 'pill-active',
-        'inactive' => 'pill-inactive',
-        'locked'   => 'pill-locked',
-        default    => 'pill-inactive',
-    };
+    $statusCls = ['active' => 'baik', 'inactive' => 'netral', 'locked' => 'buruk'][$p['status']] ?? 'netral';
     $statusLabel = ['active'=>'Aktif','inactive'=>'Nonaktif','locked'=>'Terkunci'][$p['status']] ?? $p['status'];
     $progMall = $isSt ? ($p['mall'] ?? '') : ($p['event_mall'] ?? '');
+
+    $analisaData  = $analisaMap[$key] ?? [];
+    $highlight    = $analisaData['highlight']     ?? '';
+    $kendala      = $analisaData['kendala']       ?? '';
+    $tindakLanjut = $analisaData['tindak_lanjut'] ?? '';
+    $analisa      = $analisaData['analisa']       ?? '';
+    $hasAnalisa   = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tindakLanjut !== '';
 ?>
-<tbody class="prog-block">
+<tbody class="prog-block<?= $ri % 2 ? ' genap' : '' ?>">
 <tr>
-    <td>
+    <td class="prog-nama">
         <strong><?= esc($p['nama_program'] ?? ($p['nama'] ?? '—')) ?></strong>
-        <?php if ($progMall): ?><div style="font-size:9.5px;color:#64748b"><?= esc($mallLabel[$progMall] ?? ucfirst($progMall)) ?></div><?php endif; ?>
+        <?php if ($progMall): ?><div class="prog-mall"><?= esc($mallLabel[$progMall] ?? ucfirst($progMall)) ?></div><?php endif; ?>
+        <?php if (! $hasAnalisa): ?><span class="lencana netral">Analisa belum diisi</span><?php endif; ?>
     </td>
-    <td><span class="pill <?= $statusPill ?>"><?= $statusLabel ?></span></td>
+    <td><span class="lencana <?= $statusCls ?>"><?= esc($statusLabel) ?></span></td>
     <?php if ($isSt): ?>
-    <td style="color:#64748b;font-size:10px"><?= $fmtPeriode($p['tanggal_mulai'] ?? null, $p['tanggal_selesai'] ?? null) ?></td>
+    <td class="periode"><?= $fmtPeriode($p['tanggal_mulai'] ?? null, $p['tanggal_selesai'] ?? null) ?></td>
     <?php else: ?>
-    <td style="color:#64748b;font-size:10px"><?= esc($p['event_name'] ?? '—') ?></td>
+    <td class="periode" style="white-space:normal"><?= esc($p['event_name'] ?? '—') ?></td>
     <?php endif; ?>
-    <td class="<?= $member ? 'num' : 'zero' ?>"><?= numF($member) ?><?php if ($showCmp): ?><?= $cmp($mPrev, $mCum) ?><?php endif; ?>
-        <?php if ($target): ?><div style="font-size:9px;color:#64748b;white-space:nowrap">target <?= number_format($target) ?> (<?= $target ? round($mCum / $target * 100) : 0 ?>%)</div><?php endif; ?></td>
-    <td class="<?= $aktif  ? 'num' : 'zero' ?>"><?= numF($aktif)  ?><?php if ($showCmp && ($aPrev || $aCum > $aktif)): ?><?= $cmp($aPrev, $aCum) ?><?php endif; ?></td>
-    <td class="<?= $sebar  ? 'num' : 'zero' ?>"><?= numF($sebar)  ?><?php if ($showCmp && ($sPrev || $sCum > $sebar)): ?><?= $cmp($sPrev, $sCum) ?><?php endif; ?></td>
-    <td class="<?= $pakai  ? 'num' : 'zero' ?>"><?= numF($pakai)  ?><?php if ($showCmp && ($pPrev || $pCum > $pakai)): ?><?= $cmp($pPrev, $pCum) ?><?php endif; ?></td>
-    <td class="<?= $serap  ? 'num' : 'zero' ?>"><?= $sebar ? $serap.'%' : '—' ?></td>
-    <td class="<?= $hd     ? 'num' : 'zero' ?>"><?= numF($hd)     ?><?php if ($showCmp && ($phd || $chd > $hd)): ?><?= $cmp($phd, $chd) ?><?php endif; ?></td>
+    <td class="<?= $member ? 'num' : 'zero' ?>"><?= $numF($member) ?><?php if ($showCmp): ?><?= $cmp($mPrev, $mCum) ?><?php endif; ?>
+        <?php if ($target): ?><div class="target">target <?= $nf($target) ?> (<?= round($mCum / $target * 100) ?>%)</div><?php endif; ?></td>
+    <td class="<?= $aktif  ? 'num' : 'zero' ?>"><?= $numF($aktif)  ?><?php if ($showCmp && ($aPrev || $aCum > $aktif)): ?><?= $cmp($aPrev, $aCum) ?><?php endif; ?></td>
+    <td class="<?= $sebar  ? 'num' : 'zero' ?>"><?= $numF($sebar)  ?><?php if ($showCmp && ($sPrev || $sCum > $sebar)): ?><?= $cmp($sPrev, $sCum) ?><?php endif; ?></td>
+    <td class="<?= $pakai  ? 'num' : 'zero' ?>"><?= $numF($pakai)  ?><?php if ($showCmp && ($pPrev || $pCum > $pakai)): ?><?= $cmp($pPrev, $pCum) ?><?php endif; ?></td>
+    <td class="<?= $serap  ? 'num' : 'zero' ?>"><?= $sebar ? $serap . '%' : '—' ?></td>
+    <td class="<?= $hd     ? 'num' : 'zero' ?>"><?= $numF($hd)     ?><?php if ($showCmp && ($phd || $chd > $hd)): ?><?= $cmp($phd, $chd) ?><?php endif; ?></td>
 </tr>
-<?php
-$analisaData  = $analisaMap[$key] ?? [];
-$highlight    = $analisaData['highlight']     ?? '';
-$kendala      = $analisaData['kendala']       ?? '';
-$tindakLanjut = $analisaData['tindak_lanjut'] ?? '';
-$analisa      = $analisaData['analisa']       ?? '';
-$hasAnalisa   = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tindakLanjut !== '';
-?>
+<?php if ($hasAnalisa): ?>
 <tr class="analisa-row">
-    <td colspan="9" style="background:#f8fafc;font-size:10.5px;color:#334155;padding:4px 8px;border-top:none">
-        <strong style="color:#0f172a">Analisa:</strong>
-        <?php if ($hasAnalisa): ?>
-        <div style="font-size:10.5px">
-            <?php if ($highlight): ?><div class="mb-1"><strong>Highlight:</strong> <?= esc($highlight) ?></div><?php endif; ?>
-            <?php if ($kendala): ?><div class="mb-1"><strong>Kendala:</strong> <?= esc($kendala) ?></div><?php endif; ?>
-            <?php if ($tindakLanjut): ?><div><strong>Tindak Lanjut:</strong> <?= esc($tindakLanjut) ?></div><?php endif; ?>
-            <?php if ($analisa && !$highlight && !$kendala && !$tindakLanjut): ?><div><?= esc($analisa) ?></div><?php endif; ?>
+    <td colspan="9">
+        <div class="analisa-isi">
+            <?php if ($highlight): ?><span class="lencana baik">Highlight</span><div><?= esc($highlight) ?></div><?php endif; ?>
+            <?php if ($kendala): ?><span class="lencana waspada">Kendala</span><div><?= esc($kendala) ?></div><?php endif; ?>
+            <?php if ($tindakLanjut): ?><span class="lencana info">Tindak Lanjut</span><div><?= esc($tindakLanjut) ?></div><?php endif; ?>
+            <?php if ($analisa && !$highlight && !$kendala && !$tindakLanjut): ?><span class="lencana emas">Analisa</span><div><?= esc($analisa) ?></div><?php endif; ?>
         </div>
-        <?php else: ?>
-        <em class="text-muted">—</em>
-        <?php endif; ?>
     </td>
 </tr>
+<?php endif; ?>
 </tbody>
 <?php endforeach; ?>
 </table>
 <?php endforeach; ?>
 
-<div style="font-size:9.5px;color:#94a3b8;margin:-12px 0 14px">
+<?php if (! $penutupDibuka): ?><div class="penutup"><?php endif; ?>
+<?php if ($totalProgram === 0): ?>
+<div class="sec-title"><span>Rincian Program Loyalty</span></div>
+<div class="catatan info">Tidak ada program loyalty yang berjalan atau mencatat aktivitas pada <?= $bulanLabel ?>.</div>
+<?php else: ?>
+<div class="keterangan">
     Keterangan: <em>lalu</em> = realisasi bulan sebelumnya (<?= esc($prevLabel) ?>) · <em>kum</em> = kumulatif sejak program dimulai s/d <?= $bulanLabel ?> — ditampilkan untuk program yang berjalan lebih dari satu bulan.
 </div>
+<?php endif; ?>
 
 <!-- ══ TANDA TANGAN ══ -->
 <?= $this->include('_laporan/_ttd') ?>
@@ -336,6 +344,7 @@ $hasAnalisa   = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tind
 <div class="doc-footer">
     <span>Mall Intelligence Center &mdash; IT Department PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Digenerate otomatis &mdash; <?= $printedAt ?></span>
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

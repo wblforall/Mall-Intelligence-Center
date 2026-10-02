@@ -4,134 +4,65 @@
 <meta charset="UTF-8">
 <title>Compare Traffic — <?= date('d M Y', strtotime($from1)) ?> vs <?= date('d M Y', strtotime($from2)) ?></title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<?= $this->include('_laporan/_style') ?>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-@page { size: A4 landscape; margin: 10mm 14mm; }
-
-body {
-    font-family: 'Segoe UI', Calibri, Arial, sans-serif;
-    font-size: 8pt;
-    color: #1e293b;
-    background: #fff;
-    line-height: 1.35;
-}
-
-/* ── Colors ──────────────────────────────────────────────────────── */
+/* Khusus Perbandingan Traffic: warna per periode (P1 indigo, P2 oranye, P3 hijau). */
+@page { @top-right { content: "Perbandingan Traffic"; } }
 :root {
     --c-p1: #6366f1; --c-p1-bg: #eef2ff; --c-p1-border: #c7d2fe;
     --c-p2: #f97316; --c-p2-bg: #fff7ed; --c-p2-border: #fed7aa;
     --c-p3: #10b981; --c-p3-bg: #ecfdf5; --c-p3-border: #a7f3d0;
 }
+.p1-teks { color: var(--c-p1) !important; }
+.p2-teks { color: var(--c-p2) !important; }
+.p3-teks { color: var(--c-p3) !important; }
 
-/* ── Print bar ───────────────────────────────────────────────────── */
-.print-bar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-    background: #1e3a8a; color: #fff;
-    padding: 7px 18px;
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 8.5pt;
-    box-shadow: 0 2px 8px rgba(0,0,0,.3);
-}
-.print-bar button {
-    background: #fff; color: #1e3a8a; border: none;
-    padding: 5px 14px; border-radius: 5px;
-    font-weight: 700; font-size: 8.5pt; cursor: pointer;
-}
-.print-bar button:hover { background: #dbeafe; }
-.print-bar a { color: #bfdbfe; text-decoration: none; font-size: 8pt; }
-.print-bar a:hover { color: #fff; }
-.page-top-spacer { height: 40px; }
-@media print {
-    .print-bar, .page-top-spacer { display: none !important; }
-}
+/* Kartu periode */
+.kpi-row.periode { margin-bottom: 12px; }
+.kpi-row.periode .kpi-box { display: flex; align-items: baseline; gap: 10px; padding-top: 6px; padding-bottom: 6px; }
+.kpi-row.periode .kpi-label { margin-bottom: 0; }
+.kpi-row.periode .kpi-num { font-size: 12px; font-weight: 700; }
 
-/* ── Page break ──────────────────────────────────────────────────── */
-.page-break { break-before: page; page-break-before: always; }
-@media print { tr { break-inside: avoid; } }
+/* Titik warna periode di kepala tabel (latar navy) */
+.titik { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+.titik.p1 { background: #a5b4fc; } .titik.p2 { background: #fdba74; } .titik.p3 { background: #6ee7b7; }
 
-/* ── Header ──────────────────────────────────────────────────────── */
-.rpt-header {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #0369a1 100%);
-    color: #fff; border-radius: 5px;
-    padding: 8px 14px;
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 7px;
-}
-.rpt-header h1 { font-size: 11pt; font-weight: 800; }
-.rpt-header .sub { font-size: 7pt; color: #bfdbfe; margin-top: 1px; }
-.rpt-header .right { text-align: right; font-size: 6.5pt; color: #93c5fd; line-height: 1.6; }
-.rpt-header .right strong { color: #fff; font-size: 8.5pt; display: block; }
+/* Tabel */
+.main-table th.r, .main-table td.r { text-align: right; }
+.main-table th.c, .main-table td.c { text-align: center; }
+.main-table.rapat { margin-bottom: 12px; }
+.main-table.rapat th { padding: 4px 7px; font-size: 8.5px; }
+.main-table.rapat td { padding: 2px 7px; font-size: 9.5px; line-height: 1.3; }
+.main-table td.redup { color: var(--redup); }
+.diff-up   { color: #15803d; font-weight: 700; }
+.diff-down { color: #b91c1c; font-weight: 700; }
+.diff-nil  { color: var(--redup); }
+.diff-sub  { font-size: 8px; color: var(--redup); margin-left: 4px; }
+.sec-title.rapat { margin-bottom: 8px; }
+.doc-footer.rapat { margin-top: 10px; }
 
-/* ── Period strip ────────────────────────────────────────────────── */
-.period-strip {
-    display: flex; gap: 6px; margin-bottom: 7px;
-}
-.period-pill {
-    border-radius: 5px; padding: 4px 10px; font-size: 7.5pt; font-weight: 700;
-    flex: 1; text-align: center;
-}
-.period-pill.p1 { background: var(--c-p1-bg); color: var(--c-p1); border: 1px solid var(--c-p1-border); }
-.period-pill.p2 { background: var(--c-p2-bg); color: var(--c-p2); border: 1px solid var(--c-p2-border); }
-.period-pill.p3 { background: var(--c-p3-bg); color: var(--c-p3); border: 1px solid var(--c-p3-border); }
-.period-pill .pill-label { font-size: 6pt; font-weight: 800; display: block; letter-spacing: .05em; text-transform: uppercase; }
-.period-pill .pill-date  { font-size: 7.5pt; font-weight: 600; }
-
-/* ── Tables ──────────────────────────────────────────────────────── */
-.sec-label {
-    font-size: 7pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .06em; color: #1e40af;
-    border-left: 3px solid #1e40af; padding-left: 5px;
-    margin-bottom: 5px;
-}
-.sec-label.grn { color: #065f46; border-color: #059669; }
-.sec-label.org { color: #92400e; border-color: #d97706; }
-
-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
-th {
-    background: #dbeafe; color: #1e40af;
-    padding: 3.5px 7px; border: 1px solid #bfdbfe;
-    font-weight: 700; font-size: 7pt; text-align: left;
-}
-th.r, td.r { text-align: right; }
-th.c, td.c { text-align: center; }
-td { padding: 3px 7px; border: 1px solid #e2e8f0; color: #334155; }
-tr:nth-child(even) td { background: #f8fafc; }
-tr.tot td  { background: #dbeafe !important; font-weight: 700; color: #1e40af; }
-tr.head-p1 th { background: var(--c-p1-bg); color: var(--c-p1); border-color: var(--c-p1-border); }
-tr.head-p2 th { background: var(--c-p2-bg); color: var(--c-p2); border-color: var(--c-p2-border); }
-tr.head-p3 th { background: var(--c-p3-bg); color: var(--c-p3); border-color: var(--c-p3-border); }
-.diff-up   { color: #16a34a; font-weight: 700; }
-.diff-down { color: #dc2626; font-weight: 700; }
-.diff-nil  { color: #64748b; }
-
-/* ── 2-col layouts ───────────────────────────────────────────────── */
-.cols-asym  { display: grid; grid-template-columns: 3fr 2fr; gap: 8px; margin-bottom: 7px; }
-.cols-2     { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 7px; }
-.cols-2-eq  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.section    { margin-bottom: 6px; }
-
-/* ── Chart box ───────────────────────────────────────────────────── */
-.chart-box { border: 1px solid #e2e8f0; border-radius: 5px; padding: 7px 10px; }
-.chart-wrap { position: relative; }
-
-/* ── Event badges ────────────────────────────────────────────────── */
-.ev-section { border: 1px solid #e2e8f0; border-radius: 5px; padding: 5px 8px; margin-bottom: 6px; }
-.ev-section .ev-head { font-size: 6.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
-.ev-list { display: flex; flex-wrap: wrap; gap: 3px; }
-.ev-badge { border-radius: 4px; padding: 2px 6px; font-size: 6.5pt; }
-.ev-badge.p1 { background: var(--c-p1-bg); color: var(--c-p1); border: 1px solid var(--c-p1-border); }
-.ev-badge.p2 { background: var(--c-p2-bg); color: var(--c-p2); border: 1px solid var(--c-p2-border); }
-.ev-badge.p3 { background: var(--c-p3-bg); color: var(--c-p3); border: 1px solid var(--c-p3-border); }
+/* Event per periode */
+.ev-section { margin-bottom: 6px; }
+.ev-section .ev-head { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 3px; }
+.ev-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.ev-badge { border-radius: 5px; padding: 2px 7px; font-size: 8.5px; }
+.ev-badge.p1 { background: var(--c-p1-bg); color: #4338ca; border: 1px solid var(--c-p1-border); }
+.ev-badge.p2 { background: var(--c-p2-bg); color: #c2410c; border: 1px solid var(--c-p2-border); }
+.ev-badge.p3 { background: var(--c-p3-bg); color: #047857; border: 1px solid var(--c-p3-border); }
 .ev-badge .ev-name { font-weight: 700; }
-.ev-badge .ev-per  { font-weight: 400; margin-left: 3px; opacity: .75; }
+.ev-badge .ev-per  { font-weight: 400; margin-left: 3px; opacity: .8; }
 
-/* ── Footer ──────────────────────────────────────────────────────── */
-.rpt-footer {
-    margin-top: 8px; font-size: 6.5pt; color: #94a3b8;
-    display: flex; justify-content: space-between;
-    border-top: 1px solid #e2e8f0; padding-top: 4px;
+/* Panel grafik tanpa kotak analisa */
+.chart-panel .chart-box + .chart-box { padding-left: 14px; border-left: 1px solid var(--garis-halus); }
+
+/* Tautan kembali (layar saja) */
+.tautan-kembali {
+    position: fixed; top: 16px; left: 16px; z-index: 50;
+    padding: 8px 14px; border-radius: 8px; background: #fff; border: 1px solid var(--garis);
+    color: var(--navy-2); font: 600 12px 'Inter', Arial, sans-serif; text-decoration: none;
+    box-shadow: 0 4px 14px rgba(9,21,40,.12);
 }
+.tautan-kembali:hover { border-color: var(--emas); }
 </style>
 </head>
 <body>
@@ -151,7 +82,7 @@ if (! function_exists('diffCell')) {
         if ($pct === null) return '<span class="diff-nil">—</span>';
         $cls = $pct > 0 ? 'diff-up' : ($pct < 0 ? 'diff-down' : 'diff-nil');
         $pre = $pct > 0 ? '+' : '';
-        return '<span class="' . $cls . '">' . $pre . $pct . '%</span><br><span style="font-size:6.5pt;color:#64748b">' . $n . '</span>';
+        return '<span class="' . $cls . '">' . $pre . $pct . '%</span><span class="diff-sub">' . $n . '</span>';
     }
 }
 
@@ -182,50 +113,47 @@ uasort($allDoorsEwalk, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$a['p2']+$a['p3']));
 ?>
 
-<!-- Print bar -->
-<div class="print-bar">
-    <a href="<?= $backUrl ?>">← Kembali ke Compare</a>
-    <span style="font-weight:600">Compare Traffic — <?= $p1Label ?> vs <?= $p2Label ?></span>
-    <button onclick="window.print()">🖨️ Print / Save PDF</button>
-</div>
-<div class="page-top-spacer"></div>
+<a class="tautan-kembali no-print" href="<?= $backUrl ?>">← Kembali ke Compare</a>
+<button class="btn-print no-print" onclick="window.print()">Cetak</button>
 
 
 <!-- ══════════════════ HALAMAN 1 — OVERVIEW ══════════════════════════ -->
 
-<div class="rpt-header">
+<div class="doc-header">
     <div>
-        <h1>Perbandingan Traffic — eWalk &amp; Pentacity</h1>
-        <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.4</div>
+        <div class="title">Perbandingan Traffic — eWalk &amp; Pentacity</div>
+        <div class="sub"><?= $hasP3 ? 'Tiga Periode' : 'Dua Periode' ?></div>
+        <div class="org">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.4</div>
     </div>
-    <div class="right">
-        <strong><?= $hasP3 ? 'Tiga Periode' : 'Dua Periode' ?></strong>
-        Generate: <?= date('d M Y H:i') ?>
+    <div class="meta">
+        Generate: <?= date('d M Y H:i') ?><br>
+        P1: <?= $p1Label ?><br>
+        P2: <?= $p2Label ?>
+        <?php if ($hasP3): ?><br>P3: <?= $p3Label ?><?php endif; ?>
     </div>
 </div>
 
-<!-- Period pills -->
-<div class="period-strip">
-    <div class="period-pill p1"><span class="pill-label">Periode 1</span><span class="pill-date"><?= $p1Label ?></span></div>
-    <div class="period-pill p2"><span class="pill-label">Periode 2</span><span class="pill-date"><?= $p2Label ?></span></div>
+<!-- Kartu periode -->
+<div class="kpi-row periode">
+    <div class="kpi-box" style="--aksen:var(--c-p1)"><div class="kpi-label p1-teks">Periode 1</div><div class="kpi-num"><?= $p1Label ?></div></div>
+    <div class="kpi-box" style="--aksen:var(--c-p2)"><div class="kpi-label p2-teks">Periode 2</div><div class="kpi-num"><?= $p2Label ?></div></div>
     <?php if ($hasP3): ?>
-    <div class="period-pill p3"><span class="pill-label">Periode 3</span><span class="pill-date"><?= $p3Label ?></span></div>
+    <div class="kpi-box" style="--aksen:var(--c-p3)"><div class="kpi-label p3-teks">Periode 3</div><div class="kpi-num"><?= $p3Label ?></div></div>
     <?php endif; ?>
 </div>
 
-<!-- KPI table + Weekday/Weekend side by side -->
-<div class="cols-asym">
+<!-- Tabel KPI + Weekday/Weekend berdampingan -->
+<div class="duo">
 
-    <!-- Visitor KPI table -->
-    <div>
-        <div class="sec-label">Perbandingan Pengunjung</div>
-        <table>
+    <div style="flex:3">
+        <div class="sec-title rapat"><span>Perbandingan Pengunjung</span></div>
+        <table class="main-table rapat">
             <thead>
                 <tr>
                     <th>Metrik</th>
-                    <th class="r" style="color:var(--c-p1)">Periode 1</th>
-                    <th class="r" style="color:var(--c-p2)">Periode 2</th>
-                    <?php if ($hasP3): ?><th class="r" style="color:var(--c-p3)">Periode 3</th><?php endif; ?>
+                    <th class="r"><span class="titik p1"></span>Periode 1</th>
+                    <th class="r"><span class="titik p2"></span>Periode 2</th>
+                    <?php if ($hasP3): ?><th class="r"><span class="titik p3"></span>Periode 3</th><?php endif; ?>
                     <th class="c">Selisih P1→P2</th>
                     <?php if ($hasP3): ?><th class="c">Selisih P1→P3</th><?php endif; ?>
                 </tr>
@@ -240,10 +168,10 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
             foreach ($visitorRows as [$lbl, $v1, $v2, $v3]):
             ?>
             <tr>
-                <td class="fw-medium"><?= $lbl ?></td>
-                <td class="r" style="color:var(--c-p1);font-weight:700"><?= $n($v1) ?></td>
-                <td class="r" style="color:var(--c-p2);font-weight:700"><?= $n($v2) ?></td>
-                <?php if ($hasP3): ?><td class="r" style="color:var(--c-p3);font-weight:700"><?= $n($v3) ?></td><?php endif; ?>
+                <td><?= $lbl ?></td>
+                <td class="r p1-teks" style="font-weight:700"><?= $n($v1) ?></td>
+                <td class="r p2-teks" style="font-weight:700"><?= $n($v2) ?></td>
+                <?php if ($hasP3): ?><td class="r p3-teks" style="font-weight:700"><?= $n($v3) ?></td><?php endif; ?>
                 <td class="c"><?= diffCell($v1, $v2, $n($v2)) ?></td>
                 <?php if ($hasP3): ?><td class="c"><?= diffCell($v1, $v3, $n($v3)) ?></td><?php endif; ?>
             </tr>
@@ -252,15 +180,14 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
         </table>
 
         <?php if ($hasVehicleData): ?>
-        <div style="margin-top:7px">
-        <div class="sec-label org">Perbandingan Kendaraan</div>
-        <table>
+        <div class="sec-title rapat"><span>Perbandingan Kendaraan</span></div>
+        <table class="main-table rapat">
             <thead>
                 <tr>
                     <th>Tipe</th>
-                    <th class="r" style="color:var(--c-p1)">P1</th>
-                    <th class="r" style="color:var(--c-p2)">P2</th>
-                    <?php if ($hasP3): ?><th class="r" style="color:var(--c-p3)">P3</th><?php endif; ?>
+                    <th class="r"><span class="titik p1"></span>P1</th>
+                    <th class="r"><span class="titik p2"></span>P2</th>
+                    <?php if ($hasP3): ?><th class="r"><span class="titik p3"></span>P3</th><?php endif; ?>
                     <th class="c">Selisih P1→P2</th>
                 </tr>
             </thead>
@@ -273,46 +200,44 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
             ?>
             <tr>
                 <td><?= $vl ?></td>
-                <td class="r" style="color:var(--c-p1)"><?= $n($v1) ?></td>
-                <td class="r" style="color:var(--c-p2)"><?= $n($v2) ?></td>
-                <?php if ($hasP3): ?><td class="r" style="color:var(--c-p3)"><?= $n($v3) ?></td><?php endif; ?>
+                <td class="r p1-teks"><?= $n($v1) ?></td>
+                <td class="r p2-teks"><?= $n($v2) ?></td>
+                <?php if ($hasP3): ?><td class="r p3-teks"><?= $n($v3) ?></td><?php endif; ?>
                 <td class="c"><?= diffCell($v1, $v2, $n($v2)) ?></td>
             </tr>
             <?php endforeach; ?>
             </tbody>
         </table>
-        </div>
         <?php endif; ?>
     </div>
 
-    <!-- Weekday / Weekend table -->
-    <div>
-        <div class="sec-label">Weekdays vs Weekend</div>
-        <table>
+    <div style="flex:2">
+        <div class="sec-title rapat"><span>Weekdays vs Weekend</span></div>
+        <table class="main-table rapat">
             <thead>
                 <tr>
                     <th>Segmen</th>
-                    <th class="r" style="color:var(--c-p1)">P1 Total</th>
-                    <th class="r" style="color:var(--c-p1)">P1 Avg</th>
-                    <th class="r" style="color:var(--c-p2)">P2 Total</th>
-                    <th class="r" style="color:var(--c-p2)">P2 Avg</th>
+                    <th class="r"><span class="titik p1"></span>P1 Total</th>
+                    <th class="r">P1 Avg</th>
+                    <th class="r"><span class="titik p2"></span>P2 Total</th>
+                    <th class="r">P2 Avg</th>
                     <?php if ($hasP3): ?>
-                    <th class="r" style="color:var(--c-p3)">P3 Total</th>
-                    <th class="r" style="color:var(--c-p3)">P3 Avg</th>
+                    <th class="r"><span class="titik p3"></span>P3 Total</th>
+                    <th class="r">P3 Avg</th>
                     <?php endif; ?>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ([['Weekdays (Sen–Kam)', 'wd'], ['Weekend (Jum–Min)', 'we']] as [$lbl, $seg]): ?>
             <tr>
-                <td class="fw-medium"><?= $lbl ?></td>
+                <td><?= $lbl ?></td>
                 <td class="r"><?= $n($p1WdWe[$seg]['total']) ?></td>
-                <td class="r" style="color:#64748b"><?= $n($p1WdWe[$seg]['avg']) ?></td>
+                <td class="r redup"><?= $n($p1WdWe[$seg]['avg']) ?></td>
                 <td class="r"><?= $n($p2WdWe[$seg]['total']) ?></td>
-                <td class="r" style="color:#64748b"><?= $n($p2WdWe[$seg]['avg']) ?></td>
+                <td class="r redup"><?= $n($p2WdWe[$seg]['avg']) ?></td>
                 <?php if ($hasP3): ?>
                 <td class="r"><?= $n($p3WdWe[$seg]['total']) ?></td>
-                <td class="r" style="color:#64748b"><?= $n($p3WdWe[$seg]['avg']) ?></td>
+                <td class="r redup"><?= $n($p3WdWe[$seg]['avg']) ?></td>
                 <?php endif; ?>
             </tr>
             <?php endforeach; ?>
@@ -324,12 +249,11 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
         $anyEvents = ! empty($p1Events) || ! empty($p2Events) || ($hasP3 && ! empty($p3Events));
         if ($anyEvents):
         ?>
-        <div style="margin-top:7px">
-        <div class="sec-label">Event dalam Periode</div>
+        <div class="sec-title rapat"><span>Event dalam Periode</span></div>
         <?php foreach ([['p1', $p1Events], ['p2', $p2Events]] as [$cls, $evs]):
             if (empty($evs)) continue; ?>
-        <div class="ev-section" style="margin-bottom:4px">
-            <div class="ev-head" style="color:var(--c-<?= $cls ?>)">Periode <?= strtoupper(substr($cls,1)) ?></div>
+        <div class="ev-section">
+            <div class="ev-head <?= $cls ?>-teks">Periode <?= strtoupper(substr($cls,1)) ?></div>
             <div class="ev-list">
             <?php foreach ($evs as $ev):
                 $evEnd = date('d M Y', strtotime($ev['start_date'] . ' +' . ($ev['event_days'] - 1) . ' days'));
@@ -344,7 +268,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
         <?php endforeach; ?>
         <?php if ($hasP3 && ! empty($p3Events)): ?>
         <div class="ev-section">
-            <div class="ev-head" style="color:var(--c-p3)">Periode 3</div>
+            <div class="ev-head p3-teks">Periode 3</div>
             <div class="ev-list">
             <?php foreach ($p3Events as $ev):
                 $evEnd = date('d M Y', strtotime($ev['start_date'] . ' +' . ($ev['event_days'] - 1) . ' days'));
@@ -357,56 +281,42 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
             </div>
         </div>
         <?php endif; ?>
-        </div>
         <?php endif; ?>
     </div>
 
 </div>
 
-<!-- Charts: Daily bar + Hourly line -->
-<div class="cols-asym">
-    <div class="chart-box">
-        <div class="sec-label">Traffic Harian per Periode (Hari ke-N)</div>
-        <div class="chart-wrap" style="height:55mm"><canvas id="dailyChart"></canvas></div>
+<!-- Grafik: harian (bar) + per jam (garis) -->
+<div class="chart-panel" style="margin-bottom:0">
+    <div class="chart-box" style="flex:3">
+        <div class="chart-title">Traffic Harian per Periode (Hari ke-N)</div>
+        <div class="chart-wrap" style="height:36mm"><canvas id="dailyChart"></canvas></div>
     </div>
-    <div class="chart-box">
-        <div class="sec-label">Distribusi per Jam</div>
-        <div class="chart-wrap" style="height:55mm"><canvas id="hourChart"></canvas></div>
+    <div class="chart-box" style="flex:2">
+        <div class="chart-title">Distribusi per Jam</div>
+        <div class="chart-wrap" style="height:36mm"><canvas id="hourChart"></canvas></div>
     </div>
-</div>
-
-<div class="rpt-footer">
-    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
-    <span>Halaman 1 dari 2</span>
-    <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
 </div>
 
 
 <!-- ══════════════════ HALAMAN 2 — DETAIL PINTU ══════════════════════ -->
-<div class="page-break"></div>
+<div class="putus-halaman"></div>
 
-<div class="rpt-header">
-    <div>
-        <h1>Detail Per Pintu — Perbandingan Periode</h1>
-        <div class="sub">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; <?= $p1Label ?> vs <?= $p2Label ?></div>
-    </div>
-    <div class="right"><strong>Halaman 2 dari 2</strong>Mall Intelligence Center v1.4</div>
-</div>
+<div class="sec-title rapat"><span>Detail per Pintu — Perbandingan Periode</span>
+    <span class="sec-sub"><?= $p1Label ?> vs <?= $p2Label ?><?= $hasP3 ? ' vs ' . $p3Label : '' ?></span></div>
 
-<!-- Door tables -->
-<div class="cols-2-eq">
+<div class="duo">
 
-    <!-- eWalk -->
     <?php if (! empty($allDoorsEwalk)): ?>
-    <div class="section">
-        <div class="sec-label">Per Pintu — eWalk</div>
-        <table>
+    <div>
+        <div class="sec-title rapat tanpa-nomor"><span>Per Pintu — eWalk</span></div>
+        <table class="main-table rapat">
             <thead>
                 <tr>
                     <th>Pintu</th>
-                    <th class="r" style="color:var(--c-p1)">P1</th>
-                    <th class="r" style="color:var(--c-p2)">P2</th>
-                    <?php if ($hasP3): ?><th class="r" style="color:var(--c-p3)">P3</th><?php endif; ?>
+                    <th class="r"><span class="titik p1"></span>P1</th>
+                    <th class="r"><span class="titik p2"></span>P2</th>
+                    <?php if ($hasP3): ?><th class="r"><span class="titik p3"></span>P3</th><?php endif; ?>
                     <th class="c">Selisih P1→P2</th>
                 </tr>
             </thead>
@@ -434,18 +344,17 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
     </div>
     <?php endif; ?>
 
-    <!-- Pentacity -->
     <?php if (! empty($allDoorsPenta)): ?>
-    <div class="section">
-        <div class="sec-label grn">Per Pintu — Pentacity</div>
-        <table>
+    <div>
+        <div class="sec-title rapat tanpa-nomor"><span>Per Pintu — Pentacity</span></div>
+        <table class="main-table rapat">
             <thead>
                 <tr>
-                    <th style="background:#d1fae5;color:#065f46">Pintu</th>
-                    <th class="r" style="background:#d1fae5;color:var(--c-p1)">P1</th>
-                    <th class="r" style="background:#d1fae5;color:var(--c-p2)">P2</th>
-                    <?php if ($hasP3): ?><th class="r" style="background:#d1fae5;color:var(--c-p3)">P3</th><?php endif; ?>
-                    <th class="c" style="background:#d1fae5;color:#065f46">Selisih P1→P2</th>
+                    <th>Pintu</th>
+                    <th class="r"><span class="titik p1"></span>P1</th>
+                    <th class="r"><span class="titik p2"></span>P2</th>
+                    <?php if ($hasP3): ?><th class="r"><span class="titik p3"></span>P3</th><?php endif; ?>
+                    <th class="c">Selisih P1→P2</th>
                 </tr>
             </thead>
             <tbody>
@@ -460,7 +369,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
             <?php endforeach; ?>
             </tbody>
             <tfoot>
-                <tr class="tot" style="background:#d1fae5 !important;color:#065f46 !important">
+                <tr class="tot">
                     <td>TOTAL</td>
                     <td class="r"><?= $n($p1Penta) ?></td>
                     <td class="r"><?= $n($p2Penta) ?></td>
@@ -474,9 +383,8 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 
 </div>
 
-<div class="rpt-footer">
+<div class="doc-footer rapat">
     <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
-    <span>Halaman 2 dari 2</span>
     <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
 </div>
 
@@ -484,11 +392,13 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 <!-- ══════════════════ CHARTS JS ═════════════════════════════════════ -->
 <script>
 Chart.defaults.animation = false;
-Chart.defaults.font.family = "'Segoe UI', Calibri, Arial, sans-serif";
+Chart.defaults.font.family = "'Inter', Arial, sans-serif";
+Chart.defaults.color = 'rgba(51,65,85,.75)';
+Chart.defaults.devicePixelRatio = 2;
 
 const tickFmt    = v => v > 0 ? v.toLocaleString('id-ID') : '';
-const smallTick  = { font: { size: 7 } };
-const smallLegend = { position: 'top', labels: { boxWidth: 10, padding: 8, font: { size: 7.5 } } };
+const smallTick  = { font: { size: 8 } };
+const smallLegend = { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, padding: 10, font: { size: 8.5 } } };
 
 // Daily chart
 new Chart(document.getElementById('dailyChart'), {

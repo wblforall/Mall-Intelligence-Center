@@ -556,20 +556,23 @@ class Traffic extends BaseController
         $eventVehicles = \App\Services\EventFinanceService::getBulkVehicleTotals($periodEvents);
 
         // ── Insight otomatis (rule-based) ─────────────────────────────────
-        $fmtDelta = function (?float $pct, int $prev) : string {
+        // Format angka Indonesia (titik ribuan, koma desimal) — teks ini tampil di laporan cetak.
+        $nf = fn($v) => number_format((float) $v, 0, ',', '.');
+        $pf = fn(?float $p) => str_replace('.', ',', (string) abs((float) $p));
+        $fmtDelta = function (?float $pct, int $prev) use ($nf, $pf) : string {
             if ($pct === null) return 'belum ada pembanding bulan lalu';
-            return ($pct >= 0 ? 'naik ' : 'turun ') . abs($pct) . '% dari bulan lalu (' . number_format($prev) . ')';
+            return ($pct >= 0 ? 'naik ' : 'turun ') . $pf($pct) . '% dari bulan lalu (' . $nf($prev) . ')';
         };
         $insights = [];
-        $insights[] = 'Total pengunjung bulan ini ' . number_format($totalVisitor) . ' — ' . $fmtDelta($changePct, $prevTotal) . '.';
-        $insights[] = 'Rata-rata harian ' . number_format($avgDaily) . ' pengunjung' .
-            ($avgChangePct !== null ? ' (' . ($avgChangePct >= 0 ? 'naik ' : 'turun ') . abs($avgChangePct) . '% vs bulan lalu)' : '') . '.';
-        $insights[] = 'Komposisi: eWalk ' . number_format($totalEwalk) . ' (' . ($totalVisitor > 0 ? round($totalEwalk / $totalVisitor * 100) : 0) . '%) · Pentacity '
-            . number_format($totalPenta) . ' (' . ($totalVisitor > 0 ? round($totalPenta / $totalVisitor * 100) : 0) . '%).';
-        if ($bestDay)          $insights[] = 'Hari teramai: ' . $bestDay . ' (' . number_format($bestVal) . ' pengunjung).';
-        if ($peakIdx !== null) $insights[] = 'Jam puncak: ' . $hours[$peakIdx]['jam'] . ' (total ' . number_format($peakVal) . ' pengunjung sebulan).';
+        $insights[] = 'Total pengunjung bulan ini ' . $nf($totalVisitor) . ' — ' . $fmtDelta($changePct, $prevTotal) . '.';
+        $insights[] = 'Rata-rata harian ' . $nf($avgDaily) . ' pengunjung' .
+            ($avgChangePct !== null ? ' (' . ($avgChangePct >= 0 ? 'naik ' : 'turun ') . $pf($avgChangePct) . '% vs bulan lalu)' : '') . '.';
+        $insights[] = 'Komposisi: eWalk ' . $nf($totalEwalk) . ' (' . ($totalVisitor > 0 ? round($totalEwalk / $totalVisitor * 100) : 0) . '%) · Pentacity '
+            . $nf($totalPenta) . ' (' . ($totalVisitor > 0 ? round($totalPenta / $totalVisitor * 100) : 0) . '%).';
+        if ($bestDay)          $insights[] = 'Hari teramai: ' . $bestDay . ' (' . $nf($bestVal) . ' pengunjung).';
+        if ($peakIdx !== null) $insights[] = 'Jam puncak: ' . $hours[$peakIdx]['jam'] . ' (total ' . $nf($peakVal) . ' pengunjung sebulan).';
         if ($we['avg'] > 0 && $wd['avg'] > 0) {
-            $insights[] = 'Rata-rata weekend (Jum–Min) ' . number_format($we['avg']) . '/hari vs weekday (Sen–Kam) ' . number_format($wd['avg'])
+            $insights[] = 'Rata-rata weekend (Jum–Min) ' . $nf($we['avg']) . '/hari vs weekday (Sen–Kam) ' . $nf($wd['avg'])
                 . '/hari (' . round($we['avg'] / max(1, $wd['avg']) * 100) . '%).';
         }
         if (! empty($periodEvents)) $insights[] = count($periodEvents) . ' event berlangsung bulan ini — rincian traffic per event di tabel bawah.';

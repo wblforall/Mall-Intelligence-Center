@@ -225,12 +225,15 @@ class ParkingRevenue extends BaseController
         $payTotal = array_sum(array_map(fn($p) => (int)$p['total'], $payments));
 
         // Insight otomatis
-        $rp = fn($n) => 'Rp ' . number_format($n, 0, ',', '.');
+        $nf  = fn($v) => number_format((float) $v, 0, ',', '.');
+        $pf  = fn($v) => str_replace('.', ',', (string) $v);
+        $tgl = fn($d) => date('d', strtotime($d)) . ' ' . ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][(int) date('n', strtotime($d))] . ' ' . date('Y', strtotime($d));
+        $rp = fn($n) => 'Rp ' . $nf($n);
         $insights = [];
         $insights[] = 'Pendapatan parkir bulan ini ' . $rp($total)
-            . ($changePct !== null ? ' — ' . ($changePct >= 0 ? 'naik ' : 'turun ') . abs($changePct) . '% dari bulan lalu (' . $rp($prevTotal) . ').' : '.');
+            . ($changePct !== null ? ' — ' . ($changePct >= 0 ? 'naik ' : 'turun ') . $pf(abs($changePct)) . '% dari bulan lalu (' . $rp($prevTotal) . ').' : '.');
         $insights[] = 'Rata-rata harian ' . $rp($avgDaily)
-            . ($avgChangePct !== null ? ' (' . ($avgChangePct >= 0 ? 'naik ' : 'turun ') . abs($avgChangePct) . '% vs bulan lalu).' : '.');
+            . ($avgChangePct !== null ? ' (' . ($avgChangePct >= 0 ? 'naik ' : 'turun ') . $pf(abs($avgChangePct)) . '% vs bulan lalu).' : '.');
         if ($total > 0) {
             $insights[] = 'Kontributor utama: mobil ' . round($byType['mobil'] / $total * 100) . '% · motor ' . round($byType['motor'] / $total * 100) . '%.';
         }
@@ -241,7 +244,7 @@ class ParkingRevenue extends BaseController
             $top = $payments[0];
             $insights[] = 'Metode pembayaran terbesar: ' . $top['method'] . ' (' . ($payTotal > 0 ? round((int)$top['total'] / $payTotal * 100) : 0) . '% dari total).';
         }
-        if ($maxDay) $insights[] = 'Pendapatan tertinggi: ' . date('d M Y', strtotime($maxDay)) . ' (' . $rp($maxVal) . ').';
+        if ($maxDay) $insights[] = 'Pendapatan tertinggi: ' . $tgl($maxDay) . ' (' . $rp($maxVal) . ').';
         if ($missingDays > 0) $insights[] = '⚠ ' . $missingDays . ' hari belum ada data dari SPI — jalankan backfill mic:spi-sync agar laporan lengkap.';
 
         return view('parking/laporan_revenue', [

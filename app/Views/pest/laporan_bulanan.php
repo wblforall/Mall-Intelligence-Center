@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <title>Laporan Bulanan Pest Control — <?= $bulan ?></title>
 <?= view('_laporan/_style') ?>
+<style>
+/* Kepala kolom angka rata kanan, sejajar dengan isinya. */
+.main-table th.num { text-align: right; }
+/* KPI berisi nama item (teks), bukan angka besar. */
+.kpi-num.kpi-teks { font-size: 15px; padding-top: 3px; letter-spacing: -.1px; }
+/* Pesan pengganti grafik saat tidak ada data. */
+.grafik-kosong {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 0 16px; border: 1px dashed var(--garis); border-radius: 8px; background: #fbfcfe;
+    font-size: 10px; font-style: italic; color: var(--redup2);
+}
+</style>
 </head>
 <body>
 
@@ -15,7 +27,9 @@ $fmtBulan   = fn($m) => bulan_indo((int) substr($m, 5, 2)) . ' ' . substr($m, 0,
 $bulanLabel = $fmtBulan($bulan);
 $prevLabel  = $fmtBulan($prevBulan);
 $mallLabel  = $mall ? \App\Models\PestVisitModel::MALLS[$mall] : 'eWalk & Pentacity';
-$n = fn($v) => $v > 0 ? number_format($v) : '—';
+$f = fn($v) => number_format((float) $v, 0, ',', '.');   // format Indonesia: titik ribuan
+$n = fn($v) => $v > 0 ? $f($v) : '—';
+$pctId = fn($v) => str_replace('.', ',', (string) $v);  // 12.5 → 12,5
 
 $tglSingkat = function (string $d) {
     return date('j', strtotime($d)) . ' ' . substr(bulan_indo((int) date('n', strtotime($d))), 0, 3);
@@ -38,7 +52,7 @@ $deltaHtml = function (?float $pct) {
     // Temuan pest NAIK itu buruk — warnanya sengaja dibalik dari laporan
     // pendapatan, di mana naik berarti baik.
     $cls = $pct <= 0 ? 'delta-up' : 'delta-down';
-    return '<span class="' . $cls . '">' . ($pct >= 0 ? '▲' : '▼') . ' ' . abs($pct) . '%</span>';
+    return '<span class="' . $cls . '">' . ($pct >= 0 ? '▲' : '▼') . ' ' . str_replace('.', ',', (string) abs($pct)) . '%</span>';
 };
 
 // Total baris mingguan — dipakai untuk membedakan temuan dari kunjungan nyata
@@ -63,12 +77,12 @@ if ($grand === 0) {
     // Saat ada baris impor, jumlah temuan TIDAK berasal dari jumlah kunjungan
     // nyata — menggabungkan keduanya dalam satu kalimat akan menyesatkan.
     $asal = $jmlLegacy > 0
-        ? ' (' . number_format($grandMingguan) . ' dari ' . $jmlKunjungan . ' kunjungan tercatat, sisanya dari rekap impor)'
+        ? ' (' . $f($grandMingguan) . ' dari ' . $jmlKunjungan . ' kunjungan tercatat, sisanya dari rekap impor)'
         : ' dari ' . $jmlKunjungan . ' kunjungan';
-    $insight[] = 'Total ' . number_format($grand) . ' temuan' . $asal
-        . ($deltaPct === null ? '.' : ', ' . ($deltaPct > 0 ? 'naik' : ($deltaPct < 0 ? 'turun' : 'setara')) . ' ' . abs((float) $deltaPct) . '% dibanding ' . $prevLabel . '.');
+    $insight[] = 'Total ' . $f($grand) . ' temuan' . $asal
+        . ($deltaPct === null ? '.' : ', ' . ($deltaPct > 0 ? 'naik' : ($deltaPct < 0 ? 'turun' : 'setara')) . ' ' . $pctId(abs((float) $deltaPct)) . '% dibanding ' . $prevLabel . '.');
     if ($tertinggiN > 0) {
-        $insight[] = $tertinggi . ' menjadi temuan terbanyak (' . number_format($tertinggiN) . ', '
+        $insight[] = $tertinggi . ' menjadi temuan terbanyak (' . $f($tertinggiN) . ', '
             . round($tertinggiN / $grand * 100) . '% dari seluruh temuan).';
     }
     // Minggu puncak
@@ -76,7 +90,7 @@ if ($grand === 0) {
     foreach ($mingguan as $k => $w) if (! $puncak || $w['total'] > $puncak['total']) $puncak = $w;
     if ($puncak && $puncak['total'] > 0) {
         $insight[] = 'Puncak mingguan pada ' . $puncak['label'] . ' (' . $tglSingkat($puncak['dari']) . '–' . $tglSingkat($puncak['sampai'])
-            . ') dengan ' . number_format($puncak['total']) . ' temuan.';
+            . ') dengan ' . $f($puncak['total']) . ' temuan.';
     }
     foreach ($items as $it) {
         $a = $ini[(int) $it['id']] ?? 0; $b = $lalu[(int) $it['id']] ?? 0;
@@ -109,19 +123,19 @@ if ($jmlLegacy > 0) {
 <div class="kpi-row">
     <div class="kpi-box kpi-blue">
         <div class="kpi-label">Total Temuan</div>
-        <div class="kpi-num"><?= number_format($grand) ?></div>
-        <div class="kpi-sub"><?= $deltaHtml($deltaPct) ?> vs <?= $prevLabel ?> (<?= number_format($grandLalu) ?>)</div>
+        <div class="kpi-num"><?= $f($grand) ?></div>
+        <div class="kpi-sub"><?= $deltaHtml($deltaPct) ?> vs <?= $prevLabel ?> (<?= $f($grandLalu) ?>)</div>
     </div>
     <div class="kpi-box kpi-amber">
         <div class="kpi-label">Temuan Terbanyak</div>
-        <div class="kpi-num" style="font-size:15px"><?= $tertinggi !== '' ? esc($tertinggi) : '—' ?></div>
+        <div class="kpi-num kpi-teks"><?= $tertinggi !== '' ? esc($tertinggi) : '—' ?></div>
         <div class="kpi-sub"><?= $tertinggiN > 0
-            ? number_format($tertinggiN) . ' ekor' . ($jmlLegacy > 0 ? ' (termasuk rekap impor)' : '')
+            ? $f($tertinggiN) . ' ekor' . ($jmlLegacy > 0 ? ' (termasuk rekap impor)' : '')
             : 'tidak ada temuan' ?></div>
     </div>
     <div class="kpi-box kpi-green">
         <div class="kpi-label">Kunjungan Tercatat</div>
-        <div class="kpi-num"><?= $jmlKunjungan ?></div>
+        <div class="kpi-num"><?= $f($jmlKunjungan) ?></div>
         <div class="kpi-sub"><?= count($mingguan) ?> minggu ada temuan</div>
     </div>
     <div class="kpi-box kpi-purple">
@@ -137,11 +151,11 @@ if ($jmlLegacy > 0) {
 <thead>
 <tr>
     <th>Item Temuan</th>
-    <th class="text-center">eWalk</th>
-    <th class="text-center">Pentacity</th>
-    <th class="text-center">Total</th>
-    <th class="text-center"><?= $prevLabel ?></th>
-    <th class="text-center">Perubahan</th>
+    <th class="num">eWalk</th>
+    <th class="num">Pentacity</th>
+    <th class="num">Total</th>
+    <th class="num"><?= $prevLabel ?></th>
+    <th class="num">Perubahan</th>
 </tr>
 </thead>
 <tbody>
@@ -160,9 +174,10 @@ if ($jmlLegacy > 0) {
     <td class="num"><?= $t === 0 && $l === 0 ? '<span class="zero">—</span>' : $deltaHtml($pc) ?></td>
 </tr>
 <?php endforeach; ?>
+<?php if (! $items): ?><tr class="empty-row"><td colspan="6">Belum ada item temuan yang dipantau.</td></tr><?php endif; ?>
 </tbody>
 <tfoot>
-<tr style="font-weight:700; background:#f1f5f9">
+<tr>
     <td>TOTAL</td>
     <td class="num"><?= $n($te) ?></td>
     <td class="num"><?= $n($tp) ?></td>
@@ -184,11 +199,13 @@ if ($jmlLegacy > 0) {
     </div>
     <div class="chart-box">
         <div class="chart-title">Temuan per Minggu</div>
-        <div class="chart-wrap"><canvas id="cWeek"></canvas></div>
+        <div class="chart-wrap"><canvas id="cWeek"></canvas><?php if (! $mingguan): ?>
+            <div class="grafik-kosong">Tidak ada temuan per minggu yang tercatat pada <?= $bulanLabel ?>.</div><?php endif; ?></div>
     </div>
     <div class="chart-box">
         <div class="chart-title">Komposisi per Item</div>
-        <div class="chart-wrap"><canvas id="cItem"></canvas></div>
+        <div class="chart-wrap"><canvas id="cItem"></canvas><?php if (! array_filter($ini)): ?>
+            <div class="grafik-kosong">Belum ada temuan untuk disusun komposisinya.</div><?php endif; ?></div>
     </div>
 </div>
 
@@ -203,15 +220,13 @@ if ($jmlLegacy > 0) {
 <thead>
 <tr>
     <th>Minggu</th><th>Periode</th>
-    <?php foreach ($items as $it): ?><th class="text-center"><?= esc($it['nama']) ?></th><?php endforeach; ?>
-    <th class="text-center">Total</th>
+    <?php foreach ($items as $it): ?><th class="num"><?= esc($it['nama']) ?></th><?php endforeach; ?>
+    <th class="num">Total</th>
 </tr>
 </thead>
 <tbody>
 <?php if (! $mingguan): ?>
-<tr><td colspan="<?= count($items) + 3 ?>" style="text-align:center;color:#94a3b8;padding:14px">
-    Tidak ada temuan tercatat pada <?= $bulanLabel ?>.
-</td></tr>
+<tr class="empty-row"><td colspan="<?= count($items) + 3 ?>">Tidak ada temuan tercatat pada <?= $bulanLabel ?>.</td></tr>
 <?php else: $cekTotal = 0; foreach ($mingguan as $w): $cekTotal += $w['total']; ?>
 <tr>
     <td><strong><?= $w['label'] ?></strong><?= $w['sebagian'] ? ' <span class="subnote">(sebagian)</span>' : '' ?></td>
@@ -224,7 +239,7 @@ if ($jmlLegacy > 0) {
 <?php endforeach; ?>
 </tbody>
 <tfoot>
-<tr style="font-weight:700; background:#f1f5f9">
+<tr>
     <td colspan="2">TOTAL MINGGUAN</td>
     <?php foreach ($items as $it): $s = 0; foreach ($mingguan as $w) $s += $w['items'][(int) $it['id']] ?? 0; ?>
     <td class="num"><?= $n($s) ?></td>
@@ -236,7 +251,7 @@ if ($jmlLegacy > 0) {
 </table>
 
 <?php if ($jmlLegacy > 0): ?>
-<p class="subnote" style="margin-bottom:14px">
+<p class="catatan info">
     <strong>Catatan:</strong> <?= $jmlLegacy ?> baris pada bulan ini berasal dari impor rekap bulanan
     Excel dan tidak punya tanggal kunjungan sesungguhnya. Angkanya ikut pada tabel rekap dan KPI di atas,
     tetapi <strong>tidak</strong> pada tabel mingguan — karena itulah kedua total bisa berbeda.
@@ -255,6 +270,9 @@ if ($jmlLegacy > 0) {
 (function () {
     if (typeof Chart === 'undefined') return;
     const palet = ['#2563eb', '#d97706', '#059669', '#9333ea', '#dc2626', '#0891b2', '#65a30d', '#c026d3'];
+    const ink   = 'rgba(51,65,85,.75)';
+    const nId   = v => Number(v).toLocaleString('id-ID');
+    Chart.defaults.devicePixelRatio = 2;
 
     const wLabels = <?= json_encode(array_values(array_map(fn($w) => $w['label'], $mingguan))) ?>;
     const wData   = <?= json_encode(array_values(array_map(fn($w) => $w['total'], $mingguan))) ?>;
@@ -263,17 +281,25 @@ if ($jmlLegacy > 0) {
 
     if (wLabels.length) new Chart(document.getElementById('cWeek'), {
         type: 'bar',
-        data: { labels: wLabels, datasets: [{ label: 'Temuan', data: wData, backgroundColor: '#2563eb' }] },
+        data: { labels: wLabels, datasets: [{ label: 'Temuan', data: wData, backgroundColor: '#2563eb', borderRadius: 3 }] },
         options: { responsive: true, maintainAspectRatio: false, animation: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+            plugins: { legend: { display: false },
+                tooltip: { callbacks: { label: c => 'Temuan: ' + nId(c.parsed.y) } } },
+            scales: {
+                x: { ticks: { color: ink, font: { size: 9.5 } }, grid: { display: false } },
+                y: { beginAtZero: true, ticks: { precision: 0, color: ink, font: { size: 9.5 }, callback: v => nId(v) }, grid: { color: 'rgba(0,0,0,.06)' } } } }
     });
 
     if (iLabels.length) new Chart(document.getElementById('cItem'), {
         type: 'doughnut',
-        data: { labels: iLabels, datasets: [{ data: iData, backgroundColor: palet }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: false,
-            plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } } } }
+        data: { labels: iLabels, datasets: [{ data: iData, backgroundColor: palet, borderColor: '#fff', borderWidth: 1.5 }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '58%',
+            plugins: {
+                legend: { position: 'right', labels: { color: ink, usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, font: { size: 9.5 },
+                    // Label legenda memuat jumlahnya — angka tetap terbaca di kertas.
+                    generateLabels: ch => Chart.overrides.doughnut.plugins.legend.labels.generateLabels(ch)
+                        .map((l, i) => ({ ...l, text: l.text + ' · ' + nId(iData[i]) })) } },
+                tooltip: { callbacks: { label: c => c.label + ': ' + nId(c.parsed) } } } }
     });
 })();
 </script>

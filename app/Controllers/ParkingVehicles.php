@@ -227,21 +227,24 @@ class ParkingVehicles extends BaseController
         }
 
         // Insight otomatis
+        $nf  = fn($v) => number_format((float) $v, 0, ',', '.');
+        $pf  = fn($v) => str_replace('.', ',', (string) $v);
+        $tgl = fn($d) => date('d', strtotime($d)) . ' ' . ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][(int) date('n', strtotime($d))] . ' ' . date('Y', strtotime($d));
         $insights = [];
-        $insights[] = 'Total kendaraan masuk bulan ini ' . number_format($grand)
-            . ($changePct !== null ? ' — ' . ($changePct >= 0 ? 'naik ' : 'turun ') . abs($changePct) . '% dari bulan lalu (' . number_format($prevTotal) . ').' : '.');
-        $insights[] = 'Rata-rata harian ' . number_format($avgDaily) . ' kendaraan'
-            . ($avgChangePct !== null ? ' (' . ($avgChangePct >= 0 ? 'naik ' : 'turun ') . abs($avgChangePct) . '% vs bulan lalu).' : '.');
+        $insights[] = 'Total kendaraan masuk bulan ini ' . $nf($grand)
+            . ($changePct !== null ? ' — ' . ($changePct >= 0 ? 'naik ' : 'turun ') . $pf(abs($changePct)) . '% dari bulan lalu (' . $nf($prevTotal) . ').' : '.');
+        $insights[] = 'Rata-rata harian ' . $nf($avgDaily) . ' kendaraan'
+            . ($avgChangePct !== null ? ' (' . ($avgChangePct >= 0 ? 'naik ' : 'turun ') . $pf(abs($avgChangePct)) . '% vs bulan lalu).' : '.');
         if ($grand > 0) {
             $insights[] = 'Komposisi: motor ' . round($byType['motor'] / $grand * 100) . '% · mobil ' . round($byType['mobil'] / $grand * 100)
                 . '% · langganan/pass ' . round($freeTot / $grand * 100) . '% dari total.';
         }
-        if ($peakDay) $insights[] = 'Hari teramai: ' . date('d M Y', strtotime($peakDay)) . ' (' . number_format($peakVal) . ' kendaraan).';
+        if ($peakDay) $insights[] = 'Hari teramai: ' . $tgl($peakDay) . ' (' . $nf($peakVal) . ' kendaraan).';
         if ($we['avg'] > 0 && $wd['avg'] > 0) {
-            $insights[] = 'Rata-rata weekend ' . number_format($we['avg']) . '/hari vs weekday ' . number_format($wd['avg'])
+            $insights[] = 'Rata-rata weekend ' . $nf($we['avg']) . '/hari vs weekday ' . $nf($wd['avg'])
                 . '/hari (' . round($we['avg'] / max(1, $wd['avg']) * 100) . '%).';
         }
-        if ($gateMasuk)  $insights[] = 'Gate masuk tersibuk: ' . $gateMasuk[0]['gate'] . ' (' . number_format((int)$gateMasuk[0]['total']) . ' kendaraan).';
+        if ($gateMasuk)  $insights[] = 'Gate masuk tersibuk: ' . $gateMasuk[0]['gate'] . ' (' . $nf((int)$gateMasuk[0]['total']) . ' kendaraan).';
         if ($missingDays > 0) $insights[] = '⚠ ' . $missingDays . ' hari belum ada data dari SPI — jalankan backfill mic:spi-sync agar laporan lengkap.';
 
         return view('parking/laporan_vehicles', [

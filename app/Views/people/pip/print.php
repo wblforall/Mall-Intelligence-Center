@@ -3,33 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <title>PIP — <?= esc($plan['judul']) ?></title>
+<?= view('_laporan/_dokumen', ['labelHalaman' => 'PIP · ' . strip_tags((string) $plan['employee_nama'])]) ?>
 <style>
-* { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:'Segoe UI',Arial,sans-serif; font-size:11pt; color:#1a1a1a; background:#fff; padding:20mm 18mm; }
-h1 { font-size:15pt; font-weight:700; margin-bottom:2px; }
-.subtitle { font-size:10pt; color:#555; margin-bottom:16px; }
-.section-title { font-size:10pt; font-weight:700; text-transform:uppercase; color:#444; letter-spacing:.05em; border-bottom:1.5px solid #ccc; padding-bottom:4px; margin:18px 0 10px; }
-.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-bottom:8px; }
-.info-item label { font-size:9pt; color:#777; display:block; }
-.info-item span { font-size:10.5pt; font-weight:600; }
-.badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:9pt; font-weight:600; }
-.badge-primary { background:#dbeafe; color:#1d4ed8; }
-.badge-success { background:#dcfce7; color:#166534; }
-.badge-warning { background:#fef3c7; color:#92400e; }
-.badge-danger  { background:#fee2e2; color:#991b1b; }
+.badge { display:inline-block; padding:1.5px 9px; border-radius:999px; font-size:8.5px; font-weight:600; line-height:1.45; }
+.badge-primary   { background:#dbeafe; color:#1d4ed8; }
+.badge-info      { background:#e0f2fe; color:#0369a1; }
+.badge-success   { background:#dcfce7; color:#166534; }
+.badge-warning   { background:#fef3c7; color:#92400e; }
+.badge-danger    { background:#fee2e2; color:#991b1b; }
 .badge-secondary { background:#f1f5f9; color:#475569; }
-table { width:100%; border-collapse:collapse; font-size:9.5pt; }
-th { background:#f8fafc; font-weight:700; text-align:left; padding:6px 8px; border:1px solid #dde; }
-td { padding:6px 8px; border:1px solid #dde; vertical-align:top; }
-tr:nth-child(even) td { background:#fafafa; }
-.review-row { padding:8px 0; border-bottom:1px solid #eee; }
+.dua-kolom { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.dua-kolom .dk-bagian { margin-top: 16px; }
+.review-row { padding:7px 0; border-bottom:1px solid var(--garis-halus); break-inside:avoid; }
 .review-row:last-child { border-bottom:none; }
-.text-muted { color:#777; }
-.alasan-box { background:#f8f9fa; padding:10px; border-left:3px solid #aaa; border-radius:3px; font-size:10pt; }
-.penutup-box { background:#f0fdf4; padding:10px; border-left:3px solid #16a34a; border-radius:3px; font-size:10pt; }
-.footer-sign { display:grid; grid-template-columns:1fr 1fr 1fr; gap:30px; margin-top:40px; }
-.sign-box { border-top:1px solid #aaa; padding-top:6px; text-align:center; font-size:9.5pt; }
-@media print { @page { size:A4; margin:18mm; } body { padding:0; } }
+.review-row .tgl { margin-left:8px; }
+.review-row .oleh { margin-left:6px; color:var(--redup); font-size:9.5px; }
+.review-row .isi { margin-top:3px; font-size:10px; color:var(--teks); }
 </style>
 </head>
 <body onload="window.print()">
@@ -44,61 +33,67 @@ $setujuLabel  = ['pending'=>'Menunggu','setuju'=>'Disetujui','menolak'=>'Ditolak
 $setujuBadge  = ['pending'=>'secondary','setuju'=>'success','menolak'=>'danger'];
 ?>
 
-<div style="text-align:center;margin-bottom:16px;">
-    <div style="font-size:9pt;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:4px;">PT. Wulandari Bangun Laksana Tbk.</div>
-    <h1>Performance Improvement Plan</h1>
-    <div class="subtitle"><?= esc($plan['judul']) ?></div>
-</div>
+<button class="dk-tombol no-print" onclick="window.print()">Cetak / Simpan PDF</button>
 
-<div class="info-grid">
-    <div class="info-item"><label>Karyawan</label><span><?= esc($plan['employee_nama']) ?></span></div>
-    <div class="info-item"><label>Status</label><span class="badge badge-<?= $statusBadge[$plan['status']] ?>"><?= $statusLabel[$plan['status']] ?></span></div>
-    <div class="info-item"><label>Jabatan</label><span><?= esc($plan['jabatan'] ?? '—') ?></span></div>
-    <div class="info-item"><label>Departemen</label><span><?= esc($plan['dept_name'] ?? '—') ?></span></div>
-    <div class="info-item"><label>Tanggal Mulai</label><span><?= date('d F Y', strtotime($plan['tanggal_mulai'])) ?></span></div>
-    <div class="info-item"><label>Tanggal Selesai</label><span><?= date('d F Y', strtotime($plan['tanggal_selesai'])) ?></span></div>
-    <div class="info-item"><label>Surat Peringatan</label><span><?= $spLabel[$plan['level_sp']] ?></span></div>
-    <div class="info-item"><label>Persetujuan Atasan</label><span class="badge badge-<?= $setujuBadge[$plan['persetujuan_atasan']] ?>"><?= $setujuLabel[$plan['persetujuan_atasan']] ?></span></div>
-    <div class="info-item"><label>Persetujuan Karyawan</label><span class="badge badge-<?= $setujuBadge[$plan['persetujuan_karyawan']] ?>"><?= $setujuLabel[$plan['persetujuan_karyawan']] ?></span></div>
-    <div class="info-item"><label>Atasan Langsung</label><span><?= esc($plan['atasan_nama'] ?? '—') ?></span></div>
-    <div class="info-item"><label>People Development</label><span><?= esc($plan['approved_by_name'] ?? '—') ?></span></div>
-    <div class="info-item"><label>Tanggal Cetak</label><span><?= date('d F Y') ?></span></div>
-</div>
+<header class="dk-kop">
+    <div>
+        <div class="dk-label">Mall Intelligence Center · People Development</div>
+        <h1 class="dk-judul">Performance Improvement Plan</h1>
+        <div class="dk-sub"><b><?= esc($plan['judul']) ?></b> · PT. Wulandari Bangun Laksana Tbk.</div>
+    </div>
+    <img class="dk-logo" src="<?= base_url('img/mic-logo.png') ?>" alt="MIC">
+</header>
+<div class="dk-pita"></div>
+
+<dl class="dk-identitas">
+    <div><dt>Karyawan</dt><dd><?= esc($plan['employee_nama']) ?></dd></div>
+    <div><dt>Status</dt><dd><span class="badge badge-<?= $statusBadge[$plan['status']] ?>"><?= $statusLabel[$plan['status']] ?></span></dd></div>
+    <div><dt>Jabatan</dt><dd><?= esc($plan['jabatan'] ?? '—') ?></dd></div>
+    <div><dt>Departemen</dt><dd><?= esc($plan['dept_name'] ?? '—') ?></dd></div>
+    <div><dt>Tanggal Mulai</dt><dd><?= date('d F Y', strtotime($plan['tanggal_mulai'])) ?></dd></div>
+    <div><dt>Tanggal Selesai</dt><dd><?= date('d F Y', strtotime($plan['tanggal_selesai'])) ?></dd></div>
+    <div><dt>Surat Peringatan</dt><dd><?= $spLabel[$plan['level_sp']] ?></dd></div>
+    <div><dt>Persetujuan Atasan</dt><dd><span class="badge badge-<?= $setujuBadge[$plan['persetujuan_atasan']] ?>"><?= $setujuLabel[$plan['persetujuan_atasan']] ?></span></dd></div>
+    <div><dt>Persetujuan Karyawan</dt><dd><span class="badge badge-<?= $setujuBadge[$plan['persetujuan_karyawan']] ?>"><?= $setujuLabel[$plan['persetujuan_karyawan']] ?></span></dd></div>
+    <div><dt>Atasan Langsung</dt><dd><?= esc($plan['atasan_nama'] ?? '—') ?></dd></div>
+    <div><dt>People Development</dt><dd><?= esc($plan['approved_by_name'] ?? '—') ?></dd></div>
+    <div><dt>Tanggal Cetak</dt><dd><?= date('d F Y') ?></dd></div>
+</dl>
 
 <?php if ($plan['alasan']): ?>
-<div class="section-title">Latar Belakang</div>
-<div class="alasan-box"><?= nl2br(esc($plan['alasan'])) ?></div>
+<h2 class="dk-bagian">Latar Belakang</h2>
+<div class="dk-kotak"><?= nl2br(esc($plan['alasan'])) ?></div>
 <?php endif; ?>
 
 <?php if ($plan['dukungan'] || $plan['konsekuensi']): ?>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+<div class="dua-kolom">
     <?php if ($plan['dukungan']): ?>
     <div>
-        <div class="section-title" style="margin-top:0">Dukungan Perusahaan</div>
-        <div class="alasan-box" style="border-left-color:#0ea5e9"><?= nl2br(esc($plan['dukungan'])) ?></div>
+        <h2 class="dk-bagian">Dukungan Perusahaan</h2>
+        <div class="dk-kotak info"><?= nl2br(esc($plan['dukungan'])) ?></div>
     </div>
     <?php endif; ?>
     <?php if ($plan['konsekuensi']): ?>
     <div>
-        <div class="section-title" style="margin-top:0">Konsekuensi jika Tidak Tercapai</div>
-        <div class="alasan-box" style="border-left-color:#f59e0b"><?= nl2br(esc($plan['konsekuensi'])) ?></div>
+        <h2 class="dk-bagian">Konsekuensi jika Tidak Tercapai</h2>
+        <div class="dk-kotak waspada"><?= nl2br(esc($plan['konsekuensi'])) ?></div>
     </div>
     <?php endif; ?>
 </div>
 <?php endif; ?>
 
 <?php if ($plan['persetujuan_atasan'] === 'menolak' && $plan['catatan_penolakan_atasan']): ?>
-<div class="section-title">Catatan Penolakan Atasan</div>
-<div class="alasan-box" style="border-left-color:#ef4444"><?= nl2br(esc($plan['catatan_penolakan_atasan'])) ?></div>
+<h2 class="dk-bagian">Catatan Penolakan Atasan</h2>
+<div class="dk-kotak buruk"><?= nl2br(esc($plan['catatan_penolakan_atasan'])) ?></div>
 <?php endif; ?>
 <?php if ($plan['persetujuan_karyawan'] === 'menolak' && $plan['catatan_penolakan']): ?>
-<div class="section-title">Catatan Penolakan Karyawan</div>
-<div class="alasan-box" style="border-left-color:#ef4444"><?= nl2br(esc($plan['catatan_penolakan'])) ?></div>
+<h2 class="dk-bagian">Catatan Penolakan Karyawan</h2>
+<div class="dk-kotak buruk"><?= nl2br(esc($plan['catatan_penolakan'])) ?></div>
 <?php endif; ?>
 
 <?php if (! empty($items)): ?>
-<div class="section-title">Item Perbaikan</div>
-<table>
+<h2 class="dk-bagian">Item Perbaikan</h2>
+<table class="dk-tabel">
     <thead>
         <tr>
             <th width="4%">#</th>
@@ -125,40 +120,44 @@ $setujuBadge  = ['pending'=>'secondary','setuju'=>'success','menolak'=>'danger']
 <?php endif; ?>
 
 <?php if (! empty($reviews)): ?>
-<div class="section-title">Riwayat Review</div>
+<h2 class="dk-bagian">Riwayat Review</h2>
 <?php foreach ($reviews as $r): ?>
 <div class="review-row">
     <span class="badge badge-<?= $prBadge[$r['progres']] ?>"><?= $progresLabel[$r['progres']] ?></span>
-    <strong style="margin-left:8px"><?= date('d F Y', strtotime($r['tanggal_review'])) ?></strong>
-    <span class="text-muted" style="font-size:9.5pt;margin-left:6px">oleh <?= esc($r['reviewer_name']) ?></span>
+    <strong class="tgl"><?= date('d F Y', strtotime($r['tanggal_review'])) ?></strong>
+    <span class="oleh">oleh <?= esc($r['reviewer_name']) ?></span>
     <?php if ($r['catatan']): ?>
-    <div style="margin-top:4px;font-size:9.5pt;color:#444"><?= nl2br(esc($r['catatan'])) ?></div>
+    <div class="isi"><?= nl2br(esc($r['catatan'])) ?></div>
     <?php endif; ?>
 </div>
 <?php endforeach; ?>
 <?php endif; ?>
 
 <?php if ($plan['catatan_penutup']): ?>
-<div class="section-title">Catatan Penutup</div>
-<div class="penutup-box"><?= nl2br(esc($plan['catatan_penutup'])) ?></div>
+<h2 class="dk-bagian">Catatan Penutup</h2>
+<div class="dk-kotak baik"><?= nl2br(esc($plan['catatan_penutup'])) ?></div>
 <?php endif; ?>
 
-<div class="footer-sign">
-    <div class="sign-box">
-        Karyawan<br>
-        <br><br><br>
-        ( <?= esc($plan['employee_nama']) ?> )
+<div class="dk-utuh">
+<div class="dk-ttd">
+    <div>
+        <div class="dk-ttd-peran">Karyawan</div><div class="dk-ttd-ruang"></div>
+        <div class="dk-ttd-nama"><?= esc($plan['employee_nama']) ?></div>
     </div>
-    <div class="sign-box">
-        Atasan Langsung<br>
-        <br><br><br>
-        ( <?= esc($plan['atasan_nama'] ?? '______________________________') ?> )
+    <div>
+        <div class="dk-ttd-peran">Atasan Langsung</div><div class="dk-ttd-ruang"></div>
+        <div class="dk-ttd-nama"><?= $plan['atasan_nama'] ? esc($plan['atasan_nama']) : '&nbsp;' ?></div>
     </div>
-    <div class="sign-box">
-        People Development<br>
-        <br><br><br>
-        ( <?= esc($plan['approved_by_name'] ?? '______________________________') ?> )
+    <div>
+        <div class="dk-ttd-peran">People Development</div><div class="dk-ttd-ruang"></div>
+        <div class="dk-ttd-nama"><?= $plan['approved_by_name'] ? esc($plan['approved_by_name']) : '&nbsp;' ?></div>
     </div>
+</div>
+
+<footer class="dk-kaki">
+    <span><b>Mall Intelligence Center</b> · dicetak <?= date('d/m/Y H:i') ?></span>
+    <span>Performance Improvement Plan — <?= esc($plan['employee_nama']) ?></span>
+</footer>
 </div>
 
 </body>
