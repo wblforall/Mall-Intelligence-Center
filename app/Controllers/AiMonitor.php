@@ -375,8 +375,9 @@ class AiMonitor extends BaseController
         $scope      = [];
         $scopeLabel = 'Semua karyawan & komputer';
         $sesiList   = null;
-        $rekap      = null;
+        $perUser    = null;
         $komputerAktif = null;
+        $jmlRendah  = 0;
 
         if ($employeeId) {
             $scope = ['employee_id' => $employeeId];
@@ -399,8 +400,34 @@ class AiMonitor extends BaseController
                 . (! empty($dev['nama']) ? ' — ' . $dev['nama'] : '');
             $sesiList = $this->sessions->sesiRentangScope($dari, $sampai, $scope);
         } else {
-            $rekap         = $this->sessions->rekapKaryawanRentang($dari, $sampai);
+            // Laporan bulanan default = FOKUS PER KARYAWAN: satu blok analisa
+            // untuk tiap karyawan yang beraktivitas bulan itu. Sesi perangkat
+            // yang belum ditautkan (employee_id NULL) tak punya karyawan → lewati.
             $komputerAktif = $this->sessions->jmlKomputerAktif($dari, $sampai);
+            $ambang  = AiSessionModel::AMBANG_KANTOR;
+            $perUser = [];
+            foreach ($this->sessions->rekapKaryawanRentang($dari, $sampai) as $r) {
+                $eid = (int) $r['employee_id'];
+                if ($eid === 0) continue;
+                $perUser[] = [
+                    'info'    => $r,
+                    'analisa' => $this->sessions->analisa($dari, $sampai, ['employee_id' => $eid]),
+                ];
+            }
+            // Urut %kantor TERENDAH dulu (yang bermasalah di atas); null (tak ada
+            // klasifikasi) ditaruh paling akhir; seri → urut nama.
+            usort($perUser, function ($x, $y) {
+                $px = $x['analisa']['pct_kantor'];
+                $py = $y['analisa']['pct_kantor'];
+                if ($px === null && $py === null) return strcmp($x['info']['nama'], $y['info']['nama']);
+                if ($px === null) return 1;
+                if ($py === null) return -1;
+                return ($px <=> $py) ?: strcmp($x['info']['nama'], $y['info']['nama']);
+            });
+            foreach ($perUser as $u) {
+                $pk = $u['analisa']['pct_kantor'];
+                if ($pk !== null && $pk < $ambang) $jmlRendah++;
+            }
         }
 
         $agg = $this->sessions->analisa($dari, $sampai, $scope);
@@ -411,7 +438,8 @@ class AiMonitor extends BaseController
             'scopeLabel'    => $scopeLabel,
             'isGlobal'      => empty($scope),
             'analisa'       => $agg,
-            'rekap'         => $rekap,
+            'perUser'       => $perUser,
+            'jmlRendah'     => $jmlRendah,
             'komputerAktif' => $komputerAktif,
             'sesiList'      => $sesiList,
             'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
