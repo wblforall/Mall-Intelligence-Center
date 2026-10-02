@@ -362,22 +362,23 @@ class AiMonitor extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
+        $employeeId = (int) $this->request->getGet('employee_id');
+        $deviceId   = (int) $this->request->getGet('device_id');
+
+        // Laporan bulanan dicetak HANYA untuk user/komputer yang sedang dibuka.
+        // Tanpa scope (mis. dari dashboard) tak ada yang bisa dicetak → arahkan
+        // kembali untuk membuka data karyawan/komputer dulu.
+        if (! $employeeId && ! $deviceId) {
+            return redirect()->to('/ai-monitor')
+                ->with('warning', 'Buka data karyawan atau komputer dulu untuk mencetak laporan bulanannya.');
+        }
+
         helper('tanggal');
         $today  = $this->hariIni();
         $bulan  = $this->bulanSah((string) $this->request->getGet('bulan')) ?? substr($today, 0, 7);
         $dari   = $bulan . '-01';
         $sampai = date('Y-m-t', strtotime($dari));
         $label  = bulan_indo((int) substr($bulan, 5, 2)) . ' ' . substr($bulan, 0, 4);
-
-        $employeeId = (int) $this->request->getGet('employee_id');
-        $deviceId   = (int) $this->request->getGet('device_id');
-
-        $scope      = [];
-        $scopeLabel = 'Semua karyawan & komputer';
-        $sesiList   = null;
-        $perUser    = null;
-        $komputerAktif = null;
-        $jmlRendah  = 0;
 
         if ($employeeId) {
             $scope = ['employee_id' => $employeeId];
@@ -388,8 +389,7 @@ class AiMonitor extends BaseController
                 ->get()->getRowArray();
             $scopeLabel = 'Karyawan: ' . ($emp['nama'] ?? '(tidak ditemukan)')
                 . (! empty($emp['dept']) ? ' — ' . $emp['dept'] : '');
-            $sesiList = $this->sessions->sesiRentangScope($dari, $sampai, $scope);
-        } elseif ($deviceId) {
+        } else {
             $scope = ['device_id' => $deviceId];
             $dev = db_connect()->table('ai_devices d')
                 ->select('d.label AS label, emp.nama AS nama')
@@ -398,50 +398,14 @@ class AiMonitor extends BaseController
                 ->get()->getRowArray();
             $scopeLabel = 'Komputer: ' . ($dev['label'] ?? '(tidak ditemukan)')
                 . (! empty($dev['nama']) ? ' — ' . $dev['nama'] : '');
-            $sesiList = $this->sessions->sesiRentangScope($dari, $sampai, $scope);
-        } else {
-            // Laporan bulanan default = FOKUS PER KARYAWAN: satu blok analisa
-            // untuk tiap karyawan yang beraktivitas bulan itu. Sesi perangkat
-            // yang belum ditautkan (employee_id NULL) tak punya karyawan → lewati.
-            $komputerAktif = $this->sessions->jmlKomputerAktif($dari, $sampai);
-            $ambang  = AiSessionModel::AMBANG_KANTOR;
-            $perUser = [];
-            foreach ($this->sessions->rekapKaryawanRentang($dari, $sampai) as $r) {
-                $eid = (int) $r['employee_id'];
-                if ($eid === 0) continue;
-                $perUser[] = [
-                    'info'    => $r,
-                    'analisa' => $this->sessions->analisa($dari, $sampai, ['employee_id' => $eid]),
-                ];
-            }
-            // Urut %kantor TERENDAH dulu (yang bermasalah di atas); null (tak ada
-            // klasifikasi) ditaruh paling akhir; seri → urut nama.
-            usort($perUser, function ($x, $y) {
-                $px = $x['analisa']['pct_kantor'];
-                $py = $y['analisa']['pct_kantor'];
-                if ($px === null && $py === null) return strcmp($x['info']['nama'], $y['info']['nama']);
-                if ($px === null) return 1;
-                if ($py === null) return -1;
-                return ($px <=> $py) ?: strcmp($x['info']['nama'], $y['info']['nama']);
-            });
-            foreach ($perUser as $u) {
-                $pk = $u['analisa']['pct_kantor'];
-                if ($pk !== null && $pk < $ambang) $jmlRendah++;
-            }
         }
-
-        $agg = $this->sessions->analisa($dari, $sampai, $scope);
 
         return view('ai_monitor/laporan', [
             'bulan'         => $bulan,
             'bulanLabel'    => $label,
             'scopeLabel'    => $scopeLabel,
-            'isGlobal'      => empty($scope),
-            'analisa'       => $agg,
-            'perUser'       => $perUser,
-            'jmlRendah'     => $jmlRendah,
-            'komputerAktif' => $komputerAktif,
-            'sesiList'      => $sesiList,
+            'analisa'       => $this->sessions->analisa($dari, $sampai, $scope),
+            'sesiList'      => $this->sessions->sesiRentangScope($dari, $sampai, $scope),
             'ambang_kantor' => AiSessionModel::AMBANG_KANTOR,
             'printedBy'     => $this->currentUser()['name'] ?? '',
             'printedAt'     => date('d M Y H:i'),
