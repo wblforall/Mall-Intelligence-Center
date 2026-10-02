@@ -108,10 +108,10 @@ class AiKlasifikasi extends BaseCommand
                     // dibatasi/mati, kegagalan terjadi terus-menerus.
                     $beruntun429++;
                 }
-                // Jeda antar sesi. Provider utama (p1) di prod BUKAN tier
-                // "free-per-day" OpenRouter, jadi 1 dtk sudah cukup sopan dan
-                // jauh lebih cepat daripada 3,5 dtk.
-                usleep(1000000); // 1 detik
+                // Jeda antar sesi. Provider utama (p1) di prod adalah Groq
+                // (free ~30 req/menit) → ~2 dtk/panggilan menjaga laju di
+                // bawah ambang itu, dan tetap jauh lebih cepat dari 3,5 dtk.
+                usleep(2000000); // 2 detik
             }
 
             if ($hasil === null) {
