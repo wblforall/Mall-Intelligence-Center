@@ -469,8 +469,11 @@ class AiSessionModel extends Model
             $t = date('Y-m-d', strtotime($t . ' +1 day'));
         }
 
-        $totSesiKlas = array_sum($kantor); // seluruh sesi terklasifikasi+belum pada periode
-        $pctKantor   = $totSesiKlas > 0 ? (int) round(($kantor['kantor'] ?? 0) / $totSesiKlas * 100) : null;
+        // %kantor dihitung dari sesi yang BISA DIPASTIKAN saja (kantor + pribadi);
+        // 'tak_jelas' & 'Belum' dikeluarkan agar persentase tak tertarik turun
+        // oleh sesi yang sekadar belum jelas — bukan karena non-kerja.
+        $kDasar    = ($kantor['kantor'] ?? 0) + ($kantor['pribadi'] ?? 0);
+        $pctKantor = $kDasar > 0 ? (int) round(($kantor['kantor'] ?? 0) / $kDasar * 100) : null;
 
         return [
             'jenis'  => $jenis,

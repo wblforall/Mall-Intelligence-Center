@@ -33,16 +33,16 @@ class AiKlasifikasi
     // ── Kantor (sistem kerja WBL + sinonim) ──────────────────────────────
     // Token pendek dicek dengan batas kata agar tak salah tangkap (mis. "mic"
     // di dalam kata lain). Token berimbuhan tanda hubung dicek sebagai substring.
-    private const KW_KANTOR_KATA = ['optera', 'opsjobs', 'clara', 'pentacity', 'mic',
+    private const KW_KANTOR_KATA = ['optera', 'opsjobs', 'clara', 'pentacity', 'ewalk', 'mic',
         'pamsign', 'esign', 'flowstore', 'erp', 'wbl', 'footfall', 'meteran', 'tenant',
-        'loyalty', 'parkir', 'pest'];
+        'loyalty', 'parkir', 'pest', 'housekeeping'];
     private const KW_KANTOR_SUB = ['mall-intelligence', 'e-sign', 'web-store',
         'erp-integrasi', 'wbl-one', 'htdocs'];
     private const KW_PRIBADI = ['pribadi', 'personal', 'rumah', 'keluarga', 'liburan', 'game pribadi'];
     /** Sinyal pribadi KUAT (pendidikan/urusan jelas pribadi) — diperiksa
      *  SEBELUM kata kantor agar tak kalah oleh path kerja (mis. 'htdocs'). */
     private const KW_PRIBADI_KUAT = ['kuliah', 'tugas kuliah', 'skripsi', 'tesis', 'kampus',
-        'dosen', 'mahasiswa', 'ujian', 'makalah', 'sekolah', 'pekerjaan rumah', 'jurnal kampus'];
+        'dosen', 'mahasiswa', 'ujian', 'makalah', 'sekolah', 'pekerjaan rumah', 'jurnal kampus', 'lcoi'];
 
     // Ekstensi berkas kode — kehadirannya menandakan sesi coding.
     private const EXT_KODE = ['.php', '.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.sql',
@@ -100,18 +100,23 @@ class AiKlasifikasi
         $cuplikan = mb_substr(trim(implode("\n---\n", $promptTeks)), 0, 4000);
 
         $sistem = 'Anda mengklasifikasi sesi penggunaan Claude Code (asisten coding) '
-            . 'berdasarkan cuplikan prompt pengguna dan nama proyek. '
+            . 'berdasarkan cuplikan prompt pengguna dan nama proyek. Nilai dari TUJUAN/OUTPUT yang diminta, '
+            . 'BUKAN sekadar ada-tidaknya kode. '
             . 'Jawab HANYA satu objek JSON tanpa teks lain, berbentuk: '
             . '{"jenis": "<coding|debugging|ideating|menulis|riset|lainnya>", '
             . '"tema": "<ringkas, maksimal 60 karakter>", '
             . '"kantor": "<kantor|pribadi|tak_jelas>"}. '
-            . 'Arti jenis: coding = menulis/ubah kode; debugging = memperbaiki error/bug; '
-            . 'ideating = menggagas ide/rencana/rancangan; menulis = menyusun teks non-kode '
-            . '(email, artikel, ringkasan, terjemahan); riset = mencari tahu/menjelaskan/membandingkan; '
-            . 'lainnya = selain itu. '
-            . 'Arti kantor: kantor = berkaitan pekerjaan atau sistem internal perusahaan '
-            . '(termasuk bila nama proyek adalah sistem kerja); pribadi = urusan pribadi; '
-            . 'tak_jelas = tidak cukup petunjuk. Bila ragu pada kantor, pilih tak_jelas.';
+            . 'Arti jenis: coding = mengembangkan/mengubah perangkat lunak/fitur/sistem nyata; '
+            . 'debugging = memperbaiki error/bug; ideating = menggagas ide/rencana/rancangan; '
+            . 'menulis = menghasilkan dokumen/laporan/teks, TERMASUK bila kode hanya dipakai untuk MENGHASILKAN '
+            . 'dokumen/PDF (mis. tugas membuat laporan seperti LCOI → menulis, bukan coding); '
+            . 'riset = mencari tahu/menjelaskan/membandingkan; lainnya = selain itu. '
+            . 'Konteks perusahaan: PT Wulandari Bangun Laksana (WBL) mengelola mal eWalk dan Pentacity (Balikpapan). '
+            . 'kantor = berkaitan pekerjaan WBL: operasional mal eWalk/Pentacity (pest control, traffic/footfall, '
+            . 'tenant, loyalty, parkir, event, housekeeping, meteran) atau sistem internal '
+            . '(OpsJobs/Optera, Clara, MIC, PAM e-Sign, FlowStore, ERP). '
+            . 'pribadi = urusan pribadi ATAU tugas kuliah/sekolah (mis. LCOI, skripsi, makalah, PR, ujian). '
+            . 'tak_jelas = tidak cukup petunjuk. Bila ragu, pilih tak_jelas.';
 
         $pengguna = 'Proyek: ' . ($proyek ?: '(tidak ada)')
             . "\nBranch git: " . ($gitBranch ?: '(tidak ada)')
