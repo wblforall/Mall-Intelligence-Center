@@ -39,6 +39,10 @@ class AiKlasifikasi
     private const KW_KANTOR_SUB = ['mall-intelligence', 'e-sign', 'web-store',
         'erp-integrasi', 'wbl-one', 'htdocs'];
     private const KW_PRIBADI = ['pribadi', 'personal', 'rumah', 'keluarga', 'liburan', 'game pribadi'];
+    /** Sinyal pribadi KUAT (pendidikan/urusan jelas pribadi) — diperiksa
+     *  SEBELUM kata kantor agar tak kalah oleh path kerja (mis. 'htdocs'). */
+    private const KW_PRIBADI_KUAT = ['kuliah', 'tugas kuliah', 'skripsi', 'tesis', 'kampus',
+        'dosen', 'mahasiswa', 'ujian', 'makalah', 'sekolah', 'pekerjaan rumah', 'jurnal kampus'];
 
     // Ekstensi berkas kode — kehadirannya menandakan sesi coding.
     private const EXT_KODE = ['.php', '.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.sql',
@@ -246,6 +250,11 @@ class AiKlasifikasi
     // ── Kantor / pribadi / tak jelas ─────────────────────────────────────
     private static function tentukanKantor(string $gabung): string
     {
+        // Sinyal pribadi KUAT (pendidikan/urusan jelas pribadi) menang lebih
+        // dulu — supaya "tugas kuliah" dkk tak keburu ditandai 'kantor' hanya
+        // karena jalan di bawah path kerja (mis. 'htdocs').
+        if (self::adaSalahSatu($gabung, self::KW_PRIBADI_KUAT)) return 'pribadi';
+
         foreach (self::KW_KANTOR_SUB as $sub) {
             if (mb_strpos($gabung, $sub) !== false) return 'kantor';
         }
