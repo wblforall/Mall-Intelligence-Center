@@ -220,8 +220,11 @@ class AiKlasifikasi
         $proyek = trim((string) $proyek);
         if ($proyek !== '') {
             $label = self::rapikanLabel($proyek);
+            // Tambah nama branch HANYA bila bermakna. 'HEAD' (detached),
+            // 'main'/'master', dan nilai kosong adalah noise — jangan
+            // dilekatkan supaya tema tak jadi "Proyek (HEAD)".
             $branch = trim((string) $gitBranch);
-            if ($branch !== '' && ! in_array(mb_strtolower($branch), ['main', 'master'], true)) {
+            if ($branch !== '' && ! in_array(mb_strtolower($branch), ['main', 'master', 'head'], true)) {
                 $label .= ' (' . $branch . ')';
             }
             return mb_substr($label, 0, 100);

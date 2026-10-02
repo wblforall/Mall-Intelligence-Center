@@ -26,7 +26,7 @@ class AiKlasifikasi extends BaseCommand
     protected $group       = 'MIC';
     protected $name        = 'mic:ai-klasifikasi';
     protected $description = 'Klasifikasikan sesi Pemantauan AI (jenis aktivitas, tema, kantor/pribadi) berbasis kata kunci.';
-    protected $usage       = 'mic:ai-klasifikasi [--batas 500] [--dry-run]';
+    protected $usage       = 'mic:ai-klasifikasi [--batas 500] [--dry-run] [--ulang]';
 
     /** Maksimal entri prompt yang dibaca per sesi (jaga memori). */
     private const MAKS_ENTRI = 50;
@@ -41,6 +41,7 @@ class AiKlasifikasi extends BaseCommand
     {
         $batas  = (int) (CLI::getOption('batas') ?: 500);
         $dryRun = (bool) CLI::getOption('dry-run');
+        $ulang  = (bool) CLI::getOption('ulang'); // paksa klasifikasi ulang SEMUA
         $db     = db_connect();
 
         // Mode: 'ai' memakai LLM dengan fallback kata kunci; selain itu
@@ -53,12 +54,15 @@ class AiKlasifikasi extends BaseCommand
         // Sesi yang perlu (re)klasifikasi: belum pernah, atau sudah bertambah
         // entrinya sejak terakhir diklasifikasi.
         $sesi = $db->table('ai_sessions')
-            ->select('id, proyek, git_branch, jml_alat')
-            ->groupStart()
+            ->select('id, proyek, git_branch, jml_alat');
+        if (! $ulang) {
+            // Normal: hanya yang belum pernah atau bertambah sejak terakhir.
+            $sesi->groupStart()
                 ->where('klasifikasi_at IS NULL', null, false)
                 ->orWhere('klasifikasi_at < terakhir_at', null, false)
-            ->groupEnd()
-            ->orderBy('terakhir_at', 'DESC')
+            ->groupEnd();
+        } // --ulang: ambil SEMUA (regenerasi label, mis. setelah aturan berubah)
+        $sesi = $sesi->orderBy('terakhir_at', 'DESC')
             ->limit($batas)
             ->get()->getResultArray();
 
