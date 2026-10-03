@@ -12,6 +12,13 @@
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
+<?php
+// Dihitung di sini (bukan di dalam cabang formulir) karena skrip di bagian
+// bawah selalu memakai $totalQ — termasuk saat tidak ada periode aktif atau
+// survey sudah diisi. Dulu ia hanya terdefinisi di cabang formulir → HTTP 500
+// "Undefined variable $totalQ".
+$totalQ = array_sum(array_map(fn($d) => count($d['questions'] ?? []), $dimensions ?? []));
+?>
 
 <div class="d-flex align-items-center gap-3 mb-4">
     <div>
@@ -113,7 +120,6 @@ $jabatanLevels = ['Staff','Supervisor','Asst. Manager','Manager','Senior Manager
 
 <?php
 $likertLabels = [1 => 'Sangat<br>Tidak Setuju', 2 => 'Tidak<br>Setuju', 3 => 'Netral', 4 => 'Setuju', 5 => 'Sangat<br>Setuju'];
-$totalQ = array_sum(array_map(fn($d) => count($d['questions']), $dimensions));
 $qNum   = 0;
 ?>
 
@@ -174,7 +180,7 @@ $qNum   = 0;
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
-const total = <?= $totalQ ?>;
+const total = <?= (int) $totalQ ?>;
 
 function updateProgress() {
     const answered = document.querySelectorAll('.q-radio:checked').length;
