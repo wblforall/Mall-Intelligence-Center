@@ -1,0 +1,56 @@
+<!-- Contoh TIRUAN balasan POST casual-parking-data (bukan data asli SPI).
+     Bentuk mengikuti deskripsi: tabel HTML, satu baris per tanggal, kolom per metode bayar.
+     Sengaja memuat: header bertingkat (colspan/rowspan), kolom tak dikenal ("Kolom Baru"),
+     format angka campuran, baris total di tfoot, dan tabel lain (filter) sebelum tabel data. -->
+<div class="card">
+  <table class="table-filter">
+    <tr><td>Site</td><td>BSB</td></tr>
+    <tr><td>Periode</td><td>01 Sep 2026 s/d 03 Sep 2026</td></tr>
+  </table>
+
+  <table id="tblCasual" class="table table-bordered">
+    <thead>
+      <tr>
+        <th rowspan="2">No</th>
+        <th rowspan="2">Tanggal</th>
+        <th rowspan="2">Qty Casual</th>
+        <th colspan="7">Pembayaran</th>
+        <th rowspan="2">Kolom Baru</th>
+        <th rowspan="2">Total Income</th>
+      </tr>
+      <tr>
+        <th>Tunai</th>
+        <th>Flazz</th>
+        <th>e-Money</th>
+        <th>BNI TapCash</th>
+        <th>BRI Brizzi</th>
+        <th>QRIS NISP</th>
+        <th>Voucher</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td><td>01 Sep 2026</td><td>1,234</td>
+        <td>10.500.000</td><td>1,250,000</td><td>2.000.000</td><td>0</td><td>-</td><td>Rp 750.000</td><td>0</td>
+        <td>99</td><td>14.500.000</td>
+      </tr>
+      <tr>
+        <td>2</td><td>02 Sep 2026</td><td>1.100</td>
+        <td>9000000</td><td>1.000.000</td><td>1.500.000,00</td><td>250.000</td><td>0</td><td>500.000</td><td>&nbsp;</td>
+        <td>7</td><td>12.250.000</td>
+      </tr>
+      <tr>
+        <td>3</td><td>03 Sep 2026</td><td>0</td>
+        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+        <td>0</td><td>0</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="2">TOTAL</th><th>2,334</th>
+        <th>19.500.000</th><th>2.250.000</th><th>3.500.000</th><th>250.000</th><th>0</th><th>1.250.000</th><th>0</th>
+        <th>106</th><th>26.750.000</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
