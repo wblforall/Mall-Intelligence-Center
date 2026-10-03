@@ -11,12 +11,23 @@ namespace App\Services;
  * Sumber endpoint (terverifikasi):
  *  - Live occupancy/income : {host}/parking3/load2.php?siteid={SITE}      (JSON, tanpa auth)
  *  - Qty harian / kendaraan: {base}/ajax-daily-summary-qty               (JSON, login+CSRF)
- *  - Income harian         : {base}/ajax-daily-summary-income            (JSON, login+CSRF)
+ *  - Income harian         : {base}/summary-daily-income-data            (JSON, login+CSRF)
+ *                            (pengganti ajax-daily-summary-income yang HTTP 500 sejak Okt 2026)
+ *  - Rincian metode bayar  : {base}/casual-parking-data                  (HTML tabel, login+CSRF)
+ *                            (pengganti table-casual-income yang HTTP 500 sejak ±2 Okt 2026)
  *  - Income bulanan (tren) : {base}/income-summary-sites-data            (JSON, login+CSRF)
  *  - Distribusi durasi     : {apiHost}/reporting2_api/statistik.php      (HTML, tanpa auth)
  *
- * Konfigurasi via .env (lihat key SPI_*). Sesi login (cookie+CSRF) di-cache di
- * writable/spi/. Respons di-cache singkat via cache() agar tidak membebani server SPI.
+ * Konfigurasi via .env:
+ *  - SPI_USER, SPI_PASS  WAJIB — TIDAK ada nilai bawaan (rahasia tidak boleh di kode/git).
+ *  - SPI_SITE, SPI_BASE_URL, SPI_LIVE_HOST, SPI_API_HOST  opsional (bawaan = server SPI BSB).
+ *  - SPI_PROXY           opsional (hosting yang tak bisa keluar ke port SPI).
+ * Sesi login (cookie+CSRF) di-cache di writable/spi/. Respons di-cache singkat via
+ * cache() agar tidak membebani server SPI.
+ *
+ * Mode ketat (setStrict(true), dipakai mic:spi-sync): kegagalan HTTP/struktur dilempar
+ * sebagai \RuntimeException agar pemanggil bisa menghitung gagal. Mode longgar (bawaan,
+ * page-load): kegagalan dicatat ke log dan fungsi mengembalikan data kosong seperti dulu.
  */
 class SpiReportingService
 {
@@ -49,14 +60,23 @@ class SpiReportingService
     private string $pass;
     private string $cookieFile;
 
+    /** Mode ketat: kegagalan dilempar (lihat docblock kelas). */
+    private bool $strict = false;
+
+    /** Info HTTP terakhir — untuk membedakan sesi basi (401/419/login) dari galat server (5xx). */
+    private int $lastCode = 0;
+    private string $lastRedirect = '';
+    private string $lastCurlError = '';
+
     public function __construct()
     {
         $this->base     = rtrim(env('SPI_BASE_URL', 'http://103.119.142.252:8001/reporting2/public/index.php'), '/');
         $this->liveHost = rtrim(env('SPI_LIVE_HOST', 'http://103.119.142.252:8001'), '/');
         $this->apiHost  = rtrim(env('SPI_API_HOST',  'http://103.119.142.252:83'), '/');
         $this->site     = env('SPI_SITE', 'BSB');
-        $this->user     = env('SPI_USER', 'BSB');
-        $this->pass     = env('SPI_PASS', 'bsb@2023');
+        // Kredensial HANYA dari .env — sengaja tanpa nilai bawaan (rahasia dilarang masuk repo).
+        $this->user     = trim((string) env('SPI_USER', ''));
+        $this->pass     = (string) env('SPI_PASS', '');
 
         // Cookie jar harus writable oleh siapa pun yang menjalankan (Apache 'daemon'
         // maupun CLI/cron user berbeda). Pakai nama file per-user agar tidak ada
@@ -70,6 +90,19 @@ class SpiReportingService
             if (! is_dir($dir)) { @mkdir($dir, 0777, true); @chmod($dir, 0777); }
         }
         $this->cookieFile = $dir . '/cookies_' . md5($this->base . $this->user) . '_' . $uid . '.txt';
+    }
+
+    /** Aktifkan mode ketat (kegagalan dilempar). Dipakai mic:spi-sync. */
+    public function setStrict(bool $strict = true): static
+    {
+        $this->strict = $strict;
+        return $this;
+    }
+
+    /** True bila SPI_USER & SPI_PASS terisi di .env. */
+    public function isConfigured(): bool
+    {
+        return $this->user !== '' && $this->pass !== '';
     }
 
     // ── PUBLIC API ───────────────────────────────────────────────
@@ -138,25 +171,72 @@ class SpiReportingService
 
     /**
      * Income (rupiah) per hari per jenis untuk rentang tanggal. Basis tanggal tiket.
+     * Sumber: POST summary-daily-income-data (form dt1/dt2 'Y-m-d', siteid) — pengganti
+     * ajax-daily-summary-income (HTTP 500 sejak Okt 2026; angka 1–2 Sep identik).
      * @return array<int,array{tanggal:string, mobil:int, motor:int, box:int,
      *   truck:int, taxi:int, bus:int, total:int}>
      */
     public function fetchDailyIncome(string $startDate, string $endDate): array
     {
-        $rows = $this->postJson('/ajax-daily-summary-income',
-            ['kdsite' => $this->site, 'dates' => $this->dateRange($startDate, $endDate)], 1800);
+        $cacheKey = 'spi_inc_' . md5($this->site . $startDate . $endDate);
+        if (($hit = cache($cacheKey)) !== null) { return $hit; }
+
+        $body = http_build_query(['dt1' => $startDate, 'dt2' => $endDate, 'siteid' => $this->site]);
+        $raw  = $this->postRaw('/summary-daily-income-data', $body, 'application/x-www-form-urlencoded',
+            ['Accept: application/json']);
+        if ($raw === null) { return []; }
+        try {
+            $out = self::parseDailyIncomeJson($raw);
+        } catch (\RuntimeException $e) {
+            $this->gagal('summary-daily-income-data: ' . $e->getMessage());
+            return [];
+        }
+        if (! empty($out)) { cache()->save($cacheKey, $out, 1800); } // jangan cache kosong
+        return $out;
+    }
+
+    /**
+     * Parse balasan summary-daily-income-data: {"table":[{PERIODE,MOBIL,MOTOR,BOX,TAXI,BUS,TRUCK}]}.
+     * Total = jumlah kolom jenis (endpoint tak mengirim total). Baris yang PERIODE-nya
+     * bukan tanggal (mis. "TOTAL") dilewati. Kunci tak peka huruf besar/kecil.
+     * Struktur tak dikenali → \RuntimeException (jangan diam-diam 0).
+     * @return array<int,array{tanggal:string, mobil:int, motor:int, box:int,
+     *   truck:int, taxi:int, bus:int, total:int}>
+     */
+    public static function parseDailyIncomeJson(string $raw): array
+    {
+        $j = json_decode($raw, true);
+        if (! is_array($j)) {
+            throw new \RuntimeException('balasan bukan JSON (' . self::cuplik($raw) . ')');
+        }
+        $j = array_change_key_case($j, CASE_LOWER);
+        if (! array_key_exists('table', $j) || ! is_array($j['table'])) {
+            throw new \RuntimeException('JSON tanpa kunci "table" (kunci: ' . implode(',', array_keys($j)) . ')');
+        }
+        $veh = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
         $out = [];
-        foreach ((array) $rows as $r) {
-            $out[] = [
-                'tanggal' => $r['tglticket'] ?? '',
-                'mobil'   => (int) ($r['mobil'] ?? 0),
-                'motor'   => (int) ($r['motor'] ?? 0),
-                'box'     => (int) ($r['box'] ?? 0),
-                'truck'   => (int) ($r['truck'] ?? 0),
-                'taxi'    => (int) ($r['taxi'] ?? 0),
-                'bus'     => (int) ($r['bus'] ?? 0),
-                'total'   => (int) ($r['totalincome'] ?? 0),
-            ];
+        foreach ($j['table'] as $i => $r) {
+            if (! is_array($r)) {
+                throw new \RuntimeException("baris table[{$i}] bukan objek");
+            }
+            $r = array_change_key_case($r, CASE_LOWER);
+            if (! array_key_exists('periode', $r)) {
+                throw new \RuntimeException("baris table[{$i}] tanpa kolom PERIODE");
+            }
+            $tgl = self::normalizeDate((string) $r['periode']);
+            if ($tgl === null) { continue; } // baris rekap/total
+            $row = ['tanggal' => $tgl];
+            $sum = 0;
+            foreach ($veh as $v) {
+                $n = self::parseAmount($r[$v] ?? 0);
+                if ($n === null) {
+                    throw new \RuntimeException("nilai {$v} tanggal {$tgl} bukan angka");
+                }
+                $row[$v] = $n;
+                $sum += $n;
+            }
+            $row['total'] = $sum;
+            $out[] = $row;
         }
         return $out;
     }
@@ -177,7 +257,12 @@ class SpiReportingService
             'income'    => $income,
         ]) . '&sites%5B%5D=' . rawurlencode($this->site); // sites[] = array
         $raw = $this->postRaw('/income-summary-sites-data', $body, 'application/x-www-form-urlencoded');
-        $j   = $raw ? json_decode($raw, true) : null;
+        if ($raw === null) { return []; }
+        $j   = json_decode($raw, true);
+        if (! is_array($j)) {
+            $this->gagal('income-summary-sites-data: balasan bukan JSON (' . self::cuplik($raw) . ')');
+            return [];
+        }
         $out = [];
         if (is_array($j) && ! empty($j['labels'])) {
             $data = $j['datasets'][0]['data'] ?? [];
@@ -384,7 +469,12 @@ class SpiReportingService
         return $y . '-' . ($m[$mon] ?? '01') . '-' . $d;
     }
 
-    /** Peta field payment table-casual-income → nama tampil. */
+    /**
+     * Peta kode metode bayar SPI → nama tampil. Kunci = kode lama (field amount_* di
+     * table-casual-income); nama tampil dipertahankan agar baris spi_payment_daily lama
+     * dan baru tetap satu label. Header HTML casual-parking-data dicocokkan lewat
+     * payAliases() (nama tampil maupun kode, dinormalisasi).
+     */
     private const PAY_MAP = [
         'flazz' => 'Flazz', 'emoney' => 'e-Money', 'tapcash' => 'BNI TapCash', 'brizzi' => 'BRI Brizzi',
         'dana' => 'DANA', 'gopay' => 'GoPay', 'lt' => 'Lost Ticket', 'helm' => 'Helm', 'inap' => 'Inap',
@@ -396,56 +486,292 @@ class SpiReportingService
         'voucher' => 'Voucher 2', 'penalty' => 'Penalty', 'others' => 'Others', 'others2' => 'Others 2',
     ];
 
+    /** Alias header tambahan (ternormalisasi) → nama tampil. */
+    private const PAY_EXTRA_ALIAS = [
+        'tunai' => 'Tunai', 'cash' => 'Tunai', 'mandiriemoney' => 'e-Money', 'tapcash' => 'BNI TapCash',
+        'brizzi' => 'BRI Brizzi', 'doomo' => 'Doomo', 'linkaja' => 'LinkAja', 'shopeepay' => 'ShopeePay',
+        'sobatku' => 'Sobatku', 'jakcard' => 'JakCard', 'lostticket' => 'Lost Ticket', 'tikethilang' => 'Lost Ticket',
+    ];
+
     /**
-     * Tarik tabel detail casual income (table-casual-income) per tanggal — HISTORIS.
-     * Mengandung income, per-kendaraan (casual/pass/qty), dan SEMUA metode pembayaran.
-     * Kunci: dt format 'd M Y'. Cache 1 jam.
+     * Rincian casual income per tanggal × metode bayar — HISTORIS.
+     * Sumber: POST casual-parking-data (form dt1/dt2 'd M Y', dSite) → HTML tabel
+     * berkolom per metode bayar. Pengganti table-casual-income (HTTP 500 sejak ±2 Okt 2026).
+     * Endpoint baru hanya memuat metode bayar (+ total bila ada): qty/paid/free selalu 0
+     * (kendaraan diambil dari statistik.php; bentuk keluaran dipertahankan untuk pemanggil).
+     * Struktur HTML tak dikenali → galat (mode ketat) / [] + log (mode longgar). Cache 1 jam.
      * @return array<int,array{tanggal:string, income:int, qty:array, paid:array, free:array, payments:array}>
      */
     public function fetchCasualTable(string $startDate, string $endDate): array
     {
-        $cacheKey = 'spi_ctab_' . md5($this->site . $startDate . $endDate);
+        $cacheKey = 'spi_ctab2_' . md5($this->site . $startDate . $endDate);
         if (($hit = cache($cacheKey)) !== null) { return $hit; }
 
-        $veh  = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
-        // DataTables params (kolom 0..100 cukup)
-        $cols = '';
-        for ($i = 0; $i < 101; $i++) {
-            $cols .= "&columns[$i][data]=$i&columns[$i][name]=&columns[$i][orderable]=false&columns[$i][searchable]=false";
+        $body = http_build_query([
+            'dt1'   => self::fmtDMY($startDate),
+            'dt2'   => self::fmtDMY($endDate),
+            'dSite' => $this->site,
+        ]);
+        $raw = $this->postRaw('/casual-parking-data', $body, 'application/x-www-form-urlencoded',
+            ['Accept: text/html, */*; q=0.01']);
+        if ($raw === null) { return []; }
+        try {
+            $ignored = [];
+            $out = self::parseCasualHtml($raw, $ignored);
+        } catch (\RuntimeException $e) {
+            $this->gagal("casual-parking-data {$startDate}..{$endDate}: " . $e->getMessage());
+            return [];
         }
-        $body = 'draw=1&start=0&length=400&order[0][column]=0&order[0][dir]=asc' . $cols
-            . '&kdsite=' . rawurlencode($this->site)
-            . '&dt1=' . rawurlencode($this->fmtDM($startDate))
-            . '&dt2=' . rawurlencode($this->fmtDM($endDate));
-
-        $raw = $this->postRaw('/table-casual-income', $body, 'application/x-www-form-urlencoded');
-        $j   = $raw ? json_decode($raw, true) : null;
-        $out = [];
-        foreach (($j['data'] ?? []) as $r) {
-            $payments = [];
-            foreach (self::PAY_MAP as $key => $label) {
-                $amt = (int) ($r['amount_' . $key] ?? 0);
-                if ($amt !== 0) {
-                    $payments[$label] = ($payments[$label] ?? 0) + $amt;
-                }
-            }
-            $qty = $paid = $free = [];
-            foreach ($veh as $v) {
-                $qty[$v]  = (int) ($r['total_qty_' . $v] ?? 0);
-                $paid[$v] = (int) ($r['to' . $v . 'casualout'] ?? 0);
-                $free[$v] = (int) ($r['to' . $v . 'passout'] ?? 0);
-            }
-            $out[] = [
-                'tanggal'  => substr((string) ($r['tglticket'] ?? ''), 0, 10),
-                'income'   => (int) ($r['casualincome'] ?? 0),
-                'qty'      => $qty,
-                'paid'     => $paid,
-                'free'     => $free,
-                'payments' => $payments,
-            ];
+        if ($ignored) {
+            log_message('warning', '[spi] casual-parking-data: kolom tak dikenal diabaikan: ' . implode(', ', $ignored));
         }
         if (! empty($out)) { cache()->save($cacheKey, $out, 3600); }
         return $out;
+    }
+
+    /**
+     * Parse HTML casual-parking-data → baris per tanggal. Tahan perubahan kecil:
+     *  - tabel dicari menurut header (kolom tanggal + ≥1 kolom metode bayar dikenal),
+     *  - header bertingkat (colspan/rowspan) didukung, label = sel terbawah,
+     *  - kolom tambahan yang tak dikenal diabaikan & dilaporkan via $ignored,
+     *  - baris non-tanggal (Total, "No data") dilewati, beberapa baris per tanggal dijumlah.
+     * Tidak ada tabel yang cocok / sel metode bayar bukan angka → \RuntimeException.
+     * @param  array|null $ignored  diisi label header yang diabaikan
+     * @return array<int,array{tanggal:string, income:int, qty:array, paid:array, free:array, payments:array}>
+     */
+    public static function parseCasualHtml(string $html, ?array &$ignored = null): array
+    {
+        $ignored = [];
+        if (trim($html) === '') {
+            throw new \RuntimeException('balasan kosong');
+        }
+        if (stripos($html, '<table') === false) {
+            throw new \RuntimeException('balasan tanpa <table> (' . self::cuplik($html) . ')');
+        }
+
+        $dom  = new \DOMDocument();
+        $prev = libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_NOWARNING | LIBXML_NOERROR);
+        libxml_clear_errors();
+        libxml_use_internal_errors($prev);
+
+        $alias    = self::payAliases();
+        $incomeKs = ['income', 'casualincome', 'totalincome', 'pendapatan', 'totalpendapatan', 'total', 'grandtotal'];
+        $veh      = ['mobil', 'motor', 'box', 'truck', 'taxi', 'bus'];
+        $seen     = [];
+
+        foreach ($dom->getElementsByTagName('table') as $table) {
+            [$headRows, $bodyRows] = self::splitTableRows($table);
+            if (! $headRows) { continue; }
+            $grid   = self::tableGrid($headRows);
+            $ncol   = 0;
+            foreach ($grid as $r) { $ncol = max($ncol, count($r) ? max(array_keys($r)) + 1 : 0); }
+            $labels = [];
+            for ($c = 0; $c < $ncol; $c++) {
+                $lab = '';
+                foreach ($grid as $r) { if (($r[$c] ?? '') !== '') { $lab = $r[$c]; } } // sel terbawah menang
+                $labels[$c] = $lab;
+            }
+            $seen[] = implode('|', array_filter($labels, fn($l) => $l !== ''));
+
+            $dateCol = null; $incomeCol = null; $payCols = []; $unknown = [];
+            foreach ($labels as $c => $lab) {
+                $k = self::normHeader($lab);
+                if ($k === '') { continue; }
+                if ($dateCol === null && self::isDateHeader($k))                  { $dateCol = $c; continue; }
+                if (isset($alias[$k]))                                              { $payCols[$c] = $alias[$k]; continue; }
+                if ($incomeCol === null && in_array($k, $incomeKs, true))           { $incomeCol = $c; continue; }
+                if (self::isNonPaymentHeader($k))                                   { continue; }
+                $unknown[] = $lab;
+            }
+            if ($dateCol === null || ! $payCols) { continue; } // bukan tabel yang dicari
+
+            $maxCol = max(array_keys($payCols));
+            $byDate = [];
+            $noDate = 0; // baris berangka tapi tanggalnya tak terbaca
+            foreach (self::tableGrid($bodyRows) as $cells) {
+                $tgl = self::normalizeDate($cells[$dateCol] ?? '');
+                if ($tgl === null) { // baris total / "tidak ada data"
+                    $isTotal = preg_match('/total|jumlah/i', implode(' ', $cells));
+                    foreach ($payCols as $c => $_) {
+                        if (! $isTotal && ($n = self::parseAmount($cells[$c] ?? '')) !== null && $n !== 0) { $noDate++; break; }
+                    }
+                    continue;
+                }
+                if (count($cells) <= $maxCol) {
+                    throw new \RuntimeException("baris {$tgl} hanya " . count($cells) . " kolom, header {$ncol} kolom");
+                }
+                $byDate[$tgl] ??= ['payments' => [], 'income' => 0, 'hasIncome' => false];
+                foreach ($payCols as $c => $label) {
+                    $amt = self::parseAmount($cells[$c] ?? '');
+                    if ($amt === null) {
+                        throw new \RuntimeException("kolom '{$labels[$c]}' tanggal {$tgl} bukan angka: '"
+                            . self::cuplik($cells[$c] ?? '') . "'");
+                    }
+                    if ($amt !== 0) {
+                        $byDate[$tgl]['payments'][$label] = ($byDate[$tgl]['payments'][$label] ?? 0) + $amt;
+                    }
+                }
+                if ($incomeCol !== null && ($n = self::parseAmount($cells[$incomeCol] ?? '')) !== null) {
+                    $byDate[$tgl]['income'] += $n;
+                    $byDate[$tgl]['hasIncome'] = true;
+                }
+            }
+            if ($noDate > 0) {
+                throw new \RuntimeException("{$noDate} baris berangka dengan tanggal tak terbaca di kolom '{$labels[$dateCol]}'");
+            }
+            ksort($byDate);
+
+            $zero = array_fill_keys($veh, 0);
+            $out  = [];
+            foreach ($byDate as $tgl => $d) {
+                $out[] = [
+                    'tanggal'  => $tgl,
+                    'income'   => $d['hasIncome'] ? $d['income'] : array_sum($d['payments']),
+                    'qty'      => $zero,
+                    'paid'     => $zero,
+                    'free'     => $zero,
+                    'payments' => $d['payments'],
+                ];
+            }
+            $ignored = $unknown;
+            return $out;
+        }
+
+        throw new \RuntimeException('struktur tabel tak dikenali — tak ada tabel berkolom tanggal + metode bayar'
+            . ($seen ? ' (header: ' . self::cuplik(implode(' ; ', $seen), 200) . ')' : ''));
+    }
+
+    /** Header ternormalisasi → nama tampil metode bayar (nama tampil diutamakan atas kode). */
+    private static function payAliases(): array
+    {
+        $a = [];
+        foreach (self::PAY_MAP as $label) { $a[self::normHeader($label)] ??= $label; }
+        foreach (self::PAY_MAP as $key => $label) { $a[self::normHeader($key)] ??= $label; }
+        foreach (self::PAY_EXTRA_ALIAS as $k => $label) { $a[self::normHeader($k)] ??= $label; }
+        return $a;
+    }
+
+    /** 'Amount e-Money (Rp)' → 'emoney'. */
+    private static function normHeader(string $h): string
+    {
+        $h = strtolower(trim($h));
+        $h = preg_replace('/\(.*?\)/', '', $h);
+        $h = preg_replace('/\b(rp|idr|amount|amt|nominal)\b/', '', $h);
+        return preg_replace('/[^a-z0-9]/', '', $h);
+    }
+
+    private static function isDateHeader(string $k): bool
+    {
+        return in_array($k, ['date', 'periode', 'tglticket'], true)
+            || str_starts_with($k, 'tanggal') || str_starts_with($k, 'tgl');
+    }
+
+    /** Kolom yang jelas bukan metode bayar (diabaikan tanpa peringatan). */
+    private static function isNonPaymentHeader(string $k): bool
+    {
+        if (in_array($k, ['no', 'nomor', 'site', 'kdsite', 'siteid', 'dsite', 'kendaraan', 'jeniskendaraan',
+            'transaksi', 'keterangan', 'hari', 'ket', 'shift', 'gate', 'pos', 'lokasi',
+            'mobil', 'motor', 'box', 'truck', 'truk', 'taxi', 'bus'], true)) {
+            return true;
+        }
+        foreach (['total', 'jumlah', 'qty', 'income', 'casual', 'pass', 'member', 'subtotal', 'grandtotal', 'pendapatan'] as $p) {
+            if (str_starts_with($k, $p)) { return true; }
+        }
+        return false;
+    }
+
+    /**
+     * Pisahkan baris header & isi milik $table (abaikan tabel bersarang).
+     * Header = baris <thead>; tanpa <thead> → baris awal yang seluruh selnya <th>,
+     * atau baris pertama bila tak ada <th> sama sekali.
+     * @return array{0:\DOMElement[],1:\DOMElement[]}
+     */
+    private static function splitTableRows(\DOMElement $table): array
+    {
+        $rows = [];
+        foreach ($table->getElementsByTagName('tr') as $tr) {
+            $p = $tr->parentNode;
+            while ($p && ! ($p instanceof \DOMElement && strtolower($p->nodeName) === 'table')) { $p = $p->parentNode; }
+            if ($p === $table) { $rows[] = $tr; }
+        }
+        if (! $rows) { return [[], []]; }
+
+        $head = []; $body = [];
+        $hasThead = false;
+        foreach ($rows as $tr) {
+            if (strtolower($tr->parentNode->nodeName) === 'thead') { $hasThead = true; break; }
+        }
+        if ($hasThead) {
+            foreach ($rows as $tr) {
+                if (strtolower($tr->parentNode->nodeName) === 'thead') { $head[] = $tr; } else { $body[] = $tr; }
+            }
+            return [$head, $body];
+        }
+        $i = 0;
+        for (; $i < count($rows); $i++) {
+            $cells = self::rowCellElements($rows[$i]);
+            $allTh = $cells && ! array_filter($cells, fn($c) => strtolower($c->nodeName) !== 'th');
+            if (! $allTh) { break; }
+            $head[] = $rows[$i];
+        }
+        if (! $head) { $head[] = $rows[0]; $i = 1; }
+        return [$head, array_slice($rows, $i)];
+    }
+
+    /** @return \DOMElement[] sel td/th langsung milik baris */
+    private static function rowCellElements(\DOMElement $tr): array
+    {
+        $out = [];
+        foreach ($tr->childNodes as $n) {
+            if ($n instanceof \DOMElement && in_array(strtolower($n->nodeName), ['td', 'th'], true)) { $out[] = $n; }
+        }
+        return $out;
+    }
+
+    /**
+     * Ubah baris <tr> menjadi grid teks dengan colspan/rowspan dibentangkan.
+     * @param  \DOMElement[] $rows
+     * @return array<int,array<int,string>>
+     */
+    private static function tableGrid(array $rows): array
+    {
+        $grid  = [];
+        $carry = []; // kolom => ['t'=>teks, 'n'=>sisa baris] dari rowspan
+        foreach ($rows as $r => $tr) {
+            $line = [];
+            $c    = 0;
+            $fill = function () use (&$line, &$c, &$carry) {
+                while (isset($carry[$c]) && $carry[$c]['n'] > 0) {
+                    $line[$c] = $carry[$c]['t'];
+                    if (--$carry[$c]['n'] === 0) { unset($carry[$c]); }
+                    $c++;
+                }
+            };
+            $new = [];
+            foreach (self::rowCellElements($tr) as $cell) {
+                $fill();
+                $txt = trim(preg_replace('/\s+/u', ' ', str_replace("\xC2\xA0", ' ', $cell->textContent)));
+                $cs  = max(1, min(100, (int) $cell->getAttribute('colspan')));
+                $rs  = max(1, min(400, (int) $cell->getAttribute('rowspan')));
+                for ($k = 0; $k < $cs; $k++) {
+                    $line[$c + $k] = $txt;
+                    if ($rs > 1) { $new[$c + $k] = ['t' => $txt, 'n' => $rs - 1]; }
+                }
+                $c += $cs;
+            }
+            // rowspan dari baris atas di kolom-kolom paling kanan
+            foreach (array_keys($carry) as $col) {
+                if ($col >= $c && $carry[$col]['n'] > 0) {
+                    $line[$col] = $carry[$col]['t'];
+                    if (--$carry[$col]['n'] === 0) { unset($carry[$col]); }
+                }
+            }
+            $carry = $new + $carry;
+            ksort($line);
+            $grid[$r] = $line;
+        }
+        return array_values($grid);
     }
 
     /** Agregat metode pembayaran (rupiah) untuk rentang — HISTORIS. method=>amount, urut desc. */
@@ -460,22 +786,36 @@ class SpiReportingService
     }
 
     /**
-     * table-casual-income per potongan ≤7 hari (endpoint error utk range besar) lalu gabung.
-     * Dipakai SYNC (lambat ~8dtk/potongan) — JANGAN dipakai di page-load.
+     * casual-parking-data per potongan ≤7 hari lalu gabung.
+     * Dipakai SYNC (lambat) — JANGAN dipakai di page-load.
      * @return array<int,array> sama bentuk dgn fetchCasualTable
      */
     public function fetchCasualTableChunked(string $startDate, string $endDate, int $chunkDays = 7): array
     {
         $out = [];
+        foreach (self::splitRange($startDate, $endDate, $chunkDays) as [$cs, $ce]) {
+            foreach ($this->fetchCasualTable($cs, $ce) as $r) { $out[] = $r; }
+        }
+        return $out;
+    }
+
+    /**
+     * Potong rentang [start..end] menjadi potongan ≤ $days hari (inklusif).
+     * Tanggal tak valid → satu potongan apa adanya.
+     * @return array<int,array{0:string,1:string}>
+     */
+    public static function splitRange(string $startDate, string $endDate, int $days): array
+    {
+        $days = max(1, $days);
         try { $cur = new \DateTime($startDate); $end = new \DateTime($endDate); }
-        catch (\Throwable $t) { return $this->fetchCasualTable($startDate, $endDate); }
+        catch (\Throwable $t) { return [[$startDate, $endDate]]; }
+        $out = [];
         $guard = 0;
-        while ($cur <= $end && $guard < 400) {
-            $cs = clone $cur;
-            $ce = clone $cur; $ce->modify('+' . ($chunkDays - 1) . ' days');
+        while ($cur <= $end && $guard < 1000) {
+            $ce = clone $cur; $ce->modify('+' . ($days - 1) . ' days');
             if ($ce > $end) { $ce = clone $end; }
-            foreach ($this->fetchCasualTable($cs->format('Y-m-d'), $ce->format('Y-m-d')) as $r) { $out[] = $r; }
-            $cur->modify('+' . $chunkDays . ' days');
+            $out[] = [$cur->format('Y-m-d'), $ce->format('Y-m-d')];
+            $cur->modify('+' . $days . ' days');
             $guard++;
         }
         return $out;
@@ -542,7 +882,11 @@ class SpiReportingService
             . '&tgl1=' . rawurlencode($start)
             . '&tgl2=' . rawurlencode(date('Y-m-d', strtotime($end . ' +1 day'))); // end eksklusif
         $html = $this->httpGet($url, false);
-        if (! $html || ! preg_match_all('/<tr[^>]*>(.*?)<\/tr>/s', $html, $rows)) { return; }
+        if ($html === null) { // galat transport/server — kosong ('') = memang tanpa data
+            $this->gagal("statistik.php {$start}..{$end}: " . $this->httpInfo());
+            return;
+        }
+        if (! preg_match_all('/<tr[^>]*>(.*?)<\/tr>/s', $html, $rows)) { return; }
         $curDate = null;
         foreach ($rows[1] as $row) {
             preg_match_all('/<t[dh][^>]*>(.*?)<\/t[dh]>/s', $row, $cells);
@@ -677,9 +1021,17 @@ class SpiReportingService
         return 'lain';
     }
 
-    /** Cek kredensial & konektivitas (untuk diagnostik). */
+    private const MSG_NOT_CONFIGURED = 'SPI belum dikonfigurasi: isi SPI_USER dan SPI_PASS di .env.';
+
+    /**
+     * Cek kredensial & konektivitas (untuk diagnostik / awal sync).
+     * Kredensial kosong → \RuntimeException "SPI belum dikonfigurasi" (selalu dilempar).
+     */
     public function ping(): bool
     {
+        if (! $this->isConfigured()) {
+            throw new \RuntimeException(self::MSG_NOT_CONFIGURED);
+        }
         return $this->ensureLogin();
     }
 
@@ -690,22 +1042,38 @@ class SpiReportingService
     private function ensureLogin(): bool
     {
         if ($this->csrf !== '') { return true; }
+        if (! $this->isConfigured()) {
+            $this->gagal(self::MSG_NOT_CONFIGURED);
+            return false;
+        }
 
         // 0) REUSE sesi dari cookie bila masih valid — hindari login berulang yang
         //    saling mematikan sesi (SPI hanya izinkan 1 sesi aktif per user).
         if (is_file($this->cookieFile)) {
             $home = $this->httpGet($this->base . '/home', true);
             if ($home && preg_match('/<meta name="csrf-token" content="([^"]+)"/', $home, $mr)
-                && strpos($home, 'name="kduser"') === false) {
+                && ! self::isLoginPage($home)) {
                 $this->csrf = $mr[1];
                 return true;
+            }
+            // Server galat (5xx/koneksi putus) ≠ sesi basi → JANGAN login ulang: login baru
+            // memutus sesi yang sedang dipakai proses lain (spi-snapshot). Coba lagi run berikutnya.
+            if ($home === null && ! $this->sessionRejected()) {
+                $this->gagal('halaman /home tak bisa dibuka (' . $this->httpInfo() . ') — login ulang ditunda');
+                return false;
             }
         }
 
         // 1) ambil halaman login utk _token + cookie awal
         $loginHtml = $this->httpGet($this->base . '/login', true);
-        if (! $loginHtml) { return false; }
-        if (! preg_match('/name="_token"[^>]*value="([^"]+)"/', $loginHtml, $m)) { return false; }
+        if (! $loginHtml) {
+            $this->gagal('halaman login tak bisa dibuka (' . $this->httpInfo() . ')');
+            return false;
+        }
+        if (! preg_match('/name="_token"[^>]*value="([^"]+)"/', $loginHtml, $m)) {
+            $this->gagal('token _token tak ditemukan di halaman login');
+            return false;
+        }
         $token = $m[1];
 
         // 2) POST login
@@ -719,11 +1087,40 @@ class SpiReportingService
 
         // 3) ambil csrf-token dari halaman home (dipakai sebagai X-CSRF-TOKEN untuk endpoint ajax)
         $home = $this->httpGet($this->base . '/home', true);
-        if ($home && preg_match('/<meta name="csrf-token" content="([^"]+)"/', $home, $mm)) {
+        if ($home && preg_match('/<meta name="csrf-token" content="([^"]+)"/', $home, $mm)
+            && ! self::isLoginPage($home)) {
             $this->csrf = $mm[1];
             return true;
         }
+        $this->gagal('login ditolak / home tak terbuka setelah login (' . $this->httpInfo()
+            . ') — periksa SPI_USER/SPI_PASS');
         return false;
+    }
+
+    /** True bila balasan HTML adalah halaman login SPI (sesi basi/ditolak). */
+    public static function isLoginPage(string $raw): bool
+    {
+        return stripos($raw, 'name="kduser"') !== false
+            || preg_match('/<form[^>]+action="[^"]*\/login"/i', $raw) === 1;
+    }
+
+    /** Respons HTTP terakhir menandakan sesi ditolak: 401/419 atau redirect ke halaman login. */
+    private function sessionRejected(): bool
+    {
+        return self::isSessionRejectedCode($this->lastCode, $this->lastRedirect);
+    }
+
+    /** Kode yang memicu login ulang. 5xx/0 (koneksi) TIDAK termasuk. */
+    public static function isSessionRejectedCode(int $code, string $redirect = ''): bool
+    {
+        if ($code === 401 || $code === 419) { return true; }
+        return $code >= 300 && $code < 400 && stripos($redirect, 'login') !== false;
+    }
+
+    /** Perlu login ulang? Hanya bila sesi ditolak — bukan pada galat server. */
+    private function needsRelogin(?string $raw): bool
+    {
+        return $this->sessionRejected() || ($raw !== null && self::isLoginPage($raw));
     }
 
     /** POST JSON ke endpoint ajax (login+CSRF). Return array hasil decode atau []. */
@@ -732,47 +1129,61 @@ class SpiReportingService
         $cacheKey = 'spi_pj_' . md5($path . json_encode($payload));
         if ($ttl > 0 && ($hit = cache($cacheKey)) !== null) { return $hit; }
 
-        if (! $this->ensureLogin()) { return []; }
-        $raw = $this->httpPost($this->base . $path, json_encode($payload), 'application/json', [
-            'X-CSRF-TOKEN: ' . $this->csrf,
-            'X-Requested-With: XMLHttpRequest',
-            'Accept: application/json',
-        ]);
-        // 419/redirect (sesi basi) → relogin sekali
-        if (! $raw || $raw[0] === '<') {
-            $this->csrf = '';
-            @unlink($this->cookieFile);
-            if (! $this->ensureLogin()) { return []; }
-            $raw = $this->httpPost($this->base . $path, json_encode($payload), 'application/json', [
-                'X-CSRF-TOKEN: ' . $this->csrf,
-                'X-Requested-With: XMLHttpRequest',
-                'Accept: application/json',
-            ]);
+        $raw = $this->postRaw($path, json_encode($payload), 'application/json', ['Accept: application/json']);
+        if ($raw === null) { return []; }
+        $j = json_decode($raw, true);
+        if (! is_array($j)) {
+            $this->gagal("{$path}: balasan bukan JSON (" . self::cuplik($raw) . ')');
+            return [];
         }
-        $j = $raw ? json_decode($raw, true) : null;
-        $out = is_array($j) ? $j : [];
-        if ($ttl > 0 && ! empty($out)) { cache()->save($cacheKey, $out, $ttl); } // jangan cache kosong
-        return $out;
+        if ($ttl > 0 && ! empty($j)) { cache()->save($cacheKey, $j, $ttl); } // jangan cache kosong
+        return $j;
     }
 
-    /** POST form-urlencoded ber-CSRF (untuk income-summary-sites-data). Return raw string. */
-    private function postRaw(string $path, string $body, string $ctype): ?string
+    /**
+     * POST ber-CSRF (form/JSON). Return raw string, atau null bila gagal
+     * (mode ketat: dilempar). Login ulang SEKALI hanya bila sesi ditolak
+     * (401/419/redirect ke login/halaman login); 5xx & koneksi putus → galat,
+     * tanpa login ulang (biarkan run berikutnya mencoba lagi).
+     */
+    private function postRaw(string $path, string $body, string $ctype, array $headers = []): ?string
     {
         if (! $this->ensureLogin()) { return null; }
-        $raw = $this->httpPost($this->base . $path, $body, $ctype, [
+        $send = fn() => $this->httpPost($this->base . $path, $body, $ctype, array_merge([
             'X-CSRF-TOKEN: ' . $this->csrf,
             'X-Requested-With: XMLHttpRequest',
-        ]);
-        if (! $raw || $raw[0] === '<') {
+        ], $headers));
+
+        $raw = $send();
+        if ($this->needsRelogin($raw)) {
             $this->csrf = '';
             @unlink($this->cookieFile);
             if (! $this->ensureLogin()) { return null; }
-            $raw = $this->httpPost($this->base . $path, $body, $ctype, [
-                'X-CSRF-TOKEN: ' . $this->csrf,
-                'X-Requested-With: XMLHttpRequest',
-            ]);
+            $raw = $send();
+            if ($this->needsRelogin($raw)) {
+                $this->gagal("{$path}: sesi masih ditolak setelah login ulang ({$this->httpInfo()})");
+                return null;
+            }
         }
-        return $raw ?: null;
+        if ($raw === null) {
+            $this->gagal("{$path}: " . $this->httpInfo());
+            return null;
+        }
+        return $raw;
+    }
+
+    /** Kegagalan: mode ketat → lempar \RuntimeException; mode longgar → catat log saja. */
+    private function gagal(string $msg): void
+    {
+        if ($this->strict) { throw new \RuntimeException('SPI ' . $msg); }
+        log_message('error', '[spi] ' . $msg);
+    }
+
+    /** Ringkasan respons HTTP terakhir untuk pesan galat (tanpa URL/kredensial). */
+    private function httpInfo(): string
+    {
+        if ($this->lastCode > 0) { return 'HTTP ' . $this->lastCode; }
+        return 'koneksi gagal' . ($this->lastCurlError !== '' ? ': ' . $this->lastCurlError : '');
     }
 
     // ── INTERNAL: low-level HTTP ────────────────────────────────
@@ -789,61 +1200,61 @@ class SpiReportingService
         return rtrim($proxy, '/') . '/' . rtrim(strtr(base64_encode($url), '+/', '-_'), '=');
     }
 
-    /** Retry untuk kegagalan transien (5xx / koneksi / timeout) — penting saat lewat proxy. */
+    /** Jumlah percobaan untuk kegagalan transien (koneksi/timeout/502-504). */
     private const HTTP_TRIES = 3;
+
+    /**
+     * Ulang hanya untuk galat transien: koneksi/timeout (kode 0) & gateway 502/503/504.
+     * 500 = galat aplikasi SPI (mis. endpoint mati) → tak diulang, agar tak membuang waktu.
+     */
+    public static function isTransient(int $code): bool
+    {
+        return $code === 0 || in_array($code, [502, 503, 504], true);
+    }
 
     private function httpGet(string $url, bool $withCookies): ?string
     {
-        $target = $this->viaProxy($url);
-        for ($try = 1; $try <= self::HTTP_TRIES; $try++) {
-            $ch  = curl_init($target);
-            $opt = [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 30,
-                CURLOPT_CONNECTTIMEOUT => 10,
-                CURLOPT_FOLLOWLOCATION => false,
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_USERAGENT      => 'MallIC/1.0 (+parking-sync)',
-            ];
-            if ($withCookies) {
-                $opt[CURLOPT_COOKIEJAR]  = $this->cookieFile;
-                $opt[CURLOPT_COOKIEFILE] = $this->cookieFile;
-            }
-            curl_setopt_array($ch, $opt);
-            $raw  = curl_exec($ch);
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            if ($raw !== false && $code >= 200 && $code < 400) { return $raw; }
-            if ($code >= 400 && $code < 500) { return null; }       // client error → jangan ulang
-            if ($try < self::HTTP_TRIES) { usleep(1500000); }       // transien → jeda 1.5s, ulang
+        $opt = [CURLOPT_TIMEOUT => 30];
+        if ($withCookies) {
+            $opt[CURLOPT_COOKIEJAR]  = $this->cookieFile;
+            $opt[CURLOPT_COOKIEFILE] = $this->cookieFile;
         }
-        return null;
+        return $this->curlWithRetry($url, $opt);
     }
 
     private function httpPost(string $url, string $body, string $ctype, array $headers): ?string
     {
+        return $this->curlWithRetry($url, [
+            CURLOPT_TIMEOUT    => 35,
+            CURLOPT_POST       => true,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_COOKIEJAR  => $this->cookieFile,
+            CURLOPT_COOKIEFILE => $this->cookieFile,
+            CURLOPT_HTTPHEADER => array_merge(['Content-Type: ' . $ctype], $headers),
+        ]);
+    }
+
+    /** Eksekusi cURL + retry transien. Mencatat kode/redirect/galat terakhir. 2xx/3xx → body. */
+    private function curlWithRetry(string $url, array $opt): ?string
+    {
         $target = $this->viaProxy($url);
         for ($try = 1; $try <= self::HTTP_TRIES; $try++) {
             $ch = curl_init($target);
-            curl_setopt_array($ch, [
+            curl_setopt_array($ch, $opt + [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 35,
                 CURLOPT_CONNECTTIMEOUT => 10,
                 CURLOPT_FOLLOWLOCATION => false,
                 CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => $body,
-                CURLOPT_COOKIEJAR      => $this->cookieFile,
-                CURLOPT_COOKIEFILE     => $this->cookieFile,
                 CURLOPT_USERAGENT      => 'MallIC/1.0 (+parking-sync)',
-                CURLOPT_HTTPHEADER     => array_merge(['Content-Type: ' . $ctype], $headers),
             ]);
-            $raw  = curl_exec($ch);
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            if ($raw !== false && $code >= 200 && $code < 400) { return $raw; }
-            if ($code >= 400 && $code < 500) { return null; }
-            if ($try < self::HTTP_TRIES) { usleep(1500000); }
+            $raw = curl_exec($ch);
+            $this->lastCode      = $raw === false ? 0 : (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $this->lastRedirect  = (string) (curl_getinfo($ch, CURLINFO_REDIRECT_URL) ?: '');
+            $this->lastCurlError = $raw === false ? curl_error($ch) : '';
+            unset($ch); // PHP ≥ 8: handle dibebaskan otomatis (curl_close no-op)
+            if ($raw !== false && $this->lastCode >= 200 && $this->lastCode < 400) { return $raw; }
+            if (! self::isTransient($this->lastCode)) { return null; } // 4xx/500 → jangan ulang
+            if ($try < self::HTTP_TRIES) { usleep(1500000); }           // transien → jeda 1.5s, ulang
         }
         return null;
     }
@@ -877,5 +1288,86 @@ class SpiReportingService
         } catch (\Throwable $t) {
             return $ymd;
         }
+    }
+
+    /** 'Y-m-d' → 'd M Y' (format form casual-parking-data, mis. "01 Sep 2026"). */
+    public static function fmtDMY(string $ymd): string
+    {
+        try {
+            return (new \DateTime($ymd))->format('d M Y');
+        } catch (\Throwable $t) {
+            return $ymd;
+        }
+    }
+
+    /** Nama bulan Indonesia (yang beda dari Inggris) → Inggris, untuk parsing tanggal. */
+    private const ID_MONTHS = [
+        'januari' => 'January', 'februari' => 'February', 'maret' => 'March', 'mei' => 'May',
+        'juni' => 'June', 'juli' => 'July', 'agustus' => 'August', 'agu' => 'Aug', 'agt' => 'Aug',
+        'ags' => 'Aug', 'oktober' => 'October', 'okt' => 'Oct', 'desember' => 'December', 'des' => 'Dec',
+    ];
+
+    /**
+     * Teks tanggal SPI → 'Y-m-d', atau null bila bukan tanggal (mis. "TOTAL").
+     * Menerima: 2026-09-01, 2026-09-01 00:00:00, 01 Sep 2026, 1 Sep 2026, 01-Sep-2026,
+     * 01 September 2026, 01/09/2026 (d/m/Y), bulan Indonesia (Agu/Okt/Des/Mei), dan
+     * awalan nama hari ("Senin, 01 Sep 2026").
+     */
+    public static function normalizeDate(string $s): ?string
+    {
+        $s = trim(preg_replace('/\s+/u', ' ', str_replace("\xC2\xA0", ' ', $s)));
+        if ($s === '' || ! preg_match('/\d/', $s)) { return null; }
+        $s = preg_replace('/^[A-Za-z]+,\s*/', '', $s); // buang nama hari
+        $s = preg_replace_callback('/[A-Za-z]+/', fn($m) => self::ID_MONTHS[strtolower($m[0])] ?? $m[0], $s);
+        $formats = ['Y-m-d', 'Y-m-d H:i:s', 'Y-m-d H:i', 'Y/m/d', 'd M Y', 'd-M-Y', 'd F Y', 'd-F-Y',
+            'd/m/Y', 'd-m-Y', 'd.m.Y'];
+        foreach ($formats as $f) {
+            $d = \DateTime::createFromFormat('!' . $f, $s);
+            if (! $d) { continue; }
+            $err = \DateTime::getLastErrors();
+            if ($err && ($err['warning_count'] > 0 || $err['error_count'] > 0)) { continue; }
+            $y = (int) $d->format('Y');
+            if ($y < 2000 || $y > 2100) { continue; }
+            return $d->format('Y-m-d');
+        }
+        return null;
+    }
+
+    /**
+     * Nilai rupiah/angka SPI → int, atau null bila bukan angka.
+     * Menerima int/float, "1234500", "1.234.500", "1,234,500", "Rp 1.234.500",
+     * "1.234.500,00", "12.50" (dibulatkan), "(1.000)"/"-1.000" (negatif); kosong/"-" → 0.
+     */
+    public static function parseAmount(mixed $v): ?int
+    {
+        if (is_int($v))   { return $v; }
+        if (is_float($v)) { return (int) round($v); }
+        if ($v === null)  { return 0; }
+        if (! is_string($v)) { return null; }
+        $s = str_replace(["\xC2\xA0", ' ', "\t"], '', trim($v));
+        $s = preg_replace('/^(rp|idr)\.?/i', '', $s);
+        if ($s === '' || $s === '-') { return 0; }
+        $neg = false;
+        if (preg_match('/^\((.+)\)$/', $s, $m)) { $neg = true; $s = $m[1]; }
+        if (str_starts_with($s, '-'))           { $neg = ! $neg; $s = substr($s, 1); }
+        if (preg_match('/^\d+$/', $s)) {
+            $n = (int) $s;
+        } elseif (preg_match('/^\d{1,3}([.,])\d{3}(?:\1\d{3})*$/', $s, $m)) {
+            $n = (int) str_replace($m[1], '', $s);                         // pemisah ribuan
+        } elseif (preg_match('/^(\d{1,3}(?:([.,])\d{3})*)([.,])(\d{1,2})$/', $s, $m) && ($m[2] ?? '') !== $m[3]) {
+            $n = (int) round((float) (str_replace(['.', ','], '', $m[1]) . '.' . $m[4])); // ribuan + desimal
+        } elseif (preg_match('/^(\d+)[.,](\d{1,2})$/', $s, $m)) {
+            $n = (int) round((float) ($m[1] . '.' . $m[2]));
+        } else {
+            return null;
+        }
+        return $neg ? -$n : $n;
+    }
+
+    /** Cuplikan teks pendek (tanpa tag) untuk pesan galat. */
+    private static function cuplik(string $s, int $max = 80): string
+    {
+        $t = trim(preg_replace('/\s+/u', ' ', strip_tags($s)));
+        return mb_strlen($t) > $max ? mb_substr($t, 0, $max) . '…' : $t;
     }
 }
