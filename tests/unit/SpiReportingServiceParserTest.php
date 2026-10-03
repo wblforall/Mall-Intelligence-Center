@@ -87,6 +87,49 @@ final class SpiReportingServiceParserTest extends CIUnitTestCase
         $this->assertSame(0, array_sum($rows[0]['qty']));
     }
 
+    /** Fixture = balasan ASLI SPI 02–03 Sep 2026 (hanya teks Keterangan disamarkan). */
+    public function testCasualHtmlAsliHeaderTigaTingkat(): void
+    {
+        $ignored = $baru = null;
+        $rows = SpiReportingService::parseCasualHtml($this->fixture('casual-asli.html'), $ignored, $baru);
+
+        $this->assertSame(['2026-09-02', '2026-09-03'], array_column($rows, 'tanggal'), 'baris Total di tfoot dilewati');
+        $this->assertSame(['tanggal', 'income', 'qty', 'paid', 'free', 'payments'], array_keys($rows[0]));
+
+        $d = $rows[0];
+        $this->assertSame(48164000, $d['income'], 'income dari Total Income, bukan Prepaid & Other');
+        $this->assertSame(
+            ['mobil' => 3662, 'motor' => 3413, 'box' => 50, 'truck' => 32, 'taxi' => 69, 'bus' => 0],
+            $d['qty'], 'Detail Casual Income > jenis > Qty');
+        $this->assertSame(
+            ['mobil' => 4000, 'motor' => 60000, 'box' => 0, 'truck' => 20000, 'taxi' => 0, 'bus' => 0],
+            $d['paid'], 'Detail Casual Income > jenis > Amount');
+        $this->assertSame(0, array_sum($d['free']));
+        $this->assertSame([
+            'Flazz' => 6982000, 'e-Money' => 20581000, 'BNI TapCash' => 6895000, 'BRI Brizzi' => 7492000,
+            'Lost Ticket' => 100000, 'Doomo' => 5530000, 'Flaplock' => 500000,
+        ], $d['payments'], 'nama tampil sama dengan data lama; Qty metode tidak dianggap rupiah');
+        // Total Income = Σ Amount casual + Σ Amount prepaid (berlaku di data asli)
+        $this->assertSame($d['income'], array_sum($d['payments']) + array_sum($d['paid']));
+
+        $this->assertSame(3000, $rows[1]['payments']['Lebih Setor']);
+        $this->assertSame(48600000, $rows[1]['income']);
+        $this->assertSame($rows[1]['income'], array_sum($rows[1]['payments']) + array_sum($rows[1]['paid']));
+
+        $this->assertSame([], $ignored, 'Prepaid & Other / Selisih / Keterangan bukan kolom tak dikenal');
+        $this->assertSame(['Flaplock'], $baru, 'metode baru disimpan apa adanya & dilaporkan');
+    }
+
+    public function testCasualHtmlAliasEjaanAsli(): void
+    {
+        $html = '<table><thead><tr><td rowspan=3>Tanggal</td><td colspan=4>Detail Prepaid & Other</td></tr>'
+              . '<tr><td colspan=2>Mega/allo Bank Qr Statis</td><td colspan=2>Allobank Integrasi</td></tr>'
+              . '<tr><td>Qty</td><td>Amount</td><td>Qty</td><td>Amount</td></tr></thead>'
+              . '<tbody><tr><td>01-Sep-2026</td><td>2</td><td>10,000</td><td>3</td><td> 15,000</td></tr></tbody></table>';
+        $rows = SpiReportingService::parseCasualHtml($html);
+        $this->assertSame(['Mega/Allo QR' => 10000, 'Allobank' => 15000], $rows[0]['payments']);
+    }
+
     public function testCasualHtmlTanpaTheadRowspanDanBulanIndonesia(): void
     {
         $rows = SpiReportingService::parseCasualHtml($this->fixture('casual-parking-data-tanpa-thead.html'));
