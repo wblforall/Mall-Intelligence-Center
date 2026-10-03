@@ -35,7 +35,17 @@ class ParkingSync extends BaseController
             return $this->response->setJSON(['ok' => false, 'message' => 'Gagal sinkronisasi: ' . $e->getMessage(), 'csrf' => csrf_hash()]);
         }
         if (stripos($out, 'Gagal login') !== false) {
-            return $this->response->setJSON(['ok' => false, 'message' => 'Gagal login ke SPI. Periksa kredensial SPI_* di .env.', 'csrf' => csrf_hash()]);
+            $belum = stripos($out, 'belum dikonfigurasi') !== false;
+            return $this->response->setJSON(['ok' => false, 'message' => $belum
+                ? 'SPI belum dikonfigurasi (SPI_USER/SPI_PASS di .env kosong). Hubungi admin.'
+                : 'Gagal login ke SPI. Periksa kredensial SPI_* di .env.', 'csrf' => csrf_hash()]);
+        }
+        // mic:spi-sync kini memeriksa tiap tulis/ambil; jangan laporkan "berhasil" bila ada yang gagal.
+        if (preg_match('/Selesai dengan galat[^\r\n]*/', $out, $mg)) {
+            log_message('error', '[parking/sync] ' . $mg[0]);
+            return $this->response->setJSON(['ok' => false,
+                'message' => 'Sinkronisasi SPI sebagian gagal — data mungkin belum lengkap. Coba lagi nanti.',
+                'detail'  => trim($mg[0]), 'csrf' => csrf_hash()]);
         }
 
         // Bust cache agar banner "data s/d ..." & live ikut segar
