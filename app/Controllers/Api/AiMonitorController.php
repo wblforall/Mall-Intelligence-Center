@@ -173,7 +173,15 @@ class AiMonitorController extends BaseApiController
             return $this->error('Kiriman terlalu besar.', 413);
         }
 
-        $body  = json_decode($raw, true);
+        // ── Normalisasi UTF-8 ────────────────────────────────────────────
+        // Rute ini DIKECUALIKAN dari filter invalidchars (Config\Filters):
+        // filter itu menolak seluruh kiriman bila ada satu byte non-UTF-8 dan
+        // mencatat isinya utuh ke log (2 Okt 2026: log 245 MB). Di sini byte
+        // rusak cukup diganti U+FFFD lalu kiriman tetap diproses. Teks yang
+        // sudah valid UTF-8 juga menjamin penyamaran (AiLog::samarkan) dan
+        // penyimpanan utf8mb4 berjalan normal.
+        $raw   = mb_scrub($raw, 'UTF-8');
+        $body  = json_decode($raw, true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
         if (! is_array($body)) {
             return $this->error('Body JSON tidak valid.', 400);
         }
@@ -184,7 +192,9 @@ class AiMonitorController extends BaseApiController
         // mentah tetap didukung untuk kompatibilitas & poll kosong.
         if (isset($body['enc']) && is_string($body['enc']) && $body['enc'] !== '') {
             $decoded = base64_decode($body['enc'], true);
-            $lines   = $decoded === false ? [] : json_decode($decoded, true);
+            // Isi base64 tak tersentuh mb_scrub di atas — normalisasi lagi.
+            $lines   = $decoded === false ? []
+                : json_decode(mb_scrub($decoded, 'UTF-8'), true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
         } else {
             $lines = $body['lines'] ?? [];
         }
