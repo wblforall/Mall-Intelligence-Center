@@ -37,7 +37,8 @@ class AiKlasifikasi
     // di dalam kata lain). Token berimbuhan tanda hubung dicek sebagai substring.
     private const KW_KANTOR_KATA = ['optera', 'opsjobs', 'clara', 'pentacity', 'ewalk', 'mic',
         'pamsign', 'esign', 'flowstore', 'erp', 'wbl', 'footfall', 'meteran', 'tenant',
-        'loyalty', 'parkir', 'pest', 'housekeeping'];
+        'loyalty', 'parkir', 'pest', 'housekeeping', 'hama', 'traffic', 'pengunjung',
+        'kendaraan', 'operasional', 'mfs', 'sponsorship'];
     private const KW_KANTOR_SUB = ['mall-intelligence', 'e-sign', 'web-store',
         'erp-integrasi', 'wbl-one', 'htdocs'];
     private const KW_PRIBADI = ['pribadi', 'personal', 'rumah', 'keluarga', 'liburan', 'game pribadi'];
@@ -86,10 +87,18 @@ class AiKlasifikasi
      * server oleh AiLog::samarkan() sebelum disimpan, jadi aman dikirim ke
      * penyedia LLM.
      *
+     * Prompt pengguna sering terlalu singkat ("pelajari data ini"), jadi
+     * `$konteks` membawa petunjuk tambahan yang sudah tersimpan di MIC:
+     * folder kerja (`folder`, beberapa segmen terakhir cwd), nama berkas yang
+     * dibuka/ditulis Claude (`berkas`, nama dasar saja), dan departemen
+     * karyawan (`dept`). Jawaban Claude SENGAJA tidak dikirim — bisa memuat isi
+     * data, dan keputusan menambah data ke pihak luar diambil terpisah.
+     *
      * @param string[] $promptTeks
+     * @param array{folder?:?string, berkas?:string[], dept?:?string} $konteks
      * @return array{jenis:string, tema:string, kantor:string, ringkasan:?string}|null
      */
-    public static function ai(array $promptTeks, ?string $proyek, ?string $gitBranch, int $jmlAlat): ?array
+    public static function ai(array $promptTeks, ?string $proyek, ?string $gitBranch, int $jmlAlat, array $konteks = []): ?array
     {
         self::$providerTerakhir = null;
 
@@ -101,8 +110,9 @@ class AiKlasifikasi
         // Cuplikan prompt, dipotong total agar hemat token & biaya.
         $cuplikan = mb_substr(trim(implode("\n---\n", $promptTeks)), 0, 4000);
 
-        $sistem = 'Anda mengklasifikasi sesi penggunaan Claude Code (asisten coding) '
-            . 'berdasarkan cuplikan prompt pengguna dan nama proyek. Nilai dari TUJUAN/OUTPUT yang diminta, '
+        $sistem = 'Anda mengklasifikasi sesi penggunaan Claude Code (asisten coding) di laptop kantor '
+            . 'berdasarkan cuplikan prompt pengguna, folder kerja, nama berkas yang dibuka, dan departemen pengguna. '
+            . 'Nilai dari TUJUAN/OUTPUT yang diminta, '
             . 'BUKAN sekadar ada-tidaknya kode. '
             . 'Jawab HANYA satu objek JSON tanpa teks lain, berbentuk: '
             . '{"jenis": "<coding|debugging|ideating|menulis|riset|lainnya>", '
@@ -118,17 +128,28 @@ class AiKlasifikasi
             . 'kantor = berkaitan pekerjaan WBL: operasional mal eWalk/Pentacity (pest control, traffic/footfall, '
             . 'tenant, loyalty, parkir, event, housekeeping, meteran) atau sistem internal '
             . '(OpsJobs/Optera, Clara, MIC, PAM e-Sign, FlowStore, ERP). '
-            . 'pribadi = urusan pribadi ATAU tugas kuliah/sekolah (mis. LCOI, skripsi, makalah, PR, ujian). '
-            . 'tak_jelas = tidak cukup petunjuk. Bila ragu, pilih tak_jelas. '
+            . 'Data operasional mal juga kantor: rekap traffic/pengunjung, data parkir atau jumlah kendaraan '
+            . '(motor, mobil), tenant, temuan hama, MFS, meteran listrik/air, laporan MIC (mis. "Traffic Summary"). '
+            . 'Folder kerja atau nama berkas adalah bukti kuat: folder seperti "OPERASIONAL", berkas laporan/rekap '
+            . 'operasional mal, atau data yang sesuai bidang departemen pengguna → kantor, walau prompt-nya singkat '
+            . '(mis. "pelajari data ini"). Departemen saja TIDAK cukup untuk menyimpulkan kantor tanpa bukti lain. '
+            . 'pribadi = urusan pribadi ATAU tugas kuliah/sekolah (mis. LCOI, skripsi, makalah, PR, ujian); '
+            . 'sinyal pribadi yang jelas mengalahkan folder kerja. '
+            . 'tak_jelas = prompt, folder, dan nama berkas sama-sama tidak memberi petunjuk. Bila ragu, pilih tak_jelas. '
             . 'Arti ringkasan: 1-2 kalimat padat yang menjelaskan APA yang sebenarnya '
             . 'DIKERJAKAN dan DIHASILKAN pada sesi (aktivitas & hasil nyata), '
             . 'lebih kaya dari tema. JANGAN menyalin judul atau prompt pertama; '
-            . 'nilai dari keseluruhan prompt. Tulis ringkas, maksimal ~280 karakter. '
+            . 'nilai dari keseluruhan prompt, dan sebut berkas/data yang dikerjakan bila nama berkasnya jelas. '
+            . 'Tulis ringkas, maksimal ~280 karakter. '
             . 'Bila benar-benar tak ada petunjuk, boleh string kosong.';
 
+        $berkas = array_slice(array_values(array_filter((array) ($konteks['berkas'] ?? []), 'is_string')), 0, 15);
         $pengguna = 'Proyek: ' . ($proyek ?: '(tidak ada)')
+            . "\nFolder kerja: " . (trim((string) ($konteks['folder'] ?? '')) ?: '(tidak ada)')
+            . "\nDepartemen pengguna: " . (trim((string) ($konteks['dept'] ?? '')) ?: '(tidak diketahui)')
             . "\nBranch git: " . ($gitBranch ?: '(tidak ada)')
             . "\nJumlah pemanggilan alat: " . $jmlAlat
+            . "\nBerkas yang dibuka/ditulis: " . ($berkas !== [] ? implode(', ', $berkas) : '(tidak ada)')
             . "\n\nCuplikan prompt pengguna:\n" . ($cuplikan !== '' ? $cuplikan : '(kosong)');
 
         // Panggil provider (multi-provider failover di panggilProvider), lalu
@@ -423,18 +444,24 @@ class AiKlasifikasi
      * @param string|null $proyek     Nama proyek (dari cwd) bila ada.
      * @param string|null $gitBranch  Branch git bila ada.
      * @param int         $jmlAlat    Jumlah pemanggilan alat pada sesi.
+     * @param array{folder?:?string, berkas?:string[], dept?:?string} $konteks Lihat {@see ai}.
+     *        Folder & nama berkas ikut dicek untuk kantor/pribadi (bukan untuk jenis).
      * @return array{jenis:string, tema:string, kantor:string, ringkasan:null}
      */
-    public static function kataKunci(array $promptTeks, ?string $proyek, ?string $gitBranch, int $jmlAlat): array
+    public static function kataKunci(array $promptTeks, ?string $proyek, ?string $gitBranch, int $jmlAlat, array $konteks = []): array
     {
         $hay = mb_strtolower(trim(implode("\n", $promptTeks)));
         $proyekLc = mb_strtolower((string) $proyek);
-        $gabung   = $hay . "\n" . $proyekLc; // untuk cek kantor & ekstensi kode
+        $gabung   = $hay . "\n" . $proyekLc; // untuk cek ekstensi kode
+        $jejak    = mb_strtolower((string) ($konteks['folder'] ?? '') . "\n"
+            . implode("\n", array_filter((array) ($konteks['berkas'] ?? []), 'is_string')));
+        // Pemisah jalur & nama berkas jadi spasi agar cek batas kata menangkap "OPERASIONAL" dkk.
+        $kantorHay = $gabung . "\n" . preg_replace('/[\\\\\/_.\-]+/u', ' ', $jejak);
 
         return [
             'jenis'     => self::tentukanJenis($hay, $proyekLc, $gabung, $jmlAlat),
             'tema'      => self::tentukanTema($hay, $proyek, $gitBranch),
-            'kantor'    => self::tentukanKantor($gabung),
+            'kantor'    => self::tentukanKantor($kantorHay),
             'ringkasan' => null, // kata kunci tak membuat ringkasan
         ];
     }

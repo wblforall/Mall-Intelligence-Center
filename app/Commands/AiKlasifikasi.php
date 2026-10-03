@@ -26,10 +26,17 @@ class AiKlasifikasi extends BaseCommand
     protected $group       = 'MIC';
     protected $name        = 'mic:ai-klasifikasi';
     protected $description = 'Klasifikasikan sesi Pemantauan AI (jenis aktivitas, tema, kantor/pribadi) berbasis kata kunci.';
-    protected $usage       = 'mic:ai-klasifikasi [--batas 500] [--dry-run] [--ulang]';
+    protected $usage       = 'mic:ai-klasifikasi [--batas 500] [--dry-run] [--ulang] [--tak-jelas]';
 
     /** Maksimal entri prompt yang dibaca per sesi (jaga memori). */
     private const MAKS_ENTRI = 50;
+
+    /** Alat Claude yang `sasaran`-nya berupa jalur/pola berkas (bukan perintah shell —
+     *  perintah bisa memuat isi data, jadi tidak dikirim). */
+    private const ALAT_BERKAS = ['Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'NotebookEdit', 'NotebookRead'];
+
+    /** Jejak berkas yang bukan pekerjaan pengguna: memori/konfigurasi Claude & berkas sementara. */
+    private const JALUR_ABAIKAN = ['/.claude/', '\\.claude\\', 'appdata\\local\\temp', '/tmp/', 'scratchpad'];
 
     /** Berapa kali 429 beruntun sebelum batch dihentikan rapi.
      *  Dilonggarkan (8) agar 429 sesekali tak langsung membatalkan batch;
@@ -42,6 +49,7 @@ class AiKlasifikasi extends BaseCommand
         $batas  = (int) (CLI::getOption('batas') ?: 500);
         $dryRun = (bool) CLI::getOption('dry-run');
         $ulang  = (bool) CLI::getOption('ulang'); // paksa klasifikasi ulang SEMUA
+        $takJelas = (bool) CLI::getOption('tak-jelas'); // klasifikasi ulang yang masih tak_jelas
         $db     = db_connect();
 
         // Mode: 'ai' memakai LLM dengan fallback kata kunci; selain itu
@@ -54,16 +62,20 @@ class AiKlasifikasi extends BaseCommand
 
         // Sesi yang perlu (re)klasifikasi: belum pernah, atau sudah bertambah
         // entrinya sejak terakhir diklasifikasi.
-        $sesi = $db->table('ai_sessions')
-            ->select('id, proyek, git_branch, jml_alat');
-        if (! $ulang) {
+        $sesi = $db->table('ai_sessions s')
+            ->select('s.id, s.proyek, s.cwd, s.git_branch, s.jml_alat, d.name AS dept')
+            ->join('employees e', 'e.id = s.employee_id', 'left')
+            ->join('departments d', 'd.id = e.dept_id', 'left');
+        if ($takJelas) {
+            $sesi->where('s.klasifikasi_kantor', 'tak_jelas');
+        } elseif (! $ulang) {
             // Normal: hanya yang belum pernah atau bertambah sejak terakhir.
             $sesi->groupStart()
-                ->where('klasifikasi_at IS NULL', null, false)
-                ->orWhere('klasifikasi_at < terakhir_at', null, false)
+                ->where('s.klasifikasi_at IS NULL', null, false)
+                ->orWhere('s.klasifikasi_at < s.terakhir_at', null, false)
             ->groupEnd();
         } // --ulang: ambil SEMUA (regenerasi label, mis. setelah aturan berubah)
-        $sesi = $sesi->orderBy('terakhir_at', 'DESC')
+        $sesi = $sesi->orderBy('s.terakhir_at', 'DESC')
             ->limit($batas)
             ->get()->getResultArray();
 
@@ -91,12 +103,17 @@ class AiKlasifikasi extends BaseCommand
             $proyek = $s['proyek'] ?? null;
             $branch = $s['git_branch'] ?? null;
             $alat   = (int) $s['jml_alat'];
+            $konteks = [
+                'folder' => self::folderRingkas($s['cwd'] ?? null),
+                'berkas' => $this->berkasSesi($db, $sesiId),
+                'dept'   => $s['dept'] ?? null,
+            ];
 
             $hasil  = null;
             $metode = 'kata_kunci';
 
             if ($pakaiAi) {
-                $hasil = Klasifikator::ai($teks, $proyek, $branch, $alat);
+                $hasil = Klasifikator::ai($teks, $proyek, $branch, $alat, $konteks);
                 if ($hasil !== null) {
                     $metode = 'ai';
                     $prov   = Klasifikator::$providerTerakhir ?: '?';
@@ -115,8 +132,12 @@ class AiKlasifikasi extends BaseCommand
             }
 
             if ($hasil === null) {
-                $hasil  = Klasifikator::kataKunci($teks, $proyek, $branch, $alat);
+                $hasil  = Klasifikator::kataKunci($teks, $proyek, $branch, $alat, $konteks);
                 $metode = 'kata_kunci';
+            }
+
+            if ($dryRun || $takJelas) {
+                CLI::write(sprintf('  #%d → %s / %s / %s [%s]', $sesiId, $hasil['kantor'], $hasil['jenis'], $hasil['tema'], $metode));
             }
 
             if (! $dryRun) {
@@ -159,5 +180,45 @@ class AiKlasifikasi extends BaseCommand
             "Selesai. via ai: {$viaAi}{$rincian} · via kata_kunci: {$viaKw}" . ($dryRun ? ' (dry-run, tidak disimpan)' : ''),
             'green'
         );
+    }
+
+    /** Tiga segmen terakhir cwd (mis. "bond\1. OPERASIONAL\AB") — cukup sebagai petunjuk,
+     *  tanpa membawa nama akun Windows di awal jalur. */
+    private static function folderRingkas(?string $cwd): ?string
+    {
+        $bagian = array_values(array_filter(preg_split('/[\\\\\/]+/', trim((string) $cwd)), fn($b) => $b !== '' && ! preg_match('/^[A-Za-z]:$/', $b)));
+        return $bagian === [] ? null : implode('\\', array_slice($bagian, -3));
+    }
+
+    /**
+     * Nama dasar berkas yang dibuka/ditulis Claude di sesi ini (maks 15, unik),
+     * tanpa memori Claude dan berkas sementara. Hanya nama — isi berkas tidak dikirim.
+     *
+     * @return string[]
+     */
+    private function berkasSesi($db, int $sesiId): array
+    {
+        $rows = $db->table('ai_entries')
+            ->select('sasaran')
+            ->where('ai_session_id', $sesiId)
+            ->where('jenis', 'alat')
+            ->whereIn('alat', self::ALAT_BERKAS)
+            ->where('sasaran IS NOT NULL', null, false)
+            ->orderBy('waktu', 'ASC')
+            ->limit(200)
+            ->get()->getResultArray();
+
+        $hasil = [];
+        foreach ($rows as $r) {
+            $jalur = trim((string) $r['sasaran']);
+            $lc    = mb_strtolower($jalur);
+            foreach (self::JALUR_ABAIKAN as $abai) {
+                if (mb_strpos($lc, $abai) !== false) continue 2;
+            }
+            $nama = mb_substr(trim((string) preg_replace('#^.*[\\\\/]#', '', $jalur)), 0, 80);
+            if ($nama !== '' && ! in_array($nama, $hasil, true)) $hasil[] = $nama;
+            if (count($hasil) >= 15) break;
+        }
+        return $hasil;
     }
 }
