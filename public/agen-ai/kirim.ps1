@@ -238,9 +238,14 @@ function Send-Batch {
         enc          = $enc
     }
     $json = $payload | ConvertTo-Json -Compress
+    # Kirim sebagai BYTE UTF-8 + charset eksplisit. Windows PowerShell 5.1
+    # mengodekan -Body string sebagai ISO-8859-1 bila charset tak disebut,
+    # sehingga nama akun/host ber-aksen tiba sebagai byte non-UTF-8 dan
+    # ditolak server (2 Okt 2026: filter invalidchars + log membengkak).
+    $bodyBytes = [Text.Encoding]::UTF8.GetBytes($json)
     try {
         $resp = Invoke-RestMethod -Uri $cfg.endpoint_ingest -Method Post -Headers $script:headers `
-            -Body $json -TimeoutSec 60 -UseBasicParsing
+            -Body $bodyBytes -ContentType 'application/json; charset=utf-8' -TimeoutSec 60 -UseBasicParsing
         if ($resp -and ($resp.PSObject.Properties.Name -contains 'status')) {
             $script:lastStatus = [string]$resp.status
         }
@@ -300,7 +305,7 @@ function Invoke-Cycle {
         } | ConvertTo-Json -Depth 5
         try {
             $resp = Invoke-RestMethod -Uri $cfg.endpoint_enroll -Method Post `
-                -Body $enrollBody -ContentType 'application/json' `
+                -Body ([Text.Encoding]::UTF8.GetBytes($enrollBody)) -ContentType 'application/json; charset=utf-8' `
                 -TimeoutSec 60 -UseBasicParsing
         } catch {
             if (-not $script:netFailLogged) { Write-Log "Enroll gagal: $($_.Exception.Message)."; $script:netFailLogged = $true }
@@ -326,9 +331,10 @@ function Invoke-Cycle {
         }
     }
 
+    # Content-Type TIDAK ditaruh di sini: Send-Batch memberinya lewat
+    # -ContentType (dengan charset=utf-8) agar tidak bentrok.
     $script:headers = @{
         'Authorization' = "Bearer $($script:deviceToken)"
-        'Content-Type'  = 'application/json'
     }
 
     $state = Load-State
