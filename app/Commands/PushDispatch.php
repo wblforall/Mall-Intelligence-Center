@@ -24,15 +24,34 @@ class PushDispatch extends BaseCommand
 
     private const MAKS_PERCOBAAN = 3;
 
+    /**
+     * Umur maksimal notifikasi pending (jam). Lebih tua dari ini → `skipped`
+     * dengan alasan "kedaluwarsa", TIDAK dikirim. Tanpa ini, saat FCM kelak
+     * dinyalakan (atau cron mati berhari-hari lalu hidup lagi) seluruh antrean
+     * lama akan meledak sekaligus ke HP pengguna — notifikasi basi yang sudah
+     * tak relevan.
+     */
+    public const MAKS_UMUR_JAM = 24;
+
+    public const ALASAN_KEDALUWARSA = 'kedaluwarsa (antre > 24 jam)';
+
     public function run(array $params)
     {
         $batas  = (int) (CLI::getOption('batas') ?: 200);
         $kering = (bool) CLI::getOption('dry-run');
         $db     = db_connect();
 
+        $basi = self::tandaiKedaluwarsa($db, $kering);
+        if ($basi > 0) {
+            CLI::write("{$basi} notifikasi lebih tua dari " . self::MAKS_UMUR_JAM . ' jam '
+                . ($kering ? 'akan ditandai' : 'ditandai') . ' kedaluwarsa (tidak dikirim).', 'yellow');
+        }
+
         $antrian = $db->table('push_queue')
             ->where('status', 'pending')
             ->where('attempts <', self::MAKS_PERCOBAAN)
+            // Jaring kedua (dan agar dry-run akurat): yang basi tak pernah diambil.
+            ->where('created_at >=', self::batasKedaluwarsa())
             ->orderBy('created_at')->limit($batas)->get()->getResultArray();
 
         if (! $antrian) { CLI::write('Antrian kosong.', 'yellow'); return; }
@@ -92,6 +111,36 @@ class PushDispatch extends BaseCommand
 
         CLI::write("Selesai — terkirim: {$terkirim}, gagal: {$gagal}, dilewati: {$lewat}"
             . ($kering ? ' (dry-run, tak ada yang diubah)' : ''), 'green');
+    }
+
+    /**
+     * Tandai pending yang lebih tua dari MAKS_UMUR_JAM sebagai `skipped`
+     * (kedaluwarsa). Mengembalikan jumlah baris; dry-run hanya menghitung.
+     * Statis & publik agar bisa diuji tanpa menjalankan perintah CLI.
+     */
+    public static function tandaiKedaluwarsa($db, bool $kering = false, ?int $sekarang = null): int
+    {
+        $sekarang ??= time();
+
+        $q = $db->table('push_queue')->where('status', 'pending')
+            ->where('created_at <', self::batasKedaluwarsa($sekarang));
+        if ($kering) {
+            return (int) $q->countAllResults();
+        }
+
+        $q->update([
+            'status'     => 'skipped',
+            'last_error' => self::ALASAN_KEDALUWARSA,
+            'sent_at'    => date('Y-m-d H:i:s', $sekarang),
+        ]);
+
+        return (int) $db->affectedRows();
+    }
+
+    /** Waktu (Y-m-d H:i:s) yang lebih lama darinya dianggap basi. */
+    public static function batasKedaluwarsa(?int $sekarang = null): string
+    {
+        return date('Y-m-d H:i:s', ($sekarang ?? time()) - self::MAKS_UMUR_JAM * 3600);
     }
 
     private function tandai($db, int $id, string $status, ?string $error = null): void
