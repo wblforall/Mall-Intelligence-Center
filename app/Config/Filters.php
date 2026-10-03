@@ -23,6 +23,9 @@ class Filters extends BaseConfig
         'toolbar'       => DebugToolbar::class,
         'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
+        // Sama dengan invalidchars, tapi pesan penolakannya ringkas (tanpa isi
+        // utuh nilai) agar log tidak membengkak. Dipakai sebagai filter global.
+        'invalidchars_ringkas' => \App\Filters\InvalidCharsRingkas::class,
         'secureheaders' => SecureHeaders::class,
         'auth'          => \App\Filters\AuthFilter::class,
         'sechead'       => \App\Filters\SecurityHeaders::class,
@@ -39,7 +42,10 @@ class Filters extends BaseConfig
             // 'honeypot',
             // API uses stateless Bearer-token auth (no cookies) → exempt from session CSRF.
             'csrf' => ['except' => ['api/*']],
-            'invalidchars',
+            // Rute ingest Pemantauan AI dikecualikan: body-nya JSON transkrip
+            // (bisa ratusan KB) yang dinormalisasi sendiri di controller
+            // (mb_scrub + JSON_INVALID_UTF8_SUBSTITUTE). Lihat AiMonitorController::ingest.
+            'invalidchars_ringkas' => ['except' => ['api/ai-monitor/ingest']],
         ],
         'after' => [
             'toolbar',
