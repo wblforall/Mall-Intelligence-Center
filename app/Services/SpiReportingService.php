@@ -491,14 +491,16 @@ class SpiReportingService
         'tunai' => 'Tunai', 'cash' => 'Tunai', 'mandiriemoney' => 'e-Money', 'tapcash' => 'BNI TapCash',
         'brizzi' => 'BRI Brizzi', 'doomo' => 'Doomo', 'linkaja' => 'LinkAja', 'shopeepay' => 'ShopeePay',
         'sobatku' => 'Sobatku', 'jakcard' => 'JakCard', 'lostticket' => 'Lost Ticket', 'tikethilang' => 'Lost Ticket',
+        // ejaan header casual-parking-data asli (Okt 2026) yang berbeda dari nama tampil lama
+        'megaallobankqrstatis' => 'Mega/Allo QR', 'allobankintegrasi' => 'Allobank',
     ];
 
     /**
      * Rincian casual income per tanggal × metode bayar — HISTORIS.
      * Sumber: POST casual-parking-data (form dt1/dt2 'd M Y', dSite) → HTML tabel
      * berkolom per metode bayar. Pengganti table-casual-income (HTTP 500 sejak ±2 Okt 2026).
-     * Endpoint baru hanya memuat metode bayar (+ total bila ada): qty/paid/free selalu 0
-     * (kendaraan diambil dari statistik.php; bentuk keluaran dipertahankan untuk pemanggil).
+     * qty = jumlah kendaraan casual, paid = rupiah casual per jenis (≠ endpoint lama: hitungan),
+     * free selalu 0 (langganan dari statistik.php). Lihat parseCasualHtml.
      * Struktur HTML tak dikenali → galat (mode ketat) / [] + log (mode longgar). Cache 1 jam.
      * @return array<int,array{tanggal:string, income:int, qty:array, paid:array, free:array, payments:array}>
      */
@@ -516,8 +518,8 @@ class SpiReportingService
             ['Accept: text/html, */*; q=0.01']);
         if ($raw === null) { return []; }
         try {
-            $ignored = [];
-            $out = self::parseCasualHtml($raw, $ignored);
+            $ignored = $baru = [];
+            $out = self::parseCasualHtml($raw, $ignored, $baru);
         } catch (\RuntimeException $e) {
             $this->gagal("casual-parking-data {$startDate}..{$endDate}: " . $e->getMessage());
             return [];
@@ -525,23 +527,41 @@ class SpiReportingService
         if ($ignored) {
             log_message('warning', '[spi] casual-parking-data: kolom tak dikenal diabaikan: ' . implode(', ', $ignored));
         }
+        if ($baru) {
+            log_message('info', '[spi] casual-parking-data: metode bayar baru disimpan apa adanya: ' . implode(', ', $baru));
+        }
         if (! empty($out)) { cache()->save($cacheKey, $out, 3600); }
         return $out;
     }
 
     /**
-     * Parse HTML casual-parking-data → baris per tanggal. Tahan perubahan kecil:
-     *  - tabel dicari menurut header (kolom tanggal + ≥1 kolom metode bayar dikenal),
-     *  - header bertingkat (colspan/rowspan) didukung, label = sel terbawah,
-     *  - kolom tambahan yang tak dikenal diabaikan & dilaporkan via $ignored,
-     *  - baris non-tanggal (Total, "No data") dilewati, beberapa baris per tanggal dijumlah.
-     * Tidak ada tabel yang cocok / sel metode bayar bukan angka → \RuntimeException.
+     * Parse HTML casual-parking-data → baris per tanggal.
+     *
+     * Bentuk asli SPI (Okt 2026): <thead> ber-<td>, 3 baris header —
+     *   Tanggal | Total Income | Prepaid & Other | Selisih | Keterangan (rowspan 3),
+     *   "Detail Casual Income" > {Mobil,Motor,Box,Truck,Taxi,Bus} > {Qty,Amount},
+     *   "Detail Prepaid & Other" > {Flazz, Emoney, …, Flaplock} > {Qty,Amount}.
+     * Label kolom = jalur header lengkap (grup > nama > ukuran) dengan rowspan/colspan
+     * dibentangkan; nama = sel terbawah yang bukan Qty/Amount.
+     *  - Kendaraan (Mobil..Bus): Qty → qty[jenis], Amount (rupiah) → paid[jenis]. free = 0
+     *    (endpoint ini tak memuat langganan; free diambil dari statistik.php).
+     *  - Metode bayar dikenal (payAliases) → payments[nama tampil] dari kolom Amount;
+     *    Qty metode bayar tidak disimpan (spi_payment_daily hanya menyimpan rupiah).
+     *  - Metode di bawah grup "Prepaid…" yang belum dikenal (mis. Flaplock) TETAP disimpan
+     *    dengan nama header apa adanya dan dilaporkan via $baru.
+     *  - Kolom lain yang tak dikenal diabaikan & dilaporkan via $ignored.
+     *  - income = kolom Total Income; tanpa kolom itu → jumlah payments.
+     *  - Baris non-tanggal (Total di tfoot, "No data") dilewati, beberapa baris per tanggal dijumlah.
+     * Tabel bertajuk sederhana (header satu tingkat berisi nama metode) tetap didukung.
+     * Tidak ada tabel yang cocok / sel angka bukan angka → \RuntimeException.
      * @param  array|null $ignored  diisi label header yang diabaikan
+     * @param  array|null $baru     diisi nama metode bayar baru yang disimpan apa adanya
      * @return array<int,array{tanggal:string, income:int, qty:array, paid:array, free:array, payments:array}>
      */
-    public static function parseCasualHtml(string $html, ?array &$ignored = null): array
+    public static function parseCasualHtml(string $html, ?array &$ignored = null, ?array &$baru = null): array
     {
         $ignored = [];
+        $baru    = [];
         if (trim($html) === '') {
             throw new \RuntimeException('balasan kosong');
         }
@@ -563,30 +583,63 @@ class SpiReportingService
         foreach ($dom->getElementsByTagName('table') as $table) {
             [$headRows, $bodyRows] = self::splitTableRows($table);
             if (! $headRows) { continue; }
-            $grid   = self::tableGrid($headRows);
-            $ncol   = 0;
+            $grid = self::tableGrid($headRows);
+            $ncol = 0;
             foreach ($grid as $r) { $ncol = max($ncol, count($r) ? max(array_keys($r)) + 1 : 0); }
-            $labels = [];
-            for ($c = 0; $c < $ncol; $c++) {
-                $lab = '';
-                foreach ($grid as $r) { if (($r[$c] ?? '') !== '') { $lab = $r[$c]; } } // sel terbawah menang
-                $labels[$c] = $lab;
-            }
-            $seen[] = implode('|', array_filter($labels, fn($l) => $l !== ''));
 
-            $dateCol = null; $incomeCol = null; $payCols = []; $unknown = [];
-            foreach ($labels as $c => $lab) {
-                $k = self::normHeader($lab);
+            // Jalur header per kolom (atas → bawah, sel rowspan yang sama tak diulang)
+            $paths = [];
+            for ($c = 0; $c < $ncol; $c++) {
+                $path = [];
+                foreach ($grid as $r) {
+                    $t = $r[$c] ?? '';
+                    if ($t !== '' && end($path) !== $t) { $path[] = $t; }
+                }
+                $paths[$c] = $path;
+            }
+            $seen[] = implode('|', array_filter(array_map(fn($p) => implode(' > ', $p), $paths)));
+
+            $dateCol = null; $incomeCol = null;
+            $payCols = []; // kolom => nama tampil metode (rupiah)
+            $vehCols = []; // kolom => [jenis, 'qty'|'paid']
+            $unknown = [];
+            foreach ($paths as $c => $path) {
+                if (! $path) { continue; }
+                $measure = self::headerMeasure(end($path));
+                $name    = $measure !== null ? (count($path) > 1 ? $path[count($path) - 2] : '') : end($path);
+                $groups  = $measure !== null ? array_slice($path, 0, -2) : array_slice($path, 0, -1);
+                $label   = implode(' > ', $path);
+                $k       = self::normHeader($name);
                 if ($k === '') { continue; }
-                if ($dateCol === null && self::isDateHeader($k))                  { $dateCol = $c; continue; }
-                if (isset($alias[$k]))                                              { $payCols[$c] = $alias[$k]; continue; }
-                if ($incomeCol === null && in_array($k, $incomeKs, true))           { $incomeCol = $c; continue; }
-                if (self::isNonPaymentHeader($k))                                   { continue; }
-                $unknown[] = $lab;
+
+                if ($dateCol === null && self::isDateHeader($k))                    { $dateCol = $c; continue; }
+                if ($measure !== null && in_array($k, $veh, true)) {
+                    $vehCols[$c] = [$k, $measure === 'qty' ? 'qty' : 'paid'];
+                    continue;
+                }
+                if (isset($alias[$k])) {
+                    if ($measure !== 'qty') { $payCols[$c] = $alias[$k]; }
+                    continue;
+                }
+                if ($incomeCol === null && $measure === null && in_array($k, $incomeKs, true)) { $incomeCol = $c; continue; }
+                if (self::isNonPaymentHeader($k))                                     { continue; }
+                $inPrepaid = (bool) array_filter($groups, fn($g) => str_contains(self::normHeader($g), 'prepaid'));
+                if ($inPrepaid) {
+                    if ($measure !== 'qty') {
+                        $nama = mb_substr(trim(preg_replace('/\s+/u', ' ', $name)), 0, 40);
+                        $payCols[$c] = $nama;
+                        $baru[] = $nama;
+                    }
+                    continue;
+                }
+                $unknown[] = $label;
             }
             if ($dateCol === null || ! $payCols) { continue; } // bukan tabel yang dicari
 
-            $maxCol = max(array_keys($payCols));
+            $labelOf = fn(int $c) => implode(' > ', $paths[$c]);
+            $numCols = $payCols + array_fill_keys(array_keys($vehCols), true);
+            if ($incomeCol !== null) { $numCols[$incomeCol] = true; }
+            $maxCol = max(array_keys($numCols));
             $byDate = [];
             $noDate = 0; // baris berangka tapi tanggalnya tak terbaca
             foreach (self::tableGrid($bodyRows) as $cells) {
@@ -601,16 +654,24 @@ class SpiReportingService
                 if (count($cells) <= $maxCol) {
                     throw new \RuntimeException("baris {$tgl} hanya " . count($cells) . " kolom, header {$ncol} kolom");
                 }
-                $byDate[$tgl] ??= ['payments' => [], 'income' => 0, 'hasIncome' => false];
-                foreach ($payCols as $c => $label) {
-                    $amt = self::parseAmount($cells[$c] ?? '');
-                    if ($amt === null) {
-                        throw new \RuntimeException("kolom '{$labels[$c]}' tanggal {$tgl} bukan angka: '"
+                $byDate[$tgl] ??= ['payments' => [], 'income' => 0, 'hasIncome' => false,
+                    'qty' => array_fill_keys($veh, 0), 'paid' => array_fill_keys($veh, 0)];
+                $num = function (int $c) use ($cells, $tgl, $labelOf): int {
+                    $n = self::parseAmount($cells[$c] ?? '');
+                    if ($n === null) {
+                        throw new \RuntimeException("kolom '" . $labelOf($c) . "' tanggal {$tgl} bukan angka: '"
                             . self::cuplik($cells[$c] ?? '') . "'");
                     }
+                    return $n;
+                };
+                foreach ($payCols as $c => $label) {
+                    $amt = $num($c);
                     if ($amt !== 0) {
                         $byDate[$tgl]['payments'][$label] = ($byDate[$tgl]['payments'][$label] ?? 0) + $amt;
                     }
+                }
+                foreach ($vehCols as $c => [$v, $slot]) {
+                    $byDate[$tgl][$slot][$v] += $num($c);
                 }
                 if ($incomeCol !== null && ($n = self::parseAmount($cells[$incomeCol] ?? '')) !== null) {
                     $byDate[$tgl]['income'] += $n;
@@ -618,28 +679,37 @@ class SpiReportingService
                 }
             }
             if ($noDate > 0) {
-                throw new \RuntimeException("{$noDate} baris berangka dengan tanggal tak terbaca di kolom '{$labels[$dateCol]}'");
+                throw new \RuntimeException("{$noDate} baris berangka dengan tanggal tak terbaca di kolom '" . $labelOf($dateCol) . "'");
             }
             ksort($byDate);
 
-            $zero = array_fill_keys($veh, 0);
-            $out  = [];
+            $out = [];
             foreach ($byDate as $tgl => $d) {
                 $out[] = [
                     'tanggal'  => $tgl,
                     'income'   => $d['hasIncome'] ? $d['income'] : array_sum($d['payments']),
-                    'qty'      => $zero,
-                    'paid'     => $zero,
-                    'free'     => $zero,
+                    'qty'      => $d['qty'],
+                    'paid'     => $d['paid'],
+                    'free'     => array_fill_keys($veh, 0),
                     'payments' => $d['payments'],
                 ];
             }
             $ignored = $unknown;
+            $baru    = array_values(array_unique($baru));
             return $out;
         }
 
         throw new \RuntimeException('struktur tabel tak dikenali — tak ada tabel berkolom tanggal + metode bayar'
             . ($seen ? ' (header: ' . self::cuplik(implode(' ; ', $seen), 200) . ')' : ''));
+    }
+
+    /** Sel header terbawah "Qty"/"Amount" → 'qty'|'amount'; selain itu null (bukan ukuran). */
+    private static function headerMeasure(string $h): ?string
+    {
+        $h = strtolower(trim(preg_replace('/\(.*?\)/', '', $h)));
+        if (preg_match('/^(qty|quantity|jml|jml\.?\s*trx|jumlah\s+transaksi)$/', $h)) { return 'qty'; }
+        if (preg_match('/^(amount|amt|nominal|rp|rupiah|amount\s+rp)$/', $h))         { return 'amount'; }
+        return null;
     }
 
     /** Header ternormalisasi → nama tampil metode bayar (nama tampil diutamakan atas kode). */
@@ -671,7 +741,7 @@ class SpiReportingService
     private static function isNonPaymentHeader(string $k): bool
     {
         if (in_array($k, ['no', 'nomor', 'site', 'kdsite', 'siteid', 'dsite', 'kendaraan', 'jeniskendaraan',
-            'transaksi', 'keterangan', 'hari', 'ket', 'shift', 'gate', 'pos', 'lokasi',
+            'transaksi', 'keterangan', 'hari', 'ket', 'shift', 'gate', 'pos', 'lokasi', 'selisih', 'prepaidother',
             'mobil', 'motor', 'box', 'truck', 'truk', 'taxi', 'bus'], true)) {
             return true;
         }
