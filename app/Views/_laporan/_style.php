@@ -268,7 +268,31 @@ tfoot { display: table-row-group; }
 .insight-list li::marker { color: var(--emas); }
 .chart-box { flex: 1; min-width: 0; }
 .chart-title { font-size: 10px; font-weight: 600; color: var(--tinta); margin-bottom: 6px; }
-.chart-wrap { height: 165px; position: relative; }
+.chart-wrap { height: 165px; position: relative; min-width: 0; }
+/* Grafik Chart.js saat dicetak. Chart.js menulis lebar/tinggi piksel ke gaya inline
+   <canvas> menurut tata letak LAYAR dan tidak menggambar ulang sendiri ketika
+   halaman ditata ulang untuk kertas. Bila lebar isi di layar ≠ lebar isi kertas,
+   canvas lama itu melewati kotaknya (menimpa grafik sebelah / terpotong di tepi
+   kertas) atau menyisakan ruang kosong. Dua lapis pengaman:
+   1) CSS: di media cetak canvas selalu dipaksa mengisi kotaknya, apa pun gaya
+      inline-nya — tidak mungkin lagi meluber.
+   2) Skrip di bawah: sebelum cetak, lebar isi layar disamakan dengan lebar isi
+      kertas (kelas html.siap-cetak) lalu semua grafik di-resize(), sehingga
+      bitmap digambar ulang pada ukuran kertas (tidak gepeng/melar). */
+@media print {
+    canvas { max-width: 100% !important; }
+    .chart-wrap > canvas { width: 100% !important; height: 100% !important; }
+}
+:root { --lebar-isi-cetak: 269mm; } /* 297mm (A4 lanskap) − margin @page kiri+kanan 2×14mm */
+@media screen {
+    html.siap-cetak body {
+        width: var(--lebar-isi-cetak) !important; max-width: none !important;
+        padding-left: 0 !important; padding-right: 0 !important; box-sizing: content-box !important;
+    }
+}
+/* Pada cetak sungguhan isi kertas memang selebar itu (no-op); ini hanya menahan
+   pratinjau cetak yang diemulasikan di viewport lebar (mis. alat uji headless). */
+@media print { html.siap-cetak body { max-width: var(--lebar-isi-cetak) !important; } }
 
 /* ── Utilitas ───────────────────────────────────────────────────────────── */
 .lencana {
@@ -348,3 +372,34 @@ tfoot { display: table-row-group; }
 .btn-print::after { content: 'Cetak / Simpan PDF'; font-size: 12px; }
 .btn-print:hover { background: linear-gradient(135deg, var(--navy-1), var(--navy-2)); border-color: var(--emas-terang); }
 </style>
+<script>
+/* Gambar ulang semua grafik Chart.js pada ukuran kertas ketika dicetak (Ctrl+P,
+   tombol Cetak, window.print() otomatis, atau cetak-ke-PDF headless). Aman bila
+   Chart.js tidak dimuat. Lihat catatan "Grafik Chart.js saat dicetak" di atas. */
+(function () {
+    function semuaGrafik() {
+        var C = window.Chart;
+        if (!C || !C.instances) return [];
+        return Object.keys(C.instances).map(function (k) { return C.instances[k]; });
+    }
+    function ukurUlang() {
+        semuaGrafik().forEach(function (g) { try { g.resize(); } catch (e) {} });
+    }
+    function mauCetak() {
+        document.documentElement.classList.add('siap-cetak');
+        ukurUlang();
+    }
+    function selesaiCetak() {
+        document.documentElement.classList.remove('siap-cetak');
+        ukurUlang();
+    }
+    window.addEventListener('beforeprint', mauCetak);
+    window.addEventListener('afterprint', selesaiCetak);
+    // Chrome/Edge/Safari juga memicu perubahan media saat tata letak cetak aktif.
+    if (window.matchMedia) {
+        var mq = window.matchMedia('print');
+        var ubah = function (e) { if (e.matches) mauCetak(); else selesaiCetak(); };
+        if (mq.addEventListener) mq.addEventListener('change', ubah); else if (mq.addListener) mq.addListener(ubah);
+    }
+})();
+</script>
