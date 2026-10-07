@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.26.0** (September 2026)
+> Versi saat ini: **v2.27.0** (Oktober 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -12,6 +12,64 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Implementor | Riky Akbar |
 
 ---
+
+## Versi 2.27.0
+
+**Tanggal Rilis:** 7 Oktober 2026
+
+### Perubahan dari v2.26.0
+
+Laporan Pest Control kini bisa dibaca dengan cara yang sama seperti laporan Traffic:
+rentang tanggal bebas, perbandingan antarperiode, tren, dan pembanding tahun lalu.
+Rilis ini juga membetulkan angka 2026 yang selama ini terhitung dua kali.
+
+#### Angka 2026 Tidak Lagi Terhitung Dua Kali
+
+Tahun 2026 punya dua sumber sekaligus: kunjungan harian yang diinput di MIC (1 Jan–30 Sep)
+dan rekap Excel bulanan yang diimpor untuk bulan yang sama. Rekap Tahunan dan Laporan
+Bulanan selama ini menjumlahkan keduanya.
+
+- Bulan yang **sudah punya kunjungan harian** memakai kunjungan harian saja; rekap Excel
+  bulan itu tidak dihitung lagi.
+- Rekap Excel tetap dipakai untuk bulan yang **sama sekali tanpa kunjungan** (data 2025).
+- Akibatnya angka 2026 di Rekap Tahunan dan Laporan Bulanan **turun** dibanding sebelumnya
+  (mis. Rekap Tahunan 2026 eWalk 1.718 → 1.096, Pentacity 2.202 → 1.396).
+- Angka kedua sumber memang berbeda (bukan sekadar dobel), jadi kecocokannya perlu
+  dikonfirmasi tim Ops.
+
+#### Rekap Periode — Rentang Tanggal Bebas
+
+Menu baru **PestCare → Rekap Periode** (`/pest/rekap`), pola yang sama dengan Traffic Summary.
+
+- Pilih tanggal awal–akhir dan mall; kartu ringkasan total temuan, per mall, per jenis
+  hama, dan jumlah kunjungan.
+- Pembanding otomatis dengan periode sebelumnya: bulan penuh dibanding bulan penuh
+  sebelumnya, selain itu periode sebelumnya dengan jumlah hari sama. Temuan naik
+  ditandai merah, turun hijau, tetap netral.
+- Rincian otomatis per hari (≤ 31 hari), per minggu (≤ 92 hari), atau per bulan.
+- **Cetak / PDF** bertema laporan MIC lengkap dengan tanda tangan Pest Control, dan
+  **Export Excel** (angka sebagai bilangan, termasuk daftar semua kunjungan).
+- Rekap Excel bulanan tidak dipecah ke hari: bulan utuh dalam rentang tampil sebagai satu
+  baris "Rekap impor bulanan"; bulan yang terpotong rentang tidak dihitung dan disebutkan.
+
+#### Compare 2–3 Periode
+
+Menu baru **PestCare → Compare** (`/pest/compare`), pola Traffic Compare: bandingkan
+2–3 periode per jenis hama dan per mall, dengan selisih terhadap Periode 1, rata-rata per
+hari, dan versi cetak.
+
+#### Laporan Bulanan: Tren 6 Bulan & Tahun Lalu
+
+- Grafik dan angka **tren 6 bulan** terakhir.
+- Pembanding **bulan yang sama tahun lalu** (mis. September 2026 vs September 2025), juga
+  disebut di Ringkasan Analisa.
+- Kalimat untuk bulan yang seluruhnya dari rekap Excel diperbaiki (tidak lagi "0 dari 0
+  kunjungan"); perubahan 0% tampil netral; tampilan ponsel dirapikan, cetak tetap A4.
+
+#### Menu PestCare
+
+Tren Mingguan, Kunjungan, **Rekap Periode**, **Compare**, **Rekap Tahunan** (dulu "Rekap &
+Laporan"). Hak akses sama dengan halaman Pest lain.
 
 ## Versi 2.26.0
 
