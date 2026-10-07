@@ -360,6 +360,12 @@ $routes->get('pest',                      'PestCtrl::index',           ['filter'
 $routes->get('pest/kunjungan',            'PestCtrl::kunjungan',       ['filter' => 'auth']);
 $routes->get('pest/summary',              'PestCtrl::summary',         ['filter' => 'auth']);
 $routes->get('pest/laporan-bulanan',      'PestCtrl::laporanBulanan',  ['filter' => 'auth']);
+// Rekap rentang tanggal bebas + cetak + Excel, dan Compare 2–3 periode (pola Traffic).
+$routes->get('pest/rekap',                'PestCtrl::rekap',           ['filter' => 'auth']);
+$routes->get('pest/rekap/print',          'PestCtrl::printRekap',      ['filter' => 'auth']);
+$routes->get('pest/rekap/export',         'PestCtrl::exportRekap',     ['filter' => 'auth']);
+$routes->get('pest/compare',              'PestCtrl::compare',         ['filter' => 'auth']);
+$routes->get('pest/compare/print',        'PestCtrl::printCompare',    ['filter' => 'auth']);
 $routes->get('pest/input',                'PestCtrl::form',            ['filter' => 'auth']);
 $routes->get('pest/input/(:alpha)',       'PestCtrl::form/$1',         ['filter' => 'auth']);
 $routes->get('pest/input/(:alpha)/(:any)','PestCtrl::form/$1/$2',      ['filter' => 'auth']);

@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Libraries\ActivityLog;
 use App\Libraries\ImageCompressor;
+use App\Libraries\PestRekap;
 use App\Models\PestFindingModel;
 use App\Models\PestFindingPhotoModel;
 use App\Models\PestItemModel;
@@ -518,6 +519,173 @@ class PestCtrl extends BaseController
         ]);
     }
 
+    // ── Rekap rentang tanggal bebas (layar, cetak, Excel) ────────────────
+
+    /**
+     * Item yang tampil di laporan rentang: semua yang aktif, PLUS item
+     * nonaktif yang ternyata punya angka di salah satu periode — kalau
+     * tidak, angkanya ikut di total tetapi tak punya baris, dan tabel tidak
+     * lagi berjumlah benar.
+     */
+    private function itemsUntuk(array ...$rekap): array
+    {
+        $ada = [];
+        foreach ($rekap as $r) foreach ($r['perItem'] as $iid => $n) if ($n > 0) $ada[$iid] = true;
+        return array_values(array_filter($this->items->semua(),
+            fn($it) => (int) $it['aktif'] === 1 || isset($ada[(int) $it['id']])));
+    }
+
+    private function mallDariGet(): ?string
+    {
+        $mall = $this->request->getGet('mall');
+        return isset(PestVisitModel::MALLS[$mall]) ? $mall : null;
+    }
+
+    /** Satu kumpulan data untuk rekap(), printRekap() dan exportRekap() — dihitung sekali, di satu tempat. */
+    private function dataRekap(): array
+    {
+        [$dari, $sampai] = PestRekap::rentangSah(
+            $this->request->getGet('from'), $this->request->getGet('to'),
+            date('Y-m-01'), date('Y-m-d')
+        );
+        $mall = $this->mallDariGet();
+
+        $r = PestRekap::bangun($dari, $sampai, $mall);
+        [$pDari, $pSampai] = PestRekap::periodeSebelumnya($dari, $sampai);
+        $prev  = PestRekap::bangun($pDari, $pSampai, $mall, false);
+        $items = $this->itemsUntuk($r, $prev);
+
+        return [
+            'r'           => $r,
+            'prev'        => $prev,
+            'items'       => $items,
+            'mall'        => $mall,
+            'analisa'     => PestRekap::analisa($r, $prev, $items),
+            'catatan'     => PestRekap::catatanLegacy($r),
+            'catatanPrev' => PestRekap::catatanLegacy($prev),
+        ];
+    }
+
+    public function rekap()
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        return view('pest/rekap', $this->dataRekap() + [
+            'user'    => $this->currentUser(),
+            'canEdit' => $this->canEditMenu(self::MENU),
+        ]);
+    }
+
+    public function printRekap()
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        return view('pest/print_rekap', $this->dataRekap() + [
+            'signatories' => \App\Libraries\ReportSignatories::resolve(self::MENU),
+            'printedBy'   => $this->currentUser()['name'] ?? '',
+            'printedAt'   => date('d/m/Y H:i'),
+        ]);
+    }
+
+    public function exportRekap()
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        $d = $this->dataRekap();
+        $nama = 'pest-rekap-' . $d['r']['dari'] . '-sd-' . $d['r']['sampai'] . ($d['mall'] ? '-' . $d['mall'] : '') . '.xls';
+
+        ActivityLog::write('export', 'pest', null, 'Pest — ekspor rekap ' . $d['r']['dari'] . ' s/d ' . $d['r']['sampai'],
+            ['dari' => $d['r']['dari'], 'sampai' => $d['r']['sampai'], 'mall' => $d['mall']]);
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $nama . '"')
+            ->setHeader('Pragma', 'no-cache')
+            ->setHeader('Expires', '0')
+            ->setBody(view('pest/excel_rekap', $d));
+    }
+
+    // ── Compare 2–3 periode ──────────────────────────────────────────────
+
+    private function dataCompare(): array
+    {
+        $g = fn($k) => $this->request->getGet($k);
+        $periode = [];
+        $periode[1] = PestRekap::rentangSah($g('from1'), $g('to1'),
+            date('Y-m-01', strtotime('first day of last month')), date('Y-m-t', strtotime('last day of last month')));
+        $periode[2] = PestRekap::rentangSah($g('from2'), $g('to2'), date('Y-m-01'), date('Y-m-t'));
+        $hasP3 = $g('from3') && $g('to3');
+        if ($hasP3) $periode[3] = PestRekap::rentangSah($g('from3'), $g('to3'), date('Y-m-01'), date('Y-m-t'));
+
+        $mall = $this->mallDariGet();
+        $p = [];
+        foreach ($periode as $i => [$a, $b]) $p[$i] = PestRekap::bangun($a, $b, $mall, false);
+        $items = $this->itemsUntuk(...array_values($p));
+
+        // Baris tabel: nilai per periode + selisih % terhadap Periode 1
+        // (sama dengan Traffic Compare: P1 adalah patokan).
+        $baris = function (string $label, callable $nilai) use ($p): array {
+            $v = [];
+            foreach ($p as $i => $r) $v[$i] = (int) $nilai($r);
+            $d = [];
+            foreach ($v as $i => $x) if ($i > 1) $d[$i] = PestRekap::pct($x, $v[1]);
+            return ['label' => $label, 'v' => $v, 'd' => $d];
+        };
+
+        $perItem = [];
+        foreach ($items as $it) {
+            $id = (int) $it['id'];
+            $perItem[] = $baris($it['nama'], fn($r) => $r['perItem'][$id] ?? 0);
+        }
+        $perMall = [];
+        foreach ($mall ? [$mall] : array_keys(PestVisitModel::MALLS) as $mk) {
+            $perMall[] = $baris(PestVisitModel::MALLS[$mk], fn($r) => $r['totalMall'][$mk] ?? 0);
+        }
+
+        $catatan = [];
+        foreach ($p as $i => $r) $catatan[$i] = PestRekap::catatanLegacy($r);
+
+        return [
+            'periode' => $periode,
+            'hasP3'   => $hasP3,
+            'mall'    => $mall,
+            'p'       => $p,
+            'items'   => $items,
+            'perItem' => $perItem,
+            'perMall' => $perMall,
+            'total'   => $baris('Total temuan', fn($r) => $r['grand']),
+            'kunjungan' => $baris('Kunjungan tercatat', fn($r) => $r['jmlKunjungan']),
+            'nihil'   => $baris('Kunjungan nihil temuan', fn($r) => $r['jmlNihil']),
+            'catatan' => $catatan,
+        ];
+    }
+
+    public function compare()
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        return view('pest/compare', $this->dataCompare() + [
+            'user'    => $this->currentUser(),
+            'canEdit' => $this->canEditMenu(self::MENU),
+        ]);
+    }
+
+    public function printCompare()
+    {
+        if (! $this->canViewMenu(self::MENU)) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
+        return view('pest/print_compare', $this->dataCompare() + [
+            'signatories' => \App\Libraries\ReportSignatories::resolve(self::MENU),
+            'printedBy'   => $this->currentUser()['name'] ?? '',
+            'printedAt'   => date('d/m/Y H:i'),
+        ]);
+    }
+
     // ── Laporan bulanan siap cetak ───────────────────────────────────────
 
     public function laporanBulanan()
@@ -568,6 +736,30 @@ class PestCtrl extends BaseController
         }
         ksort($mingguan);
 
+        // ── Tren 6 bulan terakhir (pola Traffic) ─────────────────────────
+        // Bulan berasal dari bulananPerItem → aturan yang sama dengan total
+        // bulan ini; bulan yang angkanya dari rekap impor ditandai.
+        $trenDari  = date('Y-m', strtotime($awal . ' -5 month'));
+        $trenMap   = $this->visits->bulananPerItem($trenDari, $bulan, $mall);
+        $trenLegacy = $this->visits->bulanLegacyEfektif($trenDari, $bulan, $mall);
+        $tren = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = date('Y-m', strtotime($awal . ' -' . $i . ' month'));
+            $baris = ['bulan' => $m, 'items' => [], 'mall' => [], 'total' => 0, 'legacy' => array_keys($trenLegacy[$m] ?? [])];
+            foreach (PestVisitModel::MALLS as $mk => $_) {
+                $baris['mall'][$mk] = array_sum($trenMap[$m][$mk] ?? []);
+                foreach ($trenMap[$m][$mk] ?? [] as $iid => $n) $baris['items'][$iid] = ($baris['items'][$iid] ?? 0) + $n;
+            }
+            $baris['total'] = array_sum($baris['mall']);
+            $tren[] = $baris;
+        }
+
+        // ── Bulan yang sama tahun lalu (YoY) ─────────────────────────────
+        $yoyBulan  = date('Y-m', strtotime($awal . ' -1 year'));
+        $bulanYoY  = $this->visits->bulananPerItem($yoyBulan, $yoyBulan, $mall)[$yoyBulan] ?? [];
+        $yoyLegacy = array_keys($this->visits->bulanLegacyEfektif($yoyBulan, $yoyBulan, $mall)[$yoyBulan] ?? []);
+        $yoyAda    = in_array((int) substr($yoyBulan, 0, 4), $this->visits->tahunTersedia(), true);
+
         return view('pest/laporan_bulanan', [
             'bulan'       => $bulan,
             'prevBulan'   => $prevBulan,
@@ -578,6 +770,12 @@ class PestCtrl extends BaseController
             'mingguan'    => $mingguan,
             'jmlKunjungan'=> $this->visits->hitungKunjungan($bulan, $mall),
             'jmlLegacy'   => $this->visits->hitungLegacy($bulan, $mall),
+            'jmlTergeser' => $this->visits->hitungLegacy($bulan, $mall, true),
+            'tren'        => $tren,
+            'yoyBulan'    => $yoyBulan,
+            'bulanYoY'    => $bulanYoY,
+            'yoyLegacy'   => $yoyLegacy,
+            'yoyAda'      => $yoyAda,
             'signatories' => \App\Libraries\ReportSignatories::resolve(self::MENU),
             'printedBy'   => $this->currentUser()['name'],
             'printedAt'   => date('d/m/Y H:i'),

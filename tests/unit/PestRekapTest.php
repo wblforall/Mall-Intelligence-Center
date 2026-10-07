@@ -98,8 +98,25 @@ final class PestRekapTest extends CIUnitTestCase
         $this->assertSame(PestRekap::MAKS_HARI, (int) ((strtotime($b) - strtotime($a)) / 86400) + 1);
     }
 
+    public function testRingkasBulanMallMenggabungBulanBerurutan(): void
+    {
+        $rows = [];
+        foreach (['2026-01', '2026-02', '2026-03'] as $b) {
+            $rows[] = $this->legacy('pentacity', $b, [1 => 1]);
+            $rows[] = $this->legacy('ewalk', $b, [1 => 1]);
+        }
+        $rows[] = $this->legacy('ewalk', '2026-05', [1 => 1]);
+        $rows[] = $this->legacy('ewalk', '2025-12', [1 => 1]);
+        $this->assertSame('eWalk Des 2025; eWalk & Pentacity Jan–Mar 2026; eWalk Mei 2026', PestRekap::ringkasBulanMall($rows));
+    }
+
     public function testPeriodeSebelumnyaSamaPanjang(): void
     {
-        $this->assertSame(['2026-08-02', '2026-08-31'], PestRekap::periodeSebelumnya('2026-09-01', '2026-09-30'));
+        // Bulan kalender utuh → bulan utuh sebelumnya.
+        $this->assertSame(['2026-08-01', '2026-08-31'], PestRekap::periodeSebelumnya('2026-09-01', '2026-09-30'));
+        $this->assertSame(['2026-04-01', '2026-06-30'], PestRekap::periodeSebelumnya('2026-07-01', '2026-09-30'));
+        $this->assertSame(['2025-12-01', '2026-02-28'], PestRekap::periodeSebelumnya('2026-03-01', '2026-05-31'));
+        // Selain itu: sama panjang dalam hari.
+        $this->assertSame(['2026-08-22', '2026-09-09'], PestRekap::periodeSebelumnya('2026-09-10', '2026-09-28'));
     }
 }

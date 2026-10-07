@@ -227,9 +227,21 @@ class PestRekap
         ];
     }
 
-    /** Periode pembanding: sama panjang, tepat sebelum $dari. */
+    /**
+     * Periode pembanding, tepat sebelum $dari. Rentang berupa bulan kalender
+     * utuh (1 Sep–30 Sep, 1 Jul–30 Sep) dibandingkan dengan jumlah bulan utuh
+     * yang sama sebelumnya (Agustus; Apr–Jun) — bukan "2–31 Agu" seperti
+     * Traffic. Selain itu: sama panjang dalam hari.
+     */
     public static function periodeSebelumnya(string $dari, string $sampai): array
     {
+        if (substr($dari, 8) === '01' && $sampai === date('Y-m-t', strtotime($sampai))) {
+            $bulan = ((int) substr($sampai, 0, 4) - (int) substr($dari, 0, 4)) * 12
+                   + (int) substr($sampai, 5, 2) - (int) substr($dari, 5, 2) + 1;
+            $awal  = date('Y-m-01', strtotime($dari . ' -' . $bulan . ' month'));
+            return [$awal, date('Y-m-t', strtotime($dari . ' -1 month'))];
+        }
+
         $hari     = (int) ((strtotime($sampai) - strtotime($dari)) / 86400) + 1;
         $prevTo   = date('Y-m-d', strtotime($dari . ' -1 day'));
         $prevFrom = date('Y-m-d', strtotime($prevTo . ' -' . ($hari - 1) . ' days'));
@@ -327,12 +339,40 @@ class PestRekap
      * Catatan kejujuran tentang rekap impor dalam satu periode — dipakai di
      * layar, cetak, Excel, dan Compare dengan kalimat yang sama.
      */
+    /**
+     * Ringkas daftar baris rekap impor: bulan berurutan dengan himpunan mall
+     * yang sama digabung — "eWalk & Pentacity Jan–Sep 2026", bukan 18 nama.
+     */
+    public static function ringkasBulanMall(array $rows): string
+    {
+        $perBulan = [];
+        foreach ($rows as $l) $perBulan[$l['bulan']][$l['mall']] = true;
+        ksort($perBulan);
+        $runs = [];
+        foreach ($perBulan as $bln => $malls) {
+            $kunci = implode(',', array_keys(array_intersect_key(PestVisitModel::MALLS, $malls)));
+            $last  = $runs ? $runs[count($runs) - 1] : null;
+            if ($last && $last['malls'] === $kunci && date('Y-m', strtotime($last['sampai'] . '-01 +1 month')) === $bln) {
+                $runs[count($runs) - 1]['sampai'] = $bln;
+            } else {
+                $runs[] = ['malls' => $kunci, 'dari' => $bln, 'sampai' => $bln];
+            }
+        }
+        return implode('; ', array_map(function ($run) {
+            $nama = implode(' & ', array_map(fn($m) => PestVisitModel::MALLS[$m], explode(',', $run['malls'])));
+            if ($run['dari'] === $run['sampai']) return $nama . ' ' . self::bulanSingkat($run['dari']);
+            $a = self::bulanSingkat($run['dari']); $b = self::bulanSingkat($run['sampai']);
+            if (substr($run['dari'], 0, 4) === substr($run['sampai'], 0, 4)) $a = substr($a, 0, 3);
+            return $nama . ' ' . $a . '–' . $b;
+        }, $runs));
+    }
+
     public static function catatanLegacy(array $r): array
     {
         $out = [];
         $nm = fn($l) => PestVisitModel::MALLS[$l['mall']] . ' ' . self::bulan($l['bulan']);
         if ($r['legacyDipakai']) {
-            $out[] = 'Memuat rekap bulanan impor Excel (' . implode(', ', array_map($nm, $r['legacyDipakai']))
+            $out[] = 'Memuat rekap bulanan impor Excel (' . self::ringkasBulanMall($r['legacyDipakai'])
                 . ', total ' . self::angka($r['grandLegacy']) . ' temuan) — angka sebulan tanpa tanggal kunjungan, '
                 . 'jadi tidak dirinci per hari/minggu.';
         }
@@ -344,7 +384,7 @@ class PestRekap
                 . 'Perluas rentang ke bulan penuh untuk memasukkannya.';
         }
         if ($r['legacyTergeser']) {
-            $out[] = 'Rekap impor ' . implode(', ', array_map($nm, $r['legacyTergeser']))
+            $out[] = 'Rekap impor ' . self::ringkasBulanMall($r['legacyTergeser'])
                 . ' diabaikan karena bulan itu sudah punya catatan kunjungan harian (supaya tidak terhitung dua kali).';
         }
         return $out;
