@@ -258,3 +258,57 @@ ada, keduanya akan salah bentuk.
       disebut itu tebakan dari rekap bulanan, bukan standar*
 
 Skema Fase 1 sudah menampung keduanya, jadi **tidak ada migrasi ulang**.
+
+---
+
+## Laporan meniru Traffic — 7 Okt 2026 (branch `pest-laporan`, belum rilis)
+
+Empat fitur yang disetujui pemilik: **Rekap Periode** (rentang bebas +
+Print/PDF + Excel), **Compare** 2–3 periode (layar + cetak), **Tren 6 bulan**
+dan **YoY** di Laporan Bulanan. Hitungan rentang ada di satu tempat:
+`App\Libraries\PestRekap` (dipakai layar, cetak, Excel, Compare) — tes
+`tests/unit/PestRekapTest.php`.
+
+| Rute | Isi |
+|---|---|
+| `/pest/rekap?from&to&mall` | Rekap Periode (menu "Rekap Periode") |
+| `/pest/rekap/print`, `/pest/rekap/export` | cetak A4 + ttd `pest_control`; `.xls` |
+| `/pest/compare?from1..to3&mall`, `/pest/compare/print` | Compare (menu "Compare") |
+
+Menu "Rekap & Laporan" diganti nama **"Rekap Tahunan"** (isinya memang
+rekap tahunan). Hak akses sama dengan halaman Pest lain: `canViewMenu('pest_control')`.
+
+### ⚠️ Temuan: produksi menghitung 2026 dua kali
+
+Produksi (diperiksa read-only 7 Okt) berisi **545 kunjungan harian 1 Jan–30 Sep
+2026** (input susulan 30 Sep–5 Okt oleh satu pengguna) **dan** 18 baris
+`rekap_legacy` untuk bulan yang sama. `bulananPerItem`/`tahunanPerItem`
+menjumlahkan keduanya: Rekap Tahunan 2026 tampil eWalk 1.718 / Pentacity 2.202,
+padahal kunjungan hariannya 1.096 / 1.396. Angka keduanya pun **berbeda**
+(mis. Mei eWalk: kunjungan 278, Excel 44) — mana yang benar perlu dipastikan
+tim Ops.
+
+**Diputuskan:** `PestVisitModel::SYARAT_EFEKTIF` — kunjungan harian menang;
+rekap impor hanya dihitung untuk bulan-mall yang **tanpa satu pun** kunjungan
+harian. Berlaku juga untuk Rekap Tahunan & Laporan Bulanan yang sudah ada.
+
+### Aturan rekap impor pada rentang bebas
+
+- Bulan **utuh** di dalam rentang → dihitung, tidak dirinci per hari/minggu
+  (baris "Rekap impor bulanan" tersendiri; mode per bulan → masuk embernya).
+- Bulan **terpotong** rentang → **tidak** dihitung, disebut di catatan beserta
+  jumlah hari tercakup. Angka bulanan tidak dipecah ke harian (§6 rancangan).
+- Bulan yang sudah punya kunjungan → diabaikan, disebut di catatan.
+
+### Keputusan lain
+
+- Rincian: ≤31 hari per hari, ≤92 per minggu ISO (dipotong di batas rentang),
+  selebihnya per bulan. Rentang maks. 3 tahun.
+- Pembanding: rentang bulan kalender utuh → bulan utuh sebelumnya dengan jumlah
+  bulan sama (Sep → Agu, Jul–Sep → Apr–Jun); selain itu sama panjang dalam hari
+  (pola Traffic).
+- Compare: selisih terhadap P1 (pola Traffic), plus rata-rata per hari karena
+  panjang periode bisa beda. Selisih jumlah kunjungan tanpa warna baik/buruk.
+- Naik = merah, turun = hijau di semua laporan Pest; 0% netral.
+- Excel mengirim angka sebagai bilangan (`mso-number-format`), bukan teks
+  "1.234", dan memuat daftar kunjungan termasuk yang nihil.

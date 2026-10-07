@@ -136,6 +136,13 @@ dikerjakan belakangan.
 ⚠️ **`public/uploads/pest` harus 777**, bukan 755 — Apache berjalan sebagai user lain
 sehingga `mkdir` subfolder per-kunjungan gagal dan unggah menolak dengan 500.
 
+⚠️ **Rekap impor tergeser kunjungan harian.** Bulan-mall yang punya kunjungan
+harian TIDAK lagi menghitung baris `rekap_legacy`-nya (`PestVisitModel::SYARAT_EFEKTIF`)
+— produksi berisi keduanya untuk Jan–Sep 2026 dan sempat terhitung dua kali.
+Rekap rentang bebas & Compare lewat `App\Libraries\PestRekap` (satu sumber
+untuk layar/cetak/Excel); rekap impor bulan yang terpotong rentang tidak
+dihitung, hanya disebut. Lihat PESTCARE_TODO.md "Laporan meniru Traffic".
+
 Importer legacy: `php spark mic:pest-import-legacy [--dry]`, sumber
 `data/pest-legacy-2025-2026.csv`. Aman dijalankan ulang — pemeriksaan "sudah
 terimpor" dilakukan **per bulan, bukan per tanggal**, karena tanggal bulan berjalan
