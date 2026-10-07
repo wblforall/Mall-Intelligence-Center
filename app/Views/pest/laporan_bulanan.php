@@ -15,6 +15,24 @@
     padding: 0 16px; border: 1px dashed var(--garis); border-radius: 8px; background: #fbfcfe;
     font-size: 10px; font-style: italic; color: var(--redup2);
 }
+/* Tren 6 bulan: grafik + tabel angka berdampingan. */
+.tren-panel .chart-box:first-child { flex: 1; }
+.tren-panel .tren-tabel { flex: 1.25; }
+.tren-panel .main-table { margin-bottom: 4px; }
+.main-table.rapat th { padding: 4px 6px; font-size: 8.5px; }
+.main-table.rapat td { padding: 2px 6px; font-size: 9.5px; }
+/* Layar ponsel saja — kertas tetap A4 lanskap. */
+@media screen and (max-width: 700px) {
+    body { padding: 64px 12px 16px; margin: 0; }
+    .doc-header { flex-direction: column; padding-left: 22px; }
+    .doc-header::before, .doc-header::after { display: none; }
+    .doc-header .meta { border-left: 0; padding-left: 0; text-align: left; }
+    .kpi-row, .chart-panel { flex-wrap: wrap; }
+    .kpi-row .kpi-box { flex: 1 1 45%; }
+    .insight-box, .chart-box, .tren-panel .tren-tabel { flex: 1 1 100%; }
+    .main-table { display: block; overflow-x: auto; }
+}
+.main-table tfoot tr.tren-mall td { font-weight: 500; color: var(--teks); border-top: 0; background: #f6f8fb; }
 </style>
 </head>
 <body>
@@ -47,10 +65,24 @@ $grand = array_sum($ini);
 $grandLalu = array_sum($lalu);
 $deltaPct = $grandLalu > 0 ? round(($grand - $grandLalu) / $grandLalu * 100, 1) : null;
 
+// Bulan yang sama tahun lalu (YoY).
+$yoy       = $ratakan($bulanYoY);
+$grandYoY  = array_sum($yoy);
+$yoyLabel  = $fmtBulan($yoyBulan);
+$yoyPct    = $grandYoY > 0 ? round(($grand - $grandYoY) / $grandYoY * 100, 1) : null;
+$yoyImpor  = ! empty($yoyLegacy);   // angka tahun lalu berasal dari rekap impor Excel
+
+// Tren 6 bulan: rata-rata 5 bulan sebelumnya sebagai patokan bulan ini.
+$trenSebelum = array_slice($tren, 0, 5);
+$trenAda     = array_filter($trenSebelum, fn($t) => $t['total'] > 0);
+$trenRata    = $trenAda ? array_sum(array_column($trenAda, 'total')) / count($trenAda) : null;
+$trenImpor   = array_filter($tren, fn($t) => $t['legacy']);
+
 $deltaHtml = function (?float $pct) {
     if ($pct === null) return '<span class="subnote">tidak ada pembanding</span>';
     // Temuan pest NAIK itu buruk — warnanya sengaja dibalik dari laporan
     // pendapatan, di mana naik berarti baik.
+    if ($pct == 0) return '<span class="lencana netral">0%</span>';
     $cls = $pct <= 0 ? 'delta-up' : 'delta-down';
     return '<span class="' . $cls . '">' . ($pct >= 0 ? '▲' : '▼') . ' ' . str_replace('.', ',', (string) abs($pct)) . '%</span>';
 };
@@ -76,9 +108,11 @@ if ($grand === 0) {
 } else {
     // Saat ada baris impor, jumlah temuan TIDAK berasal dari jumlah kunjungan
     // nyata — menggabungkan keduanya dalam satu kalimat akan menyesatkan.
-    $asal = $jmlLegacy > 0
+    $asal = $jmlLegacy > 0 && $jmlKunjungan === 0
+        ? ', seluruhnya dari rekap bulanan impor Excel'
+        : ($jmlLegacy > 0
         ? ' (' . $f($grandMingguan) . ' dari ' . $jmlKunjungan . ' kunjungan tercatat, sisanya dari rekap impor)'
-        : ' dari ' . $jmlKunjungan . ' kunjungan';
+        : ' dari ' . $jmlKunjungan . ' kunjungan');
     $insight[] = 'Total ' . $f($grand) . ' temuan' . $asal
         . ($deltaPct === null ? '.' : ', ' . ($deltaPct > 0 ? 'naik' : ($deltaPct < 0 ? 'turun' : 'setara')) . ' ' . $pctId(abs((float) $deltaPct)) . '% dibanding ' . $prevLabel . '.');
     if ($tertinggiN > 0) {
@@ -100,8 +134,33 @@ if ($grand === 0) {
         }
     }
 }
+// Pembanding bulan yang sama tahun lalu — membuang pengaruh musim.
+if (! $yoyAda) {
+    $insight[] = 'Belum ada data ' . $yoyLabel . ' untuk pembanding tahun lalu.';
+} elseif ($grand > 0 || $grandYoY > 0) {
+    $insight[] = 'Dibanding ' . $yoyLabel . ' (' . $f($grandYoY) . ' temuan' . ($yoyImpor ? ', dari rekap impor Excel' : '') . '), '
+        . ($yoyPct === null ? 'bulan ini ' . $f($grand) . ' temuan — tahun lalu tidak ada temuan untuk dibandingkan.'
+            : 'temuan ' . ($yoyPct > 0 ? 'naik ' : ($yoyPct < 0 ? 'turun ' : 'setara ')) . $pctId(abs($yoyPct)) . '%.');
+    // Item yang paling berubah terhadap tahun lalu.
+    $geser = null;
+    foreach ($items as $it) {
+        $s = ($ini[(int) $it['id']] ?? 0) - ($yoy[(int) $it['id']] ?? 0);
+        if ($s !== 0 && (! $geser || abs($s) > abs($geser[1]))) $geser = [$it['nama'], $s];
+    }
+    if ($geser && abs($geser[1]) >= 5) {
+        $insight[] = 'Perubahan terbesar terhadap tahun lalu: ' . $geser[0] . ' ' . ($geser[1] > 0 ? 'bertambah ' : 'berkurang ') . $f(abs($geser[1])) . '.';
+    }
+}
+if ($trenRata !== null) {
+    $selisih = $trenRata > 0 ? round(($grand - $trenRata) / $trenRata * 100) : null;
+    $insight[] = 'Rata-rata ' . count($trenAda) . ' bulan sebelumnya ' . $f(round($trenRata)) . ' temuan/bulan — bulan ini '
+        . ($selisih === null ? 'setara.' : ($selisih >= 0 ? $selisih . '% di atas' : abs($selisih) . '% di bawah') . ' rata-rata itu.');
+}
 if ($jmlLegacy > 0) {
     $insight[] = 'Bulan ini memuat ' . $jmlLegacy . ' baris rekap impor yang tidak punya rincian mingguan; angkanya masuk ke total bulan, tidak ke tabel mingguan.';
+}
+if ($jmlTergeser > 0) {
+    $insight[] = $jmlTergeser . ' baris rekap impor bulan ini diabaikan karena sudah ada catatan kunjungan harian — supaya tidak terhitung dua kali.';
 }
 ?>
 
@@ -143,6 +202,13 @@ if ($jmlLegacy > 0) {
         <div class="kpi-num"><?= count(array_filter($ini)) ?></div>
         <div class="kpi-sub">dari <?= count($items) ?> jenis yang dipantau</div>
     </div>
+    <div class="kpi-box kpi-gold">
+        <div class="kpi-label">Bulan Sama Tahun Lalu</div>
+        <div class="kpi-num"><?= $yoyAda ? $f($grandYoY) : '—' ?></div>
+        <div class="kpi-sub"><?= $yoyAda
+            ? $deltaHtml($yoyPct) . ' ' . $yoyLabel . ($yoyImpor ? ' · rekap impor' : '')
+            : 'belum ada data ' . $yoyLabel ?></div>
+    </div>
 </div>
 
 <!-- ══ REKAP PER MALL ══ -->
@@ -155,16 +221,19 @@ if ($jmlLegacy > 0) {
     <th class="num">Pentacity</th>
     <th class="num">Total</th>
     <th class="num"><?= $prevLabel ?></th>
-    <th class="num">Perubahan</th>
+    <th class="num">vs Bln Lalu</th>
+    <th class="num"><?= $yoyLabel ?><?= $yoyImpor ? '*' : '' ?></th>
+    <th class="num">vs Thn Lalu</th>
 </tr>
 </thead>
 <tbody>
 <?php $te = 0; $tp = 0; foreach ($items as $it): $id = (int) $it['id'];
     $e = $bulanIni['ewalk'][$id] ?? 0;
     $p = $bulanIni['pentacity'][$id] ?? 0;
-    $t = $e + $p; $l = $lalu[$id] ?? 0;
+    $t = $e + $p; $l = $lalu[$id] ?? 0; $y = $yoy[$id] ?? 0;
     $te += $e; $tp += $p;
-    $pc = $l > 0 ? round(($t - $l) / $l * 100, 1) : null; ?>
+    $pc = $l > 0 ? round(($t - $l) / $l * 100, 1) : null;
+    $py = $y > 0 ? round(($t - $y) / $y * 100, 1) : null; ?>
 <tr>
     <td><?= esc($it['nama']) ?></td>
     <td class="<?= $e > 0 ? 'num' : 'zero' ?>"><?= $n($e) ?></td>
@@ -172,9 +241,11 @@ if ($jmlLegacy > 0) {
     <td class="num"><strong><?= $n($t) ?></strong></td>
     <td class="<?= $l > 0 ? 'num' : 'zero' ?>"><?= $n($l) ?></td>
     <td class="num"><?= $t === 0 && $l === 0 ? '<span class="zero">—</span>' : $deltaHtml($pc) ?></td>
+    <td class="<?= $y > 0 ? 'num' : 'zero' ?>"><?= $yoyAda ? $n($y) : '—' ?></td>
+    <td class="num"><?= ! $yoyAda || ($t === 0 && $y === 0) ? '<span class="zero">—</span>' : $deltaHtml($py) ?></td>
 </tr>
 <?php endforeach; ?>
-<?php if (! $items): ?><tr class="empty-row"><td colspan="6">Belum ada item temuan yang dipantau.</td></tr><?php endif; ?>
+<?php if (! $items): ?><tr class="empty-row"><td colspan="8">Belum ada item temuan yang dipantau.</td></tr><?php endif; ?>
 </tbody>
 <tfoot>
 <tr>
@@ -184,6 +255,8 @@ if ($jmlLegacy > 0) {
     <td class="num"><?= $n($grand) ?></td>
     <td class="num"><?= $n($grandLalu) ?></td>
     <td class="num"><?= $deltaHtml($deltaPct) ?></td>
+    <td class="num"><?= $yoyAda ? $n($grandYoY) : '—' ?></td>
+    <td class="num"><?= $yoyAda ? $deltaHtml($yoyPct) : '—' ?></td>
 </tr>
 </tfoot>
 </table>
@@ -206,6 +279,43 @@ if ($jmlLegacy > 0) {
         <div class="chart-title">Komposisi per Item</div>
         <div class="chart-wrap"><canvas id="cItem"></canvas><?php if (! array_filter($ini)): ?>
             <div class="grafik-kosong">Belum ada temuan untuk disusun komposisinya.</div><?php endif; ?></div>
+    </div>
+</div>
+
+<!-- ══ TREN 6 BULAN ══ -->
+<?php $blnSingkat = fn($m) => substr(bulan_indo((int) substr($m, 5, 2)), 0, 3) . ' ' . substr($m, 2, 2); ?>
+<div class="sec-title">Tren 6 Bulan<span class="sec-sub"><?= $fmtBulan($tren[0]['bulan']) ?> &ndash; <?= $bulanLabel ?></span></div>
+<div class="chart-panel tren-panel">
+    <div class="chart-box">
+        <div class="chart-title">Temuan per Bulan<?= $mall ? '' : ' per Mall' ?></div>
+        <div class="chart-wrap"><canvas id="cTren"></canvas><?php if (! array_sum(array_column($tren, 'total'))): ?>
+            <div class="grafik-kosong">Belum ada temuan dalam 6 bulan terakhir.</div><?php endif; ?></div>
+    </div>
+    <div class="chart-box tren-tabel">
+        <table class="main-table rapat">
+        <thead><tr>
+            <th>Item</th>
+            <?php foreach ($tren as $t): ?><th class="num"><?= $blnSingkat($t['bulan']) ?><?= $t['legacy'] ? '*' : '' ?></th><?php endforeach; ?>
+        </tr></thead>
+        <tbody>
+        <?php foreach ($items as $it): $id = (int) $it['id'];
+            if (! array_sum(array_map(fn($t) => $t['items'][$id] ?? 0, $tren))) continue; ?>
+        <tr>
+            <td><?= esc($it['nama']) ?></td>
+            <?php foreach ($tren as $t): $v = $t['items'][$id] ?? 0; ?><td class="<?= $v ? 'num' : 'zero' ?>"><?= $n($v) ?></td><?php endforeach; ?>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+        <?php if (! $mall): foreach (\App\Models\PestVisitModel::MALLS as $mk => $ml): ?>
+        <tr class="tren-mall"><td><?= $ml ?></td><?php foreach ($tren as $t): ?><td class="num"><?= $n($t['mall'][$mk]) ?></td><?php endforeach; ?></tr>
+        <?php endforeach; endif; ?>
+        <tr><td>TOTAL</td><?php foreach ($tren as $t): ?><td class="num"><?= $n($t['total']) ?></td><?php endforeach; ?></tr>
+        </tfoot>
+        </table>
+        <?php if ($trenImpor || $yoyImpor): ?>
+        <div class="subnote">* angka bulan bertanda bintang (seluruh atau sebagian mall) berasal dari rekap impor Excel bulanan, bukan dari kunjungan tercatat.</div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -285,6 +395,22 @@ if ($jmlLegacy > 0) {
         options: { responsive: true, maintainAspectRatio: false, animation: false,
             plugins: { legend: { display: false },
                 tooltip: { callbacks: { label: c => 'Temuan: ' + nId(c.parsed.y) } } },
+            scales: {
+                x: { ticks: { color: ink, font: { size: 9.5 } }, grid: { display: false } },
+                y: { beginAtZero: true, ticks: { precision: 0, color: ink, font: { size: 9.5 }, callback: v => nId(v) }, grid: { color: 'rgba(0,0,0,.06)' } } } }
+    });
+
+    const tren = <?= json_encode(array_map(fn($t) => ['l' => $blnSingkat($t['bulan']), 'mall' => $t['mall'], 'total' => $t['total']], $tren)) ?>;
+    const trenMall = <?= json_encode($mall ? [$mall] : array_keys(\App\Models\PestVisitModel::MALLS)) ?>;
+    const namaMall = <?= json_encode(\App\Models\PestVisitModel::MALLS) ?>;
+    const warnaMall = { ewalk: '#2a78d6', pentacity: '#16a34a' };
+    if (tren.some(t => t.total > 0)) new Chart(document.getElementById('cTren'), {
+        type: 'bar',
+        data: { labels: tren.map(t => t.l),
+            datasets: trenMall.map(mk => ({ label: namaMall[mk], data: tren.map(t => t.mall[mk]), backgroundColor: warnaMall[mk], borderRadius: 3 })) },
+        options: { responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: { legend: { position: 'top', labels: { color: ink, boxWidth: 9, boxHeight: 9, font: { size: 9.5 } } },
+                tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + nId(c.parsed.y) } } },
             scales: {
                 x: { ticks: { color: ink, font: { size: 9.5 } }, grid: { display: false } },
                 y: { beginAtZero: true, ticks: { precision: 0, color: ink, font: { size: 9.5 }, callback: v => nId(v) }, grid: { color: 'rgba(0,0,0,.06)' } } } }
