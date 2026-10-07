@@ -347,8 +347,14 @@ body { min-height: 100vh; }
         <a href="<?= base_url('pest/kunjungan') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/kunjungan') ? 'active' : '' ?>">
             <i class="bi bi-calendar-check"></i> Kunjungan
         </a>
+        <a href="<?= base_url('pest/rekap') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/rekap') ? 'active' : '' ?>">
+            <i class="bi bi-bar-chart-line-fill"></i> Rekap Periode
+        </a>
+        <a href="<?= base_url('pest/compare') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/compare') ? 'active' : '' ?>">
+            <i class="bi bi-arrow-left-right"></i> Compare
+        </a>
         <a href="<?= base_url('pest/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/summary') ? 'active' : '' ?>">
-            <i class="bi bi-bar-chart"></i> Rekap &amp; Laporan
+            <i class="bi bi-bar-chart"></i> Rekap Tahunan
         </a>
         <?php endif; ?>
         <?php if ($canEditPest): ?>

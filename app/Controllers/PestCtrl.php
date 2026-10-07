@@ -605,7 +605,7 @@ class PestCtrl extends BaseController
             ->setHeader('Content-Disposition', 'attachment; filename="' . $nama . '"')
             ->setHeader('Pragma', 'no-cache')
             ->setHeader('Expires', '0')
-            ->setBody(view('pest/excel_rekap', $d));
+            ->setBody(view('pest/excel_rekap', $d, ['debug' => false]));
     }
 
     // ── Compare 2–3 periode ──────────────────────────────────────────────
@@ -658,6 +658,7 @@ class PestCtrl extends BaseController
             'perMall' => $perMall,
             'total'   => $baris('Total temuan', fn($r) => $r['grand']),
             'kunjungan' => $baris('Kunjungan tercatat', fn($r) => $r['jmlKunjungan']),
+            'impor'   => $baris('— dari rekap impor bulanan', fn($r) => $r['grandLegacy']),
             'nihil'   => $baris('Kunjungan nihil temuan', fn($r) => $r['jmlNihil']),
             'catatan' => $catatan,
         ];

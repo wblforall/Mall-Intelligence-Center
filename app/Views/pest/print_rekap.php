@@ -16,6 +16,7 @@ $deltaTotal = PR::pct($r['grand'], $prev['grand']);
 // (sama dengan Laporan Bulanan Pest).
 $deltaHtml = function (?float $pct) {
     if ($pct === null) return '<span class="subnote">tanpa pembanding</span>';
+    if ($pct == 0) return '<span class="lencana netral">0%</span>';
     $cls = $pct <= 0 ? 'delta-up' : 'delta-down';
     return '<span class="' . $cls . '">' . ($pct >= 0 ? '▲' : '▼') . ' ' . PR::persen($pct) . '</span>';
 };

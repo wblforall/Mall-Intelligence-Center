@@ -406,10 +406,12 @@ class PestRekap
                 ? 'Tidak ada temuan sepanjang periode ini dari ' . $nf($r['jmlKunjungan']) . ' kunjungan tercatat.'
                 : 'Belum ada kunjungan tercatat pada periode ini — angka nol berarti belum diinput, bukan nihil temuan.';
         } else {
-            $asal = $r['grandLegacy'] > 0
+            $asal = $r['grandLegacy'] > 0 && $r['jmlKunjungan'] === 0
+                ? ', seluruhnya dari rekap impor bulanan'
+                : ($r['grandLegacy'] > 0
                 ? ' (' . $nf($r['grandKunjungan']) . ' dari ' . $nf($r['jmlKunjungan']) . ' kunjungan tercatat, '
                     . $nf($r['grandLegacy']) . ' dari rekap impor)'
-                : ' dari ' . $nf($r['jmlKunjungan']) . ' kunjungan';
+                : ' dari ' . $nf($r['jmlKunjungan']) . ' kunjungan');
             $d = self::pct($r['grand'], $prev['grand']);
             $out[] = 'Total ' . $nf($r['grand']) . ' temuan' . $asal
                 . ($d === null
