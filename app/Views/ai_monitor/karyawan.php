@@ -1,5 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
+<?php helper('ai_skor'); ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
@@ -8,14 +9,19 @@
         <small class="text-muted"><?= esc($emp['dept']) ?></small>
         <?php endif; ?>
     </div>
-    <a href="<?= base_url('ai-monitor') ?>" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>Kembali
-    </a>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="<?= base_url('ai-monitor/rubrik') ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-award me-1"></i>Cara Penilaian</a>
+        <a href="<?= base_url('ai-monitor') ?>" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Kembali
+        </a>
+    </div>
 </div>
 
 <?= $this->include('ai_monitor/_periode') ?>
 
 <?= $this->include('ai_monitor/_analisa_panel') ?>
+
+<?= $this->include('ai_monitor/_skor_panel') ?>
 
 <div class="card">
 <div class="table-responsive">
@@ -26,13 +32,14 @@
     <th>Proyek</th>
     <th>Model</th>
     <th>Mulai</th>
+    <th>Mutu prompt <span class="text-muted fw-normal">(AI)</span></th>
     <th class="text-center">Aktivitas</th>
     <th class="text-end">Token</th>
 </tr>
 </thead>
 <tbody>
 <?php if (! $sessions): ?>
-<tr><td colspan="6" class="text-center text-muted py-5">
+<tr><td colspan="7" class="text-center text-muted py-5">
     <i class="bi bi-chat-square-text d-block fs-1 mb-2 opacity-25"></i>Belum ada sesi pada rentang ini
 </td></tr>
 <?php else: foreach ($sessions as $s): ?>
@@ -64,6 +71,7 @@
         <?php endif; ?>
     </td>
     <td class="small"><?= tgl_indo_hari($s['mulai_at']) ?></td>
+    <td style="min-width:11rem"><?= skor_badge($s) ?><?= skor_rincian_html($s) ?></td>
     <td class="text-center small">
         <?= number_format((int) $s['jml_prompt']) ?> prompt &middot; <?= number_format((int) $s['jml_alat']) ?> alat
     </td>
@@ -83,4 +91,5 @@
 
 <?= $this->section('scripts') ?>
 <?= $this->include('ai_monitor/_analisa_js') ?>
+<?= $this->include('ai_monitor/_skor_js') ?>
 <?= $this->endSection() ?>

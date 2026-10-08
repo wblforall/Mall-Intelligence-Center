@@ -323,7 +323,7 @@ class AiKlasifikasi
      * @param bool $jsonMode  true → minta response_format json_object (klasifikasi);
      *                        false → prosa bebas (ringkasan periode).
      */
-    private static function panggilProvider(string $sistem, string $pengguna, int $maxTokens = 400, bool $jsonMode = true): ?string
+    public static function panggilProvider(string $sistem, string $pengguna, int $maxTokens = 400, bool $jsonMode = true): ?string
     {
         self::$providerTerakhir = null;
         foreach (self::daftarProvider() as $p) {

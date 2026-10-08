@@ -6,6 +6,7 @@
         <h4 class="fw-bold mb-0"><i class="bi bi-robot me-2"></i>Pemantauan AI</h4>
         <small class="text-muted">Pemakaian Claude Code tim &mdash; <?= tgl_indo($tanggal) ?></small>
     </div>
+    <a href="<?= base_url('ai-monitor/rubrik') ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-award me-1"></i>Cara Penilaian Mutu Prompt</a>
 </div>
 
 <div class="alert alert-info d-flex align-items-start gap-2 py-2 small" role="alert">

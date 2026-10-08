@@ -32,6 +32,8 @@ class AiSessionModel extends Model
         'klasifikasi_metode', 'klasifikasi_at',
         // Ringkasan sesi (migrasi 2026-10-03-000001).
         'ringkasan',
+        // Skor mutu prompt (migrasi 2026-10-09-000001).
+        'skor_prompt', 'skor_rincian', 'skor_saran', 'skor_metode', 'skor_at',
     ];
 
     // Tabel ini punya created_at & updated_at → timestamps dinyalakan.
@@ -161,6 +163,7 @@ class AiSessionModel extends Model
     public function byKaryawan(int $employeeId, string $dari, string $sampai): array
     {
         return $this->select('id, judul, ringkasan, klasifikasi_jenis, klasifikasi_tema, klasifikasi_kantor,
+                              skor_prompt, skor_rincian, skor_saran, skor_metode,
                               proyek, git_branch, model, mulai_at,
                               terakhir_at, jml_prompt, jml_alat, token_masuk, token_keluar')
             ->where('employee_id', $employeeId)
@@ -597,6 +600,170 @@ class AiSessionModel extends Model
             ];
         }
         usort($out, fn($a, $b) => $b['prompt'] <=> $a['prompt']);
+        return $out;
+    }
+
+    // ── Skor mutu prompt ─────────────────────────────────────────────────
+    //
+    // Hanya sesi dengan skor_metode='llm' (dinilai AI) yang dihitung. Sesi
+    // pribadi tidak pernah dihitung. Sesi layak yang belum dinilai dilaporkan
+    // terpisah sebagai "belum dinilai" — tidak masuk rata-rata/tren.
+
+    /** Kondisi SQL sesi TERNILAI (alias s). */
+    private const SQL_TERNILAI = "s.skor_metode = 'llm' AND s.skor_prompt IS NOT NULL AND COALESCE(s.klasifikasi_kantor,'') <> 'pribadi'";
+
+    /** Kondisi SQL sesi LAYAK tapi BELUM dinilai AI (alias s). */
+    private const SQL_BELUM = "s.skor_metode IS NULL AND s.klasifikasi_kantor IS NOT NULL AND s.klasifikasi_kantor <> 'pribadi' AND s.jml_prompt >= 2";
+
+    /**
+     * Ringkasan skor satu scope dalam rentang.
+     * Return: n (sesi ternilai), rata (float|null), dimensi (rata per dimensi),
+     * tingkat (kunci => jumlah), tak_jelas (sesi ternilai bertanda tak_jelas),
+     * belum (sesi layak belum dinilai AI).
+     */
+    public function skorRingkas(string $dari, string $sampai, array $scope = []): array
+    {
+        [$col, $val] = $this->scopeKolom($scope);
+
+        $b = $this->db->table('ai_sessions s')
+            ->select('s.skor_prompt, s.skor_rincian, s.klasifikasi_kantor')
+            ->where(self::SQL_TERNILAI, null, false)
+            ->where('DATE(s.terakhir_at) >=', $dari)
+            ->where('DATE(s.terakhir_at) <=', $sampai);
+        if ($col) $b->where('s.' . $col, $val);
+        $rows = $b->get()->getResultArray();
+
+        $dimJml = array_fill_keys(array_keys(\App\Libraries\AiSkorPrompt::DIMENSI), 0);
+        $tingkat = ['perlu_dilatih' => 0, 'cukup' => 0, 'baik' => 0, 'sangat_baik' => 0];
+        $total = 0; $tak = 0;
+        foreach ($rows as $r) {
+            $sk = (int) $r['skor_prompt'];
+            $total += $sk;
+            $tingkat[\App\Libraries\AiSkorPrompt::tingkat($sk)[0]]++;
+            if ($r['klasifikasi_kantor'] === 'tak_jelas') $tak++;
+            $rin = json_decode((string) $r['skor_rincian'], true) ?: [];
+            foreach ($dimJml as $k => $_) $dimJml[$k] += (int) ($rin[$k] ?? 0);
+        }
+        $n = count($rows);
+
+        $b = $this->db->table('ai_sessions s')
+            ->select('COUNT(*) AS n', false)
+            ->where(self::SQL_BELUM, null, false)
+            ->where('DATE(s.terakhir_at) >=', $dari)
+            ->where('DATE(s.terakhir_at) <=', $sampai);
+        if ($col) $b->where('s.' . $col, $val);
+        $belum = (int) ($b->get()->getRowArray()['n'] ?? 0);
+
+        return [
+            'n'         => $n,
+            'rata'      => $n ? round($total / $n, 1) : null,
+            'dimensi'   => array_map(fn($v) => $n ? round($v / $n, 1) : null, $dimJml),
+            'tingkat'   => $tingkat,
+            'tak_jelas' => $tak,
+            'belum'     => $belum,
+        ];
+    }
+
+    /**
+     * Tren skor rata-rata per minggu ISO (Senin) selama $minggu minggu terakhir
+     * sampai $sampai. Minggu tanpa sesi ternilai = rata null (celah di grafik).
+     * [{awal:'Y-m-d', label:'dd/mm', n:int, rata:float|null}]
+     */
+    public function skorTrenMingguan(string $sampai, int $minggu = 12, array $scope = []): array
+    {
+        [$col, $val] = $this->scopeKolom($scope);
+        $senin = date('Y-m-d', strtotime('monday this week', strtotime($sampai)));
+        $awal  = date('Y-m-d', strtotime($senin . ' -' . ($minggu - 1) . ' weeks'));
+
+        $b = $this->db->table('ai_sessions s')
+            ->select('s.skor_prompt AS sk, DATE(s.terakhir_at) AS tgl', false)
+            ->where(self::SQL_TERNILAI, null, false)
+            ->where('DATE(s.terakhir_at) >=', $awal)
+            ->where('DATE(s.terakhir_at) <=', $sampai);
+        if ($col) $b->where('s.' . $col, $val);
+
+        $bucket = [];
+        for ($i = 0; $i < $minggu; $i++) {
+            $k = date('Y-m-d', strtotime($awal . " +{$i} weeks"));
+            $bucket[$k] = [0, 0];
+        }
+        foreach ($b->get()->getResultArray() as $r) {
+            $k = date('Y-m-d', strtotime('monday this week', strtotime($r['tgl'])));
+            if (isset($bucket[$k])) { $bucket[$k][0]++; $bucket[$k][1] += (int) $r['sk']; }
+        }
+        $out = [];
+        foreach ($bucket as $k => [$n, $sum]) {
+            $out[] = ['awal' => $k, 'label' => date('d/m', strtotime($k)), 'n' => $n,
+                      'rata' => $n ? round($sum / $n, 1) : null];
+        }
+        return $out;
+    }
+
+    /**
+     * Skor per karyawan untuk dashboard: periode ini vs periode sebelumnya
+     * (panjang sama, tepat sebelum $dari). Karyawan tampil dengan rata hanya
+     * bila n >= MIN_SESI_TAMPIL; selain itu rata = null ("Data belum cukup").
+     * [{employee_id,nama,dept,n,rata,rata_lalu,selisih,belum}]
+     */
+    public function skorPerKaryawan(string $dari, string $sampai): array
+    {
+        $hari   = (int) round((strtotime($sampai) - strtotime($dari)) / 86400) + 1;
+        $dariL  = date('Y-m-d', strtotime($dari . " -{$hari} days"));
+        $sampaiL = date('Y-m-d', strtotime($dari . ' -1 day'));
+        $min    = \App\Libraries\AiSkorPrompt::MIN_SESI_TAMPIL;
+
+        $hitung = function (string $a, string $z): array {
+            $rows = $this->db->table('ai_sessions s')
+                ->select('s.employee_id, COUNT(*) AS n, AVG(s.skor_prompt) AS rata', false)
+                ->where(self::SQL_TERNILAI, null, false)
+                ->where('s.employee_id IS NOT NULL', null, false)
+                ->where('DATE(s.terakhir_at) >=', $a)
+                ->where('DATE(s.terakhir_at) <=', $z)
+                ->groupBy('s.employee_id')->get()->getResultArray();
+            $m = [];
+            foreach ($rows as $r) $m[(int) $r['employee_id']] = ['n' => (int) $r['n'], 'rata' => (float) $r['rata']];
+            return $m;
+        };
+        $kini = $hitung($dari, $sampai);
+        $lalu = $hitung($dariL, $sampaiL);
+
+        $belum = [];
+        foreach ($this->db->table('ai_sessions s')
+            ->select('s.employee_id, COUNT(*) AS n', false)
+            ->where(self::SQL_BELUM, null, false)
+            ->where('s.employee_id IS NOT NULL', null, false)
+            ->where('DATE(s.terakhir_at) >=', $dari)
+            ->where('DATE(s.terakhir_at) <=', $sampai)
+            ->groupBy('s.employee_id')->get()->getResultArray() as $r) {
+            $belum[(int) $r['employee_id']] = (int) $r['n'];
+        }
+
+        $ids = array_unique(array_merge(array_keys($kini), array_keys($belum)));
+        if (! $ids) return [];
+        $emp = [];
+        foreach ($this->db->table('employees e')->select('e.id, e.nama, d.name AS dept')
+            ->join('departments d', 'd.id = e.dept_id', 'left')->whereIn('e.id', $ids)->get()->getResultArray() as $r) {
+            $emp[(int) $r['id']] = $r;
+        }
+
+        $out = [];
+        foreach ($ids as $id) {
+            $n    = $kini[$id]['n'] ?? 0;
+            $rata = ($n >= $min) ? round($kini[$id]['rata'], 1) : null;
+            $nl   = $lalu[$id]['n'] ?? 0;
+            $rl   = ($nl >= $min) ? round($lalu[$id]['rata'], 1) : null;
+            $out[] = [
+                'employee_id' => $id,
+                'nama'        => $emp[$id]['nama'] ?? '(karyawan tak dikenal)',
+                'dept'        => $emp[$id]['dept'] ?? '-',
+                'n'           => $n,
+                'rata'        => $rata,
+                'rata_lalu'   => $rl,
+                'selisih'     => ($rata !== null && $rl !== null) ? round($rata - $rl, 1) : null,
+                'belum'       => $belum[$id] ?? 0,
+            ];
+        }
+        usort($out, fn($a, $b) => strcasecmp($a['nama'], $b['nama'])); // urut abjad, bukan peringkat
         return $out;
     }
 }

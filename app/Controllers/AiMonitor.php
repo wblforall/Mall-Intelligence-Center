@@ -194,6 +194,9 @@ class AiMonitor extends BaseController
             'klas_jenis'  => $agg['jenis'],
             'klas_tema'   => $agg['tema'],
             'klas_kantor' => $agg['kantor'],
+            // Skor mutu prompt (dinilai AI): ringkas global + tabel per karyawan.
+            'skor'          => $sess->skorRingkas($dari, $sampai),
+            'skor_karyawan' => $sess->skorPerKaryawan($dari, $sampai),
         ];
 
         return view('ai_monitor/dashboard', $data);
@@ -280,7 +283,17 @@ class AiMonitor extends BaseController
             'printScope'       => '&employee_id=' . $employeeId,
             'sessions'         => $sessions,
             'ringkasan_periode' => $ringkasanPeriode,
+            // Skor mutu prompt (dinilai AI): periode terpilih + tren 12 minggu.
+            'skor'             => $this->sessions->skorRingkas($p['dari'], $p['sampai'], ['employee_id' => $employeeId]),
+            'skor_tren'        => $this->sessions->skorTrenMingguan($p['sampai'], 12, ['employee_id' => $employeeId]),
         ]);
+    }
+
+    // ── Cara Penilaian (rubrik) — terbuka bagi semua pengguna yang login ─
+
+    public function rubrik()
+    {
+        return view('ai_monitor/rubrik');
     }
 
     // ── Satu sesi: transkrip ─────────────────────────────────────────────

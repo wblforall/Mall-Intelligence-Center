@@ -57,6 +57,7 @@ $kantorBadge = [
     <div class="d-flex gap-2 flex-wrap">
         <a href="<?= base_url('ai-monitor') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-people me-1"></i>Per Karyawan</a>
         <a href="<?= base_url('ai-monitor/komputer') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pc-display me-1"></i>Per Komputer</a>
+        <a href="<?= base_url('ai-monitor/rubrik') ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-award me-1"></i>Cara Penilaian</a>
     </div>
 </div>
 
@@ -96,6 +97,8 @@ $kpiTiles = [
     </div>
 <?php endforeach; ?>
 </div>
+
+<?= $this->include('ai_monitor/_skor_dashboard') ?>
 
 <div class="row g-3 mb-4">
     <!-- Tren 14 hari -->
@@ -249,6 +252,7 @@ $adaKlas = array_sum($klas_jenis) > 0;
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
+<?= $this->include('ai_monitor/_skor_dashboard_js') ?>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof Chart === 'undefined') return;
