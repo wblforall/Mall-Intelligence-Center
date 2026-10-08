@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.27.0** (Oktober 2026)
+> Versi saat ini: **v2.28.0** (Oktober 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -12,6 +12,55 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Implementor | Riky Akbar |
 
 ---
+
+## Versi 2.28.0
+
+**Tanggal Rilis:** 9 Oktober 2026
+
+### Perubahan dari v2.27.0
+
+Pemantauan AI kini bisa menilai **mutu prompt** tiap sesi. Penilaian dikerjakan oleh AI dan
+ditujukan untuk **pelatihan**, bukan penilaian kinerja resmi. Rubriknya terbuka bagi semua
+pengguna yang login.
+
+#### Skor Mutu Prompt per Sesi
+
+- Setiap sesi diberi skor 0–100 dari lima dimensi (masing-masing 0–20): **tujuan jelas, konteks,
+  kriteria hasil, kekhususan, efisiensi iterasi**, lengkap dengan satu saran perbaikan.
+- Tingkat: Perlu dilatih (< 40), Cukup (40–69), Baik (70–84), Sangat baik (≥ 85).
+- **Hanya AI yang memberi skor.** Tidak ada penilaian cadangan berbasis kata kunci. Bila semua
+  provider AI gagal, sesi tampil "Belum dinilai", tidak masuk rata-rata atau tren, dan dicoba
+  lagi 2 jam kemudian.
+- Sesi **pribadi tidak dinilai**. Sesi dengan kurang dari 2 prompt, atau yang hanya berisi
+  "lanjut"/"ok", juga tidak dinilai.
+- Prompt dikirim ke provider AI dalam bentuk cuplikan (maks. 6 prompt, rahasia sudah
+  disamarkan), sama seperti klasifikasi sesi.
+- Perintah `php spark mic:ai-skor --coba|--jalan [--sejak=YYYY-MM-DD] [--batas=N]`. Penilaian
+  berjalan lewat cron yang dipasang terpisah.
+
+#### Tampilan
+
+- **Halaman karyawan:** skor rata-rata periode dan tingkatnya, tren 12 minggu, radar lima
+  dimensi, serta skor dan saran di tiap sesi. Skor rata-rata baru tampil bila ada minimal 5 sesi
+  ternilai.
+- **Dashboard:** kartu rata-rata, sebaran tingkat, dan tabel karyawan dengan selisih terhadap
+  periode lalu. Tidak ada papan peringkat.
+- **Cara Penilaian** (`/ai-monitor/rubrik`): rubrik lengkap, contoh prompt lemah dan kuat, serta
+  apa yang tidak dinilai. Dapat dibuka semua pengguna yang login.
+
+#### Model Pemberi Skor Dicatat
+
+- Nama model yang memberi skor tersimpan per sesi (mis. `groq/qwen3.8-27b`), tanpa kunci atau
+  alamat lengkap.
+- Dashboard memuat tabel **Skor per model**. Bila dua model dengan masing-masing minimal
+  10 sesi berselisih rata-rata lebih dari 15 poin, tampil peringatan bahwa tren per karyawan
+  dapat dipengaruhi pergantian model.
+
+#### Migrasi
+
+Dua migrasi, hanya menambah kolom di `ai_sessions`: `2026-10-09-000001_AiSessionSkorPrompt` dan
+`2026-10-09-000002_AiSessionSkorModel`. Jalankan `php spark migrate` sebelum cron `mic:ai-skor`
+diaktifkan.
 
 ## Versi 2.27.0
 
