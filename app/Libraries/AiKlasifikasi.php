@@ -71,6 +71,28 @@ class AiKlasifikasi
      *  (mis. 'p1'), atau null bila semua gagal. Dibaca command untuk log. */
     public static ?string $providerTerakhir = null;
 
+    /** Nama model yang berhasil menjawab pada panggilan terakhir, format
+     *  `host-singkat/model` (mis. `groq/qwen3.8-27b`); tanpa URL/kunci. NULL bila gagal. */
+    public static ?string $modelTerakhir = null;
+
+    /** `host-singkat/model` dari base URL + nama model provider (tanpa kunci/URL penuh). */
+    public static function namaModel(string $base, string $model): string
+    {
+        $host = (string) parse_url($base, PHP_URL_HOST);
+        $peta = ['groq' => 'groq', 'generativelanguage' => 'gemini', 'nvidia' => 'nvidia', 'openrouter' => 'openrouter'];
+        $kode = null;
+        foreach ($peta as $kunci => $nama) {
+            if (stripos($host, $kunci) !== false) { $kode = $nama; break; }
+        }
+        if ($kode === null) {
+            $bagian = array_values(array_filter(explode('.', $host)));
+            $kode = $bagian ? (count($bagian) > 1 ? $bagian[count($bagian) - 2] : $bagian[0]) : 'llm';
+        }
+        $m = $model;
+        if (($pos = strrpos($m, '/')) !== false) $m = substr($m, $pos + 1);
+        return mb_substr($kode . '/' . $m, 0, 80);
+    }
+
     /**
      * Klasifikasi berbasis LLM (provider-agnostik, OpenAI-compatible) dengan
      * MULTI-PROVIDER AUTO-FAILOVER.
@@ -326,10 +348,12 @@ class AiKlasifikasi
     public static function panggilProvider(string $sistem, string $pengguna, int $maxTokens = 400, bool $jsonMode = true): ?string
     {
         self::$providerTerakhir = null;
+        self::$modelTerakhir    = null;
         foreach (self::daftarProvider() as $p) {
             $isi = self::httpSatuProvider($p, $sistem, $pengguna, $maxTokens, $jsonMode);
             if ($isi !== null && trim($isi) !== '') {
                 self::$providerTerakhir = $p['label'];
+                self::$modelTerakhir    = self::namaModel($p['base'], $p['model']);
                 return $isi;
             }
         }

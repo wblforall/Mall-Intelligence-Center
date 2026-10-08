@@ -33,7 +33,7 @@ class AiSessionModel extends Model
         // Ringkasan sesi (migrasi 2026-10-03-000001).
         'ringkasan',
         // Skor mutu prompt (migrasi 2026-10-09-000001).
-        'skor_prompt', 'skor_rincian', 'skor_saran', 'skor_metode', 'skor_at',
+        'skor_prompt', 'skor_rincian', 'skor_saran', 'skor_metode', 'skor_at', 'skor_model',
     ];
 
     // Tabel ini punya created_at & updated_at → timestamps dinyalakan.
@@ -163,7 +163,7 @@ class AiSessionModel extends Model
     public function byKaryawan(int $employeeId, string $dari, string $sampai): array
     {
         return $this->select('id, judul, ringkasan, klasifikasi_jenis, klasifikasi_tema, klasifikasi_kantor,
-                              skor_prompt, skor_rincian, skor_saran, skor_metode,
+                              skor_prompt, skor_rincian, skor_saran, skor_metode, skor_model,
                               proyek, git_branch, model, mulai_at,
                               terakhir_at, jml_prompt, jml_alat, token_masuk, token_keluar')
             ->where('employee_id', $employeeId)
@@ -764,6 +764,44 @@ class AiSessionModel extends Model
             ];
         }
         usort($out, fn($a, $b) => strcasecmp($a['nama'], $b['nama'])); // urut abjad, bukan peringkat
+        return $out;
+    }
+
+    /**
+     * Skor per MODEL pemberi skor (sesi dinilai AI, bukan pribadi) dalam rentang.
+     * Untuk memeriksa konsistensi antar-model. Sesi lama tanpa skor_model
+     * dikelompokkan sebagai "(tak tercatat)".
+     * [{model, n, rata, dimensi:{...}}] urut jumlah sesi menurun.
+     */
+    public function skorPerModel(string $dari, string $sampai): array
+    {
+        $rows = $this->db->table('ai_sessions s')
+            ->select('COALESCE(s.skor_model, "(tak tercatat)") AS model, s.skor_prompt, s.skor_rincian', false)
+            ->where(self::SQL_TERNILAI, null, false)
+            ->where('DATE(s.terakhir_at) >=', $dari)
+            ->where('DATE(s.terakhir_at) <=', $sampai)
+            ->get()->getResultArray();
+
+        $dimKunci = array_keys(\App\Libraries\AiSkorPrompt::DIMENSI);
+        $g = [];
+        foreach ($rows as $r) {
+            $m = $r['model'];
+            $g[$m] ??= ['model' => $m, 'n' => 0, 'jml' => 0, 'dim' => array_fill_keys($dimKunci, 0)];
+            $g[$m]['n']++;
+            $g[$m]['jml'] += (int) $r['skor_prompt'];
+            $rin = json_decode((string) $r['skor_rincian'], true) ?: [];
+            foreach ($dimKunci as $k) $g[$m]['dim'][$k] += (int) ($rin[$k] ?? 0);
+        }
+        $out = [];
+        foreach ($g as $m) {
+            $out[] = [
+                'model'   => $m['model'],
+                'n'       => $m['n'],
+                'rata'    => round($m['jml'] / $m['n'], 1),
+                'dimensi' => array_map(fn($v) => round($v / $m['n'], 1), $m['dim']),
+            ];
+        }
+        usort($out, fn($a, $b) => $b['n'] <=> $a['n']);
         return $out;
     }
 }

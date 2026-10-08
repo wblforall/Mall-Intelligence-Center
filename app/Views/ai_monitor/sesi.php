@@ -47,7 +47,7 @@
         <div class="small text-muted">Mutu prompt <a href="<?= base_url('ai-monitor/rubrik') ?>" class="text-decoration-none" title="Cara penilaian"><i class="bi bi-info-circle"></i></a></div>
         <div><?= skor_badge($sesi) ?></div>
         <?= skor_rincian_html($sesi) ?>
-        <div class="text-muted" style="font-size:.7rem">Penilaian otomatis oleh AI &mdash; perkiraan, untuk pelatihan.</div>
+        <div class="text-muted" style="font-size:.7rem">Penilaian otomatis oleh AI<?= ! empty($sesi['skor_model']) ? ' (' . esc($sesi['skor_model']) . ')' : '' ?> &mdash; perkiraan, untuk pelatihan.</div>
     </div>
     <div>
         <div class="small text-muted">Proyek</div>

@@ -90,7 +90,7 @@ class AiSkor extends BaseCommand
         // Privasi: sesi yang (kini) pribadi tak boleh menyimpan skor.
         if ($jalan) {
             $db->query("UPDATE ai_sessions SET skor_prompt = NULL, skor_rincian = NULL, skor_saran = NULL,
-                        skor_metode = NULL, skor_at = NULL
+                        skor_metode = NULL, skor_model = NULL, skor_at = NULL
                         WHERE klasifikasi_kantor = 'pribadi' AND (skor_metode IS NOT NULL OR skor_at IS NOT NULL)");
         }
 
@@ -134,7 +134,7 @@ class AiSkor extends BaseCommand
                 if ($jalan) {
                     $db->table('ai_sessions')->where('id', $id)->update([
                         'skor_prompt' => null, 'skor_rincian' => null, 'skor_saran' => null,
-                        'skor_metode' => 'lewati', 'skor_at' => $sekarang,
+                        'skor_metode' => 'lewati', 'skor_model' => null, 'skor_at' => $sekarang,
                     ]);
                 }
                 $lewati++;
@@ -162,14 +162,15 @@ class AiSkor extends BaseCommand
             $beruntun = 0;
             $prov = Klasifikator::$providerTerakhir ?: '?';
             $perProvider[$prov] = ($perProvider[$prov] ?? 0) + 1;
-            CLI::write(sprintf('  #%d skor %d (%s) [%s] %s', $id, $hasil['skor'], AiSkorPrompt::tingkat($hasil['skor'])[1],
-                implode('/', $hasil['rincian']), (string) $hasil['saran']));
+            CLI::write(sprintf('  #%d skor %d (%s) [%s] {%s} %s', $id, $hasil['skor'], AiSkorPrompt::tingkat($hasil['skor'])[1],
+                implode('/', $hasil['rincian']), (string) ($hasil['model'] ?? '?'), (string) $hasil['saran']));
             if ($jalan) {
                 $db->table('ai_sessions')->where('id', $id)->update([
                     'skor_prompt'  => $hasil['skor'],
                     'skor_rincian' => json_encode($hasil['rincian']),
                     'skor_saran'   => $hasil['saran'],
                     'skor_metode'  => 'llm',
+                    'skor_model'   => $hasil['model'] ?? null,
                     'skor_at'      => $sekarang,
                 ]);
             }

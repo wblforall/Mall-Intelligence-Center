@@ -43,7 +43,8 @@ if (! function_exists('skor_badge')) {
                 [$kunci, $label] = AiSkorPrompt::tingkat((int) $s['skor_prompt']);
                 $tj = ($s['klasifikasi_kantor'] ?? '') === 'tak_jelas'
                     ? ' <span class="badge bg-secondary-subtle text-secondary" title="Konteks sesi tidak jelas (kantor/pribadi) — dinilai dengan tanda">tak jelas</span>' : '';
-                return '<span class="badge ' . skor_kelas($kunci) . '" title="Dinilai otomatis oleh AI">'
+                $mdl = ! empty($s['skor_model']) ? ' (model: ' . $s['skor_model'] . ')' : '';
+                return '<span class="badge ' . skor_kelas($kunci) . '" title="' . esc('Dinilai otomatis oleh AI' . $mdl) . '">'
                     . (int) $s['skor_prompt'] . ' &middot; ' . esc($label) . '</span>' . $tj;
             case 'pribadi':
                 return '<span class="small text-muted" title="Sesi pribadi tidak pernah dinilai">Tidak dinilai (pribadi)</span>';
@@ -64,6 +65,9 @@ if (! function_exists('skor_rincian_html')) {
         $h = '<details class="mt-1"><summary class="small text-muted" style="cursor:pointer">Saran &amp; rincian</summary><div class="small mt-1">';
         if (! empty($s['skor_saran'])) {
             $h .= '<div class="mb-2"><i class="bi bi-lightbulb me-1 text-warning"></i>' . esc($s['skor_saran']) . '</div>';
+        }
+        if (! empty($s['skor_model'])) {
+            $h .= '<div class="mb-2 text-muted"><i class="bi bi-cpu me-1"></i>Model penilai: <code>' . esc($s['skor_model']) . '</code></div>';
         }
         foreach (AiSkorPrompt::DIMENSI as $k => $d) {
             $v = (int) ($rin[$k] ?? 0);

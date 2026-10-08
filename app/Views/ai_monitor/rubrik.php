@@ -80,6 +80,7 @@ helper('ai_skor');
             <li>Sesi selesai, lalu diklasifikasi (jenis, tema, kantor/pribadi) seperti biasa.</li>
             <li>Sesi bukan pribadi dan layak dinilai dikirim ke AI: hanya <strong>cuplikan prompt manusia</strong> (maksimal <?= 6 ?> prompt, dipotong), tanpa balasan Claude. Kata sandi dan token sudah disamarkan sebelum disimpan.</li>
             <li>AI memberi nilai 0 - <?= AiSkorPrompt::MAKS_PER_DIMENSI ?> pada tiap dimensi di atas dan satu-dua kalimat saran perbaikan.</li>
+            <li>Nama model AI yang memberi skor dicatat pada setiap sesi, agar konsistensi antar-model bisa diperiksa.</li>
             <li>Tidak ada skor pengganti dari aturan atau kata kunci: bila AI tidak bisa menilai, sesi tetap &ldquo;Belum dinilai&rdquo;.</li>
         </ol>
         <p class="mb-1"><strong>Aturan tampilan.</strong> Skor rata-rata seorang karyawan baru muncul bila ada minimal <strong><?= AiSkorPrompt::MIN_SESI_TAMPIL ?> sesi</strong> ternilai pada periode itu; di bawahnya tampil &ldquo;Data belum cukup&rdquo;. Jumlah sesi dasar penilaian selalu ditampilkan. Dashboard <strong>tidak memuat papan peringkat</strong>; tabel karyawan urut abjad dan menampilkan tren dibanding periode sebelumnya.</p>

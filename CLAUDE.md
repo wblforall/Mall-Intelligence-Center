@@ -221,6 +221,7 @@ Belum ada integrasi aktif di v2.0.
 
 - Rubrik tunggal di `App\Libraries\AiSkorPrompt` (5 dimensi x 0-20, label tingkat, aturan kelayakan). Halaman terbuka `/ai-monitor/rubrik` (semua pengguna login) dibangun dari konstanta yang sama.
 - **Skor HANYA dari LLM** (`AiKlasifikasi::panggilProvider`, multi-provider failover). Tidak ada fallback aturan yang menghasilkan angka; heuristik (`layakDinilai`) hanya memutuskan layak/tidak. Kegagalan AI = `skor_metode` NULL = "Belum dinilai" (tak dihitung, dicoba lagi 2 jam kemudian).
+- `ai_sessions.skor_model` mencatat model pemberi skor (`host-singkat/model`, mis. `groq/qwen3.8-27b`); dashboard punya tabel "Skor per model" + peringatan bila selisih rata-rata >15 poin (>=10 sesi per model).
 - `ai_sessions.skor_metode`: `llm` (tampil/dihitung), `lewati` (tak layak, mis. <2 prompt instruksi), NULL (belum). Sesi `pribadi` tidak pernah dinilai (skor dibersihkan bila sesi kemudian jadi pribadi).
 - Perintah: `php spark mic:ai-skor --coba|--jalan [--sejak=YYYY-MM-DD] [--batas=N]` (cron tiap 10 menit, digeser setelah `mic:ai-klasifikasi`). Hanya sesi sudah diklasifikasi & tidak aktif >30 menit.
 - Tampilan: rata-rata karyawan baru muncul bila >=5 sesi ternilai; tanpa papan peringkat; selalu ada label "Penilaian otomatis oleh AI - perkiraan, untuk pelatihan, bukan penilaian kinerja resmi".

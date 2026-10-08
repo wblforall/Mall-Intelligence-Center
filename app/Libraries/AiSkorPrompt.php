@@ -190,7 +190,9 @@ class AiSkorPrompt
      * (tidak ada fallback skor).
      *
      * @param string[] $prompt Prompt manusia sesi (berurut waktu).
-     * @return array{skor:int, rincian:array<string,int>, saran:?string}|null
+     * Hasil memuat `model`: model yang BERHASIL menjawab (host-singkat/model).
+     *
+     * @return array{skor:int, rincian:array<string,int>, saran:?string, model:?string}|null
      */
     public static function nilai(array $prompt, array $konteks = []): ?array
     {
@@ -210,7 +212,10 @@ class AiSkorPrompt
         $isi = AiKlasifikasi::panggilProvider(self::promptSistem(), $pengguna, self::MAKS_TOKEN);
         if ($isi === null) return null;
 
-        return self::parse($isi);
+        $hasil = self::parse($isi);
+        if ($hasil === null) return null;
+        $hasil['model'] = AiKlasifikasi::$modelTerakhir;
+        return $hasil;
     }
 
     /**

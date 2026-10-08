@@ -98,3 +98,45 @@ $labelTingkat = ['perlu_dilatih' => 'Perlu dilatih', 'cukup' => 'Cukup', 'baik' 
     </div>
   </div>
 </div>
+<?php
+// ── Skor per model pemberi skor ──
+$minBanding = 10;
+$memadai = array_values(array_filter($skor_model ?? [], fn($m) => $m['n'] >= $minBanding));
+$beda = null;
+if (count($memadai) >= 2) {
+    $rt = array_column($memadai, 'rata');
+    $beda = max($rt) - min($rt);
+}
+$dimNama = array_map(fn($d) => $d['nama'], AiSkorPrompt::DIMENSI);
+?>
+<?php if (! empty($skor_model)): ?>
+<div class="card mb-4">
+  <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-cpu me-2 text-muted"></i>Skor per model <span class="text-muted fw-normal">(model AI yang memberi skor &middot; <?= esc($periode['label']) ?>)</span></span></div>
+  <div class="card-body">
+    <?php if ($beda !== null && $beda > 15): ?>
+    <div class="alert alert-warning py-2 small" role="alert">
+      <i class="bi bi-info-circle me-1"></i>Penilaian antar-model berbeda cukup jauh (selisih rata-rata <?= number_format($beda, 1) ?> poin) &mdash; tren per karyawan bisa dipengaruhi pergantian model.
+    </div>
+    <?php endif; ?>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-2">
+        <thead class="table-light"><tr>
+          <th>Model</th><th class="text-end">Sesi</th><th class="text-end">Rata-rata</th>
+          <?php foreach ($dimNama as $nm): ?><th class="text-end d-none d-lg-table-cell small"><?= esc($nm) ?></th><?php endforeach; ?>
+        </tr></thead>
+        <tbody>
+        <?php foreach ($skor_model as $m): ?>
+          <tr>
+            <td><code><?= esc($m['model']) ?></code><?= $m['n'] < $minBanding ? ' <span class="badge bg-secondary-subtle text-secondary" title="Sesi kurang dari ' . $minBanding . '">sampel kecil</span>' : '' ?></td>
+            <td class="text-end"><?= (int) $m['n'] ?></td>
+            <td class="text-end fw-semibold"><?= number_format($m['rata'], 1) ?></td>
+            <?php foreach ($m['dimensi'] as $v): ?><td class="text-end small text-muted d-none d-lg-table-cell"><?= number_format($v, 1) ?></td><?php endforeach; ?>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <div class="small text-muted">Bandingkan antar-model hanya bila jumlah sesi memadai (&ge; <?= $minBanding ?> per model). Perbedaan bisa berasal dari jenis sesi yang dinilai, bukan hanya dari modelnya.</div>
+  </div>
+</div>
+<?php endif; ?>

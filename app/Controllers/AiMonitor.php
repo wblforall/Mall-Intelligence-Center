@@ -197,6 +197,7 @@ class AiMonitor extends BaseController
             // Skor mutu prompt (dinilai AI): ringkas global + tabel per karyawan.
             'skor'          => $sess->skorRingkas($dari, $sampai),
             'skor_karyawan' => $sess->skorPerKaryawan($dari, $sampai),
+            'skor_model'    => $sess->skorPerModel($dari, $sampai),
         ];
 
         return view('ai_monitor/dashboard', $data);

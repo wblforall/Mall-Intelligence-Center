@@ -144,6 +144,49 @@ final class AiSkorPromptTest extends TestCase
         });
     }
 
+    public function testNamaModelFormatSingkatTanpaUrlAtauKunci(): void
+    {
+        $this->assertSame('groq/qwen3.8-27b', \App\Libraries\AiKlasifikasi::namaModel('https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b'));
+        $this->assertSame('groq/gpt-oss-20b', \App\Libraries\AiKlasifikasi::namaModel('https://api.groq.com/openai/v1', 'openai/gpt-oss-20b'));
+        $this->assertSame('gemini/gemini-3.8-flash', \App\Libraries\AiKlasifikasi::namaModel('https://generativelanguage.googleapis.com/v1beta/openai', 'gemini-3.8-flash'));
+        $this->assertSame('nvidia/muse-glimmer-30b', \App\Libraries\AiKlasifikasi::namaModel('https://integrate.api.nvidia.com/v1', 'meta/muse-glimmer-30b'));
+        $this->assertSame('openrouter/gemma-4-26b-a4b-it:free', \App\Libraries\AiKlasifikasi::namaModel('https://openrouter.ai/api/v1', 'google/gemma-4-26b-a4b-it:free'));
+        $this->assertLessThanOrEqual(80, mb_strlen(\App\Libraries\AiKlasifikasi::namaModel('https://x.example.com', str_repeat('m', 200))));
+    }
+
+    public function testModelTersimpanSaatSuksesDanNullSaatGagal(): void
+    {
+        $dir = sys_get_temp_dir() . '/mic-mock-llm-' . bin2hex(random_bytes(3));
+        mkdir($dir);
+        file_put_contents($dir . '/r.php', '<?php echo json_encode(["choices"=>[["message"=>["content"=>json_encode(["tujuan"=>15,"konteks"=>10,"kriteria"=>10,"kekhususan"=>10,"iterasi"=>15,"saran"=>"ok"])]]]]);');
+        $port = random_int(20000, 40000);
+        $proc = proc_open([PHP_BINARY, '-S', "localhost:{$port}", $dir . '/r.php'], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+        usleep(600000);
+        try {
+            $prompt = ['Perbaiki rekap parkir di app/Controllers/Parkir.php', 'Tambahkan tes, jangan ubah skema'];
+            $this->denganProvider([
+                'aiklas.p1_base_url' => "http://localhost:{$port}", 'aiklas.p1_model' => 'vendor/mock-model', 'aiklas.p1_key' => 'x',
+            ], function () use ($prompt) {
+                $r = AiSkorPrompt::nilai($prompt);
+                $this->assertNotNull($r);
+                $this->assertSame(60, $r['skor']);
+                $this->assertSame('localhost/mock-model', $r['model']);
+            });
+            // Provider mati: gagal → NULL dan model terakhir NULL.
+            $this->denganProvider([
+                'aiklas.p1_base_url' => 'http://127.0.0.1:9', 'aiklas.p1_model' => 'x', 'aiklas.p1_key' => 'x',
+            ], function () use ($prompt) {
+                $this->assertNull(AiSkorPrompt::nilai($prompt));
+                $this->assertNull(\App\Libraries\AiKlasifikasi::$modelTerakhir);
+            });
+        } finally {
+            proc_terminate($proc);
+            proc_close($proc);
+            @unlink($dir . '/r.php');
+            @rmdir($dir);
+        }
+    }
+
     public function testNilaiTidakPunyaMetodeAturan(): void
     {
         $this->assertFalse(method_exists(AiSkorPrompt::class, 'aturan'));
