@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.28.0** (Oktober 2026)
+> Versi saat ini: **v2.29.0** (Oktober 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,59 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.29.0
+
+**Tanggal Rilis:** 12 Oktober 2026
+
+### Perubahan dari v2.28.0
+
+Modul baru **Budget Departemen**: tiap departemen mencatat budget dan realisasinya sendiri di MIC,
+menggantikan Excel budget per departemen. Ini catatan internal departemen. Tidak ada alur
+persetujuan dan belum terhubung ke akun Accurate.
+
+#### Akses
+
+- Menu **Budget → Budget Departemen**, diatur lewat hak menu *Budget Departemen* per departemen
+  atau per orang.
+- Pengguna hanya melihat dan mengisi departemennya sendiri. Admin bisa memilih departemen.
+
+#### Pos Budget & Pengaturan
+
+- Tiap departemen punya daftar pos sendiri (mis. "Biaya reimburse poin", "Sponsor") yang bisa
+  diurutkan.
+- Pos yang sudah punya budget atau realisasi tidak bisa dihapus, hanya dinonaktifkan. Angkanya
+  tetap tampil di rekap tahun yang bersangkutan.
+- Sakelar **pisah per mal**: bila aktif, budget diisi per eWalk/Pentacity dan rekap bisa dilihat
+  gabungan atau per mal.
+
+#### Isi Budget
+
+- Grid 12 bulan per pos (per mal bila dipisah), dengan total baris dan total bulan yang dihitung
+  langsung saat mengetik.
+- **Rincian per event:** satu bulan bisa dipecah menjadi beberapa baris berketerangan, mis.
+  Hari Besar Januari = Tahun Baru + Isra Mi'raj. Posnya tetap satu, nilai sel = jumlah rinciannya.
+- Tombol untuk menyamakan Feb–Des dengan angka Januari, dan **salin dari tahun lalu** untuk tahun
+  yang masih kosong.
+
+#### Realisasi
+
+- Satu baris per transaksi: tanggal pembebanan, pos, uraian, rincian, nilai, mal, no. memo/PR.
+- Mal **Keduanya** dibagi 50:50 ke eWalk dan Pentacity di rekap.
+- **Periode asal** opsional untuk tagihan bulan lain (mis. reimburse poin Desember dibayar
+  Januari). Transaksinya ditandai "tagihan Des 2025".
+- Filter per bulan, per pos, dan pencarian uraian/keterangan/no. memo.
+
+#### Rekap
+
+- Ringkasan budget setahun, budget s.d. bulan pilihan, realisasi, sisa, dan realisasi tahun lalu.
+- Tampilan **Ringkas** (per pos, % terpakai terhadap budget s.d. bulan) dan **Per Bulan**
+  (budget vs realisasi tiap bulan; sel berincian bisa diarahkan kursor untuk melihat rinciannya).
+- Angka yang melewati budget ditandai merah. Pos yang punya realisasi tanpa budget ditandai
+  "tanpa budget". Angka realisasi bisa diklik untuk membuka transaksinya.
+- Total selalu dijumlah dari baris transaksi dan rincian budget, bukan dari kolom ringkasan.
 
 ---
 
