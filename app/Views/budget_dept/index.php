@@ -193,10 +193,10 @@ $sel = function (array $s, string $mk, int $id, int $m, bool $awal) use ($url, $
         </tr>
         <tr>
             <?php foreach ($BLN as $m => $n): foreach ($MALS as $mk => $l): ?>
-            <th class="text-end <?= $mk === 'ewalk' ? 'grp' : '' ?>"><?= $LBL[$mk] ?></th><th class="text-end">Real.</th>
+            <th class="text-end <?= $mk === 'ewalk' ? 'grp' : '' ?>"><?= $LBL[$mk] ?></th><th class="text-end">Realisasi</th>
             <?php endforeach; endforeach; ?>
-            <?php foreach ($MALS as $mk => $l): ?><th class="text-end grp">Budget</th><th class="text-end">Real.</th><?php endforeach; ?>
-            <th class="text-end grp">Budget</th><th class="text-end">Real.</th><th class="text-end">Sisa</th>
+            <?php foreach ($MALS as $mk => $l): ?><th class="text-end grp">Budget</th><th class="text-end">Realisasi</th><?php endforeach; ?>
+            <th class="text-end grp">Budget</th><th class="text-end">Realisasi</th><th class="text-end">Sisa</th>
         </tr>
     </thead>
     <tbody>
@@ -240,8 +240,8 @@ $sel = function (array $s, string $mk, int $id, int $m, bool $awal) use ($url, $
             <th class="text-center grp" colspan="3">Total <?= $tahun ?></th>
         </tr>
         <tr>
-            <?php foreach ($BLN as $m => $n): ?><th class="text-end grp">Budget</th><th class="text-end">Real.</th><?php endforeach; ?>
-            <th class="text-end grp">Budget</th><th class="text-end">Real.</th><th class="text-end">Sisa</th>
+            <?php foreach ($BLN as $m => $n): ?><th class="text-end grp">Budget</th><th class="text-end">Realisasi</th><?php endforeach; ?>
+            <th class="text-end grp">Budget</th><th class="text-end">Realisasi</th><th class="text-end">Sisa</th>
         </tr>
     </thead>
     <tbody>
