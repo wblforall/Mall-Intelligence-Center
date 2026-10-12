@@ -32,7 +32,8 @@ html[data-theme] .rb-bln.active .badge { background: #fff !important; color: var
 /* Tom Select — disamakan dengan .form-select tema (gelap & terang). */
 .ts-wrapper.single .ts-control { flex-wrap: nowrap; }
 .ts-wrapper.single .ts-control .item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ts-wrapper.bd-ts-dept { width: 250px; } .ts-wrapper.bd-ts-tahun { width: 100px; }
+.ts-wrapper.bd-ts-dept { width: 250px; } .ts-wrapper.bd-ts-tahun { width: 100px; } .ts-wrapper.bd-ts-sd { width: 92px; }
+/* Tom Select tak menyalin style lebar dari <select> aslinya — beri lebar lewat kelas, mis. bd-ts-sd. */
 @media (max-width: 575.98px) { .ts-wrapper.bd-ts-dept { width: 100%; } }
 
 /* Periode asal (flatpickr pemilih bulan) — tombol kosongkan di dalam kotak. */
