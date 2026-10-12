@@ -5,9 +5,8 @@
 .bd-grid td, .bd-grid th { white-space:nowrap; vertical-align:middle; }
 .bd-grid thead th { font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; color:var(--bs-secondary-color); font-weight:600; text-align:center; }
 .bd-grid .col-pos { position:sticky; left:0; background-color:var(--card-bg); background-image:linear-gradient(var(--card-bg),var(--card-bg)); z-index:2; min-width:230px; max-width:280px; white-space:normal; }
-.bd-grid .col-pos .mal-lbl { float:right; margin-left:.5rem; }
 .bd-grid td.sel { position:relative; padding-right:.15rem; }
-.bd-grid input.angka { width:104px; text-align:right; font-variant-numeric:tabular-nums; padding:.2rem 1.25rem .2rem .35rem; font-size:.8rem; }
+.bd-grid input.angka { width:98px; text-align:right; font-variant-numeric:tabular-nums; padding:.2rem 1.25rem .2rem .35rem; font-size:.8rem; }
 /* Sel berincian: total saja, diubah lewat jendela rincian. */
 .bd-grid input.angka.berinci { cursor:pointer; border-style:dashed; border-color:rgba(var(--bs-primary-rgb),.55); color:var(--bs-primary-text-emphasis); }
 .bd-grid .btn-rinci { position:absolute; right:.3rem; top:50%; transform:translateY(-50%); border:0; background:none; padding:0 .15rem; line-height:1;
@@ -16,8 +15,9 @@
 .bd-grid .btn-rinci.ada { opacity:1; color:var(--bs-primary-text-emphasis); }
 .bd-grid .tot { font-weight:600; text-align:right; font-variant-numeric:tabular-nums; min-width:110px; }
 .bd-grid tfoot td { font-weight:700; text-align:right; border-top:2px solid var(--bs-border-color); font-variant-numeric:tabular-nums; }
-.bd-grid tr.mal-pertama td { border-top:1px solid var(--bs-border-color); }
-.bd-grid .mal-lbl { font-size:.7rem; color:var(--bs-secondary-color); }
+.bd-grid .grp { border-left:1px solid var(--bs-border-color) !important; }
+.bd-grid thead tr.sub th { font-size:.66rem; font-weight:500; text-transform:none; letter-spacing:0; }
+.bd-grid .tot-mal { font-weight:500; color:var(--bs-secondary-color); }
 .bd-grid thead .col-pos, .bd-grid tfoot .col-pos { background-color:var(--card-bg) !important; background-image:linear-gradient(var(--card-bg),var(--card-bg)) !important; z-index:3; }
 #mRinci .r-jml { text-align:right; font-variant-numeric:tabular-nums; }
 @media (hover:none) { .bd-grid .btn-rinci { opacity:1; } }
@@ -32,6 +32,13 @@ $posAktif = array_filter($pos, fn ($p) => ! empty($p['aktif']) || isset($grid[(i
 $modeMal  = $pisahMal ? ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity'] : ['x' => ''];
 $labelMal = ['x' => 'Tanpa mal', 'ewalk' => 'eWalk', 'pentacity' => 'Pentacity'];
 $adaIsi = $grid !== [];
+// Kolom mal seluruh grid: mode sekarang + mal lain yang masih punya angka
+// (mis. isian "tanpa mal" sebelum dept beralih ke pisah mal) agar tak tersembunyi.
+$adaKunci = [];
+foreach ($grid as $perMal) foreach (array_keys($perMal) as $k) $adaKunci[$k] = true;
+$kolomMal = array_values(array_filter(['ewalk', 'pentacity', 'x'], fn ($k) => isset($modeMal[$k]) || isset($adaKunci[$k])));
+$nk = count($kolomMal);
+$labelPendek = ['x' => 'Tanpa mal', 'ewalk' => 'eWalk', 'pentacity' => 'Penta'];
 // Sel "berinci" = punya keterangan atau lebih dari satu baris → tak bisa diketik langsung.
 $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== '');
 ?>
@@ -67,60 +74,67 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
     </div>
     <div class="table-responsive">
     <table class="table table-sm mb-0 bd-grid">
-        <thead><tr>
-            <th class="col-pos text-start">Pos</th>
-            <?php foreach ($BLN as $n): ?><th><?= $n ?></th><?php endforeach; ?>
-            <th class="text-end">Total</th>
-            <?php if ($canEdit): ?><th></th><?php endif; ?>
-        </tr></thead>
+        <thead>
+        <tr>
+            <th class="col-pos text-start" <?= $nk > 1 ? 'rowspan="2"' : '' ?>>Pos</th>
+            <?php foreach ($BLN as $n): ?><th class="grp" colspan="<?= $nk ?>"><?= $n ?></th><?php endforeach; ?>
+            <th class="grp text-end" colspan="<?= $nk > 1 ? $nk + 1 : 1 ?>">Total <?= $tahun ?></th>
+            <?php if ($canEdit): ?><th <?= $nk > 1 ? 'rowspan="2"' : '' ?>></th><?php endif; ?>
+        </tr>
+        <?php if ($nk > 1): ?>
+        <tr class="sub">
+            <?php foreach ($BLN as $n): foreach ($kolomMal as $j => $mk): ?>
+            <th class="<?= $j === 0 ? 'grp' : '' ?>"><?= $labelPendek[$mk] ?></th>
+            <?php endforeach; endforeach; ?>
+            <?php foreach ($kolomMal as $j => $mk): ?><th class="text-end <?= $j === 0 ? 'grp' : '' ?>"><?= $labelPendek[$mk] ?></th><?php endforeach; ?>
+            <th class="text-end">Semua</th>
+        </tr>
+        <?php endif; ?>
+        </thead>
         <tbody>
-        <?php foreach ($posAktif as $p):
-            $pid = (int) $p['id'];
-            // Baris mode sekarang + baris mal lain yang masih punya angka
-            // (mis. dept baru beralih ke pisah mal) agar tak ada angka tersembunyi.
-            $kunci = array_keys($modeMal + array_fill_keys(array_keys($grid[$pid] ?? []), ''));
-            $i = 0;
-        ?>
-            <?php foreach ($kunci as $mk): $i++; ?>
-            <tr class="<?= $i === 1 ? 'mal-pertama' : '' ?>" data-baris>
-                <td class="col-pos">
-                    <?php if ($pisahMal || $mk !== 'x'): ?><span class="mal-lbl"><?= $labelMal[$mk] ?></span><?php endif; ?>
-                    <?php if ($i === 1): ?>
-                    <span data-nama><?= esc($p['nama']) ?></span>
-                    <?php if (empty($p['aktif'])): ?><span class="badge text-bg-secondary ms-1">nonaktif</span><?php endif; ?>
-                    <?php endif; ?>
-                </td>
-                <?php foreach ($BLN as $m => $n):
-                    $r = $grid[$pid][$mk][$m] ?? [];
-                    $tot = array_sum(array_column($r, 'j'));
-                    $inci = $berinci($r);
-                    $judul = $inci ? implode("\n", array_map(fn ($x) => ($x['k'] !== '' ? $x['k'] : '(tanpa keterangan)') . ': ' . number_format($x['j'], 0, ',', '.'), $r)) : '';
-                ?>
-                <td class="sel" data-pos="<?= $pid ?>" data-mal="<?= $mk ?>" data-bulan="<?= $m ?>"
-                    data-rinci="<?= esc(json_encode($r)) ?>" data-label="<?= esc($p['nama'] . ($pisahMal || $mk !== 'x' ? ' · ' . $labelMal[$mk] : '') . ' · ' . $BLN_PANJANG[$m] . ' ' . $tahun) ?>">
-                    <input type="text" inputmode="numeric" class="form-control form-control-sm angka <?= $inci ? 'berinci' : '' ?>"
-                           <?= ! $canEdit || $inci ? 'readonly' : '' ?> title="<?= esc($judul) ?>"
-                           value="<?= $tot ? number_format($tot, 0, ',', '.') : '' ?>"
-                           aria-label="<?= esc($p['nama']) ?> <?= $labelMal[$mk] ?> <?= $n ?>">
-                    <?php if ($canEdit || $inci): ?>
-                    <button type="button" class="btn-rinci <?= $inci ? 'ada' : '' ?>" title="Rincian per event / keterangan" aria-label="Rincian <?= esc($p['nama']) ?> <?= $n ?>">
-                        <i class="bi bi-list-ul"></i></button>
-                    <?php endif; ?>
-                </td>
-                <?php endforeach; ?>
-                <td class="tot" data-total>0</td>
-                <?php if ($canEdit): ?>
-                <td><button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" data-ratakan title="Samakan Feb–Des dengan angka Januari (sel berincian tidak diubah)">
-                    <i class="bi bi-arrow-right-square"></i></button></td>
+        <?php foreach ($posAktif as $p): $pid = (int) $p['id']; ?>
+        <tr data-baris>
+            <td class="col-pos">
+                <?= esc($p['nama']) ?>
+                <?php if (empty($p['aktif'])): ?><span class="badge text-bg-secondary ms-1">nonaktif</span><?php endif; ?>
+            </td>
+            <?php foreach ($BLN as $m => $n): foreach ($kolomMal as $j => $mk):
+                $r = $grid[$pid][$mk][$m] ?? [];
+                $tot = array_sum(array_column($r, 'j'));
+                $inci = $berinci($r);
+                $judul = $inci ? implode("\n", array_map(fn ($x) => ($x['k'] !== '' ? $x['k'] : '(tanpa keterangan)') . ': ' . number_format($x['j'], 0, ',', '.'), $r)) : '';
+                $lblMal = $nk > 1 || $mk !== 'x' ? ' · ' . $labelMal[$mk] : '';
+            ?>
+            <td class="sel <?= $j === 0 ? 'grp' : '' ?>" data-pos="<?= $pid ?>" data-mal="<?= $mk ?>" data-bulan="<?= $m ?>"
+                data-rinci="<?= esc(json_encode($r)) ?>" data-label="<?= esc($p['nama'] . $lblMal . ' · ' . $BLN_PANJANG[$m] . ' ' . $tahun) ?>">
+                <input type="text" inputmode="numeric" class="form-control form-control-sm angka <?= $inci ? 'berinci' : '' ?>"
+                       <?= ! $canEdit || $inci ? 'readonly' : '' ?> title="<?= esc($judul) ?>"
+                       value="<?= $tot ? number_format($tot, 0, ',', '.') : '' ?>"
+                       aria-label="<?= esc($p['nama'] . ' ' . $n . $lblMal) ?>">
+                <?php if ($canEdit || $inci): ?>
+                <button type="button" class="btn-rinci <?= $inci ? 'ada' : '' ?>" title="Rincian per event / keterangan" aria-label="Rincian <?= esc($p['nama'] . ' ' . $n . $lblMal) ?>">
+                    <i class="bi bi-list-ul"></i></button>
                 <?php endif; ?>
-            </tr>
-            <?php endforeach; ?>
+            </td>
+            <?php endforeach; endforeach; ?>
+            <?php if ($nk > 1): foreach ($kolomMal as $j => $mk): ?>
+            <td class="tot tot-mal <?= $j === 0 ? 'grp' : '' ?>" data-tmal="<?= $mk ?>">0</td>
+            <?php endforeach; endif; ?>
+            <td class="tot <?= $nk > 1 ? '' : 'grp' ?>" data-total>0</td>
+            <?php if ($canEdit): ?>
+            <td><button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" data-ratakan title="Samakan Feb–Des dengan Januari, per mal (sel berincian tidak diubah)">
+                <i class="bi bi-arrow-right-square"></i></button></td>
+            <?php endif; ?>
+        </tr>
         <?php endforeach; ?>
         </tbody>
         <tfoot><tr>
             <td class="col-pos text-start">Total</td>
-            <?php foreach ($BLN as $m => $n): ?><td data-tbulan="<?= $m ?>">0</td><?php endforeach; ?>
-            <td data-tgrand>0</td>
+            <?php foreach ($BLN as $m => $n): foreach ($kolomMal as $j => $mk): ?>
+            <td class="<?= $j === 0 ? 'grp' : '' ?>" data-tkol="<?= $m ?>-<?= $mk ?>">0</td>
+            <?php endforeach; endforeach; ?>
+            <?php if ($nk > 1): foreach ($kolomMal as $j => $mk): ?><td class="<?= $j === 0 ? 'grp' : '' ?>" data-tmalgrand="<?= $mk ?>">0</td><?php endforeach; endif; ?>
+            <td class="<?= $nk > 1 ? '' : 'grp' ?>" data-tgrand>0</td>
             <?php if ($canEdit): ?><td></td><?php endif; ?>
         </tr></tfoot>
     </table>
@@ -193,18 +207,25 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
         if (btn) btn.classList.toggle('ada', inci);
     }
 
+    // Total per baris (per mal + semua), per kolom bulan×mal, dan per mal.
     function hitung() {
-        const perBulan = {}; let grand = 0;
+        const perKolom = {}, perMal = {}; let grand = 0;
         form.querySelectorAll('tr[data-baris]').forEach(tr => {
-            let t = 0;
+            const baris = {}; let t = 0;
             tr.querySelectorAll('td.sel').forEach(td => {
-                const v = rinci(td).reduce((a, x) => a + x.j, 0); t += v;
-                perBulan[td.dataset.bulan] = (perBulan[td.dataset.bulan] || 0) + v;
+                const v = rinci(td).reduce((a, x) => a + x.j, 0), mk = td.dataset.mal;
+                t += v;
+                baris[mk] = (baris[mk] || 0) + v;
+                const k = td.dataset.bulan + '-' + mk;
+                perKolom[k] = (perKolom[k] || 0) + v;
+                perMal[mk] = (perMal[mk] || 0) + v;
             });
+            tr.querySelectorAll('[data-tmal]').forEach(td => td.textContent = fmt(baris[td.dataset.tmal] || 0));
             tr.querySelector('[data-total]').textContent = fmt(t);
             grand += t;
         });
-        form.querySelectorAll('[data-tbulan]').forEach(td => td.textContent = fmt(perBulan[td.dataset.tbulan] || 0));
+        form.querySelectorAll('[data-tkol]').forEach(td => td.textContent = fmt(perKolom[td.dataset.tkol] || 0));
+        form.querySelectorAll('[data-tmalgrand]').forEach(td => td.textContent = fmt(perMal[td.dataset.tmalgrand] || 0));
         form.querySelector('[data-tgrand]').textContent = fmt(grand);
     }
 
@@ -277,9 +298,14 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
     form.addEventListener('click', e => {
         const b = e.target.closest('[data-ratakan]');
         if (!b) return;
-        const sel = [...b.closest('tr').querySelectorAll('td.sel')];
-        const jan = rinci(sel[0]).reduce((a, x) => a + x.j, 0);
-        sel.slice(1).forEach(td => { if (!berinci(rinci(td))) tulisSel(td, jan ? [{k: '', j: jan}] : []); });
+        // Per mal: Januari eWalk → Feb–Des eWalk, Januari Penta → Feb–Des Penta.
+        const perMal = {};
+        b.closest('tr').querySelectorAll('td.sel').forEach(td => (perMal[td.dataset.mal] ??= []).push(td));
+        Object.values(perMal).forEach(sel => {
+            sel.sort((x, y) => x.dataset.bulan - y.dataset.bulan);
+            const jan = rinci(sel[0]).reduce((a, x) => a + x.j, 0);
+            sel.slice(1).forEach(td => { if (!berinci(rinci(td))) tulisSel(td, jan ? [{k: '', j: jan}] : []); });
+        });
         kotor = true; hitung();
     });
 

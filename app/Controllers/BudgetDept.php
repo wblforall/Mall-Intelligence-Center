@@ -144,21 +144,30 @@ class BudgetDept extends BaseController
             $sd = $tahun < (int) date('Y') ? 12 : ($tahun > (int) date('Y') ? 12 : (int) date('n'));
         }
 
+        $tampil = $this->request->getGet('tampil') === 'bulanan' ? 'bulanan' : 'ringkas';
+        // Per Bulan pada dept yang memisah mal: eWalk & Pentacity berdampingan
+        // tiap bulan (seperti Excel), jadi tak ada pilihan mal — gabungan + per mal.
+        if ($tampil === 'bulanan' && $ctx['pisahMal']) $mal = 'semua';
+
         $realModel = new BudgetRealisasiModel();
-        $rekap = BudgetRekap::susun(
+        $data = [
             (new BudgetPosModel())->milikDept($deptId),
             (new BudgetRencanaModel())->milikDept($deptId, $tahun),
             $realModel->untukRekap($deptId, $tahun),
             $realModel->totalTahun($deptId, $tahun - 1),
-            $mal,
-            $sd
-        );
+        ];
+        $rekap  = BudgetRekap::susun(...$data, ...[$mal, $sd]);
+        $perMal = [];
+        if ($tampil === 'bulanan' && $ctx['pisahMal']) {
+            foreach (array_keys(BudgetRekap::MAL) as $k) $perMal[$k] = BudgetRekap::susun(...$data, ...[$k, $sd]);
+        }
 
         return view('budget_dept/index', $ctx + [
             'rekap'  => $rekap,
+            'perMal' => $perMal,
             'mal'    => $mal,
             'sd'     => $sd,
-            'tampil' => $this->request->getGet('tampil') === 'bulanan' ? 'bulanan' : 'ringkas',
+            'tampil' => $tampil,
             'url'    => fn (string $p, array $q = []) => $this->url($p, $dept, $q),
         ]);
     }

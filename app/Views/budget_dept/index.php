@@ -46,7 +46,7 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
 
 <!-- Kendali -->
 <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-    <?php if ($pisahMal): ?>
+    <?php if ($pisahMal && ! $perMal): ?>
     <div class="btn-group btn-group-sm" role="group" aria-label="Mal">
         <?php foreach (['semua' => 'Gabungan'] + \App\Libraries\BudgetRekap::MAL as $k => $l): ?>
         <a href="<?= $url('', $q(['mal' => $k])) ?>" class="btn btn-outline-secondary <?= $mal === $k ? 'active' : '' ?>"><?= $l ?></a>
@@ -101,6 +101,12 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
     </div>
 </div>
 
+<?php if ($perMal && $perMal['ewalk']['tanpaMal'] > 0): ?>
+<div class="alert alert-warning small py-2">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    Ada Rp <?= rpb($perMal['ewalk']['tanpaMal'], false) ?> budget/realisasi tanpa mal: masuk Total <?= $tahun ?>, tapi tidak di kolom eWalk/Penta.
+</div>
+<?php endif; ?>
 <?php if ($rekap['tanpaMal'] > 0): ?>
 <div class="alert alert-warning small py-2">
     <i class="bi bi-exclamation-triangle me-1"></i>
@@ -158,6 +164,70 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
         <td><?= $t['pctSd'] !== null ? number_format($t['pctSd'], 0) . '%' : '' ?></td>
         <td class="text-end <?= $t['sisa'] < 0 ? 'bd-lewat' : '' ?>"><?= rpb($t['sisa'], false) ?></td>
         <td class="text-end text-muted"><?= rpb($t['lalu'], false) ?></td>
+    </tr></tfoot>
+</table>
+
+<?php elseif ($perMal): ?>
+<?php
+// Per Bulan, dept memisah mal: tiap bulan eWalk (budget, realisasi) | Penta (budget, realisasi).
+$MALS = \App\Libraries\BudgetRekap::MAL;
+$LBL  = ['ewalk' => 'eWalk', 'pentacity' => 'Penta'];
+$sel = function (array $s, string $mk, int $id, int $m, bool $awal) use ($url, $tahun) {
+    $judul = implode("\n", array_map(fn ($x) => $x['k'] . ': ' . number_format($x['j'], 0, ',', '.'), $s['ket']));
+    $h  = '<td class="text-end' . ($awal ? ' grp' : '') . '"' . ($judul ? ' title="' . esc($judul) . '"' : '') . '>';
+    $h .= ($s['ket'] ? '<i class="bi bi-list-ul bd-ada-rinci" aria-hidden="true"></i>' : '') . rpb($s['b']) . '</td>';
+    $h .= '<td class="text-end' . ($s['r'] > $s['b'] ? ' bd-lewat' : '') . '">';
+    $h .= $s['r'] != 0 && $id
+        ? '<a class="sel" href="' . $url('realisasi', ['tahun' => $tahun, 'bulan' => $m, 'pos' => $id]) . '">' . rpb($s['r']) . '</a>'
+        : rpb($s['r']);
+    return $h . '</td>';
+};
+?>
+<table class="table table-sm table-hover align-middle mb-0 bd-tabel">
+    <thead>
+        <tr>
+            <th class="col-pos" rowspan="2">Pos</th>
+            <?php foreach ($BLN as $m => $n): ?><th class="text-center grp" colspan="4"><?= $n ?></th><?php endforeach; ?>
+            <?php foreach ($MALS as $mk => $l): ?><th class="text-center grp" colspan="2">Total <?= $LBL[$mk] ?></th><?php endforeach; ?>
+            <th class="text-center grp" colspan="3">Total <?= $tahun ?></th>
+        </tr>
+        <tr>
+            <?php foreach ($BLN as $m => $n): foreach ($MALS as $mk => $l): ?>
+            <th class="text-end <?= $mk === 'ewalk' ? 'grp' : '' ?>"><?= $LBL[$mk] ?></th><th class="text-end">Real.</th>
+            <?php endforeach; endforeach; ?>
+            <?php foreach ($MALS as $mk => $l): ?><th class="text-end grp">Budget</th><th class="text-end">Real.</th><?php endforeach; ?>
+            <th class="text-end grp">Budget</th><th class="text-end">Real.</th><th class="text-end">Sisa</th>
+        </tr>
+    </thead>
+    <tbody>
+    <?php $no = 0; foreach ($rekap['baris'] as $id => $b): $no++; ?>
+    <tr>
+        <td class="col-pos"><span class="text-muted me-1"><?= $no ?>.</span><?= esc($b['pos']['nama']) ?></td>
+        <?php foreach ($BLN as $m => $n): foreach ($MALS as $mk => $l): ?>
+        <?= $sel($perMal[$mk]['baris'][$id]['bulan'][$m] ?? ['b' => 0, 'r' => 0, 'ket' => []], $mk, $id, $m, $mk === 'ewalk') ?>
+        <?php endforeach; endforeach; ?>
+        <?php foreach ($MALS as $mk => $l): $pm = $perMal[$mk]['baris'][$id] ?? ['budget' => 0, 'realisasi' => 0]; ?>
+        <td class="text-end grp"><?= rpb($pm['budget']) ?></td>
+        <td class="text-end <?= $pm['realisasi'] > $pm['budget'] ? 'bd-lewat' : '' ?>"><?= rpb($pm['realisasi']) ?></td>
+        <?php endforeach; ?>
+        <td class="text-end grp"><?= rpb($b['budget']) ?></td>
+        <td class="text-end <?= $b['realisasi'] > $b['budget'] ? 'bd-lewat' : '' ?>"><?= rpb($b['realisasi']) ?></td>
+        <td class="text-end <?= $b['sisa'] < 0 ? 'bd-lewat' : '' ?>"><?= rpb($b['sisa']) ?></td>
+    </tr>
+    <?php endforeach; ?>
+    </tbody>
+    <tfoot><tr>
+        <td class="col-pos">Total</td>
+        <?php foreach ($BLN as $m => $n): foreach ($MALS as $mk => $l): ?>
+        <?= $sel($perMal[$mk]['total']['bulan'][$m], $mk, 0, $m, $mk === 'ewalk') ?>
+        <?php endforeach; endforeach; ?>
+        <?php foreach ($MALS as $mk => $l): $pm = $perMal[$mk]['total']; ?>
+        <td class="text-end grp"><?= rpb($pm['budget'], false) ?></td>
+        <td class="text-end"><?= rpb($pm['realisasi'], false) ?></td>
+        <?php endforeach; ?>
+        <td class="text-end grp"><?= rpb($t['budget'], false) ?></td>
+        <td class="text-end"><?= rpb($t['realisasi'], false) ?></td>
+        <td class="text-end <?= $t['sisa'] < 0 ? 'bd-lewat' : '' ?>"><?= rpb($t['sisa'], false) ?></td>
     </tr></tfoot>
 </table>
 
