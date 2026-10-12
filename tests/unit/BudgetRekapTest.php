@@ -110,6 +110,20 @@ final class BudgetRekapTest extends CIUnitTestCase
         $this->assertEqualsWithDelta(10.0, $r['total']['budget'], 0.001);
     }
 
+    public function testKeteranganRincianHanyaMunculDiMalnyaSendiri(): void
+    {
+        $rencana = [
+            ['pos_id' => 1, 'bulan' => 1, 'mall' => 'pentacity', 'keterangan' => 'Culinary Festival', 'jumlah' => 15],
+            ['pos_id' => 1, 'bulan' => 1, 'mall' => 'both', 'keterangan' => 'Bersama', 'jumlah' => 10],
+        ];
+
+        $e = BudgetRekap::susun($this->pos, $rencana, [], [], 'ewalk', 12);
+        $p = BudgetRekap::susun($this->pos, $rencana, [], [], 'pentacity', 12);
+
+        $this->assertSame(['Bersama'], array_column($e['baris'][1]['bulan'][1]['ket'], 'k'));
+        $this->assertSame(['Culinary Festival', 'Bersama'], array_column($p['baris'][1]['bulan'][1]['ket'], 'k'));
+    }
+
     public function testRincianSelMembuangBarisKosongDanMembacaRupiah(): void
     {
         $out = BudgetRekap::rincianSel([

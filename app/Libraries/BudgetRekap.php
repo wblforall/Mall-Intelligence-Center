@@ -65,8 +65,10 @@ class BudgetRekap
             $baris[$id]['bulan'][$m]['b'] += $v;
             // Rincian berketerangan (mis. "Imlek", "Idul Fitri") untuk ditampilkan
             // di rekap; baris tanpa keterangan cukup masuk total.
+            // Hanya bila baris ini benar-benar masuk filter mal (porsi ≠ 0) — kalau
+            // tidak, keterangan event Pentacity ikut tampil di kolom eWalk.
             $ket = trim((string) ($r['keterangan'] ?? ''));
-            if ($ket !== '') {
+            if ($ket !== '' && $v != 0) {
                 $baris[$id]['bulan'][$m]['ket'][] = ['k' => $ket, 'j' => $v, 'mall' => $mall];
             }
         }
