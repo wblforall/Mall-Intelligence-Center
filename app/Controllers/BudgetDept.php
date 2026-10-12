@@ -27,11 +27,18 @@ class BudgetDept extends BaseController
     const MENU = 'budget_dept';
 
     /**
-     * Tahun pertama yang dicatat di modul ini. Modul dipakai mulai menyusun
-     * budget 2027 (keputusan 12 Okt 2026); tahun sebelumnya tidak dibuka
-     * agar tak ada angka yang nyasar ke tahun berjalan.
+     * Tahun pertama BAWAAN yang dicatat di modul ini. Modul dipakai mulai menyusun
+     * budget 2027 (keputusan 12 Okt 2026); tahun sebelumnya tidak dibuka agar tak
+     * ada angka yang nyasar ke tahun berjalan. Bisa dimajukan per dept lewat
+     * budget_dept_setting.tahun_mulai (mis. CCD melanjutkan 2026 dari Excel).
      */
     const TAHUN_MULAI = 2027;
+
+    /** Tahun mulai untuk dept ini (pengaturan dept, atau bawaan). */
+    private function tahunMulai(array $dept): int
+    {
+        return (new BudgetDeptSettingModel())->tahunMulai((int) $dept['id'], self::TAHUN_MULAI);
+    }
 
     private ?array $_terlihat = null;
 
@@ -106,16 +113,18 @@ class BudgetDept extends BaseController
             'canEdit'    => $this->bolehUbah($dept),
             'depts'      => count($this->deptTerlihat()) > 1 ? array_values($this->deptTerlihat()) : [],
             'deptSendiri' => (int) session()->get('dept_id'),
-            'years'      => (new BudgetRencanaModel())->tahunTersedia((int) $dept['id'], self::TAHUN_MULAI),
+            'years'      => (new BudgetRencanaModel())->tahunTersedia((int) $dept['id'], $this->tahunMulai($dept)),
+            'tahunMulai' => $this->tahunMulai($dept),
             'pisahMal'   => (new BudgetDeptSettingModel())->pisahMal((int) $dept['id']),
         ];
     }
 
-    private function tahun(): int
+    private function tahun(array $dept): int
     {
-        $bawaan = max((int) date('Y'), self::TAHUN_MULAI);
+        $mulai  = $this->tahunMulai($dept);
+        $bawaan = max((int) date('Y'), $mulai);
         $t = (int) ($this->request->getGetPost('tahun') ?: $bawaan);
-        return ($t >= self::TAHUN_MULAI && $t <= 2100) ? $t : $bawaan;
+        return ($t >= $mulai && $t <= 2100) ? $t : $bawaan;
     }
 
     private function url(string $path, array $dept, array $q = []): string
@@ -132,7 +141,7 @@ class BudgetDept extends BaseController
         $dept = $this->dept();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
-        $tahun  = $this->tahun();
+        $tahun  = $this->tahun($dept);
 
         $ctx = $this->konteks($dept, $tahun, 'rekap');
         $mal = $this->request->getGet('mal');
@@ -180,7 +189,7 @@ class BudgetDept extends BaseController
         $dept = $this->dept();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
-        $tahun  = $this->tahun();
+        $tahun  = $this->tahun($dept);
         $ctx    = $this->konteks($dept, $tahun, 'rencana');
 
         // grid[pos_id][mallKey][bulan] = [{k: keterangan, j: nilai}, ...] — mallKey 'x' = tanpa mal.
@@ -190,7 +199,7 @@ class BudgetDept extends BaseController
                 ['k' => (string) ($r['keterangan'] ?? ''), 'j' => (float) $r['jumlah']];
         }
 
-        $adaTahunLalu = $tahun - 1 >= self::TAHUN_MULAI && (new BudgetRencanaModel())->milikDept($deptId, $tahun - 1) !== [];
+        $adaTahunLalu = $tahun - 1 >= $this->tahunMulai($dept) && (new BudgetRencanaModel())->milikDept($deptId, $tahun - 1) !== [];
 
         // Siapa terakhir menyimpan budget dept ini — membantu saat beberapa orang mengisi.
         $terakhir = db_connect()->table('activity_logs')
@@ -212,7 +221,7 @@ class BudgetDept extends BaseController
         $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
-        $tahun  = $this->tahun();
+        $tahun  = $this->tahun($dept);
 
         $posSah = array_column((new BudgetPosModel())->milikDept($deptId), 'nama', 'id');
         $model  = new BudgetRencanaModel();
@@ -325,11 +334,11 @@ class BudgetDept extends BaseController
         $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
-        $tahun  = $this->tahun();
+        $tahun  = $this->tahun($dept);
         $model  = new BudgetRencanaModel();
         $back   = redirect()->to($this->url('rencana', $dept, ['tahun' => $tahun]));
 
-        if ($tahun - 1 < self::TAHUN_MULAI) return $back->with('error', 'Tidak ada tahun sebelumnya untuk disalin.');
+        if ($tahun - 1 < $this->tahunMulai($dept)) return $back->with('error', 'Tidak ada tahun sebelumnya untuk disalin.');
         if ($model->milikDept($deptId, $tahun) !== []) {
             return $back->with('error', 'Budget ' . $tahun . ' sudah berisi. Salin hanya bisa ke tahun yang masih kosong.');
         }
@@ -355,7 +364,7 @@ class BudgetDept extends BaseController
         $dept = $this->dept();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
-        $tahun  = $this->tahun();
+        $tahun  = $this->tahun($dept);
 
         $bulan = (int) $this->request->getGet('bulan');           // 0 = setahun
         if ($bulan < 0 || $bulan > 12) $bulan = 0;
@@ -406,7 +415,8 @@ class BudgetDept extends BaseController
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || ! strtotime($tanggal)) $salah[] = 'tanggal';
         if (! $nilai) $salah[] = 'nilai';
         if ($uraian === '') $salah[] = 'uraian';
-        if (preg_match('/^\d{4}/', $tanggal) && (int) substr($tanggal, 0, 4) < self::TAHUN_MULAI) $salah[] = 'tanggal (mulai ' . self::TAHUN_MULAI . ')';
+        $mulai = $this->tahunMulai($dept);
+        if (preg_match('/^\d{4}/', $tanggal) && (int) substr($tanggal, 0, 4) < $mulai) $salah[] = 'tanggal (mulai ' . $mulai . ')';
         if ($asal !== '' && ! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $asal)) $salah[] = 'periode asal';
         if ($pisah && ! isset(BudgetRekap::MAL_REALISASI[$mall])) $salah[] = 'mal';
         if ($salah) return $back->withInput()->with('error', 'Periksa isian: ' . implode(', ', $salah) . '.');
@@ -465,7 +475,7 @@ class BudgetDept extends BaseController
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
 
-        return view('budget_dept/pos', $this->konteks($dept, $this->tahun(), 'pos') + [
+        return view('budget_dept/pos', $this->konteks($dept, $this->tahun($dept), 'pos') + [
             'pos'   => (new BudgetPosModel())->milikDept($deptId),
             'jumlah'=> (new BudgetPosModel())->jumlahData($deptId),
             'url'   => fn (string $p, array $q = []) => $this->url($p, $dept, $q),

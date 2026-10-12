@@ -9,12 +9,19 @@ class BudgetDeptSettingModel extends Model
     protected $table         = 'budget_dept_setting';
     protected $primaryKey    = 'dept_id';
     protected $useAutoIncrement = false;
-    protected $allowedFields = ['dept_id', 'pisah_mal', 'updated_by', 'updated_at'];
+    protected $allowedFields = ['dept_id', 'pisah_mal', 'tahun_mulai', 'updated_by', 'updated_at'];
 
     public function pisahMal(int $deptId): bool
     {
         $r = $this->find($deptId);
         return (bool) ($r['pisah_mal'] ?? false);
+    }
+
+    /** Tahun pertama yang boleh dibuka dept ini; kosong = bawaan modul. */
+    public function tahunMulai(int $deptId, int $bawaan): int
+    {
+        $r = $this->find($deptId);
+        return ! empty($r['tahun_mulai']) ? (int) $r['tahun_mulai'] : $bawaan;
     }
 
     public function simpan(int $deptId, bool $pisahMal, ?int $userId): void
