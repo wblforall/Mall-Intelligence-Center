@@ -19,6 +19,8 @@
 .bd-grid thead tr.sub th { font-size:.66rem; font-weight:500; text-transform:none; letter-spacing:0; }
 .bd-grid .tot-mal { font-weight:500; color:var(--bs-secondary-color); }
 .bd-grid thead .col-pos, .bd-grid tfoot .col-pos { background-color:var(--card-bg) !important; background-image:linear-gradient(var(--card-bg),var(--card-bg)) !important; z-index:3; }
+.bd-rb tr.rb-awal td { border-top:2px solid var(--bs-border-color) !important; }
+.bd-rb td { font-variant-numeric:tabular-nums; }
 #mRinci .r-jml { text-align:right; font-variant-numeric:tabular-nums; }
 @media (hover:none) { .bd-grid .btn-rinci { opacity:1; } }
 </style>
@@ -150,14 +152,15 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
     <?php endif; ?>
 </div>
 
-<!-- Rincian budget per bulan — sumber datanya sama dengan sel grid di atas -->
+<!-- Pratinjau rincian budget — hanya baca; sumbernya sel grid di atas, ikut berubah saat grid diisi -->
 <div class="card mt-3" id="bd-rinci">
     <div class="card-header d-flex flex-wrap align-items-center gap-2">
         <h6 class="mb-0 fw-semibold">Rincian Budget — <span data-rb-judul></span> <?= $tahun ?></h6>
-        <span class="text-muted small">per event/keterangan; mengisi di sini langsung mengubah grid di atas</span>
+        <span class="text-muted small">pratinjau; isi lewat grid di atas (<i class="bi bi-list-ul"></i> untuk rincian per event)</span>
     </div>
     <div class="card-body pb-2">
         <div class="d-flex flex-wrap gap-1 mb-3" role="tablist" aria-label="Bulan">
+            <button type="button" class="btn btn-sm btn-outline-secondary rb-bln" data-rb-bulan="0" role="tab">Semua</button>
             <?php foreach ($BLN as $m => $n): ?>
             <button type="button" class="btn btn-sm btn-outline-secondary rb-bln" data-rb-bulan="<?= $m ?>" role="tab">
                 <?= $n ?> <span class="badge rounded-pill text-bg-secondary ms-1" data-rb-jml="<?= $m ?>" hidden></span>
@@ -167,27 +170,24 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
         <div class="table-responsive">
         <table class="table table-sm align-middle mb-2 bd-rb">
             <thead><tr>
-                <th style="min-width:200px">Pos</th>
+                <th data-rb-kol-bulan style="width:110px">Bulan</th>
+                <th style="min-width:220px">Pos</th>
                 <th style="min-width:220px">Keterangan / Event</th>
                 <?php foreach ($kolomMal as $mk): ?>
-                <th class="text-end" style="width:150px"><?= $nk > 1 || $mk !== 'x' ? $labelMal[$mk] : 'Budget' ?></th>
+                <th class="text-end" style="width:140px"><?= $nk > 1 || $mk !== 'x' ? $labelMal[$mk] : 'Budget' ?></th>
                 <?php endforeach; ?>
-                <?php if ($nk > 1): ?><th class="text-end" style="width:130px">Total</th><?php endif; ?>
-                <?php if ($canEdit): ?><th style="width:32px"></th><?php endif; ?>
+                <?php if ($nk > 1): ?><th class="text-end" style="width:140px">Total</th><?php endif; ?>
             </tr></thead>
             <tbody data-rb-baris></tbody>
             <tfoot><tr>
+                <td data-rb-kol-bulan></td>
                 <td colspan="2" class="fw-semibold">Total <span data-rb-judul></span></td>
                 <?php foreach ($kolomMal as $mk): ?><td class="text-end fw-bold" data-rb-tot="<?= $mk ?>">0</td><?php endforeach; ?>
                 <?php if ($nk > 1): ?><td class="text-end fw-bold" data-rb-tot="semua">0</td><?php endif; ?>
-                <?php if ($canEdit): ?><td></td><?php endif; ?>
             </tr></tfoot>
         </table>
         </div>
-        <p class="text-muted small mb-2" data-rb-kosong hidden>Belum ada budget di bulan ini.</p>
-        <?php if ($canEdit): ?>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-rb-tambah><i class="bi bi-plus-lg me-1"></i>Tambah rincian</button>
-        <?php endif; ?>
+        <p class="text-muted small mb-2" data-rb-kosong hidden>Belum ada budget.</p>
     </div>
 </div>
 </form>
@@ -268,11 +268,8 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
         form.querySelectorAll('[data-tkol]').forEach(td => td.textContent = fmt(perKolom[td.dataset.tkol] || 0));
         form.querySelectorAll('[data-tmalgrand]').forEach(td => td.textContent = fmt(perMal[td.dataset.tmalgrand] || 0));
         form.querySelector('[data-tgrand]').textContent = fmt(grand);
-        // Perubahan dari grid/jendela rincian → segarkan panel bawah (kecuali
-        // perubahan itu datang dari panel sendiri: fokus ketikan jangan hilang).
-        if (!rbSibuk) rbRender();
+        rbRender();   // pratinjau rincian di bawah ikut berubah
     }
-    var rbSibuk = false;
 
     let kotor = false;
     // Ketik langsung di sel biasa → satu baris tanpa keterangan.
@@ -354,19 +351,18 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
         kotor = true; hitung();
     });
 
-    // ── Panel Rincian Budget per bulan (di bawah grid) ──
-    // Sumber data = sel grid (dataset.rinci). Panel hanya cara lain melihat &
-    // mengisi satu bulan: baris = pos + keterangan, kolom = mal.
+    // ── Pratinjau Rincian Budget (di bawah grid, hanya baca) ──
+    // Dibangun dari sel grid (dataset.rinci) sehingga selalu sama dengan isian.
     const rb = document.getElementById('bd-rinci');
     const rbBody = rb.querySelector('[data-rb-baris]');
     const BULAN = <?= json_encode($BLN_PANJANG) ?>;
     const MALS = [...new Set([...form.querySelectorAll('td.sel[data-bulan="1"]')].map(td => td.dataset.mal))];
     const POS = [...form.querySelectorAll('tr[data-baris]')].map(tr => ({id: tr.dataset.pos, nama: tr.dataset.nama}));
     const selOf = (pos, mk, m) => form.querySelector(`td.sel[data-pos="${pos}"][data-mal="${mk}"][data-bulan="${m}"]`);
-    let rbBulan = <?= (int) $tahun === (int) date('Y') ? (int) date('n') : 1 ?>;
+    let rbBulan = 0;   // 0 = semua bulan
 
-    // Grid → baris panel: rincian eWalk & Penta berketerangan sama digabung satu baris.
-    function rbBarisDariGrid(m) {
+    // Rincian eWalk & Penta berketerangan sama digabung satu baris.
+    function rbBarisBulan(m) {
         const out = [];
         POS.forEach(p => {
             const grup = new Map();
@@ -375,7 +371,7 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
                 rinci(selOf(p.id, mk, m)).forEach(x => {
                     ke[x.k] = (ke[x.k] || 0) + 1;
                     const kunci = x.k + '\u0000' + ke[x.k];
-                    if (!grup.has(kunci)) grup.set(kunci, {pos: p.id, k: x.k, j: {}});
+                    if (!grup.has(kunci)) grup.set(kunci, {m, nama: p.nama, k: x.k, j: {}});
                     grup.get(kunci).j[mk] = x.j;
                 });
             });
@@ -383,72 +379,36 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
         });
         return out;
     }
-    function rbTr(r) {
-        const tr = document.createElement('tr');
-        const opsi = POS.map(p => `<option value="${p.id}" ${p.id === r.pos ? 'selected' : ''}>${esc(p.nama)}</option>`).join('');
-        tr.innerHTML = `<td><select class="form-select form-select-sm rb-pos" aria-label="Pos" ${BISA ? '' : 'disabled'}>${opsi}</select></td>
-            <td><input type="text" class="form-control form-control-sm rb-ket" maxlength="200" placeholder="mis. Imlek" aria-label="Keterangan" value="${esc(r.k)}" ${BISA ? '' : 'readonly'}></td>
-            ${MALS.map(mk => `<td><input type="text" inputmode="numeric" class="form-control form-control-sm text-end rb-jml" data-mal="${mk}" aria-label="Budget ${mk}" value="${r.j[mk] ? fmt(r.j[mk]) : ''}" ${BISA ? '' : 'readonly'}></td>`).join('')}
-            ${MALS.length > 1 ? '<td class="text-end fw-semibold" data-rb-rtot>0</td>' : ''}
-            ${BISA ? '<td><button type="button" class="btn btn-sm btn-link p-0 text-danger" data-rb-hapus title="Hapus rincian" aria-label="Hapus rincian"><i class="bi bi-x-lg"></i></button></td>' : ''}`;
-        return tr;
-    }
-    function rbTotal() {
-        const tot = {}; let semua = 0, isi = 0;
-        rbBody.querySelectorAll('tr').forEach(tr => {
-            let t = 0;
-            tr.querySelectorAll('.rb-jml').forEach(i => { const v = baca(i.value); t += v; tot[i.dataset.mal] = (tot[i.dataset.mal] || 0) + v; });
-            const c = tr.querySelector('[data-rb-rtot]'); if (c) c.textContent = fmt(t);
-            semua += t; if (t > 0) isi++;
-        });
-        rb.querySelectorAll('[data-rb-tot]').forEach(td => td.textContent = fmt(td.dataset.rbTot === 'semua' ? semua : (tot[td.dataset.rbTot] || 0)));
-        const b = rb.querySelector(`[data-rb-jml="${rbBulan}"]`); b.textContent = isi; b.hidden = !isi;
-    }
     function rbRender() {
-        const baris = rbBarisDariGrid(rbBulan);
-        rbBody.innerHTML = '';
-        baris.forEach(r => rbBody.appendChild(rbTr(r)));
+        const semua = rbBulan === 0;
+        const baris = semua ? Object.keys(BULAN).flatMap(m => rbBarisBulan(+m)) : rbBarisBulan(rbBulan);
+        const tot = {}; let total = 0;
+        rbBody.innerHTML = baris.map((r, i) => {
+            const t = MALS.reduce((a, mk) => a + (r.j[mk] || 0), 0);
+            total += t; MALS.forEach(mk => tot[mk] = (tot[mk] || 0) + (r.j[mk] || 0));
+            const awalBulan = semua && (i === 0 || baris[i - 1].m !== r.m);
+            return `<tr class="${awalBulan && i ? 'rb-awal' : ''}">
+                ${semua ? `<td class="text-muted">${awalBulan ? BULAN[r.m] : ''}</td>` : ''}
+                <td>${esc(r.nama)}</td>
+                <td>${r.k ? esc(r.k) : '<span class="text-body-tertiary">–</span>'}</td>
+                ${MALS.map(mk => `<td class="text-end">${r.j[mk] ? fmt(r.j[mk]) : '<span class="text-body-tertiary">–</span>'}</td>`).join('')}
+                ${MALS.length > 1 ? `<td class="text-end fw-semibold">${fmt(t)}</td>` : ''}
+            </tr>`;
+        }).join('');
+        rb.querySelectorAll('[data-rb-tot]').forEach(td => td.textContent = fmt(td.dataset.rbTot === 'semua' ? total : (tot[td.dataset.rbTot] || 0)));
+        rb.querySelectorAll('[data-rb-kol-bulan]').forEach(el => el.hidden = !semua);
         rb.querySelector('[data-rb-kosong]').hidden = baris.length > 0;
-        rb.querySelectorAll('[data-rb-judul]').forEach(s => s.textContent = BULAN[rbBulan]);
+        rb.querySelectorAll('[data-rb-judul]').forEach(s => s.textContent = semua ? 'Setahun' : BULAN[rbBulan]);
         rb.querySelectorAll('.rb-bln').forEach(b => {
             const on = +b.dataset.rbBulan === rbBulan;
             b.classList.toggle('active', on); b.setAttribute('aria-selected', on);
         });
-        rb.querySelectorAll('[data-rb-jml]').forEach(s => { const n = rbBarisDariGrid(+s.dataset.rbJml).length; s.textContent = n; s.hidden = !n; });
-        rbTotal();
+        rb.querySelectorAll('[data-rb-jml]').forEach(s => { const n = rbBarisBulan(+s.dataset.rbJml).length; s.textContent = n; s.hidden = !n; });
     }
-    // Panel → grid: tulis ulang semua sel bulan ini dari baris panel.
-    function rbTulis() {
-        const per = {};
-        rbBody.querySelectorAll('tr').forEach(tr => {
-            const pos = tr.querySelector('.rb-pos').value, k = tr.querySelector('.rb-ket').value.trim();
-            tr.querySelectorAll('.rb-jml').forEach(i => {
-                const v = baca(i.value);
-                if (v > 0) ((per[pos] ??= {})[i.dataset.mal] ??= []).push({k, j: v});
-            });
-        });
-        POS.forEach(p => MALS.forEach(mk => tulisSel(selOf(p.id, mk, rbBulan), per[p.id]?.[mk] || [])));
-        kotor = true; rbSibuk = true; hitung(); rbSibuk = false; rbTotal();
-    }
-    rb.addEventListener('input', e => { if (e.target.matches('.rb-ket, .rb-jml')) rbTulis(); });
-    rb.addEventListener('change', e => { if (e.target.matches('.rb-pos')) rbTulis(); });
-    rb.addEventListener('focusout', e => { if (e.target.matches('.rb-jml')) { const v = baca(e.target.value); e.target.value = v ? fmt(v) : ''; } });
-    // Enter di panel jangan mengirim form.
-    rb.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input')) e.preventDefault(); });
     rb.addEventListener('click', e => {
         const b = e.target.closest('.rb-bln');
-        if (b) { rbBulan = +b.dataset.rbBulan; rbRender(); return; }
-        if (e.target.closest('[data-rb-tambah]')) {
-            const tr = rbTr({pos: POS[0].id, k: '', j: {}});
-            rbBody.appendChild(tr);
-            rb.querySelector('[data-rb-kosong]').hidden = true;
-            tr.querySelector('.rb-ket').focus();
-            return;
-        }
-        const h = e.target.closest('[data-rb-hapus]');
-        if (h) { h.closest('tr').remove(); rbTulis(); }
+        if (b) { rbBulan = +b.dataset.rbBulan; rbRender(); }
     });
-
     form.addEventListener('submit', () => {
         const data = {};
         form.querySelectorAll('td.sel').forEach(td => {
