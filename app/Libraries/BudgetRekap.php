@@ -143,6 +143,24 @@ class BudgetRekap
         return $out;
     }
 
+    /**
+     * Keputusan simpan satu sel saat beberapa orang mengisi bersamaan.
+     *
+     * @param array      $baru     isian pengirim (sudah lewat rincianSel)
+     * @param array|null $asli     isi sel saat halaman pengirim dibuka; null = klien lama (tanpa info asli)
+     * @param array      $sekarang isi sel di DB saat ini
+     * @return 'lewati'|'tulis'|'bentrok'
+     *  - lewati : isian sama dengan DB (tak ada yang perlu ditulis)
+     *  - tulis  : sel di DB belum diubah orang lain sejak halaman dibuka
+     *  - bentrok: orang lain sudah mengubah sel ini → jangan ditimpa diam-diam
+     */
+    public static function putusanSel(array $baru, ?array $asli, array $sekarang): string
+    {
+        if ($baru == $sekarang) return 'lewati';
+        if ($asli === null || $asli == $sekarang) return 'tulis';
+        return 'bentrok';
+    }
+
     /** "1.250.000" / "Rp 1.250.000" / "1250000" → 1250000.0; tanda minus ditolak. */
     public static function angka(?string $teks): ?float
     {

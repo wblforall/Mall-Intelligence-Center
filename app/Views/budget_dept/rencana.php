@@ -70,6 +70,10 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
     <div class="card-header d-flex flex-wrap align-items-center gap-2">
         <h6 class="mb-0 fw-semibold">Budget per bulan — <?= $tahun ?></h6>
         <span class="text-muted small">Isi dalam Rupiah. <i class="bi bi-list-ul"></i> = pecah satu bulan per event/keterangan.</span>
+        <?php if (! empty($terakhir)): ?>
+        <span class="small text-muted"><i class="bi bi-clock-history me-1"></i>Terakhir disimpan
+            <strong><?= esc($terakhir['user_name']) ?></strong>, <?= date('d/m H:i', strtotime($terakhir['created_at'])) ?></span>
+        <?php endif; ?>
         <?php if ($canEdit): ?>
         <button type="submit" class="btn btn-sm btn-primary ms-auto"><i class="bi bi-floppy me-1"></i>Simpan</button>
         <?php endif; ?>
@@ -108,7 +112,7 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
                 $lblMal = $nk > 1 || $mk !== 'x' ? ' · ' . $labelMal[$mk] : '';
             ?>
             <td class="sel <?= $j === 0 ? 'grp' : '' ?>" data-pos="<?= $pid ?>" data-mal="<?= $mk ?>" data-bulan="<?= $m ?>"
-                data-rinci="<?= esc(json_encode($r)) ?>" data-label="<?= esc($p['nama'] . $lblMal . ' · ' . $BLN_PANJANG[$m] . ' ' . $tahun) ?>">
+                data-rinci="<?= esc(json_encode($r)) ?>" data-asli="<?= esc(json_encode($r)) ?>" data-label="<?= esc($p['nama'] . $lblMal . ' · ' . $BLN_PANJANG[$m] . ' ' . $tahun) ?>">
                 <input type="text" inputmode="numeric" class="form-control form-control-sm angka <?= $inci ? 'berinci' : '' ?>"
                        <?= ! $canEdit || $inci ? 'readonly' : '' ?> title="<?= esc($judul) ?>"
                        value="<?= $tot ? number_format($tot, 0, ',', '.') : '' ?>"
@@ -409,11 +413,16 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
         const b = e.target.closest('.rb-bln');
         if (b) { rbBulan = +b.dataset.rbBulan; rbRender(); }
     });
+    // Kirim HANYA sel yang diubah, beserta isinya saat halaman dibuka (asli):
+    // server menolak menimpa sel yang sudah diubah orang lain sejak itu.
+    const sama = (a, b) => JSON.stringify(a.map(x => [x.k, +x.j])) === JSON.stringify(b.map(x => [x.k, +x.j]));
     form.addEventListener('submit', () => {
         const data = {};
         form.querySelectorAll('td.sel').forEach(td => {
+            const baru = rinci(td), asli = JSON.parse(td.dataset.asli || '[]');
+            if (sama(baru, asli)) return;
             const p = td.dataset.pos, mk = td.dataset.mal;
-            ((data[p] ??= {})[mk] ??= {})[td.dataset.bulan] = rinci(td);
+            ((data[p] ??= {})[mk] ??= {})[td.dataset.bulan] = {baru, asli};
         });
         form.elements['data'].value = JSON.stringify(data);
         kotor = false;

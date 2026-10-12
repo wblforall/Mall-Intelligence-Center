@@ -192,7 +192,14 @@ class BudgetDept extends BaseController
 
         $adaTahunLalu = $tahun - 1 >= self::TAHUN_MULAI && (new BudgetRencanaModel())->milikDept($deptId, $tahun - 1) !== [];
 
+        // Siapa terakhir menyimpan budget dept ini — membantu saat beberapa orang mengisi.
+        $terakhir = db_connect()->table('activity_logs')
+            ->select('user_name, created_at')
+            ->where('module', 'budget_rencana')->where('target_label', 'Budget ' . $dept['name'] . ' ' . $tahun)
+            ->orderBy('id', 'DESC')->limit(1)->get()->getRowArray();
+
         return view('budget_dept/rencana', $ctx + [
+            'terakhir'     => $terakhir,
             'pos'          => (new BudgetPosModel())->milikDept($deptId),
             'grid'         => $grid,
             'adaTahunLalu' => $adaTahunLalu,
@@ -229,6 +236,28 @@ class BudgetDept extends BaseController
                 ['keterangan' => $r['keterangan'] ?? null, 'jumlah' => round((float) $r['jumlah'], 2)];
         }
 
+        // Beberapa orang bisa mengisi bersamaan. Klien mengirim HANYA sel yang ia
+        // ubah, masing-masing {baru, asli} (asli = isi sel saat halamannya dibuka).
+        // Sel yang sudah diubah orang lain sejak itu TIDAK ditimpa — dilaporkan
+        // sebagai bentrok. (12 Okt 2026: halaman lama Nancy menimpa isian Affan.)
+        // Halaman yang dibuka sebelum pembaruan ini mengirim SELURUH grid tanpa info
+        // "asli" — justru pola yang menimpa isian orang lain. Tolak, minta muat ulang.
+        foreach ($isian as $perMal) {
+            foreach ((array) $perMal as $perBulan) {
+                foreach ((array) $perBulan as $sel) {
+                    if (is_array($sel) && ! array_key_exists('baru', $sel)) {
+                        return redirect()->to($this->url('rencana', $dept, ['tahun' => $tahun]))->with('error',
+                            'Halaman Anda versi lama dan bisa menimpa isian orang lain, jadi TIDAK disimpan. Halaman sudah dimuat ulang dengan angka terbaru — silakan isi ulang perubahan Anda.');
+                    }
+                    break 3;
+                }
+            }
+        }
+
+        $BLN = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        $ditulis = 0;
+        $bentrok = [];
+
         $db = db_connect();
         $db->transStart();
         foreach ($isian as $posId => $perMal) {
@@ -239,25 +268,44 @@ class BudgetDept extends BaseController
                 if (! is_array($perBulan)) continue;
                 foreach ($perBulan as $bulan => $sel) {
                     $bulan = (int) $bulan;
-                    if ($bulan < 1 || $bulan > 12) continue;
-                    $baru = BudgetRekap::rincianSel($sel);
-                    if ($baru == ($lama[(int) $posId][$mall][$bulan] ?? [])) continue;
+                    if ($bulan < 1 || $bulan > 12 || ! is_array($sel)) continue;
+                    // Format baru {baru, asli}; format lama (daftar rincian) dari halaman
+                    // yang dibuka sebelum pembaruan ini → tanpa info asli.
+                    $formatBaru = array_key_exists('baru', $sel);
+                    $baru = BudgetRekap::rincianSel($formatBaru ? $sel['baru'] : $sel);
+                    $asli = $formatBaru ? BudgetRekap::rincianSel($sel['asli'] ?? []) : null;
+                    $sekarang = $lama[(int) $posId][$mall][$bulan] ?? [];
+
+                    $putusan = BudgetRekap::putusanSel($baru, $asli, $sekarang);
+                    if ($putusan === 'lewati') continue;
+                    if ($putusan === 'bentrok') {
+                        $bentrok[] = $posSah[(int) $posId] . ' · ' . ($mall === '' ? 'tanpa mal' : BudgetRekap::MAL[$mall]) . ' · ' . $BLN[$bulan];
+                        continue;
+                    }
 
                     $kunci = ['pos_id' => (int) $posId, 'tahun' => $tahun, 'bulan' => $bulan, 'mall' => $mall];
                     $model->where($kunci)->delete();
                     foreach ($baru as $i => $b) {
                         $model->insert($kunci + $b + ['urutan' => $i, 'updated_at' => $now]);
                     }
+                    $ditulis++;
                 }
             }
         }
         $db->transComplete();
 
-        ActivityLog::captureBefore($sebelum);
-        ActivityLog::captureAfter($this->petaRencana($model->milikDept($deptId, $tahun), $posSah));
-        ActivityLog::write('update', 'budget_rencana', (string) $tahun, 'Budget ' . $dept['name'] . ' ' . $tahun);
-
-        return redirect()->to($this->url('rencana', $dept, ['tahun' => $tahun]))->with('success', 'Budget ' . $tahun . ' disimpan.');
+        $kembali = redirect()->to($this->url('rencana', $dept, ['tahun' => $tahun]));
+        if ($ditulis > 0) {
+            ActivityLog::captureBefore($sebelum);
+            ActivityLog::captureAfter($this->petaRencana($model->milikDept($deptId, $tahun), $posSah));
+            ActivityLog::write('update', 'budget_rencana', (string) $tahun, 'Budget ' . $dept['name'] . ' ' . $tahun, ['sel_diubah' => $ditulis, 'bentrok' => $bentrok]);
+        }
+        if ($bentrok) {
+            $daftar = implode('; ', array_slice($bentrok, 0, 8)) . (count($bentrok) > 8 ? '; dan ' . (count($bentrok) - 8) . ' lainnya' : '');
+            return $kembali->with('warning', $ditulis . ' sel disimpan. ' . count($bentrok) . ' sel TIDAK disimpan karena sudah diubah orang lain sejak halaman Anda dibuka: '
+                . esc($daftar) . '. Angka terbaru sudah tampil di bawah — periksa lalu isi ulang bila perlu.');
+        }
+        return $kembali->with('success', $ditulis ? 'Budget ' . $tahun . ' disimpan (' . $ditulis . ' sel diubah).' : 'Tidak ada perubahan untuk disimpan.');
     }
 
     /** Ringkasan per pos untuk diff log: "Nama pos" => "Rp total setahun". */

@@ -125,6 +125,24 @@ final class BudgetRekapTest extends CIUnitTestCase
         $this->assertSame([], BudgetRekap::rincianSel('bukan array'));
     }
 
+    public function testPutusanSelSaatBeberapaOrangMengisi(): void
+    {
+        $a = [['keterangan' => 'Imlek', 'jumlah' => 5.0]];
+        $b = [['keterangan' => 'Imlek', 'jumlah' => 7.0]];
+        $c = [['keterangan' => 'Imlek', 'jumlah' => 9.0]];
+
+        // Tak ada yang mengubah sel ini sejak dibuka → tulis.
+        $this->assertSame('tulis', BudgetRekap::putusanSel($b, $a, $a));
+        // Orang lain sudah mengubahnya (a → c) → jangan timpa.
+        $this->assertSame('bentrok', BudgetRekap::putusanSel($b, $a, $c));
+        // Keduanya mengisi angka yang sama → tak perlu ditulis, bukan bentrok.
+        $this->assertSame('lewati', BudgetRekap::putusanSel($c, $a, $c));
+        // Sel kosong diisi, padahal orang lain sudah mengisinya duluan → bentrok.
+        $this->assertSame('bentrok', BudgetRekap::putusanSel($b, [], $a));
+        // Klien lama tanpa info "asli" → perilaku lama (tulis).
+        $this->assertSame('tulis', BudgetRekap::putusanSel($b, null, $c));
+    }
+
     public function testAngkaMembacaFormatRupiah(): void
     {
         $this->assertSame(1250000.0, BudgetRekap::angka('Rp 1.250.000'));
