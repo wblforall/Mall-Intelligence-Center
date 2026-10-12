@@ -13,26 +13,73 @@ use App\Models\DepartmentModel;
 /**
  * Budget Departemen — catatan internal budget & realisasi per departemen.
  *
- * Tiap pengguna hanya melihat & mengisi departemennya sendiri; admin boleh
- * memilih departemen lewat ?dept=. Tidak ada alur persetujuan: ini buku
- * catatan dept, bukan anggaran resmi (itu rencana modul Keuangan WBL One).
+ * Siapa melihat apa:
+ * - staf / dept head : departemennya sendiri (lihat & isi)
+ * - Deputy GM        : semua dept di divisinya (lihat saja) — Deputy tak punya dept
+ * - GM               : semua dept (lihat saja)
+ * - admin            : semua dept (lihat & isi)
+ * Mengisi selalu hanya untuk dept sendiri (atau admin): ini buku catatan
+ * dept, bukan anggaran resmi (itu rencana modul Keuangan WBL One).
+ * Tetap butuh hak menu budget_dept — Deputy/GM tanpa dept memakai grant per orang.
  */
 class BudgetDept extends BaseController
 {
     const MENU = 'budget_dept';
 
-    /** Departemen yang sedang dibuka — admin dari ?dept=, selain itu dept sesi. */
+    private ?array $_terlihat = null;
+
+    /** [dept_id => dept] yang boleh DILIHAT pengguna ini, urut divisi lalu nama. */
+    private function deptTerlihat(): array
+    {
+        if ($this->_terlihat !== null) return $this->_terlihat;
+        $semua = array_column((new DepartmentModel())->selectable(), null, 'id');
+
+        if ($this->isAdmin()) return $this->_terlihat = $semua;
+
+        $userId = (int) session()->get('user_id');
+        $emp = db_connect()->table('employees e')
+            ->select('e.division_id, j.grade, j.nama AS jabatan')
+            ->join('jabatans j', 'j.id = e.jabatan_id', 'left')
+            ->where('e.user_id', $userId)->where('e.status', 'aktif')
+            ->get()->getRowArray();
+
+        $out = [];
+        if ($emp && str_contains(strtolower((string) $emp['jabatan']), 'general manager')) {
+            $out = $semua;                                          // GM: lintas divisi
+        } elseif ($emp && (int) $emp['grade'] === 3 && ! empty($emp['division_id'])) {
+            foreach ($semua as $id => $d) {                         // Deputy: satu divisi
+                if ((int) $d['division_id'] === (int) $emp['division_id']) $out[$id] = $d;
+            }
+        }
+        $sendiri = (int) session()->get('dept_id');
+        if ($sendiri && isset($semua[$sendiri])) $out = [$sendiri => $semua[$sendiri]] + $out;
+
+        return $this->_terlihat = $out;
+    }
+
+    /** Departemen yang sedang dibuka — ?dept= bila termasuk yang boleh dilihat, selain itu dept sendiri. */
     private function dept(): ?array
     {
-        $deptModel = new DepartmentModel();
-        if ($this->isAdmin()) {
-            $id = (int) ($this->request->getGetPost('dept') ?: session()->get('dept_id'));
-            $dept = $id ? $deptModel->find($id) : null;
-            if (! $dept) $dept = $deptModel->selectable()[0] ?? null;
-            return $dept;
-        }
-        $id = (int) session()->get('dept_id');
-        return $id ? $deptModel->find($id) : null;
+        $daftar = $this->deptTerlihat();
+        $id = (int) $this->request->getGetPost('dept');
+        if ($id && isset($daftar[$id])) return $daftar[$id];
+        $sendiri = (int) session()->get('dept_id');
+        if ($sendiri && isset($daftar[$sendiri])) return $daftar[$sendiri];
+        return $daftar ? reset($daftar) : null;
+    }
+
+    /** Boleh mengisi dept ini? Hanya dept sendiri, atau admin. */
+    private function bolehUbah(array $dept): bool
+    {
+        if (! $this->canEditMenu(self::MENU)) return false;
+        return $this->isAdmin() || (int) $dept['id'] === (int) session()->get('dept_id');
+    }
+
+    /** Dept untuk aksi tulis — null bila tak boleh mengisinya. */
+    private function deptUntukUbah(): ?array
+    {
+        $dept = $this->dept();
+        return $dept && $this->bolehUbah($dept) ? $dept : null;
     }
 
     private function tolak()
@@ -49,8 +96,9 @@ class BudgetDept extends BaseController
             'tahun'      => $tahun,
             'tab'        => $tab,
             'isAdmin'    => $this->isAdmin(),
-            'canEdit'    => $this->canEditMenu(self::MENU),
-            'depts'      => $this->isAdmin() ? (new DepartmentModel())->selectable() : [],
+            'canEdit'    => $this->bolehUbah($dept),
+            'depts'      => count($this->deptTerlihat()) > 1 ? array_values($this->deptTerlihat()) : [],
+            'deptSendiri' => (int) session()->get('dept_id'),
             'years'      => (new BudgetRencanaModel())->tahunTersedia((int) $dept['id']),
             'pisahMal'   => (new BudgetDeptSettingModel())->pisahMal((int) $dept['id']),
         ];
@@ -64,7 +112,7 @@ class BudgetDept extends BaseController
 
     private function url(string $path, array $dept, array $q = []): string
     {
-        if ($this->isAdmin()) $q = ['dept' => $dept['id']] + $q;
+        if (count($this->deptTerlihat()) > 1) $q = ['dept' => $dept['id']] + $q;
         return base_url('budget-dept' . ($path ? '/' . $path : '')) . ($q ? '?' . http_build_query($q) : '');
     }
 
@@ -137,8 +185,7 @@ class BudgetDept extends BaseController
 
     public function simpanRencana()
     {
-        if (! $this->canEditMenu(self::MENU)) return $this->tolak();
-        $dept = $this->dept();
+        $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
         $tahun  = $this->tahun();
@@ -210,8 +257,7 @@ class BudgetDept extends BaseController
 
     public function salinRencana()
     {
-        if (! $this->canEditMenu(self::MENU)) return $this->tolak();
-        $dept = $this->dept();
+        $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
         $tahun  = $this->tahun();
@@ -266,8 +312,7 @@ class BudgetDept extends BaseController
 
     public function simpanRealisasi()
     {
-        if (! $this->canEditMenu(self::MENU)) return $this->tolak();
-        $dept = $this->dept();
+        $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
         $p      = $this->request->getPost();
@@ -330,8 +375,7 @@ class BudgetDept extends BaseController
 
     public function hapusRealisasi(int $id)
     {
-        if (! $this->canEditMenu(self::MENU)) return $this->tolak();
-        $dept = $this->dept();
+        $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $model = new BudgetRealisasiModel();
         $row = $model->where('id', $id)->where('dept_id', (int) $dept['id'])->first();
@@ -363,8 +407,7 @@ class BudgetDept extends BaseController
 
     public function simpanPos()
     {
-        if (! $this->canEditMenu(self::MENU)) return $this->tolak();
-        $dept = $this->dept();
+        $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $deptId = (int) $dept['id'];
         $model  = new BudgetPosModel();
@@ -399,8 +442,7 @@ class BudgetDept extends BaseController
 
     public function urutPos()
     {
-        if (! $this->canEditMenu(self::MENU)) return $this->tolak();
-        $dept = $this->dept();
+        $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $model = new BudgetPosModel();
         $sah   = array_column($model->milikDept((int) $dept['id']), 'id', 'id');
@@ -412,8 +454,7 @@ class BudgetDept extends BaseController
 
     public function hapusPos(int $id)
     {
-        if (! $this->canEditMenu(self::MENU)) return $this->tolak();
-        $dept = $this->dept();
+        $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $model = new BudgetPosModel();
         $back  = redirect()->to($this->url('pos', $dept));
@@ -433,8 +474,7 @@ class BudgetDept extends BaseController
 
     public function simpanSetting()
     {
-        if (! $this->canEditMenu(self::MENU)) return $this->tolak();
-        $dept = $this->dept();
+        $dept = $this->deptUntukUbah();
         if (! $dept) return $this->tolak();
         $pisah = (bool) $this->request->getPost('pisah_mal');
         $model = new BudgetDeptSettingModel();

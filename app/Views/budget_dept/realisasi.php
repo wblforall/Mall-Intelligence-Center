@@ -28,7 +28,7 @@ $fmtAsal = function (?string $ym) use ($BLN) {
 ?>
 
 <form method="GET" class="row g-2 align-items-end mb-3">
-    <?php if ($isAdmin): ?><input type="hidden" name="dept" value="<?= $dept['id'] ?>"><?php endif; ?>
+    <?php if ($depts): ?><input type="hidden" name="dept" value="<?= $dept['id'] ?>"><?php endif; ?>
     <input type="hidden" name="tahun" value="<?= $tahun ?>">
     <div class="col-6 col-md-2">
         <label class="form-label small mb-1" for="f-bulan">Bulan</label>

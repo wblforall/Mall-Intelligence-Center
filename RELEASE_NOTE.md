@@ -27,7 +27,13 @@ persetujuan dan belum terhubung ke akun Accurate.
 
 - Menu **Budget → Budget Departemen**, diatur lewat hak menu *Budget Departemen* per departemen
   atau per orang.
-- Pengguna hanya melihat dan mengisi departemennya sendiri. Admin bisa memilih departemen.
+- Staf dan Dept Head hanya melihat dan mengisi departemennya sendiri.
+- **Deputy GM** melihat semua departemen di divisinya, **GM** melihat semua departemen. Keduanya
+  hanya melihat (ditandai "hanya lihat"). Mengisi tetap oleh departemen masing-masing.
+- Admin bisa memilih dan mengisi semua departemen.
+- Deputy dan GM tidak punya departemen, jadi hak menu diberikan per orang.
+- Departemen yang belum punya divisi di master data (saat ini Finance & Accounting, HR-GA & Legal,
+  Store & Purchasing) hanya terlihat oleh GM dan admin.
 
 #### Pos Budget & Pengaturan
 

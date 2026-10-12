@@ -35,8 +35,12 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
 <div class="card"><div class="card-body text-center py-5">
     <i class="bi bi-wallet2 fs-1 text-body-tertiary"></i>
     <h6 class="mt-3">Belum ada pos budget untuk <?= esc($dept['name']) ?></h6>
+    <?php if ($canEdit): ?>
     <p class="text-muted small mb-3">Mulai dengan membuat daftar pos (mis. "Biaya reimburse poin", "Sponsor"), lalu isi budget per bulan.</p>
     <a href="<?= $url('pos') ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Buat Pos Budget</a>
+    <?php else: ?>
+    <p class="text-muted small mb-0">Departemen ini belum mulai mengisi budget.</p>
+    <?php endif; ?>
 </div></div>
 <?php else: ?>
 
@@ -53,7 +57,7 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
         <?php foreach ($q() as $k => $v): if ($k === 'sd') continue; ?>
         <input type="hidden" name="<?= $k ?>" value="<?= esc($v) ?>">
         <?php endforeach; ?>
-        <?php if ($isAdmin): ?><input type="hidden" name="dept" value="<?= $dept['id'] ?>"><?php endif; ?>
+        <?php if ($depts): ?><input type="hidden" name="dept" value="<?= $dept['id'] ?>"><?php endif; ?>
         <label class="small text-muted text-nowrap" for="bd-sd">Budget s.d.</label>
         <select id="bd-sd" name="sd" class="form-select form-select-sm" onchange="this.form.submit()">
             <?php foreach ($BLN as $m => $n): ?>

@@ -1,7 +1,7 @@
 <?php
 /**
  * Kepala bersama halaman Budget Departemen: judul, pilihan dept (admin),
- * tahun, dan tab. Butuh: $dept, $tahun, $tab, $depts, $years, $isAdmin, $url.
+ * tahun, dan tab. Butuh: $dept, $tahun, $tab, $depts (kosong = hanya dept sendiri), $deptSendiri, $canEdit, $years, $url.
  */
 if (! function_exists('rpb')) {
     /** Rupiah ringkas tanpa "Rp" untuk tabel padat; nol → tanda pisah. */
@@ -24,13 +24,16 @@ $_bawaQ = array_filter(['tahun' => $tahun]);
         <h4 class="fw-bold mb-0">Budget Departemen</h4>
         <div class="text-muted small">
             <?= esc($dept['name']) ?> · catatan internal budget &amp; realisasi
+            <?php if (! $canEdit && (int) $dept['id'] !== $deptSendiri): ?>
+            <span class="badge text-bg-secondary ms-1"><i class="bi bi-eye me-1"></i>hanya lihat</span>
+            <?php endif; ?>
         </div>
     </div>
     <form method="GET" class="d-flex gap-2 align-items-center">
-        <?php if ($isAdmin): ?>
+        <?php if ($depts): ?>
         <select name="dept" class="form-select form-select-sm" style="min-width:180px" onchange="this.form.submit()" aria-label="Departemen">
             <?php foreach ($depts as $d): ?>
-            <option value="<?= $d['id'] ?>" <?= (int) $d['id'] === (int) $dept['id'] ? 'selected' : '' ?>><?= esc($d['name']) ?></option>
+            <option value="<?= $d['id'] ?>" <?= (int) $d['id'] === (int) $dept['id'] ? 'selected' : '' ?>><?= esc($d['name']) ?><?= (int) $d['id'] === $deptSendiri ? ' (dept saya)' : '' ?></option>
             <?php endforeach; ?>
         </select>
         <?php endif; ?>
