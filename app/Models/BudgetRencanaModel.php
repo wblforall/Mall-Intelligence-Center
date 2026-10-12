@@ -21,8 +21,8 @@ class BudgetRencanaModel extends Model
             ->get()->getResultArray();
     }
 
-    /** Tahun yang punya rencana atau realisasi untuk departemen ini, plus tahun berjalan & depan. */
-    public function tahunTersedia(int $deptId): array
+    /** Tahun yang punya rencana atau realisasi untuk departemen ini, plus tahun berjalan & depan — tak kurang dari $mulai. */
+    public function tahunTersedia(int $deptId, int $mulai): array
     {
         $a = $this->db->query(
             "SELECT DISTINCT r.tahun FROM budget_rencana r JOIN budget_pos p ON p.id = r.pos_id WHERE p.dept_id = ?
@@ -31,7 +31,8 @@ class BudgetRencanaModel extends Model
         $th = array_map('intval', array_column($a, 'tahun'));
         $th[] = (int) date('Y');
         $th[] = (int) date('Y') + 1;
-        $th = array_unique($th);
+        $th = array_unique(array_filter($th, fn ($t) => $t >= $mulai));
+        if (! $th) $th = [$mulai];
         rsort($th);
         return $th;
     }

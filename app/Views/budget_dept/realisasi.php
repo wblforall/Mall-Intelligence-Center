@@ -145,7 +145,7 @@ $fmtAsal = function (?string $ym) use ($BLN) {
         </div>
         <div class="col-6 col-md-3">
             <label class="form-label small" for="tx-tgl">Tanggal pembebanan</label>
-            <input id="tx-tgl" type="date" name="tanggal" class="form-control form-control-sm" required value="<?= esc(old('tanggal') ?? $tglBawaan) ?>">
+            <input id="tx-tgl" type="date" name="tanggal" class="form-control form-control-sm" required min="<?= \App\Controllers\BudgetDept::TAHUN_MULAI ?>-01-01" value="<?= esc(old('tanggal') ?? $tglBawaan) ?>">
         </div>
         <div class="col-6 col-md-3">
             <label class="form-label small" for="tx-asal">Periode asal <span class="text-muted">(opsional)</span></label>

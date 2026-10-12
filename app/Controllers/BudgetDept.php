@@ -26,6 +26,13 @@ class BudgetDept extends BaseController
 {
     const MENU = 'budget_dept';
 
+    /**
+     * Tahun pertama yang dicatat di modul ini. Modul dipakai mulai menyusun
+     * budget 2027 (keputusan 12 Okt 2026); tahun sebelumnya tidak dibuka
+     * agar tak ada angka yang nyasar ke tahun berjalan.
+     */
+    const TAHUN_MULAI = 2027;
+
     private ?array $_terlihat = null;
 
     /** [dept_id => dept] yang boleh DILIHAT pengguna ini, urut divisi lalu nama. */
@@ -99,15 +106,16 @@ class BudgetDept extends BaseController
             'canEdit'    => $this->bolehUbah($dept),
             'depts'      => count($this->deptTerlihat()) > 1 ? array_values($this->deptTerlihat()) : [],
             'deptSendiri' => (int) session()->get('dept_id'),
-            'years'      => (new BudgetRencanaModel())->tahunTersedia((int) $dept['id']),
+            'years'      => (new BudgetRencanaModel())->tahunTersedia((int) $dept['id'], self::TAHUN_MULAI),
             'pisahMal'   => (new BudgetDeptSettingModel())->pisahMal((int) $dept['id']),
         ];
     }
 
     private function tahun(): int
     {
-        $t = (int) ($this->request->getGetPost('tahun') ?: date('Y'));
-        return ($t >= 2000 && $t <= 2100) ? $t : (int) date('Y');
+        $bawaan = max((int) date('Y'), self::TAHUN_MULAI);
+        $t = (int) ($this->request->getGetPost('tahun') ?: $bawaan);
+        return ($t >= self::TAHUN_MULAI && $t <= 2100) ? $t : $bawaan;
     }
 
     private function url(string $path, array $dept, array $q = []): string
@@ -173,7 +181,7 @@ class BudgetDept extends BaseController
                 ['k' => (string) ($r['keterangan'] ?? ''), 'j' => (float) $r['jumlah']];
         }
 
-        $adaTahunLalu = (new BudgetRencanaModel())->milikDept($deptId, $tahun - 1) !== [];
+        $adaTahunLalu = $tahun - 1 >= self::TAHUN_MULAI && (new BudgetRencanaModel())->milikDept($deptId, $tahun - 1) !== [];
 
         return view('budget_dept/rencana', $ctx + [
             'pos'          => (new BudgetPosModel())->milikDept($deptId),
@@ -264,6 +272,7 @@ class BudgetDept extends BaseController
         $model  = new BudgetRencanaModel();
         $back   = redirect()->to($this->url('rencana', $dept, ['tahun' => $tahun]));
 
+        if ($tahun - 1 < self::TAHUN_MULAI) return $back->with('error', 'Tidak ada tahun sebelumnya untuk disalin.');
         if ($model->milikDept($deptId, $tahun) !== []) {
             return $back->with('error', 'Budget ' . $tahun . ' sudah berisi. Salin hanya bisa ke tahun yang masih kosong.');
         }
@@ -340,6 +349,7 @@ class BudgetDept extends BaseController
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || ! strtotime($tanggal)) $salah[] = 'tanggal';
         if (! $nilai) $salah[] = 'nilai';
         if ($uraian === '') $salah[] = 'uraian';
+        if (preg_match('/^\d{4}/', $tanggal) && (int) substr($tanggal, 0, 4) < self::TAHUN_MULAI) $salah[] = 'tanggal (mulai ' . self::TAHUN_MULAI . ')';
         if ($asal !== '' && ! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $asal)) $salah[] = 'periode asal';
         if ($pisah && ! isset(BudgetRekap::MAL_REALISASI[$mall])) $salah[] = 'mal';
         if ($salah) return $back->withInput()->with('error', 'Periksa isian: ' . implode(', ', $salah) . '.');
