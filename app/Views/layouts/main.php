@@ -630,6 +630,15 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
+        if ($navCanView('budget_dept')):
+        ?>
+        <div class="nav-label">Budget</div>
+        <a href="<?= base_url('budget-dept') ?>" class="nav-link <?= str_starts_with(uri_string(), 'budget-dept') ? 'active' : '' ?>">
+            <i class="bi bi-wallet2"></i> Budget Departemen
+        </a>
+        <?php endif; ?>
+
+        <?php
         if ($navCanView('app_access')):
         ?>
         <div class="nav-label">Portal</div>

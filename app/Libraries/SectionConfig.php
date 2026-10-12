@@ -26,6 +26,9 @@ class SectionConfig
         'pest_control'       => 'Pest Control',
         'legal'              => 'Legal',
         'work_report'        => 'Progress Report',
+        // Catatan internal budget & realisasi tiap departemen (bukan anggaran
+        // resmi — itu modul Keuangan WBL One). Pengguna hanya melihat dept-nya.
+        'budget_dept'        => 'Budget Departemen',
         // Pemantauan AI — memantau pemakaian Claude Code di laptop tim, secara
         // terbuka. Didaftarkan di sini supaya otomatis muncul di layar hak
         // akses user/departemen: admin yang memutuskan siapa boleh melihat.

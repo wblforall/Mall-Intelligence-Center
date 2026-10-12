@@ -804,6 +804,20 @@ $routes->get ('legal/ext/(:segment)',                     'Legal\LegalReviewExtC
 $routes->post('legal/ext/(:segment)/comment',             'Legal\LegalReviewExtController::comment/$1');
 
 // ── Work Initiative Report ──────────────────────────────────────────────
+// Budget Departemen — catatan internal budget & realisasi per dept
+$routes->get ('budget-dept',                         'BudgetDept::index',          ['filter' => 'auth']);
+$routes->get ('budget-dept/rencana',                 'BudgetDept::rencana',        ['filter' => 'auth']);
+$routes->post('budget-dept/rencana/simpan',          'BudgetDept::simpanRencana',  ['filter' => 'auth']);
+$routes->post('budget-dept/rencana/salin',           'BudgetDept::salinRencana',   ['filter' => 'auth']);
+$routes->get ('budget-dept/realisasi',               'BudgetDept::realisasi',      ['filter' => 'auth']);
+$routes->post('budget-dept/realisasi/simpan',        'BudgetDept::simpanRealisasi',['filter' => 'auth']);
+$routes->post('budget-dept/realisasi/(:num)/hapus',  'BudgetDept::hapusRealisasi/$1', ['filter' => 'auth']);
+$routes->get ('budget-dept/pos',                     'BudgetDept::pos',            ['filter' => 'auth']);
+$routes->post('budget-dept/pos/simpan',              'BudgetDept::simpanPos',      ['filter' => 'auth']);
+$routes->post('budget-dept/pos/urut',                'BudgetDept::urutPos',        ['filter' => 'auth']);
+$routes->post('budget-dept/pos/(:num)/hapus',        'BudgetDept::hapusPos/$1',   ['filter' => 'auth']);
+$routes->post('budget-dept/setting',                 'BudgetDept::simpanSetting',  ['filter' => 'auth']);
+
 $routes->get ('work-report',                              'WorkReportCtrl::index',                    ['filter' => 'auth']);
 $routes->get ('work-report/admin',                        'WorkReportCtrl::admin',                    ['filter' => 'auth']);
 $routes->post('work-report/store',                        'WorkReportCtrl::store',                    ['filter' => 'auth']);
