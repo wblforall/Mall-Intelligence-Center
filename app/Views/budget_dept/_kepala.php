@@ -19,6 +19,16 @@ $_tabs = [
 ];
 $_bawaQ = array_filter(['tahun' => $tahun]);
 ?>
+<style>
+/* Tombol pilihan yang aktif (bulan, Ringkas/Per Bulan, mal). Tema memaksa warna
+   teks .btn-outline-secondary dengan !important, sehingga saat aktif teksnya
+   tenggelam di latar abu-abu — terutama di tema terang. */
+html[data-theme] .btn-group .btn-outline-secondary.active, html[data-theme] .btn-group .btn-outline-secondary.active:hover,
+html[data-theme] .rb-bln.active, html[data-theme] .rb-bln.active:hover {
+    background: var(--bs-primary) !important; border-color: var(--bs-primary) !important; color: #fff !important;
+}
+html[data-theme] .rb-bln.active .badge { background: #fff !important; color: var(--bs-primary) !important; }
+</style>
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
         <h4 class="fw-bold mb-0">Budget Departemen</h4>
