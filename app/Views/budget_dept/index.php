@@ -59,7 +59,7 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
         <?php endforeach; ?>
         <?php if ($depts): ?><input type="hidden" name="dept" value="<?= $dept['id'] ?>"><?php endif; ?>
         <label class="small text-muted text-nowrap" for="bd-sd">Budget s.d.</label>
-        <select id="bd-sd" name="sd" class="form-select form-select-sm" onchange="this.form.submit()">
+        <select id="bd-sd" name="sd" class="form-select form-select-sm bd-ts" style="min-width:90px" onchange="this.form.submit()">
             <?php foreach ($BLN as $m => $n): ?>
             <option value="<?= $m ?>" <?= $m === $sd ? 'selected' : '' ?>><?= $n ?></option>
             <?php endforeach; ?>

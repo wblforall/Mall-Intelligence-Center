@@ -27,28 +27,31 @@ $fmtAsal = function (?string $ym) use ($BLN) {
 };
 ?>
 
+<?php
+// Filter bulan = tombol pil (sekali klik), membawa saringan pos & kata cari yang sedang aktif.
+$_qBulan = fn (int $m) => array_filter(['tahun' => $tahun, 'bulan' => $m ?: null, 'pos' => $posId ?: null, 'q' => $cari !== '' ? $cari : null]);
+?>
+<div class="d-flex flex-wrap gap-1 mb-2" role="tablist" aria-label="Bulan">
+    <a href="<?= $url('realisasi', $_qBulan(0)) ?>" class="btn btn-sm btn-outline-secondary rb-bln <?= $bulan === 0 ? 'active' : '' ?>" role="tab" aria-selected="<?= $bulan === 0 ? 'true' : 'false' ?>">Setahun</a>
+    <?php foreach ($BLN as $m => $n): ?>
+    <a href="<?= $url('realisasi', $_qBulan($m)) ?>" class="btn btn-sm btn-outline-secondary rb-bln <?= $m === $bulan ? 'active' : '' ?>" role="tab" aria-selected="<?= $m === $bulan ? 'true' : 'false' ?>"><?= substr($n, 0, 3) ?></a>
+    <?php endforeach; ?>
+</div>
+
 <form method="GET" class="row g-2 align-items-end mb-3">
     <?php if ($depts): ?><input type="hidden" name="dept" value="<?= $dept['id'] ?>"><?php endif; ?>
     <input type="hidden" name="tahun" value="<?= $tahun ?>">
-    <div class="col-6 col-md-2">
-        <label class="form-label small mb-1" for="f-bulan">Bulan</label>
-        <select id="f-bulan" name="bulan" class="form-select form-select-sm" onchange="this.form.submit()">
-            <option value="0">Setahun</option>
-            <?php foreach ($BLN as $m => $n): ?>
-            <option value="<?= $m ?>" <?= $m === $bulan ? 'selected' : '' ?>><?= $n ?></option>
-            <?php endforeach; ?>
-        </select>
-    </div>
-    <div class="col-6 col-md-3">
+    <?php if ($bulan): ?><input type="hidden" name="bulan" value="<?= $bulan ?>"><?php endif; ?>
+    <div class="col-12 col-md-4">
         <label class="form-label small mb-1" for="f-pos">Pos</label>
-        <select id="f-pos" name="pos" class="form-select form-select-sm" onchange="this.form.submit()">
+        <select id="f-pos" name="pos" class="form-select form-select-sm bd-ts" onchange="this.form.submit()">
             <option value="">Semua pos</option>
             <?php foreach ($pos as $p): ?>
             <option value="<?= $p['id'] ?>" <?= (int) $p['id'] === (int) $posId ? 'selected' : '' ?>><?= esc($p['nama']) ?></option>
             <?php endforeach; ?>
         </select>
     </div>
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-md-5">
         <label class="form-label small mb-1" for="f-q">Cari</label>
         <input id="f-q" type="search" name="q" value="<?= esc($cari) ?>" class="form-control form-control-sm" placeholder="Uraian, keterangan, no. memo/PR">
     </div>
@@ -136,7 +139,7 @@ $fmtAsal = function (?string $ym) use ($BLN) {
     <div class="modal-body row g-3">
         <div class="col-md-6">
             <label class="form-label small" for="tx-pos">Pos budget</label>
-            <select id="tx-pos" name="pos_id" class="form-select form-select-sm" required>
+            <select id="tx-pos" name="pos_id" class="form-select form-select-sm bd-ts" required>
                 <option value="">— pilih —</option>
                 <?php foreach ($pos as $p): ?>
                 <option value="<?= $p['id'] ?>" <?= empty($p['aktif']) ? 'data-nonaktif' : '' ?>><?= esc($p['nama']) ?><?= empty($p['aktif']) ? ' (nonaktif)' : '' ?></option>
@@ -149,7 +152,10 @@ $fmtAsal = function (?string $ym) use ($BLN) {
         </div>
         <div class="col-6 col-md-3">
             <label class="form-label small" for="tx-asal">Periode asal <span class="text-muted">(opsional)</span></label>
-            <input id="tx-asal" type="month" name="periode_asal" class="form-control form-control-sm" value="<?= esc(old('periode_asal') ?? '') ?>">
+            <div class="bd-asal">
+                <input id="tx-asal" type="text" name="periode_asal" class="form-control form-control-sm" placeholder="Pilih bulan" value="<?= esc(old('periode_asal') ?? '') ?>">
+                <button type="button" class="bd-asal-hapus" id="tx-asal-hapus" title="Kosongkan periode asal" aria-label="Kosongkan periode asal"><i class="bi bi-x-lg"></i></button>
+            </div>
         </div>
         <div class="col-12">
             <label class="form-label small" for="tx-uraian">Uraian</label>
@@ -163,7 +169,7 @@ $fmtAsal = function (?string $ym) use ($BLN) {
         <?php if ($pisahMal): ?>
         <div class="col-6 col-md-4">
             <label class="form-label small" for="tx-mal">Mal</label>
-            <select id="tx-mal" name="mall" class="form-select form-select-sm" required>
+            <select id="tx-mal" name="mall" class="form-select form-select-sm bd-ts" required>
                 <?php foreach (BudgetRekap::MAL_REALISASI as $k => $l): ?>
                 <option value="<?= $k ?>" <?= $k === 'both' ? 'selected' : '' ?>><?= $l ?></option>
                 <?php endforeach; ?>
@@ -194,6 +200,11 @@ $fmtAsal = function (?string $ym) use ($BLN) {
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <?php if ($canEdit): ?>
+<link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/style.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/id.js"></script>
 <script>
 (function () {
     const m = document.getElementById('mTx');
@@ -201,34 +212,57 @@ $fmtAsal = function (?string $ym) use ($BLN) {
     const fmt = v => { const n = parseFloat(String(v).replace(/[^\d,]/g, '').replace(',', '.')); return n ? n.toLocaleString('id-ID', {maximumFractionDigits: 2}) : ''; };
     const bawaan = { tanggal: '<?= $tglBawaan ?>', mall: 'both' };
 
+    // Periode asal: pemilih bulan berbentuk grid 12 bulan (nilai tersimpan "YYYY-MM").
+    const asal = window.flatpickr ? flatpickr(f.periode_asal, {
+        locale: 'id', static: true, disableMobile: true,
+        plugins: [new monthSelectPlugin({ shorthand: true, dateFormat: 'Y-m', altFormat: 'F Y' })],
+        altInput: true, altInputClass: 'form-control form-control-sm', allowInput: false,
+        onChange: (_, teks) => document.getElementById('tx-asal-hapus').hidden = !teks,
+        onReady:  (_, teks) => document.getElementById('tx-asal-hapus').hidden = !teks,
+    }) : null;
+    const setAsal = v => asal ? (v ? asal.setDate(v, false, 'Y-m') : asal.clear()) : (f.periode_asal.value = v || '');
+    document.getElementById('tx-asal-hapus').addEventListener('click', () => setAsal(''));
+
+    // Pilihan pos: pos nonaktif hanya muncul untuk transaksi lama yang memang di pos itu.
+    function aturPos(d, nilai) {
+        const sel = f.pos_id, ts = sel.tomselect;
+        sel.querySelectorAll('option[data-nonaktif]').forEach(o => o.hidden = !(d && String(d.pos_id) === o.value));
+        if (ts) {
+            ts.clearOptions();
+            [...sel.options].filter(o => o.value && !o.hidden).forEach(o => ts.addOption({ value: o.value, text: o.text }));
+            ts.refreshOptions(false);
+        }
+        bdSetNilai(sel, nilai);
+    }
+
     m.addEventListener('show.bs.modal', e => {
         const btn = e.relatedTarget;
         if (!btn) return;                               // dibuka ulang otomatis setelah gagal simpan
         const d = btn.dataset.tx ? JSON.parse(btn.dataset.tx) : null;
         f.reset();
         f.elements['id'].value = d ? d.id : '';
-        f.pos_id.value = d ? d.pos_id : (<?= (int) $posId ?> || '');
+        aturPos(d, d ? d.pos_id : (<?= (int) $posId ?> || ''));
         f.tanggal.value = d ? d.tanggal : bawaan.tanggal;
-        f.periode_asal.value = d && d.periode_asal ? d.periode_asal : '';
+        setAsal(d && d.periode_asal ? d.periode_asal : '');
         f.uraian.value = d ? d.uraian : '';
         // d.nilai dari DB berformat "22125000.00" (titik = desimal) — jangan
         // dilewatkan ke fmt() yang menganggap titik sebagai pemisah ribuan.
         f.nilai.value = d ? Number(d.nilai).toLocaleString('id-ID', {maximumFractionDigits: 2}) : '';
-        if (f.mall) f.mall.value = d ? d.mall : bawaan.mall;
+        if (f.mall) bdSetNilai(f.mall, d ? d.mall : bawaan.mall);
         f.referensi.value = d && d.referensi ? d.referensi : '';
         f.keterangan.value = d && d.keterangan ? d.keterangan : '';
         document.getElementById('mTxJudul').textContent = d ? 'Ubah Realisasi' : 'Catat Realisasi';
-        // Pos nonaktif hanya boleh dipilih untuk transaksi lama yang memang di pos itu.
-        f.pos_id.querySelectorAll('option[data-nonaktif]').forEach(o => o.hidden = !(d && String(d.pos_id) === o.value));
     });
     m.addEventListener('shown.bs.modal', () => f.uraian.focus());
     f.nilai.addEventListener('blur', () => f.nilai.value = fmt(f.nilai.value));
 
     <?php if (old('uraian') !== null): ?>
-    // Gagal simpan: buka lagi dengan isian terakhir.
-    f.pos_id.value = '<?= esc(old('pos_id') ?? '', 'js') ?>';
-    if (f.mall) f.mall.value = '<?= esc(old('mall') ?? 'both', 'js') ?>';
-    bootstrap.Modal.getOrCreateInstance(m).show();
+    // Gagal simpan: buka lagi dengan isian terakhir (Tom Select dipasang saat DOMContentLoaded).
+    document.addEventListener('DOMContentLoaded', () => {
+        aturPos(null, '<?= esc(old('pos_id') ?? '', 'js') ?>');
+        if (f.mall) bdSetNilai(f.mall, '<?= esc(old('mall') ?? 'both', 'js') ?>');
+        bootstrap.Modal.getOrCreateInstance(m).show();
+    });
     <?php endif; ?>
 })();
 </script>
