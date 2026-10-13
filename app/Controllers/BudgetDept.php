@@ -3,7 +3,9 @@
 namespace App\Controllers;
 
 use App\Libraries\ActivityLog;
+use App\Libraries\BudgetEkspor;
 use App\Libraries\BudgetRekap;
+use App\Libraries\BudgetXlsx;
 use App\Models\BudgetDeptSettingModel;
 use App\Models\BudgetPosModel;
 use App\Models\BudgetRealisasiModel;
@@ -193,6 +195,40 @@ class BudgetDept extends BaseController
             'tampil' => $tampil,
             'url'    => fn (string $p, array $q = []) => $this->url($p, $dept, $q),
         ]);
+    }
+
+    /**
+     * Unduh Excel satu dept satu tahun: Rekap, Per Bulan (keterangan rincian
+     * jadi komentar sel), Rincian Budget, Realisasi. Siapa pun yang boleh
+     * melihat dept ini boleh mengunduh.
+     */
+    public function excel()
+    {
+        if (! $this->canViewMenu(self::MENU)) return $this->tolak();
+        $dept = $this->dept();
+        if (! $dept) return $this->tolak();
+        $deptId = (int) $dept['id'];
+        $tahun  = $this->tahun($dept);
+
+        $realModel = new BudgetRealisasiModel();
+        $data = [
+            (new BudgetPosModel())->milikDept($deptId),
+            $rencana = (new BudgetRencanaModel())->milikDept($deptId, $tahun),
+            $realModel->untukRekap($deptId, $tahun),
+            $realModel->totalTahun($deptId, $tahun - 1),
+        ];
+        $budgetLalu = (new BudgetRencanaModel())->milikDept($deptId, $tahun - 1);
+        $rekap  = BudgetRekap::susun(...$data, ...['semua', 12, $budgetLalu]);
+        $perMal = null;
+        if ((new BudgetDeptSettingModel())->pisahMal($deptId)) {
+            foreach (array_keys(BudgetRekap::MAL) as $k) $perMal[$k] = BudgetRekap::susun(...$data, ...[$k, 12, $budgetLalu]);
+        }
+        $realisasi = array_reverse($realModel->daftar($deptId, "$tahun-01-01", "$tahun-12-31", null, ''));
+
+        $info = ['dept' => $dept['name'], 'tahun' => $tahun, 'oleh' => (string) session()->get('user_name'), 'waktu' => date('d/m/Y H:i')];
+        $nama = 'Budget ' . preg_replace('/[^A-Za-z0-9 &_-]/', '', $dept['name']) . ' ' . $tahun . '.xlsx';
+        ActivityLog::write('export', 'budget_dept', (string) $deptId, 'Unduh Excel budget ' . $dept['name'] . ' ' . $tahun);
+        BudgetXlsx::download($nama, BudgetEkspor::lembar($info, $rekap, $perMal, $rencana, $realisasi));
     }
 
     // ── Rencana (isi budget) ─────────────────────────────────────────

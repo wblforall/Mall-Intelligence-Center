@@ -130,6 +130,9 @@ document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('s
             <option value="<?= $y ?>" <?= (int) $y === (int) $tahun ? 'selected' : '' ?>><?= $y ?></option>
             <?php endforeach; ?>
         </select>
+        <a href="<?= $url('excel', ['tahun' => $tahun]) ?>" class="btn btn-sm btn-outline-success text-nowrap" title="Unduh Excel: rekap, per bulan, rincian budget & realisasi <?= $tahun ?>">
+            <i class="bi bi-file-earmark-excel me-1"></i>Excel
+        </a>
     </form>
 </div>
 

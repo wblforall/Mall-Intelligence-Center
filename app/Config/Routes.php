@@ -806,6 +806,7 @@ $routes->post('legal/ext/(:segment)/comment',             'Legal\LegalReviewExtC
 // ── Work Initiative Report ──────────────────────────────────────────────
 // Budget Departemen — catatan internal budget & realisasi per dept
 $routes->get ('budget-dept',                         'BudgetDept::index',          ['filter' => 'auth']);
+$routes->get ('budget-dept/excel',                   'BudgetDept::excel',          ['filter' => 'auth']);
 $routes->get ('budget-dept/rencana',                 'BudgetDept::rencana',        ['filter' => 'auth']);
 $routes->post('budget-dept/rencana/simpan',          'BudgetDept::simpanRencana',  ['filter' => 'auth']);
 $routes->post('budget-dept/rencana/salin',           'BudgetDept::salinRencana',   ['filter' => 'auth']);
