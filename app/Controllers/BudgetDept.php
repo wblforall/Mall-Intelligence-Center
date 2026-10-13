@@ -119,12 +119,25 @@ class BudgetDept extends BaseController
         ];
     }
 
+    /**
+     * Tahun yang dibuka. Tanpa ?tahun= dipakai tahun TERAKHIR dibuka pengguna
+     * (cookie, setahun) — keputusan 13 Okt 2026: tahun tidak boleh pindah
+     * sendiri ke tahun berjalan. Tahun berjalan hanya cadangan.
+     */
     private function tahun(array $dept): int
     {
+        helper('cookie');
         $mulai  = $this->tahunMulai($dept);
         $bawaan = max((int) date('Y'), $mulai);
-        $t = (int) ($this->request->getGetPost('tahun') ?: $bawaan);
-        return ($t >= $mulai && $t <= 2100) ? $t : $bawaan;
+        $sah    = fn (int $t) => $t >= $mulai && $t <= 2100;
+
+        $diminta = (int) $this->request->getGetPost('tahun');
+        if ($sah($diminta)) {
+            set_cookie('budget_tahun', (string) $diminta, 365 * 86400);
+            return $diminta;
+        }
+        $terakhir = (int) get_cookie('budget_tahun');
+        return $sah($terakhir) ? $terakhir : $bawaan;
     }
 
     private function url(string $path, array $dept, array $q = []): string
