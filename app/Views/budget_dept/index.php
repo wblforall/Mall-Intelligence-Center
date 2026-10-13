@@ -39,6 +39,8 @@ $naik = function (array $b): string {
         : '<span class="bd-naik-pct ms-1">(' . ($b['naikPct'] > 0 ? '+' : '−') . number_format(abs($b['naikPct']), 1, ',', '.') . '%)</span>';
     return $h . $p;
 };
+// Kolom pembanding hanya bila tahun lalu memang punya budget (tahun pertama: tak ada pembanding).
+$adaLalu = $t['budgetLalu'] > 0;
 ?>
 
 <?php if (! $rekap['baris']): ?>
@@ -136,8 +138,10 @@ $naik = function (array $b): string {
     <thead><tr>
         <th class="col-pos">Pos</th>
         <th class="text-end">Budget <?= $tahun ?></th>
+        <?php if ($adaLalu): ?>
         <th class="text-end">Budget <?= $tahun - 1 ?></th>
         <th class="text-end">Kenaikan</th>
+        <?php endif; ?>
         <th class="text-end">Budget Jan–<?= $BLN[$sd] ?></th>
         <th class="text-end">Realisasi</th>
         <th style="min-width:130px">Terpakai (s.d. <?= $BLN[$sd] ?>)</th>
@@ -152,8 +156,10 @@ $naik = function (array $b): string {
             <?php if (empty($b['pos']['aktif'])): ?><span class="badge text-bg-secondary ms-1">nonaktif</span><?php endif; ?>
         </td>
         <td class="text-end"><?= rpb($b['budget']) ?></td>
+        <?php if ($adaLalu): ?>
         <td class="text-end text-muted"><?= rpb($b['budgetLalu']) ?></td>
         <td class="text-end"><?= $naik($b) ?></td>
+        <?php endif; ?>
         <td class="text-end"><?= rpb($b['budgetSd']) ?></td>
         <td class="text-end <?= $b['realisasi'] > $b['budgetSd'] ? 'bd-lewat' : '' ?>">
             <?php if ($b['realisasi'] != 0): ?>
@@ -178,8 +184,10 @@ $naik = function (array $b): string {
     <tfoot><tr>
         <td class="col-pos">Total</td>
         <td class="text-end"><?= rpb($t['budget'], false) ?></td>
+        <?php if ($adaLalu): ?>
         <td class="text-end text-muted"><?= rpb($t['budgetLalu'], false) ?></td>
         <td class="text-end"><?= $naik($t) ?></td>
+        <?php endif; ?>
         <td class="text-end"><?= rpb($t['budgetSd'], false) ?></td>
         <td class="text-end <?= $t['realisasi'] > $t['budgetSd'] ? 'bd-lewat' : '' ?>"><?= rpb($t['realisasi'], false) ?></td>
         <td><?= $t['pctSd'] !== null ? number_format($t['pctSd'], 0) . '%' : '' ?></td>
