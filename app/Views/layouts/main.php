@@ -71,6 +71,30 @@ body { min-height: 100vh; }
     .sidebar.show { transform: translateX(0); }
     .main-content { margin-left: 0; }
 }
+/* ── Sidebar mini (desktop): lajur ikon; arahkan kursor → melebar menimpa konten.
+      Pilihan di localStorage 'micSidebarMini', dipasang di <head> agar tanpa kedip. ── */
+@media (min-width: 769px) {
+    :root { --sidebar-mini: 64px; }
+    html.sb-mini .main-content { margin-left: var(--sidebar-mini); }
+    html.sb-mini .sidebar { transition: width .18s ease, box-shadow .18s ease; }
+    html.sb-mini .sidebar:hover { box-shadow: 0 0 32px rgba(0,0,0,.35); transition-delay: .12s; }
+    html.sb-mini .sidebar:not(:hover) { width: var(--sidebar-mini); }
+    html.sb-mini .sidebar:not(:hover) .brand { padding: 1.1rem 14px .9rem; }
+    html.sb-mini .sidebar:not(:hover) .brand > div,
+    html.sb-mini .sidebar:not(:hover) .nav-caret,
+    html.sb-mini .sidebar:not(:hover) .subnav-caret,
+    html.sb-mini .sidebar:not(:hover) .subnav,
+    html.sb-mini .sidebar:not(:hover) .sidebar-footer > .flex-grow-1,
+    html.sb-mini .sidebar:not(:hover) .sidebar-footer .btn-logout,
+    html.sb-mini .sidebar:not(:hover) .sidebar-versi { display: none !important; }
+    html.sb-mini .sidebar:not(:hover) .nav-section { padding: 0 .5rem; overflow-x: hidden; scrollbar-width: none; }
+    html.sb-mini .sidebar:not(:hover) .nav-label { font-size: 0; padding: 0; margin: .55rem .4rem; border-top: 1px solid var(--bs-border-color); }
+    html.sb-mini .sidebar:not(:hover) .nav-label.collapsed { display: none; }   /* section tertutup: tak perlu garis */
+    html.sb-mini .sidebar:not(:hover) .nav-link { padding: .5rem .9rem; gap: 3rem; white-space: nowrap; overflow: hidden; }
+    html.sb-mini .sidebar .nav-link, html.sb-mini .sidebar .brand-name { white-space: nowrap; }
+}
+.sb-toggle i { transition: transform .18s; }
+html.sb-mini .sb-toggle i { transform: scaleX(-1); }
 [aria-expanded="true"] #eventsChevron  { transform: rotate(-180deg); }
 [aria-expanded="true"] #loyaltyChevron { transform: rotate(-180deg); }
 [aria-expanded="true"] #creativeChevron{ transform: rotate(-180deg); }
@@ -86,6 +110,7 @@ body { min-height: 100vh; }
 .fade-up { opacity: 0; animation: fadeUp .45s cubic-bezier(.22,.68,0,1.1) forwards; }
 </style>
 <?= $this->renderSection('styles') ?>
+<script>try { if (localStorage.getItem('micSidebarMini') === '1') document.documentElement.classList.add('sb-mini'); } catch (e) {}</script>
 </head>
 <body>
 
@@ -713,7 +738,7 @@ body { min-height: 100vh; }
             <i class="bi bi-box-arrow-right"></i>
         </a>
     </div>
-    <div style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5">
+    <div class="sidebar-versi" style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5;white-space:nowrap">
         v2.29.0 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
@@ -794,6 +819,10 @@ body { min-height: 100vh; }
         <div class="d-flex align-items-center gap-2">
             <button class="btn btn-sm btn-light d-md-none" onclick="document.getElementById('sidebar').classList.toggle('show')">
                 <i class="bi bi-list"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-light d-none d-md-inline-block sb-toggle" id="sbToggle" title="Kecilkan / lebarkan sidebar" aria-label="Kecilkan atau lebarkan sidebar"
+                    onclick="var m = document.documentElement.classList.toggle('sb-mini'); try { localStorage.setItem('micSidebarMini', m ? '1' : '0'); } catch (e) {} window.dispatchEvent(new Event('resize'));">
+                <i class="bi bi-layout-sidebar-inset"></i>
             </button>
             <?php if (isset($event)): ?>
             <nav aria-label="breadcrumb" class="min-w-0 overflow-hidden flex-grow-1">
