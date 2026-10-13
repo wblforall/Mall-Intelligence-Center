@@ -18,6 +18,7 @@
 .bd-ada-rinci { font-size:.7rem; color:var(--bs-primary-text-emphasis); margin-right:.25rem; cursor:help; }
 .bd-tabel a.sel { color:inherit; text-decoration:none; border-bottom:1px dotted var(--bs-secondary-color); }
 .bd-tabel a.sel:hover { color:var(--bs-primary); }
+.bd-naik-pct { color:var(--bs-secondary-color); font-size:.75rem; }
 
 .bd-tabel thead .col-pos, .bd-tabel tfoot .col-pos { background-color:var(--card-bg) !important; background-image:linear-gradient(var(--card-bg),var(--card-bg)) !important; z-index:3; }
 </style>
@@ -29,6 +30,15 @@ $BLN = [1 => 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt
 $t   = $rekap['total'];
 $q   = fn (array $x = []) => array_merge(['tahun' => $tahun, 'mal' => $mal, 'sd' => $sd, 'tampil' => $tampil], $x);
 $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($p > 85 ? 'warning' : 'success'));
+// Kenaikan budget terhadap tahun lalu: "+120.000.000" + persen; pos tanpa budget tahun lalu = "baru".
+$naik = function (array $b): string {
+    if (abs($b['naik']) < 0.5) return $b['budgetLalu'] > 0 ? '<span class="text-body-tertiary">tetap</span>' : rpb(0);
+    $h = ($b['naik'] > 0 ? '+' : '−') . rpb(abs($b['naik']), false);
+    $p = $b['naikPct'] === null
+        ? '<span class="badge text-bg-info-subtle text-info-emphasis ms-1">baru</span>'
+        : '<span class="bd-naik-pct ms-1">(' . ($b['naikPct'] > 0 ? '+' : '−') . number_format(abs($b['naikPct']), 1, ',', '.') . '%)</span>';
+    return $h . $p;
+};
 ?>
 
 <?php if (! $rekap['baris']): ?>
@@ -74,7 +84,12 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
 <!-- KPI -->
 <div class="row g-2 mb-3">
     <div class="col-6 col-lg">
-        <div class="card bd-kpi"><div class="lbl">Budget <?= $tahun ?></div><div class="val">Rp <?= rpb($t['budget'], false) ?></div></div>
+        <div class="card bd-kpi"><div class="lbl">Budget <?= $tahun ?></div><div class="val">Rp <?= rpb($t['budget'], false) ?></div>
+            <?php if ($t['budgetLalu'] > 0): ?>
+            <div class="lbl mt-1">Budget <?= $tahun - 1 ?>: Rp <?= rpb($t['budgetLalu'], false) ?></div>
+            <div class="small fw-semibold"><?= $t['naik'] >= 0 ? '<i class="bi bi-arrow-up-right"></i> Naik' : '<i class="bi bi-arrow-down-right"></i> Turun' ?> <?= number_format(abs($t['naikPct']), 1, ',', '.') ?>%</div>
+            <?php endif; ?>
+        </div>
     </div>
     <div class="col-6 col-lg">
         <div class="card bd-kpi"><div class="lbl">Budget Jan–<?= $BLN[$sd] ?></div><div class="val">Rp <?= rpb($t['budgetSd'], false) ?></div></div>
@@ -121,6 +136,8 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
     <thead><tr>
         <th class="col-pos">Pos</th>
         <th class="text-end">Budget <?= $tahun ?></th>
+        <th class="text-end">Budget <?= $tahun - 1 ?></th>
+        <th class="text-end">Kenaikan</th>
         <th class="text-end">Budget Jan–<?= $BLN[$sd] ?></th>
         <th class="text-end">Realisasi</th>
         <th style="min-width:130px">Terpakai (s.d. <?= $BLN[$sd] ?>)</th>
@@ -135,6 +152,8 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
             <?php if (empty($b['pos']['aktif'])): ?><span class="badge text-bg-secondary ms-1">nonaktif</span><?php endif; ?>
         </td>
         <td class="text-end"><?= rpb($b['budget']) ?></td>
+        <td class="text-end text-muted"><?= rpb($b['budgetLalu']) ?></td>
+        <td class="text-end"><?= $naik($b) ?></td>
         <td class="text-end"><?= rpb($b['budgetSd']) ?></td>
         <td class="text-end <?= $b['realisasi'] > $b['budgetSd'] ? 'bd-lewat' : '' ?>">
             <?php if ($b['realisasi'] != 0): ?>
@@ -159,6 +178,8 @@ $warna = fn (?float $p) => $p === null ? 'secondary' : ($p > 100 ? 'danger' : ($
     <tfoot><tr>
         <td class="col-pos">Total</td>
         <td class="text-end"><?= rpb($t['budget'], false) ?></td>
+        <td class="text-end text-muted"><?= rpb($t['budgetLalu'], false) ?></td>
+        <td class="text-end"><?= $naik($t) ?></td>
         <td class="text-end"><?= rpb($t['budgetSd'], false) ?></td>
         <td class="text-end <?= $t['realisasi'] > $t['budgetSd'] ? 'bd-lewat' : '' ?>"><?= rpb($t['realisasi'], false) ?></td>
         <td><?= $t['pctSd'] !== null ? number_format($t['pctSd'], 0) . '%' : '' ?></td>

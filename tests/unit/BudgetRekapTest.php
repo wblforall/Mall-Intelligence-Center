@@ -87,6 +87,30 @@ final class BudgetRekapTest extends CIUnitTestCase
         $this->assertArrayHasKey(3, $r['baris']);
     }
 
+    public function testKenaikanBudgetTerhadapTahunLalu(): void
+    {
+        $ini  = [['pos_id' => 1, 'bulan' => 1, 'mall' => 'ewalk', 'jumlah' => 120], ['pos_id' => 2, 'bulan' => 3, 'mall' => 'pentacity', 'jumlah' => 50]];
+        $lalu = [
+            ['pos_id' => 1, 'bulan' => 1, 'mall' => 'ewalk', 'jumlah' => 100],
+            ['pos_id' => 1, 'bulan' => 2, 'mall' => '', 'jumlah' => 40],       // tanpa mal
+            ['pos_id' => 3, 'bulan' => 5, 'mall' => 'pentacity', 'jumlah' => 30], // pos kini nonaktif
+        ];
+        $r = BudgetRekap::susun($this->pos, $ini, [], [], 'semua', 12, $lalu);
+        $this->assertSame(140.0, $r['baris'][1]['budgetLalu']);
+        $this->assertSame(-20.0, $r['baris'][1]['naik']);
+        $this->assertEqualsWithDelta(-14.2857, $r['baris'][1]['naikPct'], 0.001);
+        $this->assertNull($r['baris'][2]['naikPct']);                            // pos baru: tak ada pembanding
+        $this->assertArrayHasKey(3, $r['baris']);                                // nonaktif tapi punya budget tahun lalu
+        $this->assertSame(-30.0, $r['baris'][3]['naik']);
+        $this->assertSame(170.0, $r['total']['budgetLalu']);
+        $this->assertSame(0.0, $r['total']['naik']);
+
+        // Filter mal: baris tanpa mal tahun lalu tidak masuk eWalk.
+        $r = BudgetRekap::susun($this->pos, $ini, [], [], 'ewalk', 12, $lalu);
+        $this->assertSame(100.0, $r['baris'][1]['budgetLalu']);
+        $this->assertEqualsWithDelta(20.0, $r['baris'][1]['naikPct'], 0.001);
+    }
+
     public function testRealisasiTahunLaluIkutFilterMal(): void
     {
         $lalu = [['pos_id' => 1, 'mall' => 'both', 'nilai' => 100], ['pos_id' => 1, 'mall' => 'ewalk', 'nilai' => 10]];

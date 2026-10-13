@@ -37,12 +37,13 @@ class BudgetRekap
      * @param array  $lalu      [['pos_id','mall','nilai'], ...] realisasi tahun sebelumnya
      * @param string $filter    'semua' | 'ewalk' | 'pentacity'
      * @param int    $sdBulan   1..12 — batas "s.d. bulan" untuk budget berjalan
+     * @param array  $budgetLalu [['pos_id','mall','jumlah'], ...] rencana tahun sebelumnya (pembanding kenaikan)
      */
-    public static function susun(array $pos, array $rencana, array $realisasi, array $lalu, string $filter, int $sdBulan): array
+    public static function susun(array $pos, array $rencana, array $realisasi, array $lalu, string $filter, int $sdBulan, array $budgetLalu = []): array
     {
         $kosong = fn () => [
             'bulan'     => array_fill_keys(range(1, 12), ['b' => 0.0, 'r' => 0.0, 'ket' => []]),
-            'budget'    => 0.0, 'budgetSd' => 0.0, 'realisasi' => 0.0, 'lalu' => 0.0,
+            'budget'    => 0.0, 'budgetSd' => 0.0, 'realisasi' => 0.0, 'lalu' => 0.0, 'budgetLalu' => 0.0,
         ];
 
         $baris = [];
@@ -88,6 +89,15 @@ class BudgetRekap
             $baris[$id]['lalu'] += self::porsi((string) $r['mall'], (float) $r['nilai'], $filter);
         }
 
+        // Budget tahun lalu: baris tanpa mal tak masuk filter mal (sama seperti tahun ini).
+        foreach ($budgetLalu as $r) {
+            $id = (int) $r['pos_id'];
+            if (! isset($baris[$id])) continue;
+            $mall = (string) $r['mall'];
+            if ($filter !== 'semua' && $mall === '') continue;
+            $baris[$id]['budgetLalu'] += self::porsi($mall, (float) $r['jumlah'], $filter);
+        }
+
         $total = ['pos' => null] + $kosong();
         foreach ($baris as $id => &$b) {
             foreach ($b['bulan'] as $m => $sel) {
@@ -97,8 +107,9 @@ class BudgetRekap
                 $total['bulan'][$m]['b'] += $sel['b'];
                 $total['bulan'][$m]['r'] += $sel['r'];
             }
-            // Pos nonaktif hanya tampil bila masih punya angka tahun ini.
-            if (empty($b['pos']['aktif']) && $b['budget'] == 0 && $b['realisasi'] == 0) {
+            // Pos nonaktif hanya tampil bila masih punya angka tahun ini — atau budget
+            // tahun lalu, supaya total kenaikan tetap bisa ditelusuri per pos.
+            if (empty($b['pos']['aktif']) && $b['budget'] == 0 && $b['realisasi'] == 0 && $b['budgetLalu'] == 0) {
                 unset($baris[$id]);
                 continue;
             }
@@ -106,6 +117,7 @@ class BudgetRekap
             $total['budgetSd']  += $b['budgetSd'];
             $total['realisasi'] += $b['realisasi'];
             $total['lalu']      += $b['lalu'];
+            $total['budgetLalu'] += $b['budgetLalu'];
         }
         unset($b);
 
@@ -116,10 +128,15 @@ class BudgetRekap
         return ['baris' => $baris, 'total' => $total, 'tanpaMal' => $tanpaMal];
     }
 
-    /** Sisa & persen; persen null bila budget nol (realisasi tanpa budget). */
+    /**
+     * Sisa, persen, dan kenaikan budget terhadap tahun lalu.
+     * Persen null bila pembaginya nol (realisasi tanpa budget / pos baru tahun ini).
+     */
     private static function lengkapi(array &$b): void
     {
         $b['sisa']  = $b['budget'] - $b['realisasi'];
+        $b['naik']    = $b['budget'] - $b['budgetLalu'];
+        $b['naikPct'] = $b['budgetLalu'] > 0 ? $b['naik'] / $b['budgetLalu'] * 100 : null;
         $b['pct']   = $b['budget'] > 0 ? $b['realisasi'] / $b['budget'] * 100 : null;
         $b['pctSd'] = $b['budgetSd'] > 0 ? $b['realisasi'] / $b['budgetSd'] * 100 : null;
     }

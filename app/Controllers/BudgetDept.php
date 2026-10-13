@@ -178,10 +178,11 @@ class BudgetDept extends BaseController
             $realModel->untukRekap($deptId, $tahun),
             $realModel->totalTahun($deptId, $tahun - 1),
         ];
-        $rekap  = BudgetRekap::susun(...$data, ...[$mal, $sd]);
+        $budgetLalu = (new BudgetRencanaModel())->milikDept($deptId, $tahun - 1);
+        $rekap  = BudgetRekap::susun(...$data, ...[$mal, $sd, $budgetLalu]);
         $perMal = [];
         if ($tampil === 'bulanan' && $ctx['pisahMal']) {
-            foreach (array_keys(BudgetRekap::MAL) as $k) $perMal[$k] = BudgetRekap::susun(...$data, ...[$k, $sd]);
+            foreach (array_keys(BudgetRekap::MAL) as $k) $perMal[$k] = BudgetRekap::susun(...$data, ...[$k, $sd, $budgetLalu]);
         }
 
         return view('budget_dept/index', $ctx + [
