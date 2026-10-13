@@ -17,10 +17,5 @@ class PermConfig
         'sponsors'      => ['label' => 'Sponsorship',         'input' => true,  'delete' => false],
         'budget'        => ['label' => 'Budget',              'input' => false, 'delete' => false],
         'summary'       => ['label' => 'Event Summary',       'input' => false, 'delete' => false],
-        'tracking'      => ['label' => 'Daily Tracking',      'input' => true,  'delete' => true],
-        'baseline'      => ['label' => 'Baseline',            'input' => true,  'delete' => false],
-        'inputs'        => ['label' => 'Event Config',        'input' => true,  'delete' => false],
-        'tenants'       => ['label' => 'Tenants',             'input' => true,  'delete' => true],
-        'tenant_impact' => ['label' => 'Tenant Impact',       'input' => true,  'delete' => false],
     ];
 }
