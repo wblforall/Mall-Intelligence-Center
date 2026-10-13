@@ -517,15 +517,26 @@ class BudgetDept extends BaseController
         return $back->with('success', 'Pos "' . $nama . '" ditambahkan.');
     }
 
+    /**
+     * Simpan urutan pos. Dipanggil lewat AJAX dari halaman Pos Budget (seret-lepas
+     * atau tombol panah) → JSON berisi token CSRF baru (regenerate = true: tanpa
+     * itu semua form lain di halaman jadi basi). Kiriman form biasa tetap dialihkan.
+     */
     public function urutPos()
     {
+        $ajax = $this->request->isAJAX();
         $dept = $this->deptUntukUbah();
-        if (! $dept) return $this->tolak();
+        if (! $dept) {
+            return $ajax
+                ? $this->response->setStatusCode(403)->setJSON(['ok' => false, 'pesan' => 'Akses ditolak.', 'csrf' => csrf_hash()])
+                : $this->tolak();
+        }
         $model = new BudgetPosModel();
         $sah   = array_column($model->milikDept((int) $dept['id']), 'id', 'id');
         foreach (array_values((array) $this->request->getPost('ids')) as $i => $id) {
             if (isset($sah[(int) $id])) $model->update((int) $id, ['urutan' => $i + 1]);
         }
+        if ($ajax) return $this->response->setJSON(['ok' => true, 'csrf' => csrf_hash()]);
         return redirect()->to($this->url('pos', $dept));
     }
 

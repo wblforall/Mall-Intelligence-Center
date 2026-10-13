@@ -1,7 +1,15 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<style>
+.bd-pegangan { cursor: grab; color: var(--bs-secondary-color); width: 34px; text-align: center; touch-action: none; }
+.bd-pegangan:hover { color: var(--bs-body-color); }
+.bd-pos-hantu { opacity: .45; background: rgba(var(--bs-primary-rgb), .08) !important; }
+.bd-pos-dipilih { box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+#bd-daftar-pos button[data-geser]:disabled { visibility: hidden; }
+</style>
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <?= $this->include('budget_dept/_kepala') ?>
-<?php $ids = array_map(fn ($p) => (int) $p['id'], $pos); ?>
 
 <div class="row g-3">
 <div class="col-lg-8">
@@ -16,19 +24,23 @@
         <div class="table-responsive">
         <table class="table table-hover align-middle mb-0" style="font-size:.86rem">
             <thead><tr class="small text-muted">
+                <?php if ($canEdit): ?><th style="width:34px"><span class="visually-hidden">Geser</span></th><?php endif; ?>
                 <th style="width:40px">#</th><th>Nama pos</th><th class="text-center">Status</th>
                 <?php if ($canEdit): ?><th class="text-end" style="width:150px"></th><?php endif; ?>
             </tr></thead>
-            <tbody>
+            <tbody id="bd-daftar-pos">
             <?php if (! $pos): ?>
-            <tr><td colspan="4" class="text-center text-muted py-4">Belum ada pos. Tambahkan pos sesuai baris di Excel budget departemen Anda.</td></tr>
+            <tr><td colspan="5" class="text-center text-muted py-4">Belum ada pos. Tambahkan pos sesuai baris di Excel budget departemen Anda.</td></tr>
             <?php endif; ?>
             <?php foreach ($pos as $i => $p):
                 $n = $jumlah[$p['id']] ?? ['n_rencana' => 0, 'n_realisasi' => 0];
                 $punyaData = $n['n_rencana'] > 0 || $n['n_realisasi'] > 0;
             ?>
-            <tr class="<?= empty($p['aktif']) ? 'text-body-tertiary' : '' ?>">
-                <td class="text-muted"><?= $i + 1 ?></td>
+            <tr class="<?= empty($p['aktif']) ? 'text-body-tertiary' : '' ?>" data-id="<?= (int) $p['id'] ?>">
+                <?php if ($canEdit): ?>
+                <td class="bd-pegangan" title="Seret untuk memindah urutan" aria-hidden="true"><i class="bi bi-grip-vertical"></i></td>
+                <?php endif; ?>
+                <td class="text-muted" data-nomor><?= $i + 1 ?></td>
                 <td>
                     <?= esc($p['nama']) ?>
                     <?php if ($p['keterangan']): ?><div class="small text-muted"><?= esc($p['keterangan']) ?></div><?php endif; ?>
@@ -38,17 +50,8 @@
                 </td>
                 <?php if ($canEdit): ?>
                 <td class="text-end text-nowrap">
-                    <?php foreach ([-1 => 'up', 1 => 'down'] as $arah => $ikon):
-                        $j = $i + $arah;
-                        if ($j < 0 || $j >= count($ids)) { echo '<span class="d-inline-block" style="width:22px"></span>'; continue; }
-                        $urut = $ids; [$urut[$i], $urut[$j]] = [$urut[$j], $urut[$i]];
-                    ?>
-                    <form method="POST" action="<?= $url('pos/urut') ?>" class="d-inline">
-                        <?= csrf_field() ?>
-                        <?php foreach ($urut as $u): ?><input type="hidden" name="ids[]" value="<?= $u ?>"><?php endforeach; ?>
-                        <button class="btn btn-sm btn-link p-0 me-1" title="Pindah ke <?= $arah < 0 ? 'atas' : 'bawah' ?>" aria-label="Pindah ke <?= $arah < 0 ? 'atas' : 'bawah' ?>"><i class="bi bi-arrow-<?= $ikon ?>"></i></button>
-                    </form>
-                    <?php endforeach; ?>
+                    <button type="button" class="btn btn-sm btn-link p-0 me-1" data-geser="-1" <?= $i === 0 ? 'disabled' : '' ?> title="Pindah ke atas" aria-label="Pindah <?= esc($p['nama']) ?> ke atas"><i class="bi bi-arrow-up"></i></button>
+                    <button type="button" class="btn btn-sm btn-link p-0 me-1" data-geser="1" <?= $i === count($pos) - 1 ? 'disabled' : '' ?> title="Pindah ke bawah" aria-label="Pindah <?= esc($p['nama']) ?> ke bawah"><i class="bi bi-arrow-down"></i></button>
                     <button class="btn btn-sm btn-link p-0 ms-2" title="Ubah" aria-label="Ubah" data-bs-toggle="modal" data-bs-target="#mPos"
                             data-pos="<?= esc(json_encode(['id' => $p['id'], 'nama' => $p['nama'], 'keterangan' => $p['keterangan'], 'aktif' => (int) $p['aktif']])) ?>">
                         <i class="bi bi-pencil"></i></button>
@@ -136,6 +139,84 @@
         document.getElementById('mPosJudul').textContent = d ? 'Ubah Pos' : 'Tambah Pos';
     });
     m.addEventListener('shown.bs.modal', () => f.nama.focus());
+})();
+</script>
+<?php endif; ?>
+<?= $this->endSection() ?>
+<?= $this->section('scripts') ?>
+<?php if ($canEdit && count($pos) > 1): ?>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+/* Urutan pos: seret pegangan ⋮⋮ atau tombol panah → tersimpan otomatis (AJAX).
+   regenerate CSRF = true: token baru dari respons disalin ke SEMUA input token
+   di halaman, kalau tidak form lain (Tambah/Ubah/Hapus) ditolak diam-diam. */
+(function () {
+    const daftar = document.getElementById('bd-daftar-pos');
+    const URL = '<?= $url('pos/urut') ?>';
+    const NAMA_TOKEN = '<?= csrf_token() ?>';
+    const token = () => document.querySelector(`input[name="${NAMA_TOKEN}"]`)?.value || '<?= csrf_hash() ?>';
+    const syncCsrf = (h) => { if (h) document.querySelectorAll(`input[name="${NAMA_TOKEN}"]`).forEach((i) => { i.value = h; }); };
+    const baris = () => [...daftar.querySelectorAll('tr[data-id]')];
+
+    function rapikan() {
+        baris().forEach((tr, i, semua) => {
+            tr.querySelector('[data-nomor]').textContent = i + 1;
+            tr.querySelector('[data-geser="-1"]').disabled = i === 0;
+            tr.querySelector('[data-geser="1"]').disabled = i === semua.length - 1;
+        });
+    }
+
+    function kabar(teks, galat = false) {
+        const t = document.createElement('div');
+        t.className = `position-fixed bottom-0 end-0 m-3 alert alert-${galat ? 'danger' : 'success'} py-2 px-3 small shadow`;
+        t.style.cssText = 'z-index:2000;opacity:0;transition:opacity .2s';
+        t.setAttribute('role', 'status');
+        t.textContent = teks;
+        document.body.appendChild(t);
+        requestAnimationFrame(() => { t.style.opacity = '1'; });
+        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 250); }, galat ? 4000 : 1600);
+    }
+
+    let tunda = null, urutanTersimpan = baris().map((tr) => tr.dataset.id);
+    function simpan() {
+        clearTimeout(tunda);
+        tunda = setTimeout(async () => {
+            const ids = baris().map((tr) => tr.dataset.id);
+            if (ids.join() === urutanTersimpan.join()) return;
+            const badan = new URLSearchParams();
+            badan.append(NAMA_TOKEN, token());
+            ids.forEach((id) => badan.append('ids[]', id));
+            try {
+                const r = await fetch(URL, { method: 'POST', body: badan, headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' } });
+                const d = await r.json().catch(() => ({}));
+                syncCsrf(d.csrf);
+                if (!r.ok || !d.ok) throw new Error(d.pesan || 'Gagal');
+                urutanTersimpan = ids;
+                kabar('Urutan disimpan');
+            } catch (e) {
+                kabar('Urutan gagal disimpan — muat ulang halaman lalu coba lagi.', true);
+            }
+        }, 350);
+    }
+
+    Sortable.create(daftar, {
+        handle: '.bd-pegangan', draggable: 'tr[data-id]', animation: 150,
+        ghostClass: 'bd-pos-hantu', chosenClass: 'bd-pos-dipilih',
+        onEnd: () => { rapikan(); simpan(); },
+    });
+
+    daftar.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-geser]');
+        if (!b) return;
+        const tr = b.closest('tr');
+        const tujuan = b.dataset.geser === '-1' ? tr.previousElementSibling : tr.nextElementSibling;
+        if (!tujuan || !tujuan.dataset.id) return;
+        b.dataset.geser === '-1' ? tujuan.before(tr) : tujuan.after(tr);
+        rapikan(); simpan();
+        tr.querySelector(`[data-geser="${b.dataset.geser}"]:not(:disabled)`)?.focus();
+    });
+
+    rapikan();
 })();
 </script>
 <?php endif; ?>
