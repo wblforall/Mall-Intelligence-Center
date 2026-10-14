@@ -9,6 +9,10 @@ use App\Models\EventCompletionModel;
 use App\Models\EventLocationModel;
 use App\Models\EventContentRealisasiModel;
 use App\Libraries\ActivityLog;
+use App\Libraries\RabSusun;
+use App\Models\BudgetPosModel;
+use App\Models\RabDokumenModel;
+use App\Models\RabLaporanModel;
 
 class EventContent extends BaseController
 {
@@ -16,6 +20,56 @@ class EventContent extends BaseController
     {
         if (! $this->canViewMenu('content')) return null;
         return (new EventModel())->find($eventId);
+    }
+
+    /** "1.500.000" / "Rp 1.500.000" → 1500000; kosong → null. */
+    private static function rupiah($v): ?int
+    {
+        $v = preg_replace('/[^\d]/', '', (string) $v);
+        return $v === '' ? null : (int) $v;
+    }
+
+    /** "1,5" / "2" → 1.5 / 2.0; kosong → null. */
+    private static function desimal($v): ?float
+    {
+        $v = trim(str_replace(',', '.', (string) $v));
+        return $v === '' || ! is_numeric($v) ? null : round((float) $v, 2);
+    }
+
+    /**
+     * Field RAB dari form item: qty × freq × harga satuan (total → budget), kelompok,
+     * pos (hanya pos dept Events), mal (hanya bila event di dua mal).
+     */
+    private function fieldRab(array $post, array $event): array
+    {
+        $posIds = array_map('intval', array_column((new BudgetPosModel())->untukEvent(), 'id'));
+        $posId  = (int) ($post['pos_id'] ?? 0);
+        $d = [
+            'kelompok'     => trim((string) ($post['kelompok'] ?? '')) ?: null,
+            'qty'          => self::desimal($post['qty'] ?? ''),
+            'satuan'       => trim((string) ($post['satuan'] ?? '')) ?: null,
+            'freq'         => self::desimal($post['freq'] ?? ''),
+            'satuan_freq'  => trim((string) ($post['satuan_freq'] ?? '')) ?: null,
+            'harga_satuan' => self::rupiah($post['harga_satuan'] ?? ''),
+            'pos_id'       => in_array($posId, $posIds, true) ? $posId : null,
+            'mall'         => ($event['mall'] ?? '') === 'keduanya' && in_array($post['mall'] ?? '', ['ewalk', 'pentacity'], true) ? $post['mall'] : null,
+        ];
+        $d['budget'] = $d['harga_satuan'] !== null
+            ? (int) RabSusun::totalItem($d)
+            : (int) (self::rupiah($post['budget'] ?? '') ?? 0);
+        return $d;
+    }
+
+    /** Nomor RAB aktif yang mengunci angka item ini (null = bebas diubah). */
+    private function kunciItem(int $itemId): ?string
+    {
+        return (new RabDokumenModel())->itemTerkunci()[$itemId] ?? null;
+    }
+
+    /** Laporan realisasi bulan beban item ini sudah disahkan? */
+    private function realisasiTerkunci(array $item, array $event): bool
+    {
+        return in_array(RabSusun::bulanItem($item, $event), (new RabLaporanModel())->bulanDisahkan(), true);
     }
 
     public function index(int $eventId)
@@ -54,6 +108,12 @@ class EventContent extends BaseController
             'realisasi'      => $realisasi,
             'completion'     => ($completion = (new EventCompletionModel())->getByEvent($eventId)['content'] ?? null),
             'canEdit'        => $this->canEditMenu('content') && ! $completion,
+            'posPilihan'     => ($posPilihan = (new BudgetPosModel())->untukEvent()),
+            'posNama'        => array_column($posPilihan, 'nama', 'id') + array_column((new BudgetPosModel())->select('id, nama')->findAll(), 'nama', 'id'),
+            'kelompokList'   => array_values(array_unique(array_filter(array_column($items, 'kelompok')))),
+            'terkunci'       => ($rabDok = new RabDokumenModel())->itemTerkunci(),
+            'periodeKunci'   => $rabDok->periodeTerkunci(),
+            'bulanDisahkan'  => (new RabLaporanModel())->bulanDisahkan(),
         ]);
     }
 
@@ -122,17 +182,17 @@ class EventContent extends BaseController
         $count      = $itemModel->where('event_id', $eventId)->countAllResults();
 
         $tipe   = $post['tipe'] === 'biaya' ? 'biaya' : 'program';
-        $itemId = $itemModel->insert([
+        // Tanggal juga untuk biaya penunjang: menentukan bulan beban di RAB (event lintas bulan).
+        $itemId = $itemModel->insert($this->fieldRab($post, $event) + [
             'event_id'      => $eventId,
             'nama'          => $post['nama'],
             'tipe'          => $tipe,
-            'tanggal'       => $tipe === 'program' ? ($post['tanggal'] ?: null) : null,
+            'tanggal'       => ($post['tanggal'] ?? '') ?: null,
             'waktu_mulai'   => $tipe === 'program' ? ($post['waktu_mulai'] ?: null) : null,
             'waktu_selesai' => $tipe === 'program' ? ($post['waktu_selesai'] ?: null) : null,
             'jenis'         => $post['jenis'] ?? null,
             'pic'           => $post['pic'] ?? null,
             'lokasi'        => $tipe === 'program' ? ($post['lokasi'] ?? null) : null,
-            'budget'        => (int) str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'keterangan'    => $post['keterangan'] ?? null,
             'urutan'        => $count + 1,
             'created_by'    => $this->currentUser()['id'],
@@ -159,20 +219,32 @@ class EventContent extends BaseController
         $itemModel = new EventContentItemModel();
 
         $existing = $itemModel->find($id);
+        if (! $existing || (int) $existing['event_id'] !== $eventId) return redirect()->to("/events/{$eventId}/content")->with('error', 'Item tidak ditemukan.');
         $tipe     = $existing['tipe'] ?? 'program';
 
-        ActivityLog::captureBefore($existing);
-        $contentData = [
+        $contentData = $this->fieldRab($post, $event) + [
             'nama'          => $post['nama'],
-            'tanggal'       => $tipe === 'program' ? ($post['tanggal'] ?: null) : null,
+            'tanggal'       => ($post['tanggal'] ?? '') ?: null,
             'waktu_mulai'   => $tipe === 'program' ? ($post['waktu_mulai'] ?: null) : null,
             'waktu_selesai' => $tipe === 'program' ? ($post['waktu_selesai'] ?: null) : null,
             'jenis'         => $post['jenis'] ?? null,
             'pic'           => $post['pic'] ?? null,
             'lokasi'        => $tipe === 'program' ? ($post['lokasi'] ?? null) : null,
-            'budget'        => (int) str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'keterangan'    => $post['keterangan'] ?? null,
         ];
+
+        // Item yang tercantum di RAB aktif: angka, pos, mal, kelompok, nama & bulan
+        // beban hanya boleh berubah lewat revisi RAB. PIC, jam, lokasi, keterangan bebas.
+        if ($nomor = $this->kunciItem($id)) {
+            $beda = RabSusun::beda(['items' => [RabSusun::barisItem($existing, $event)]],
+                                   ['items' => [RabSusun::barisItem($contentData + $existing, $event)]]);
+            if ($beda['tanda'] || $beda['dihapus']) {
+                return redirect()->to("/events/{$eventId}/content#item-{$id}")->with('error', 'Item ini tercantum di ' . $nomor
+                    . '. Angka, pos, mal, kelompok, nama, dan bulan tidak bisa diubah sebelum RAB direvisi (Budget Departemen → RAB → Revisi).');
+            }
+        }
+
+        ActivityLog::captureBefore($existing);
         $itemModel->update($id, $contentData);
         ActivityLog::captureAfter($contentData);
         ActivityLog::write('update', 'content', (string)$id, $post['nama'], ['event_id' => $eventId]);
@@ -196,6 +268,13 @@ class EventContent extends BaseController
 
         $db   = db_connect();
         $item = (new EventContentItemModel())->find($id);
+        if (! $item || (int) $item['event_id'] !== $eventId) return redirect()->to("/events/{$eventId}/content")->with('error', 'Item tidak ditemukan.');
+        if ($nomor = $this->kunciItem($id)) {
+            return redirect()->to("/events/{$eventId}/content#item-{$id}")->with('error', 'Item ini tercantum di ' . $nomor . ' — hapus lewat revisi RAB.');
+        }
+        if ((new EventContentRealisasiModel())->where('content_item_id', $id)->countAllResults() > 0) {
+            return redirect()->to("/events/{$eventId}/content#item-{$id}")->with('error', 'Item ini sudah punya realisasi — hapus realisasinya dulu.');
+        }
 
         $db->transStart();
         (new EventRundownModel())->deleteByContentItem($id);
@@ -213,6 +292,13 @@ class EventContent extends BaseController
     public function storeRealisasi(int $eventId, int $itemId)
     {
         if (! $this->canEditMenu('content')) return redirect()->to("/events/{$eventId}/content")->with('error', 'Akses ditolak.');
+
+        $event = (new EventModel())->find($eventId);
+        $item  = (new EventContentItemModel())->find($itemId);
+        if (! $event || ! $item || (int) $item['event_id'] !== $eventId) return redirect()->to("/events/{$eventId}/content")->with('error', 'Item tidak ditemukan.');
+        if ($this->realisasiTerkunci($item, $event)) {
+            return redirect()->to("/events/{$eventId}/content#item-{$itemId}")->with('error', 'Laporan realisasi bulan ini sudah disahkan — realisasi tidak bisa ditambah.');
+        }
 
         $post      = $this->request->getPost();
         $uploadDir = FCPATH . 'uploads/content-realisasi/' . $eventId . '/';
@@ -265,7 +351,12 @@ class EventContent extends BaseController
 
         $model = new EventContentRealisasiModel();
         $row   = $model->find($id);
-        if ($row) {
+        $item  = (new EventContentItemModel())->find($itemId);
+        $event = (new EventModel())->find($eventId);
+        if ($row && $item && $event && $this->realisasiTerkunci($item, $event)) {
+            return redirect()->to("/events/{$eventId}/content#item-{$itemId}")->with('error', 'Laporan realisasi bulan ini sudah disahkan — realisasi tidak bisa dihapus.');
+        }
+        if ($row && (int) $row['event_id'] === $eventId) {
             $dir = FCPATH . 'uploads/content-realisasi/' . $eventId . '/';
             if ($row['file_foto']   && file_exists($dir . $row['file_foto']))   unlink($dir . $row['file_foto']);
             if ($row['file_terima'] && file_exists($dir . $row['file_terima'])) unlink($dir . $row['file_terima']);

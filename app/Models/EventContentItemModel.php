@@ -8,7 +8,7 @@ class EventContentItemModel extends Model
 {
     protected $table         = 'event_content_items';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['event_id', 'nama', 'tipe', 'tanggal', 'waktu_mulai', 'waktu_selesai', 'jenis', 'pic', 'lokasi', 'budget', 'keterangan', 'urutan', 'created_by'];
+    protected $allowedFields = ['event_id', 'nama', 'tipe', 'tanggal', 'waktu_mulai', 'waktu_selesai', 'jenis', 'pic', 'lokasi', 'budget', 'kelompok', 'qty', 'satuan', 'freq', 'satuan_freq', 'harga_satuan', 'pos_id', 'mall', 'keterangan', 'urutan', 'created_by'];
     protected $useTimestamps = true;
 
     public function getByEvent(int $eventId): array

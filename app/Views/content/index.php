@@ -51,6 +51,27 @@
 </div>
 </div>
 
+<?php
+// Konteks RAB: item yang tercantum di RAB aktif terkunci angkanya; item baru di
+// bulan yang sudah ber-RAB = "di luar RAB" (masuk revisi berikutnya).
+$rabCtx = ['terkunci' => $terkunci, 'periodeKunci' => $periodeKunci, 'disahkan' => $bulanDisahkan, 'posNama' => $posNama];
+$nomorKunci = array_values(array_unique(array_filter(array_map(fn ($i) => $terkunci[(int) $i['id']] ?? null, $items))));
+?>
+<?php if ($nomorKunci): ?>
+<div class="alert alert-info small py-2 anim-fade-up" style="animation-delay:.12s">
+    <i class="bi bi-lock me-1"></i>
+    Biaya event ini tercantum di <strong><?= esc(implode(', ', $nomorKunci)) ?></strong>. Angka, pos, mal, dan bulan item yang sudah tercantum
+    hanya bisa diubah lewat revisi RAB. Item baru tetap boleh ditambah — ditandai <em>di luar RAB</em> sampai masuk revisi.
+</div>
+<?php endif; ?>
+<?php if (empty($event['pos_id']) && $posPilihan): ?>
+<div class="alert alert-warning small py-2 anim-fade-up" style="animation-delay:.12s">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    Event ini belum punya <strong>pos budget</strong>. Tentukan di <a href="<?= base_url('events/' . $event['id'] . '/edit') ?>">Edit Event</a>
+    (atau per item) — biaya tanpa pos tidak bisa diajukan di RAB dan realisasinya tidak masuk Budget Departemen.
+</div>
+<?php endif; ?>
+
 <!-- KPI -->
 <?php if (! empty($items)): ?>
 <div class="row g-3 mb-4 anim-fade-up" style="animation-delay:.15s">
@@ -83,7 +104,17 @@
 
 <?php
 // Reusable macro: render one item card
-function renderItemCard(array $item, array $rList, array $realisasi, array $locations, array $event, bool $canEdit): void {
+function renderItemCard(array $item, array $rList, array $realisasi, array $locations, array $event, bool $canEdit, array $rab = []): void {
+    $bulanItem  = \App\Libraries\RabSusun::bulanItem($item, $event);
+    $nomorKunci = $rab['terkunci'][(int) $item['id']] ?? null;
+    $luarRab    = ! $nomorKunci && array_filter($rab['periodeKunci'] ?? [], fn ($p) => $bulanItem >= $p[0] && $bulanItem <= $p[1]);
+    $realKunci  = in_array($bulanItem, $rab['disahkan'] ?? [], true);
+    $posItem    = \App\Libraries\RabSusun::posItem($item, $event);
+    $rincian    = $item['harga_satuan'] !== null && $item['harga_satuan'] !== ''
+        ? rtrim(rtrim(number_format((float) ($item['qty'] ?? 1), 2, ',', '.'), '0'), ',') . ' ' . esc($item['satuan'] ?: '') . ' × '
+          . rtrim(rtrim(number_format((float) ($item['freq'] ?? 1), 2, ',', '.'), '0'), ',') . ' ' . esc($item['satuan_freq'] ?: '') . ' × Rp '
+          . number_format((float) $item['harga_satuan'], 0, ',', '.')
+        : '';
     $rTotal   = array_sum(array_column($rList, 'nilai'));
     $pct      = $item['budget'] > 0 ? min(100, round($rTotal / $item['budget'] * 100)) : 0;
     $barColor = $pct >= 100 ? 'danger' : ($pct >= 75 ? 'warning' : 'success');
@@ -99,9 +130,16 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
 <div class="card-header d-flex align-items-start gap-2">
     <div class="flex-grow-1">
         <div class="d-flex align-items-center gap-2 flex-wrap">
+            <?php if (! empty($item['kelompok'])): ?><span class="badge bg-dark-subtle text-body-secondary"><?= esc($item['kelompok']) ?></span><?php endif; ?>
             <span class="fw-semibold"><?= esc($item['nama']) ?></span>
             <?php if ($item['jenis']): ?><span class="badge bg-secondary-subtle text-secondary"><?= esc($item['jenis']) ?></span><?php endif; ?>
+            <?php if ($posItem): ?><span class="badge bg-primary-subtle text-primary-emphasis" title="Pos budget<?= empty($item['pos_id']) ? ' (ikut event)' : '' ?>"><i class="bi bi-wallet2 me-1"></i><?= esc($rab['posNama'][$posItem] ?? 'Pos #' . $posItem) ?></span>
+            <?php else: ?><span class="badge bg-warning-subtle text-warning-emphasis"><i class="bi bi-wallet2 me-1"></i>tanpa pos</span><?php endif; ?>
+            <?php if (! empty($item['mall'])): ?><span class="badge bg-info-subtle text-info-emphasis"><?= $item['mall'] === 'ewalk' ? 'eWalk' : 'Pentacity' ?></span><?php endif; ?>
+            <?php if ($nomorKunci): ?><span class="badge bg-success-subtle text-success-emphasis" title="Tercantum di <?= esc($nomorKunci, 'attr') ?> — ubah angka lewat revisi RAB"><i class="bi bi-lock-fill me-1"></i>RAB</span>
+            <?php elseif ($luarRab): ?><span class="badge bg-danger-subtle text-danger-emphasis" title="Ditambah/berubah setelah RAB diajukan — wajib masuk revisi RAB berikutnya"><i class="bi bi-exclamation-circle me-1"></i>Di luar RAB</span><?php endif; ?>
         </div>
+        <?php if ($rincian): ?><div class="small text-muted mt-1"><i class="bi bi-calculator me-1"></i><?= $rincian ?></div><?php endif; ?>
         <?php if (! $isBiaya): ?>
         <div class="small text-muted mt-1 d-flex flex-wrap gap-3">
             <?php if ($item['tanggal']): ?><span><i class="bi bi-calendar3 me-1"></i><?= date('d M Y', strtotime($item['tanggal'])) ?><?= $waktu ? ' · ' . $waktu : '' ?></span><?php endif; ?>
@@ -109,7 +147,10 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
             <?php if ($item['pic']): ?><span><i class="bi bi-person me-1"></i><?= esc($item['pic']) ?></span><?php endif; ?>
         </div>
         <?php else: ?>
-        <?php if ($item['pic']): ?><div class="small text-muted mt-1"><i class="bi bi-person me-1"></i><?= esc($item['pic']) ?></div><?php endif; ?>
+        <div class="small text-muted mt-1 d-flex flex-wrap gap-3">
+            <?php if ($item['tanggal']): ?><span><i class="bi bi-calendar3 me-1"></i><?= date('d M Y', strtotime($item['tanggal'])) ?></span><?php endif; ?>
+            <?php if ($item['pic']): ?><span><i class="bi bi-person me-1"></i><?= esc($item['pic']) ?></span><?php endif; ?>
+        </div>
         <?php endif; ?>
     </div>
     <div class="text-end ms-2 flex-shrink-0">
@@ -129,13 +170,24 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
             data-pic="<?= esc($item['pic'] ?? '', 'attr') ?>"
             data-lokasi="<?= esc($item['lokasi'] ?? '', 'attr') ?>"
             data-budget="<?= number_format($item['budget'],0,',','.') ?>"
+            data-kelompok="<?= esc($item['kelompok'] ?? '', 'attr') ?>"
+            data-qty="<?= $item['qty'] !== null ? rtrim(rtrim((string) $item['qty'], '0'), '.') : '' ?>"
+            data-satuan="<?= esc($item['satuan'] ?? '', 'attr') ?>"
+            data-freq="<?= $item['freq'] !== null ? rtrim(rtrim((string) $item['freq'], '0'), '.') : '' ?>"
+            data-satuan-freq="<?= esc($item['satuan_freq'] ?? '', 'attr') ?>"
+            data-harga="<?= $item['harga_satuan'] !== null ? number_format((float) $item['harga_satuan'], 0, ',', '.') : '' ?>"
+            data-pos="<?= (int) ($item['pos_id'] ?? 0) ?: '' ?>"
+            data-mall="<?= esc($item['mall'] ?? '', 'attr') ?>"
+            data-kunci="<?= esc($nomorKunci ?? '', 'attr') ?>"
             data-keterangan="<?= esc($item['keterangan'] ?? '', 'attr') ?>">
             <i class="bi bi-pencil"></i>
         </button>
+        <?php if (! $nomorKunci): ?>
         <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/delete-item') ?>" class="d-inline" onsubmit="return confirm('Hapus item ini?')">
             <?= csrf_field() ?>
             <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
         </form>
+        <?php endif; ?>
     </div>
     <?php endif; ?>
 </div>
@@ -192,10 +244,12 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
         </td>
         <?php if ($canEdit): ?>
         <td>
+            <?php if (! $realKunci): ?>
             <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/realisasi/'.$r['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus realisasi ini?')">
                 <?= csrf_field() ?>
                 <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
             </form>
+            <?php endif; ?>
         </td>
         <?php endif; ?>
     </tr>
@@ -205,7 +259,9 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
     </div>
     <?php endif; ?>
 
-    <?php if ($canEdit): ?>
+    <?php if ($canEdit && $realKunci): ?>
+    <div class="small text-muted"><i class="bi bi-patch-check me-1"></i>Laporan realisasi <?= \App\Libraries\RabSusun::labelBulan($bulanItem) ?> sudah disahkan — realisasi terkunci.</div>
+    <?php elseif ($canEdit): ?>
     <button class="btn btn-sm btn-outline-primary" type="button"
             data-bs-toggle="collapse" data-bs-target="#formReal<?= $item['id'] ?>">
         <i class="bi bi-plus-lg me-1"></i> Input Realisasi
@@ -264,7 +320,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
 </div></div>
 <?php else: ?>
 <?php foreach ($programs as $item): ?>
-<?php renderItemCard($item, $realisasi[$item['id']] ?? [], $realisasi, $locations, $event, $canEdit); ?>
+<?php renderItemCard($item, $realisasi[$item['id']] ?? [], $realisasi, $locations, $event, $canEdit, $rabCtx); ?>
 <?php endforeach; ?>
 <?php endif; ?>
 
@@ -281,11 +337,15 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
 </div></div>
 <?php else: ?>
 <?php foreach ($biayaItems as $item): ?>
-<?php renderItemCard($item, $realisasi[$item['id']] ?? [], $realisasi, $locations, $event, $canEdit); ?>
+<?php renderItemCard($item, $realisasi[$item['id']] ?? [], $realisasi, $locations, $event, $canEdit, $rabCtx); ?>
 <?php endforeach; ?>
 <?php endif; ?>
 
 <?php if ($canEdit): ?>
+<?php $posEventNama = ! empty($event['pos_id']) ? ($posNama[(int) $event['pos_id']] ?? '') : ''; ?>
+<datalist id="dlKelompok"><?php foreach (array_unique(array_merge($kelompokList, ['Opening Ceremony', 'Closing Ceremony', 'Competition', 'Performance', 'Talkshow', 'Workshop'])) as $k): ?><option value="<?= esc($k, 'attr') ?>"><?php endforeach; ?></datalist>
+<datalist id="dlSatuan"><option value="Package"><option value="Pax"><option value="Unit"><option value="Orang"><option value="Set"></datalist>
+<datalist id="dlSatuanFreq"><option value="Hari"><option value="Kali"><option value="Minggu"><option value="Bulan"></datalist>
 <!-- Add Item Modal -->
 <div class="modal fade" id="addItemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
 <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/add-item') ?>">
@@ -305,20 +365,20 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
         <div class="row g-2 mb-3">
             <div class="col-4">
                 <label class="form-label small fw-semibold">Tanggal</label>
-                <input type="date" name="tanggal" class="form-control"
+                <input type="date" name="tanggal" id="aTanggal" class="form-control"
                        min="<?= $event['start_date'] ?>"
                        max="<?= date('Y-m-d', strtotime($event['start_date'] . ' +' . ($event['event_days'] - 1) . ' days')) ?>">
             </div>
-            <div class="col-4">
+            <div class="col-4 hanya-program">
                 <label class="form-label small fw-semibold">Mulai</label>
                 <input type="time" name="waktu_mulai" class="form-control">
             </div>
-            <div class="col-4">
+            <div class="col-4 hanya-program">
                 <label class="form-label small fw-semibold">Selesai</label>
                 <input type="time" name="waktu_selesai" class="form-control">
             </div>
         </div>
-        <div class="mb-3">
+        <div class="mb-3 hanya-program">
             <label class="form-label small fw-semibold">Lokasi</label>
             <select name="lokasi" class="form-select">
                 <option value="">— Pilih Lokasi —</option>
@@ -364,9 +424,38 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
             <input type="text" name="pic" class="form-control" placeholder="Nama PIC">
         </div>
     </div>
+    <div class="border rounded p-2 mb-3 rab-blok" id="aRabBlok">
+        <div class="small fw-semibold mb-2"><i class="bi bi-calculator me-1"></i>Rincian biaya (RAB)</div>
+        <div class="row g-2 mb-2">
+            <div class="col-3"><label class="form-label small mb-1">Qty</label><input type="text" inputmode="decimal" name="qty" id="aQty" class="form-control form-control-sm rab-hitung" placeholder="1"></div>
+            <div class="col-3"><label class="form-label small mb-1">Satuan</label><input type="text" name="satuan" id="aSatuan" class="form-control form-control-sm" list="dlSatuan" placeholder="Package"></div>
+            <div class="col-3"><label class="form-label small mb-1">Freq</label><input type="text" inputmode="decimal" name="freq" id="aFreq" class="form-control form-control-sm rab-hitung" placeholder="1"></div>
+            <div class="col-3"><label class="form-label small mb-1">Per</label><input type="text" name="satuan_freq" id="aSatuanFreq" class="form-control form-control-sm" list="dlSatuanFreq" placeholder="Hari"></div>
+        </div>
+        <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label small mb-1">Harga satuan (Rp)</label><input type="text" name="harga_satuan" id="aHarga" class="form-control form-control-sm currency-input rab-hitung" placeholder="0"></div>
+            <div class="col-6"><label class="form-label small mb-1">Total</label><div class="fw-semibold pt-1" id="aTotal">—</div></div>
+        </div>
+        <div class="row g-2">
+            <div class="col-6"><label class="form-label small mb-1">Kelompok</label><input type="text" name="kelompok" id="aKelompok" class="form-control form-control-sm" list="dlKelompok" placeholder="Opening Ceremony, Competition…"></div>
+            <div class="col-6"><label class="form-label small mb-1">Pos budget</label>
+                <select name="pos_id" id="aPos" class="form-select form-select-sm">
+                    <option value="">Ikut event<?= $posEventNama ? ' (' . esc($posEventNama) . ')' : '' ?></option>
+                    <?php foreach ($posPilihan as $pp): ?><option value="<?= $pp['id'] ?>"><?= esc($pp['nama']) ?></option><?php endforeach; ?>
+                </select></div>
+            <?php if (($event['mall'] ?? '') === 'keduanya'): ?>
+            <div class="col-6"><label class="form-label small mb-1">Mal</label>
+                <select name="mall" id="aMall" class="form-select form-select-sm">
+                    <option value="">Keduanya (dibagi 50:50)</option><option value="ewalk">eWalk</option><option value="pentacity">Pentacity</option>
+                </select></div>
+            <?php endif; ?>
+        </div>
+        <div class="small text-danger mt-2 d-none" id="aKunciInfo"><i class="bi bi-lock-fill me-1"></i>Tercantum di <span></span> — angka, pos, mal, kelompok, nama, dan bulan dikunci sampai RAB direvisi.</div>
+    </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Budget (Rp)</label>
-        <input type="text" name="budget" class="form-control currency-input" value="0">
+        <input type="text" name="budget" id="aBudget" class="form-control currency-input" value="0">
+        <div class="form-text">Terisi otomatis dari rincian biaya bila harga satuan diisi.</div>
     </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Keterangan</label>
@@ -401,16 +490,16 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
                        min="<?= $event['start_date'] ?>"
                        max="<?= date('Y-m-d', strtotime($event['start_date'] . ' +' . ($event['event_days'] - 1) . ' days')) ?>">
             </div>
-            <div class="col-4">
+            <div class="col-4 hanya-program">
                 <label class="form-label small fw-semibold">Mulai</label>
                 <input type="time" name="waktu_mulai" id="eMulai" class="form-control">
             </div>
-            <div class="col-4">
+            <div class="col-4 hanya-program">
                 <label class="form-label small fw-semibold">Selesai</label>
                 <input type="time" name="waktu_selesai" id="eSelesai" class="form-control">
             </div>
         </div>
-        <div class="mb-3">
+        <div class="mb-3 hanya-program">
             <label class="form-label small fw-semibold">Lokasi</label>
             <select name="lokasi" id="eLokasi" class="form-select">
                 <option value="">— Pilih Lokasi —</option>
@@ -456,9 +545,38 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
             <input type="text" name="pic" id="ePic" class="form-control">
         </div>
     </div>
+    <div class="border rounded p-2 mb-3 rab-blok" id="eRabBlok">
+        <div class="small fw-semibold mb-2"><i class="bi bi-calculator me-1"></i>Rincian biaya (RAB)</div>
+        <div class="row g-2 mb-2">
+            <div class="col-3"><label class="form-label small mb-1">Qty</label><input type="text" inputmode="decimal" name="qty" id="eQty" class="form-control form-control-sm rab-hitung" placeholder="1"></div>
+            <div class="col-3"><label class="form-label small mb-1">Satuan</label><input type="text" name="satuan" id="eSatuan" class="form-control form-control-sm" list="dlSatuan" placeholder="Package"></div>
+            <div class="col-3"><label class="form-label small mb-1">Freq</label><input type="text" inputmode="decimal" name="freq" id="eFreq" class="form-control form-control-sm rab-hitung" placeholder="1"></div>
+            <div class="col-3"><label class="form-label small mb-1">Per</label><input type="text" name="satuan_freq" id="eSatuanFreq" class="form-control form-control-sm" list="dlSatuanFreq" placeholder="Hari"></div>
+        </div>
+        <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label small mb-1">Harga satuan (Rp)</label><input type="text" name="harga_satuan" id="eHarga" class="form-control form-control-sm currency-input rab-hitung" placeholder="0"></div>
+            <div class="col-6"><label class="form-label small mb-1">Total</label><div class="fw-semibold pt-1" id="eTotal">—</div></div>
+        </div>
+        <div class="row g-2">
+            <div class="col-6"><label class="form-label small mb-1">Kelompok</label><input type="text" name="kelompok" id="eKelompok" class="form-control form-control-sm" list="dlKelompok" placeholder="Opening Ceremony, Competition…"></div>
+            <div class="col-6"><label class="form-label small mb-1">Pos budget</label>
+                <select name="pos_id" id="ePos" class="form-select form-select-sm">
+                    <option value="">Ikut event<?= $posEventNama ? ' (' . esc($posEventNama) . ')' : '' ?></option>
+                    <?php foreach ($posPilihan as $pp): ?><option value="<?= $pp['id'] ?>"><?= esc($pp['nama']) ?></option><?php endforeach; ?>
+                </select></div>
+            <?php if (($event['mall'] ?? '') === 'keduanya'): ?>
+            <div class="col-6"><label class="form-label small mb-1">Mal</label>
+                <select name="mall" id="eMall" class="form-select form-select-sm">
+                    <option value="">Keduanya (dibagi 50:50)</option><option value="ewalk">eWalk</option><option value="pentacity">Pentacity</option>
+                </select></div>
+            <?php endif; ?>
+        </div>
+        <div class="small text-danger mt-2 d-none" id="eKunciInfo"><i class="bi bi-lock-fill me-1"></i>Tercantum di <span></span> — angka, pos, mal, kelompok, nama, dan bulan dikunci sampai RAB direvisi.</div>
+    </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Budget (Rp)</label>
         <input type="text" name="budget" id="eBudget" class="form-control currency-input">
+        <div class="form-text">Terisi otomatis dari rincian biaya bila harga satuan diisi.</div>
     </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Keterangan</label>
@@ -483,11 +601,29 @@ document.querySelectorAll('.currency-input').forEach(inp => {
     });
 });
 
+// Rincian biaya RAB: total = qty × freq × harga satuan (qty/freq kosong = 1) → isi Budget.
+const angkaID = v => parseFloat(String(v || '').replace(/\./g, '').replace(',', '.'));
+function hitungRab(p) {
+    const harga = parseInt(String(document.getElementById(p + 'Harga').value).replace(/[^0-9]/g, '')) || 0;
+    const ada   = document.getElementById(p + 'Harga').value.trim() !== '';
+    const qty   = angkaID(document.getElementById(p + 'Qty').value) || 1;
+    const freq  = angkaID(document.getElementById(p + 'Freq').value) || 1;
+    const total = Math.round(qty * freq * harga);
+    const bud   = document.getElementById(p + 'Budget');
+    document.getElementById(p + 'Total').textContent = ada ? 'Rp ' + total.toLocaleString('id-ID') : '—';
+    if (ada) bud.value = total.toLocaleString('id-ID');
+    bud.readOnly = ada || bud.dataset.kunci === '1';
+}
+['a', 'e'].forEach(p => document.querySelectorAll('#' + p + 'RabBlok .rab-hitung').forEach(el => el.addEventListener('input', () => hitungRab(p))));
+function tampilProgram(scope, isProgram) {
+    scope.querySelectorAll('.hanya-program').forEach(el => el.style.display = isProgram ? '' : 'none');
+}
+
 function setAddTipe(tipe) {
     document.getElementById('addTipe').value = tipe;
     const isProgram = tipe === 'program';
     document.getElementById('addModalTitle').textContent = isProgram ? 'Tambah Program / Aktivitas' : 'Tambah Biaya Penunjang';
-    document.getElementById('addProgramFields').style.display = isProgram ? '' : 'none';
+    tampilProgram(document.getElementById('addProgramFields'), isProgram);
     // toggle optgroups
     document.querySelectorAll('#addJenis .opt-program').forEach(el => el.style.display = isProgram ? '' : 'none');
     document.querySelectorAll('#addJenis .opt-biaya').forEach(el => el.style.display = isProgram ? 'none' : '');
@@ -506,7 +642,7 @@ document.querySelectorAll('.edit-item-btn').forEach(btn => {
         const isProgram = d.tipe !== 'biaya';
         document.getElementById('editItemForm').action = '<?= base_url('events/'.$event['id'].'/content/') ?>' + d.id + '/edit-item';
         document.getElementById('editModalTitle').textContent = isProgram ? 'Edit Program / Aktivitas' : 'Edit Biaya Penunjang';
-        document.getElementById('editProgramFields').style.display = isProgram ? '' : 'none';
+        tampilProgram(document.getElementById('editProgramFields'), isProgram);
         document.getElementById('eNama').value       = d.nama;
         document.getElementById('eTanggal').value    = d.tanggal;
         document.getElementById('eMulai').value      = d.mulai;
@@ -516,6 +652,22 @@ document.querySelectorAll('.edit-item-btn').forEach(btn => {
         document.getElementById('eLokasi').value     = d.lokasi;
         document.getElementById('eBudget').value     = d.budget;
         document.getElementById('eKeterangan').value = d.keterangan;
+        document.getElementById('eKelompok').value   = d.kelompok;
+        document.getElementById('eQty').value        = d.qty;
+        document.getElementById('eSatuan').value     = d.satuan;
+        document.getElementById('eFreq').value       = d.freq;
+        document.getElementById('eSatuanFreq').value = d.satuanFreq;
+        document.getElementById('eHarga').value      = d.harga;
+        document.getElementById('ePos').value        = d.pos;
+        const eMall = document.getElementById('eMall'); if (eMall) eMall.value = d.mall;
+        // Terkunci RAB: field penentu angka hanya-baca (tetap terkirim; server menolak bila berubah).
+        const kunci = !!d.kunci;
+        document.getElementById('eBudget').dataset.kunci = kunci ? '1' : '';
+        ['eNama', 'eKelompok', 'eQty', 'eSatuan', 'eFreq', 'eSatuanFreq', 'eHarga', 'eBudget'].forEach(id => document.getElementById(id).readOnly = kunci);
+        ['ePos', 'eMall'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('pe-none', kunci), el.tabIndex = kunci ? -1 : 0; });
+        const info = document.getElementById('eKunciInfo');
+        info.classList.toggle('d-none', !kunci); info.querySelector('span').textContent = d.kunci;
+        hitungRab('e');
         new bootstrap.Modal(document.getElementById('editItemModal')).show();
     });
 });

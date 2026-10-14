@@ -29,6 +29,9 @@ class SectionConfig
         // Catatan internal budget & realisasi tiap departemen (bukan anggaran
         // resmi — itu modul Keuangan WBL One). Pengguna hanya melihat dept-nya.
         'budget_dept'        => 'Budget Departemen',
+        // RAB Event & Promotion: tingkat "menyetujui" = admin E&P yang mengunggah PDF
+        // RAB / laporan realisasi yang sudah lengkap tanda tangan e-Sign-nya.
+        'rab'                => 'RAB — unggah berkas bertanda tangan',
         // Pemantauan AI — memantau pemakaian Claude Code di laptop tim, secara
         // terbuka. Didaftarkan di sini supaya otomatis muncul di layar hak
         // akses user/departemen: admin yang memutuskan siapa boleh melihat.

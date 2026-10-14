@@ -91,6 +91,10 @@ $_qBulan = fn (int $m) => array_filter(['tahun' => $tahun, 'bulan' => $m ?: null
         </td>
         <td class="c-pos"><?= esc($r['pos_nama']) ?></td>
         <td class="c-uraian">
+            <?php if (($r['sumber'] ?? '') === 'event'): ?>
+            <a href="<?= base_url('events/' . $r['event_id'] . '/content#item-' . $r['item_id']) ?>" class="badge text-bg-info-subtle text-info-emphasis text-decoration-none me-1"
+               title="Dicatat di modul Events (Event Content) — ubah/hapus dari sana"><i class="bi bi-calendar-event me-1"></i>Event</a>
+            <?php endif; ?>
             <?= esc($r['uraian']) ?>
             <?php if ($r['keterangan']): ?><div class="ket"><?= esc($r['keterangan']) ?></div><?php endif; ?>
         </td>
@@ -101,6 +105,9 @@ $_qBulan = fn (int $m) => array_filter(['tahun' => $tahun, 'bulan' => $m ?: null
         <td class="nilai"><?= number_format((float) $r['nilai'], 0, ',', '.') ?></td>
         <?php if ($canEdit): ?>
         <td class="text-nowrap text-end">
+            <?php if (($r['sumber'] ?? '') === 'event'): ?>
+            <a href="<?= base_url('events/' . $r['event_id'] . '/content#item-' . $r['item_id']) ?>" class="btn btn-sm btn-link p-0" title="Buka di Event Content"><i class="bi bi-box-arrow-up-right"></i></a>
+            <?php else: ?>
             <button type="button" class="btn btn-sm btn-link p-0 me-2" title="Ubah" aria-label="Ubah"
                     data-bs-toggle="modal" data-bs-target="#mTx"
                     data-tx="<?= esc(json_encode(array_intersect_key($r, array_flip(['id','pos_id','tanggal','periode_asal','uraian','keterangan','nilai','mall','referensi'])))) ?>">
@@ -109,6 +116,7 @@ $_qBulan = fn (int $m) => array_filter(['tahun' => $tahun, 'bulan' => $m ?: null
                 <?= csrf_field() ?><input type="hidden" name="kembali" value="<?= esc($kembali) ?>">
                 <button class="btn btn-sm btn-link p-0 text-danger" title="Hapus" aria-label="Hapus"><i class="bi bi-trash"></i></button>
             </form>
+            <?php endif; ?>
         </td>
         <?php endif; ?>
     </tr>

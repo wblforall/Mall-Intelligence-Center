@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Models\EventModel;
 use App\Models\EventLocationModel;
+use App\Models\BudgetPosModel;
+use App\Models\RabDokumenModel;
 use App\Libraries\ActivityLog;
 
 class Events extends BaseController
@@ -44,8 +46,9 @@ class Events extends BaseController
         }
         $locModel = new EventLocationModel();
         return view('events/create', [
-            'user'      => $this->currentUser(),
-            'locations' => $locModel->where('aktif', 1)->orderBy('mall')->orderBy('nama')->findAll(),
+            'user'       => $this->currentUser(),
+            'locations'  => $locModel->where('aktif', 1)->orderBy('mall')->orderBy('nama')->findAll(),
+            'posPilihan' => (new BudgetPosModel())->untukEvent(),
         ]);
     }
 
@@ -73,6 +76,8 @@ class Events extends BaseController
         $eventId = $this->eventModel->insert([
             'name'       => $this->request->getPost('name'),
             'tema'       => $this->request->getPost('tema'),
+            'jenis'      => $this->request->getPost('jenis') === 'rutin' ? 'rutin' : 'event',
+            'pos_id'     => $this->posSah($this->request->getPost('pos_id')),
             'content'    => $this->request->getPost('content'),
             'mall'       => $this->request->getPost('mall'),
             'start_date' => $startDate,
@@ -117,6 +122,7 @@ class Events extends BaseController
             'event'               => $event,
             'locations'           => $locModel->where('aktif', 1)->orderBy('mall')->orderBy('nama')->findAll(),
             'selectedLocationIds' => $locModel->getEventLocationIds($id),
+            'posPilihan'          => (new BudgetPosModel())->untukEvent(),
         ]);
     }
 
@@ -140,14 +146,29 @@ class Events extends BaseController
         $endDate   = $this->request->getPost('end_date');
         $eventDays = max(1, (int)round((strtotime($endDate) - strtotime($startDate)) / 86400) + 1);
 
-        ActivityLog::captureBefore($event);
         $eventData = [
             'name'       => $this->request->getPost('name'),
             'tema'       => $this->request->getPost('tema'),
+            'jenis'      => $this->request->getPost('jenis') === 'rutin' ? 'rutin' : 'event',
+            'pos_id'     => $this->posSah($this->request->getPost('pos_id')),
             'mall'       => $this->request->getPost('mall'),
             'start_date' => $startDate,
             'event_days' => $eventDays,
         ];
+
+        // Biaya event ini sudah tercantum di RAB yang diajukan/disetujui: mal, pos
+        // bawaan, dan tanggal ikut menentukan angka RAB → ubah lewat revisi RAB.
+        if ($nomor = $this->rabMengunci($id)) {
+            $berubah = [];
+            if ($eventData['mall'] !== $event['mall'])                              $berubah[] = 'mal';
+            if ((int) $eventData['pos_id'] !== (int) $event['pos_id'])               $berubah[] = 'pos budget';
+            if ($startDate !== $event['start_date'] || $eventDays !== (int) $event['event_days']) $berubah[] = 'tanggal';
+            if ($berubah) {
+                return redirect()->back()->withInput()->with('error', 'Biaya event ini sudah masuk ' . $nomor . '. '
+                    . ucfirst(implode(', ', $berubah)) . ' tidak bisa diubah sebelum RAB direvisi (Budget Departemen → RAB → Revisi).');
+            }
+        }
+        ActivityLog::captureBefore($event);
         // Event yang DITOLAK lalu direvisi → diajukan ulang (kembali pending),
         // jejak penolakan lama dibersihkan. Tanpa ini penolakan bersifat final:
         // pembuat merevisi tapi statusnya tetap "ditolak" selamanya.
@@ -181,6 +202,24 @@ class Events extends BaseController
         return redirect()->to("/events/{$id}/summary")->with('success', 'Event berhasil diperbarui.');
     }
 
+    /** Pos boleh dipakai event hanya pos aktif dept yang terhubung ke Events. */
+    private function posSah($posId): ?int
+    {
+        $posId = (int) $posId;
+        if (! $posId) return null;
+        return in_array($posId, array_map('intval', array_column((new BudgetPosModel())->untukEvent(), 'id')), true) ? $posId : null;
+    }
+
+    /** Nomor RAB aktif yang mencantumkan biaya event ini (null = tidak terkunci). */
+    private function rabMengunci(int $eventId): ?string
+    {
+        $kunci = (new RabDokumenModel())->itemTerkunci();
+        if (! $kunci) return null;
+        $ids = array_column(db_connect()->table('event_content_items')->select('id')->where('event_id', $eventId)->get()->getResultArray(), 'id');
+        foreach ($ids as $i) if (isset($kunci[(int) $i])) return $kunci[(int) $i];
+        return null;
+    }
+
     public function delete(int $id)
     {
         if (! $this->isAdmin()) {
@@ -188,6 +227,9 @@ class Events extends BaseController
         }
         $event = $this->eventModel->find($id);
         if (! $event) return redirect()->to('/events')->with('error', 'Event tidak ditemukan.');
+        if ($nomor = $this->rabMengunci($id)) {
+            return redirect()->to("/events/{$id}/summary")->with('error', 'Biaya event ini tercantum di ' . $nomor . ' — revisi RAB dulu sebelum menghapus event.');
+        }
 
         $db = db_connect();
 

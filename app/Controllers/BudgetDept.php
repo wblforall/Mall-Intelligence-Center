@@ -37,15 +37,15 @@ class BudgetDept extends BaseController
     const TAHUN_MULAI = 2027;
 
     /** Tahun mulai untuk dept ini (pengaturan dept, atau bawaan). */
-    private function tahunMulai(array $dept): int
+    protected function tahunMulai(array $dept): int
     {
         return (new BudgetDeptSettingModel())->tahunMulai((int) $dept['id'], self::TAHUN_MULAI);
     }
 
-    private ?array $_terlihat = null;
+    protected ?array $_terlihat = null;
 
     /** [dept_id => dept] yang boleh DILIHAT pengguna ini, urut divisi lalu nama. */
-    private function deptTerlihat(): array
+    protected function deptTerlihat(): array
     {
         if ($this->_terlihat !== null) return $this->_terlihat;
         $semua = array_column((new DepartmentModel())->selectable(), null, 'id');
@@ -74,7 +74,7 @@ class BudgetDept extends BaseController
     }
 
     /** Departemen yang sedang dibuka — ?dept= bila termasuk yang boleh dilihat, selain itu dept sendiri. */
-    private function dept(): ?array
+    protected function dept(): ?array
     {
         $daftar = $this->deptTerlihat();
         $id = (int) $this->request->getGetPost('dept');
@@ -85,26 +85,26 @@ class BudgetDept extends BaseController
     }
 
     /** Boleh mengisi dept ini? Hanya dept sendiri, atau admin. */
-    private function bolehUbah(array $dept): bool
+    protected function bolehUbah(array $dept): bool
     {
         if (! $this->canEditMenu(self::MENU)) return false;
         return $this->isAdmin() || (int) $dept['id'] === (int) session()->get('dept_id');
     }
 
     /** Dept untuk aksi tulis — null bila tak boleh mengisinya. */
-    private function deptUntukUbah(): ?array
+    protected function deptUntukUbah(): ?array
     {
         $dept = $this->dept();
         return $dept && $this->bolehUbah($dept) ? $dept : null;
     }
 
-    private function tolak()
+    protected function tolak()
     {
         return redirect()->to('/')->with('error', 'Akses ditolak.');
     }
 
     /** Data bersama header semua halaman (pilihan dept & tahun). */
-    private function konteks(array $dept, int $tahun, string $tab): array
+    protected function konteks(array $dept, int $tahun, string $tab): array
     {
         return [
             'user'       => $this->currentUser(),
@@ -118,6 +118,7 @@ class BudgetDept extends BaseController
             'years'      => (new BudgetRencanaModel())->tahunTersedia((int) $dept['id'], $this->tahunMulai($dept)),
             'tahunMulai' => $this->tahunMulai($dept),
             'pisahMal'   => (new BudgetDeptSettingModel())->pisahMal((int) $dept['id']),
+            'adaRab'     => (new BudgetDeptSettingModel())->eventMulai((int) $dept['id']) !== null,
         ];
     }
 
@@ -126,7 +127,7 @@ class BudgetDept extends BaseController
      * (cookie, setahun) — keputusan 13 Okt 2026: tahun tidak boleh pindah
      * sendiri ke tahun berjalan. Tahun berjalan hanya cadangan.
      */
-    private function tahun(array $dept): int
+    protected function tahun(array $dept): int
     {
         helper('cookie');
         $mulai  = $this->tahunMulai($dept);
@@ -142,7 +143,7 @@ class BudgetDept extends BaseController
         return $sah($terakhir) ? $terakhir : $bawaan;
     }
 
-    private function url(string $path, array $dept, array $q = []): string
+    protected function url(string $path, array $dept, array $q = []): string
     {
         if (count($this->deptTerlihat()) > 1) $q = ['dept' => $dept['id']] + $q;
         return base_url('budget-dept' . ($path ? '/' . $path : '')) . ($q ? '?' . http_build_query($q) : '');

@@ -818,6 +818,20 @@ $routes->post('budget-dept/pos/simpan',              'BudgetDept::simpanPos',   
 $routes->post('budget-dept/pos/urut',                'BudgetDept::urutPos',        ['filter' => 'auth']);
 $routes->post('budget-dept/pos/(:num)/hapus',        'BudgetDept::hapusPos/$1',   ['filter' => 'auth']);
 $routes->post('budget-dept/setting',                 'BudgetDept::simpanSetting',  ['filter' => 'auth']);
+// RAB Event & Promotion — dokumen pembungkus item Event Content (BudgetRab)
+$routes->get ('budget-dept/rab',                          'BudgetRab::index',           ['filter' => 'auth']);
+$routes->post('budget-dept/rab/buat',                     'BudgetRab::buat',            ['filter' => 'auth']);
+$routes->post('budget-dept/rab/laporan/buat',             'BudgetRab::laporanBuat',     ['filter' => 'auth']);
+$routes->get ('budget-dept/rab/laporan/(:num)/cetak',     'BudgetRab::laporanCetak/$1',  ['filter' => 'auth']);
+$routes->post('budget-dept/rab/laporan/(:num)/unggah',    'BudgetRab::laporanUnggah/$1', ['filter' => 'auth']);
+$routes->get ('budget-dept/rab/laporan/(:num)/berkas',    'BudgetRab::laporanBerkas/$1', ['filter' => 'auth']);
+$routes->get ('budget-dept/rab/(:num)',                   'BudgetRab::lihat/$1',        ['filter' => 'auth']);
+$routes->get ('budget-dept/rab/(:num)/cetak',             'BudgetRab::cetak/$1',        ['filter' => 'auth']);
+$routes->post('budget-dept/rab/(:num)/ajukan',            'BudgetRab::ajukan/$1',       ['filter' => 'auth']);
+$routes->post('budget-dept/rab/(:num)/revisi',            'BudgetRab::revisi/$1',       ['filter' => 'auth']);
+$routes->post('budget-dept/rab/(:num)/hapus',             'BudgetRab::hapus/$1',        ['filter' => 'auth']);
+$routes->post('budget-dept/rab/(:num)/unggah',            'BudgetRab::unggah/$1',       ['filter' => 'auth']);
+$routes->get ('budget-dept/rab/(:num)/berkas',            'BudgetRab::berkas/$1',       ['filter' => 'auth']);
 
 $routes->get ('work-report',                              'WorkReportCtrl::index',                    ['filter' => 'auth']);
 $routes->get ('work-report/admin',                        'WorkReportCtrl::admin',                    ['filter' => 'auth']);

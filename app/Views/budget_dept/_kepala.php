@@ -17,6 +17,8 @@ $_tabs = [
     'realisasi' => ['realisasi', 'bi-receipt', 'Realisasi'],
     'pos'       => ['pos', 'bi-list-ol', 'Pos Budget'],
 ];
+// Tab RAB hanya untuk dept yang terhubung ke modul Events (E&P).
+if (! empty($adaRab)) $_tabs = array_slice($_tabs, 0, 3, true) + ['rab' => ['rab', 'bi-file-earmark-text', 'RAB']] + array_slice($_tabs, 3, null, true);
 $_bawaQ = array_filter(['tahun' => $tahun]);
 ?>
 <style>

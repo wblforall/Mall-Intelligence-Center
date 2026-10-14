@@ -20,6 +20,8 @@
         <label class="form-label fw-semibold">Tema Event</label>
         <input type="text" name="tema" class="form-control" value="<?= esc(old('tema', $event['tema'] ?? ''), 'attr') ?>" placeholder="IP Character, Seasonal, Brand...">
     </div>
+
+    <?= view('events/_anggaran', ['posPilihan' => $posPilihan, 'jenis' => old('jenis', $event['jenis'] ?? 'event'), 'posId' => old('pos_id', $event['pos_id'] ?? null)]) ?>
     <div class="mb-3">
         <label class="form-label fw-semibold">Mall / Lokasi <span class="text-danger">*</span></label>
         <select name="mall" class="form-select">

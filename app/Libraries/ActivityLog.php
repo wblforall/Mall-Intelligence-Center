@@ -99,6 +99,8 @@ class ActivityLog
         'training_program'              => 'Program Training',
         'training_participant'          => 'Peserta Training',
         'training_budget'               => 'Budget Training',
+        'rab'                           => 'RAB Event & Promotion',
+        'rab_laporan'                   => 'Laporan Realisasi RAB',
         'talent_placement'              => 'Penempatan Talent',
         'talent_period'                 => 'Periode Talent',
         'talent_viewer'                 => 'Viewer Talent',
