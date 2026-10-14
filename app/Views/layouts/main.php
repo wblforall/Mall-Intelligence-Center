@@ -739,7 +739,7 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
         </a>
     </div>
     <div class="sidebar-versi" style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5;white-space:nowrap">
-        v2.29.0 &nbsp;·&nbsp; © 2026 IT Dept WBL
+        v2.30.0 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
 </div>
