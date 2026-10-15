@@ -316,7 +316,11 @@ class AiKlasifikasi
             if ($model === '' || $key === '') {
                 continue; // entri tak lengkap → lewati, jangan putus daftar
             }
-            $out[] = ['base' => $base, 'model' => $model, 'key' => $key, 'label' => "p{$i}"];
+            // aiklas.pN_tipe = anthropic → API Messages asli Anthropic (endpoint
+            // kompatibel-OpenAI-nya menolak response_format json_object);
+            // selain itu OpenAI-compatible.
+            $tipe  = strtolower((string) env("aiklas.p{$i}_tipe")) === 'anthropic' ? 'anthropic' : 'openai';
+            $out[] = ['base' => $base, 'model' => $model, 'key' => $key, 'label' => "p{$i}", 'tipe' => $tipe];
         }
 
         if ($out === []) {
@@ -361,6 +365,48 @@ class AiKlasifikasi
     }
 
     /**
+     * Satu panggilan ke API Messages Anthropic (api.anthropic.com/v1/messages).
+     * Mode JSON tidak diminta lewat parameter: instruksi sistem sudah menuntut
+     * JSON dan parsing pemanggil tetap defensif (strip ```json, validasi enum).
+     */
+    private static function httpAnthropic(array $p, string $sistem, string $pengguna, int $maxTokens): ?string
+    {
+        try {
+            $client = \Config\Services::curlrequest([
+                'timeout'         => self::AI_TIMEOUT,
+                'connect_timeout' => 10,
+                'http_errors'     => false,
+            ]);
+            $resp = $client->post($p['base'] . '/v1/messages', [
+                'headers' => [
+                    'x-api-key'         => $p['key'],
+                    'anthropic-version' => '2023-06-01',
+                    'Content-Type'      => 'application/json',
+                ],
+                'json' => [
+                    'model'       => $p['model'],
+                    'max_tokens'  => $maxTokens,
+                    // Tanpa `temperature`: model Claude terbaru menolaknya.
+                    'system'      => $sistem,
+                    'messages'    => [['role' => 'user', 'content' => $pengguna]],
+                ],
+            ]);
+            if ($resp->getStatusCode() !== 200) {
+                return null;
+            }
+            $data = json_decode((string) $resp->getBody(), true);
+            foreach (($data['content'] ?? []) as $blok) {
+                if (($blok['type'] ?? '') === 'text' && trim((string) ($blok['text'] ?? '')) !== '') {
+                    return (string) $blok['text'];
+                }
+            }
+            return null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * Panggil SATU provider (HTTP) dan kembalikan TEKS MENTAH content pertama
      * yang tak kosong, atau NULL pada segala kegagalan (HTTP != 200, timeout,
      * hang, content kosong, exception) agar pemanggil failover ke provider
@@ -370,6 +416,9 @@ class AiKlasifikasi
      */
     private static function httpSatuProvider(array $p, string $sistem, string $pengguna, int $maxTokens, bool $jsonMode): ?string
     {
+        if (($p['tipe'] ?? 'openai') === 'anthropic') {
+            return self::httpAnthropic($p, $sistem, $pengguna, $maxTokens);
+        }
         try {
             $client = \Config\Services::curlrequest([
                 'timeout'         => self::AI_TIMEOUT,

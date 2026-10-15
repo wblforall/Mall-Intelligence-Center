@@ -104,7 +104,7 @@ final class AiSkorPromptTest extends TestCase
     {
         $kunci = [];
         for ($i = 1; $i <= 3; $i++) {
-            foreach (['base_url', 'model', 'key'] as $f) $kunci[] = "aiklas.p{$i}_{$f}";
+            foreach (['base_url', 'model', 'key', 'tipe'] as $f) $kunci[] = "aiklas.p{$i}_{$f}";
         }
         array_push($kunci, 'aiklas.base_url', 'aiklas.model', 'aiklas.api_key');
         $simpan = [];
