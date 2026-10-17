@@ -40,6 +40,17 @@ class EventSponsors extends BaseController
         return $total;
     }
 
+    /**
+     * Peringatan lunak (tidak memblokir simpan): sponsor serupa sudah ada di program mandiri beririsan.
+     * Hanya untuk pengguna yang berhak atas Sponsorship (menu itulah yang memegang pendeteksi dobel).
+     */
+    private function denganPeringatanDobel($redirect, int $eventId, int $nilai, string $nama)
+    {
+        if (! $this->canEditMenu('sponsorship_main')) return $redirect;
+        $serupa = \App\Libraries\SponsorshipDobel::cariSerupa('event', $eventId, $nama, $nilai);
+        return $serupa ? $redirect->with('warning', \App\Libraries\SponsorshipDobel::teksPeringatan($serupa)) : $redirect;
+    }
+
     public function index(int $eventId)
     {
         $event = $this->getEvent($eventId);
@@ -106,7 +117,10 @@ class EventSponsors extends BaseController
         }
         ActivityLog::write('create', 'sponsor', (string)$sponsorId, $post['nama_sponsor'], ['event_id' => $eventId, 'jenis' => $post['jenis']]);
 
-        return redirect()->to("/events/{$eventId}/sponsors")->with('success', 'Sponsor berhasil ditambahkan.');
+        return $this->denganPeringatanDobel(
+            redirect()->to("/events/{$eventId}/sponsors")->with('success', 'Sponsor berhasil ditambahkan.'),
+            $eventId, (int)($sponsorModel->find($sponsorId)['nilai'] ?? 0), (string)$post['nama_sponsor']
+        );
     }
 
     public function update(int $eventId, int $id)
@@ -141,7 +155,10 @@ class EventSponsors extends BaseController
         ActivityLog::captureAfter($sponsorModel->find($id));
         ActivityLog::write('update', 'sponsor', (string)$id, $post['nama_sponsor'], ['event_id' => $eventId, 'jenis' => $post['jenis']]);
 
-        return redirect()->to("/events/{$eventId}/sponsors")->with('success', 'Sponsor berhasil diperbarui.');
+        return $this->denganPeringatanDobel(
+            redirect()->to("/events/{$eventId}/sponsors")->with('success', 'Sponsor berhasil diperbarui.'),
+            $eventId, (int)($sponsorModel->find($id)['nilai'] ?? 0), (string)$post['nama_sponsor']
+        );
     }
 
     public function delete(int $eventId, int $id)

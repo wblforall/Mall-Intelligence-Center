@@ -42,16 +42,21 @@ class EventSponsorModel extends Model
      * satu baris per event yang punya sponsor — nama event, mall, tanggal
      * mulai, jumlah sponsor, total nilai cash & barang.
      */
-    public function getEventAggregates(): array
+    public function getEventAggregates(array $exclSponsorIds = []): array
     {
+        // Sponsor yang dikecualikan karena dobel tidak dihitung (jumlah & nilai), tetapi barisnya
+        // tetap muncul agar event-nya masih terlihat dengan 0 sponsor.
+        $exclSponsorIds = array_values(array_unique(array_map('intval', $exclSponsorIds)));
+        $ex = $exclSponsorIds ? 's.id IN (' . implode(',', $exclSponsorIds) . ')' : '1=0';
         return $this->db->table('event_sponsors s')
             ->select("s.event_id, e.name AS event_name, e.mall AS event_mall,
-                e.start_date AS event_start_date,
-                COUNT(*) AS jumlah_sponsor,
-                SUM(CASE WHEN s.jenis = 'cash'   THEN s.nilai ELSE 0 END) AS total_cash,
-                SUM(CASE WHEN s.jenis = 'barang' THEN s.nilai ELSE 0 END) AS total_barang")
+                e.start_date AS event_start_date, e.event_days AS event_days,
+                SUM(CASE WHEN $ex THEN 0 ELSE 1 END) AS jumlah_sponsor,
+                SUM(CASE WHEN $ex THEN 0 WHEN s.jenis = 'cash'   THEN s.nilai ELSE 0 END) AS total_cash,
+                SUM(CASE WHEN $ex THEN 0 WHEN s.jenis = 'barang' THEN s.nilai ELSE 0 END) AS total_barang,
+                SUM(CASE WHEN $ex THEN 1 ELSE 0 END) AS jumlah_dikecualikan", false)
             ->join('events e', 'e.id = s.event_id')
-            ->groupBy('s.event_id, e.name, e.mall, e.start_date')
+            ->groupBy('s.event_id, e.name, e.mall, e.start_date, e.event_days')
             ->orderBy('e.start_date', 'DESC')
             ->get()->getResultArray();
     }

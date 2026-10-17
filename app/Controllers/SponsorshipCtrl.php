@@ -10,6 +10,7 @@ use App\Models\SponsorshipSummaryAnalysisModel;
 use App\Models\EventSponsorModel;
 use App\Models\EventSponsorRealisasiModel;
 use App\Libraries\ActivityLog;
+use App\Libraries\SponsorshipDobel;
 
 class SponsorshipCtrl extends BaseController
 {
@@ -50,6 +51,96 @@ class SponsorshipCtrl extends BaseController
             $total += $n * ($q > 0 ? $q : 1);
         }
         return $total;
+    }
+
+    // ── Bantuan tampilan gabungan (program mandiri + event) ───────────────────
+
+    /** Hak mengelola pendeteksi dobel = hak ubah menu Sponsorship (admin otomatis). User hanya-lihat tidak melihat apa pun soal dobel. */
+    private function bolehDobel(): bool
+    {
+        return $this->canEditMenu('sponsorship_main');
+    }
+
+    /** "50× Pastry; 10× MUG" dari baris item; kosong bila tak ada. */
+    private function teksItem(array $items): string
+    {
+        $out = [];
+        foreach ($items as $it) {
+            $d = trim((string)($it['deskripsi_barang'] ?? ''));
+            $q = (int)($it['qty'] ?? 0);
+            if ($d === '' && $q <= 0) continue;
+            $out[] = ($q > 0 ? $q . '× ' : '') . $d;
+        }
+        return implode('; ', $out);
+    }
+
+    /**
+     * Rincian sponsor seragam untuk Summary & daftar: satu bentuk untuk sponsor program maupun event.
+     * 'dobel' berisi keterangan "dicatat di ..." bila sponsor itu dikecualikan dari total.
+     */
+    private function rincianSponsor(array $rows, array $itemsBySp, array $realBySp, array $exIds, array $labelKec, bool $isProgram): array
+    {
+        $out = [];
+        foreach ($rows as $sp) {
+            $sid = (int)$sp['id'];
+            $txt = $this->teksItem($itemsBySp[$sid] ?? []);
+            if ($txt === '' && ! $isProgram) {
+                $q = (int)($sp['qty'] ?? 0);
+                $d = trim((string)($sp['deskripsi_barang'] ?? ''));
+                $txt = ($q > 0 ? $q . '× ' : '') . $d;
+            }
+            if ($txt === '') $txt = trim((string)($sp['detail'] ?? ''));
+            $ex = in_array($sid, $exIds, true);
+            $out[] = [
+                'id'     => $sid,
+                'nama'   => (string)$sp['nama_sponsor'],
+                'jenis'  => (string)$sp['jenis'],
+                'rincian'=> trim($txt, ' ;'),
+                'nilai'  => (int)$sp['nilai'],
+                'status' => $isProgram ? (string)($sp['status_deal'] ?? '') : null,
+                'real'   => (int)($realBySp[$sid] ?? 0),
+                'dobel'  => $ex ? ($labelKec[$sid] ?? 'sisi lain') : null,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Sponsor per event untuk tampilan: daftar event beragregat (sudah mengecualikan dobel) + rincian sponsornya.
+     *
+     * @return array{aggs:array, rincian:array<int,array>}
+     */
+    private function dataEventSponsor(array $exE, array $labelKecE): array
+    {
+        $evModel  = new EventSponsorModel();
+        $evrModel = new EventSponsorRealisasiModel();
+        $aggs     = $evModel->getEventAggregates($exE);
+        $ids      = array_column($aggs, 'event_id');
+        $cum      = $evrModel->getCumulativeByEvents('9999-12', $ids, $exE);
+        $itemModel = new \App\Models\EventSponsorItemModel();
+        $rincian  = [];
+        foreach ($aggs as &$e) {
+            $eid = (int)$e['event_id'];
+            $e['deal']      = (int)$e['total_cash'] + (int)$e['total_barang'];
+            $e['kumulatif'] = (int)($cum[$eid] ?? 0);
+            $rows  = $evModel->getByEvent($eid);
+            $items = [];
+            foreach ($itemModel->getBySponsorIds(array_column($rows, 'id')) as $it) { $items[(int)$it['sponsor_id']][] = $it; }
+            $real = [];
+            foreach ($evrModel->getGroupedByEvent($eid) as $sid => $rr) { $real[(int)$sid] = array_sum(array_column($rr, 'nilai')); }
+            $rincian[$eid] = $this->rincianSponsor($rows, $items, $real, $exE, $labelKecE, false);
+        }
+        unset($e);
+        return ['aggs' => $aggs, 'rincian' => $rincian];
+    }
+
+    /** Tambahkan peringatan lunak (tidak memblokir simpan) bila sponsor serupa sudah ada di event beririsan. */
+    private function denganPeringatanDobel($redirect, int $programId, int $nilai, string $nama, string $statusDeal)
+    {
+        if (! $this->bolehDobel()) return $redirect;
+        if (! in_array($statusDeal, SponsorshipDobel::STATUS_DEAL, true)) return $redirect;   // prospek/batal tidak masuk total
+        $serupa = SponsorshipDobel::cariSerupa('program', $programId, $nama, $nilai);
+        return $serupa ? $redirect->with('warning', SponsorshipDobel::teksPeringatan($serupa)) : $redirect;
     }
 
     // ── Index ─────────────────────────────────────────────────────────────────
@@ -95,8 +186,22 @@ class SponsorshipCtrl extends BaseController
             $totalNilaiTerkumpul += (int)($realisasiMap[$p['id']] ?? 0);
         }
 
+        // Bagian baca-saja "Sponsor dari Event" + (bila berhak) ringkasan pendeteksi dobel.
+        $kec       = SponsorshipDobel::idDikecualikan();
+        $labelKec  = SponsorshipDobel::labelDikecualikan();
+        $evData    = $this->dataEventSponsor($kec['event'], $labelKec['event']);
+        $bolehDobel = $this->bolehDobel();
+        $excludedProgSp = $kec['program'];
+        $progLabelKec   = $labelKec['program'];
+
         return view('sponsorship/index', [
             'user'                => $this->currentUser(),
+            'eventAggs'           => $evData['aggs'],
+            'rincianE'            => $evData['rincian'],
+            'bolehDobel'          => $bolehDobel,
+            'dobel'               => $bolehDobel ? SponsorshipDobel::deteksi() : null,
+            'exProgSp'            => $excludedProgSp,
+            'labelKecProg'        => $progLabelKec,
             'programs'            => $programs,
             'sponsors'            => $sponsors,
             'itemsBySponsors'     => $itemsBySponsors,
@@ -264,7 +369,10 @@ class SponsorshipCtrl extends BaseController
 
         $this->syncBudget($programId);
         ActivityLog::write('create', 'sponsorship_sponsor', (string)$id, trim($post['nama_sponsor']), ['program_id' => $programId]);
-        return redirect()->to('/sponsorship#program-' . $programId)->with('success', 'Sponsor berhasil ditambahkan.');
+        return $this->denganPeringatanDobel(
+            redirect()->to('/sponsorship#program-' . $programId)->with('success', 'Sponsor berhasil ditambahkan.'),
+            $programId, (int)($model->find($id)['nilai'] ?? 0), trim($post['nama_sponsor']), $post['status_deal'] ?? 'prospek'
+        );
     }
 
     public function updateSponsor(int $programId, int $sponsorId)
@@ -297,7 +405,10 @@ class SponsorshipCtrl extends BaseController
 
         $this->syncBudget($programId);
         ActivityLog::write('update', 'sponsorship_sponsor', (string)$sponsorId, trim($post['nama_sponsor']), ['program_id' => $programId]);
-        return redirect()->to('/sponsorship#program-' . $programId)->with('success', 'Sponsor berhasil diperbarui.');
+        return $this->denganPeringatanDobel(
+            redirect()->to('/sponsorship#program-' . $programId)->with('success', 'Sponsor berhasil diperbarui.'),
+            $programId, (int)($model->find($sponsorId)['nilai'] ?? 0), trim($post['nama_sponsor']), $post['status_deal'] ?? 'prospek'
+        );
     }
 
     public function deleteSponsor(int $programId, int $sponsorId)
@@ -409,16 +520,21 @@ class SponsorshipCtrl extends BaseController
         $realModel = new SponsorshipRealisasiModel();
         $spModel   = new SponsorshipSponsorModel();
 
+        // Pengecualian dobel: SATU sumber (SponsorshipDobel::idDikecualikan) dipakai oleh semua agregat di bawah.
+        $kec = SponsorshipDobel::idDikecualikan();
+        $exP = $kec['program'];
+        $exE = $kec['event'];
+
         // ── Sponsor dari EVENT (ikutkan ke summary; sebelumnya hanya standalone) ──
         $evModel   = new EventSponsorModel();
         $evrModel  = new EventSponsorRealisasiModel();
-        $eventAggs = $evModel->getEventAggregates();
+        $eventAggs = $evModel->getEventAggregates($exE);
         $eventIds  = array_column($eventAggs, 'event_id');
 
         // Total realisasi per bulan, semua tahun (standalone + event digabung per bulan)
         $monthMap = [];
-        foreach ($realModel->getAllMonthlyTotals($programIds) as $r) { $monthMap[$r['bulan']] = (int)$r['total_nilai']; }
-        foreach ($evrModel->getAllMonthlyTotals($eventIds) as $r)    { $monthMap[$r['bulan']] = ($monthMap[$r['bulan']] ?? 0) + (int)$r['total_nilai']; }
+        foreach ($realModel->getAllMonthlyTotals($programIds, $exP) as $r) { $monthMap[$r['bulan']] = (int)$r['total_nilai']; }
+        foreach ($evrModel->getAllMonthlyTotals($eventIds, $exE) as $r)    { $monthMap[$r['bulan']] = ($monthMap[$r['bulan']] ?? 0) + (int)$r['total_nilai']; }
         ksort($monthMap);
 
         // Bulan bawaan cerdas: bila parameter `bulan` TIDAK diberikan dan bulan berjalan belum punya
@@ -440,7 +556,7 @@ class SponsorshipCtrl extends BaseController
         // programnya ada) tak bisa dipilih.
         $monthSet = [$bulan => true];
         foreach ($realModel->getAvailableMonths($programIds) as $r) { $monthSet[$r['bulan']] = true; }
-        foreach ($evrModel->getAllMonthlyTotals($eventIds) as $r)    { $monthSet[$r['bulan']] = true; }
+        foreach ($evrModel->getAllMonthlyTotals($eventIds, $exE) as $r)    { $monthSet[$r['bulan']] = true; }
         foreach ($programs as $p) {
             $s = substr((string)($p['tanggal_mulai'] ?? ''), 0, 7);
             if ($s === '') continue;
@@ -455,11 +571,11 @@ class SponsorshipCtrl extends BaseController
         rsort($monthList);
 
         // Per-program realisasi for selected month
-        $monthlyReal      = $realModel->getMonthlyByPrograms($bulan, $programIds);
-        $committedMap     = $spModel->getCommittedByPrograms($programIds);
-        $allTimeRealMap   = $realModel->getTotalByPrograms($programIds);
-        $evMonthly = $evrModel->getMonthlyByEvents($bulan, $eventIds);   // realisasi bulan ini per event
-        $evGrand   = array_sum(array_column($evrModel->getAllMonthlyTotals($eventIds), 'total_nilai'));
+        $monthlyReal      = $realModel->getMonthlyByPrograms($bulan, $programIds, $exP);
+        $committedMap     = $spModel->getCommittedByPrograms($programIds, $exP);
+        $allTimeRealMap   = $realModel->getTotalByPrograms($programIds, $exP);
+        $evMonthly = $evrModel->getMonthlyByEvents($bulan, $eventIds, $exE);   // realisasi bulan ini per event
+        $evGrand   = array_sum(array_column($evrModel->getAllMonthlyTotals($eventIds, $exE), 'total_nilai'));
         $evDeal    = 0; $evSponsorCount = 0;
         foreach ($eventAggs as &$e) {
             $e['deal']      = (int)$e['total_cash'] + (int)$e['total_barang'];
@@ -494,7 +610,7 @@ class SponsorshipCtrl extends BaseController
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $chartDates[] = str_pad($d, 2, '0', STR_PAD_LEFT);
         }
-        foreach (array_merge($realModel->getDailyForMonth($bulan, $programIds), $evrModel->getDailyForMonth($bulan, $eventIds)) as $row) {
+        foreach (array_merge($realModel->getDailyForMonth($bulan, $programIds, $exP), $evrModel->getDailyForMonth($bulan, $eventIds, $exE)) as $row) {
             $idx = (int)date('j', strtotime($row['tanggal'])) - 1;
             if ($idx >= 0 && $idx < $daysInMonth) $dailyNilai[$idx] += (int)$row['nilai'];
         }
@@ -508,8 +624,30 @@ class SponsorshipCtrl extends BaseController
         $analisaMap  = $aModel->getMapByMonth($bulan);
         $prevAnalisaMap = $aModel->getMapByMonth($prevBulan);
 
+        // ── Pandangan gabungan: rincian sponsor per sumber + (bila berhak) panel dobel ──
+        $labelKec  = SponsorshipDobel::labelDikecualikan();
+        $evData    = $this->dataEventSponsor($exE, $labelKec['event']);
+        $eventAggs = $evData['aggs'];
+        foreach ($eventAggs as &$e) { $e['realisasi'] = (int)($evMonthly[(int)$e['event_id']] ?? 0); }
+        unset($e);
+
+        $allSpIds = [];
+        foreach ($sponsors as $list) { foreach ($list as $sp) { $allSpIds[] = (int)$sp['id']; } }
+        $itemsP = (new SponsorshipSponsorItemModel())->getBySponsorIds($allSpIds);   // sudah dikelompokkan per sponsor_id
+        $realP = [];
+        foreach ($realModel->getGroupedBySponsors($allSpIds) as $sid => $g) { $realP[(int)$sid] = (int)$g['total_nilai']; }
+        $rincianP = [];
+        foreach ($sponsors as $pid => $list) { $rincianP[(int)$pid] = $this->rincianSponsor($list, $itemsP, $realP, $exP, $labelKec['program'], true); }
+
+        $bolehDobel = $this->bolehDobel();
+
         return view('sponsorship/summary', [
             'user'             => $this->currentUser(),
+            'rincianP'         => $rincianP,
+            'rincianE'         => $evData['rincian'],
+            'nDikecualikan'    => count($exP) + count($exE),
+            'bolehDobel'       => $bolehDobel,
+            'dobel'            => $bolehDobel ? SponsorshipDobel::deteksi() : null,
             'programs'         => $programs,
             'bulan'            => $bulan,
             'monthList'        => $monthList,
@@ -553,25 +691,30 @@ class SponsorshipCtrl extends BaseController
         $evModel   = new EventSponsorModel();
         $evrModel  = new EventSponsorRealisasiModel();
 
+        // Pengecualian dobel — fungsi yang SAMA dengan summary().
+        $kec = SponsorshipDobel::idDikecualikan();
+        $exP = $kec['program'];
+        $exE = $kec['event'];
+
         $allPrograms   = (new SponsorshipProgramModel())->getAll();
         $allProgramIds = array_column($allPrograms, 'id');
-        $allEventAggs  = $evModel->getEventAggregates();
+        $allEventAggs  = $evModel->getEventAggregates($exE);
         $allEventIds   = array_column($allEventAggs, 'event_id');
 
         // Program/event RELEVAN ke sebuah bulan: periode overlap bulan itu ATAU
         // ada penerimaan bulan itu. Laporan hanya menampilkan & menghitung yang
         // relevan ke $bulan (KPI, pipeline, insight, tabel) — bukan semua program.
-        $relProg = function (string $m) use ($allPrograms, $allProgramIds, $realModel) {
+        $relProg = function (string $m) use ($allPrograms, $allProgramIds, $realModel, $exP) {
             $ms = $m . '-01'; $me = date('Y-m-t', strtotime($ms));
-            $realM = $realModel->getMonthlyByPrograms($m, $allProgramIds);
+            $realM = $realModel->getMonthlyByPrograms($m, $allProgramIds, $exP);
             return array_values(array_filter($allPrograms, function ($p) use ($ms, $me, $realM) {
                 $mulai = $p['tanggal_mulai'] ?? ''; $selesai = $p['tanggal_selesai'] ?? '';
                 if ($mulai && $mulai <= $me && (empty($selesai) || $selesai >= $ms)) return true;
                 return (int)($realM[$p['id']] ?? 0) > 0;
             }));
         };
-        $relEvent = function (string $m) use ($allEventAggs, $allEventIds, $evrModel) {
-            $evM = $evrModel->getMonthlyByEvents($m, $allEventIds);
+        $relEvent = function (string $m) use ($allEventAggs, $allEventIds, $evrModel, $exE) {
+            $evM = $evrModel->getMonthlyByEvents($m, $allEventIds, $exE);
             return array_values(array_filter($allEventAggs, function ($e) use ($m, $evM) {
                 if (substr((string)($e['event_start_date'] ?? ''), 0, 7) === $m) return true;
                 return (int)($evM[$e['event_id']] ?? 0) > 0;
@@ -584,10 +727,10 @@ class SponsorshipCtrl extends BaseController
         $eventAggs  = $relEvent($bulan);
         $eventIds   = array_column($eventAggs, 'event_id');
 
-        $monthlyReal  = $realModel->getMonthlyByPrograms($bulan, $programIds);
-        $prevReal     = $realModel->getMonthlyByPrograms($prevBulan, $programIds);
-        $cumReal      = $realModel->getCumulativeByPrograms($bulan, $programIds);
-        $committedMap = $spModel->getCommittedByPrograms($programIds);
+        $monthlyReal  = $realModel->getMonthlyByPrograms($bulan, $programIds, $exP);
+        $prevReal     = $realModel->getMonthlyByPrograms($prevBulan, $programIds, $exP);
+        $cumReal      = $realModel->getCumulativeByPrograms($bulan, $programIds, $exP);
+        $committedMap = $spModel->getCommittedByPrograms($programIds, $exP);
         $sponsorsMap  = $spModel->getByPrograms($programIds);
 
         // Pipeline per program (jumlah sponsor per status deal)
@@ -595,22 +738,23 @@ class SponsorshipCtrl extends BaseController
         $pipelineTotal = ['prospek' => 0, 'negosiasi' => 0, 'terkonfirmasi' => 0, 'lunas' => 0, 'batal' => 0];
         foreach ($sponsorsMap as $pid => $rows) {
             foreach ($rows as $sp) {
+                if (in_array((int)$sp['id'], $exP, true)) continue;   // dikecualikan karena dobel
                 $st = $sp['status_deal'] ?? 'prospek';
                 $pipelineMap[$pid][$st] = ($pipelineMap[$pid][$st] ?? 0) + 1;
                 if (isset($pipelineTotal[$st])) $pipelineTotal[$st]++;
             }
         }
 
-        $evMonthly = $evrModel->getMonthlyByEvents($bulan, $eventIds);
-        $evPrev    = $evrModel->getMonthlyByEvents($prevBulan, $eventIds);
-        $evCum     = $evrModel->getCumulativeByEvents($bulan, $eventIds);
+        $evMonthly = $evrModel->getMonthlyByEvents($bulan, $eventIds, $exE);
+        $evPrev    = $evrModel->getMonthlyByEvents($prevBulan, $eventIds, $exE);
+        $evCum     = $evrModel->getCumulativeByEvents($bulan, $eventIds, $exE);
 
         // ── Komparasi bulan sebelumnya: program/event relevan ke prevBulan ──
         $prevPrograms   = $relProg($prevBulan);
         $prevProgIds    = array_column($prevPrograms, 'id');
         $prevEvents     = $relEvent($prevBulan);
         $prevEventIds   = array_column($prevEvents, 'event_id');
-        $prevCommitted  = $spModel->getCommittedByPrograms($prevProgIds);
+        $prevCommitted  = $spModel->getCommittedByPrograms($prevProgIds, $exP);
         $prevSponsorDeal = array_sum(array_column($prevCommitted, 'total_sponsor'))
                          + array_sum(array_map(fn($e) => (int)$e['jumlah_sponsor'], $prevEvents));
         $prevKomitmen    = array_sum(array_column($prevCommitted, 'total_nilai'))
@@ -624,8 +768,8 @@ class SponsorshipCtrl extends BaseController
         $kpiRealisasi     = array_sum($monthlyReal) + array_sum($evMonthly);
         // Penerimaan bulan lalu = realisasi bulan lalu dari program yang relevan
         // BULAN LALU (bukan program bulan ini di bulan lalu) → komparasi adil.
-        $kpiRealisasiPrev = array_sum($realModel->getMonthlyByPrograms($prevBulan, $prevProgIds))
-                          + array_sum($evrModel->getMonthlyByEvents($prevBulan, $prevEventIds));
+        $kpiRealisasiPrev = array_sum($realModel->getMonthlyByPrograms($prevBulan, $prevProgIds, $exP))
+                          + array_sum($evrModel->getMonthlyByEvents($prevBulan, $prevEventIds, $exE));
         $kpiKumulatif     = array_sum($cumReal)     + array_sum($evCum);
 
         // Target = program relevan bulan ini (bukan hanya yg berstatus active,
@@ -648,10 +792,10 @@ class SponsorshipCtrl extends BaseController
 
         // ── Tren 6 bulan (SEMUA program/event — tren lintas program) ──────
         $trendMap = [];
-        foreach ($realModel->getAllMonthlyTotals($allProgramIds) as $r) {
+        foreach ($realModel->getAllMonthlyTotals($allProgramIds, $exP) as $r) {
             $trendMap[$r['bulan']] = ($trendMap[$r['bulan']] ?? 0) + (int)$r['total_nilai'];
         }
-        foreach ($evrModel->getAllMonthlyTotals($allEventIds) as $r) {
+        foreach ($evrModel->getAllMonthlyTotals($allEventIds, $exE) as $r) {
             $trendMap[$r['bulan']] = ($trendMap[$r['bulan']] ?? 0) + (int)$r['total_nilai'];
         }
         $trendMonths = [];
@@ -663,8 +807,8 @@ class SponsorshipCtrl extends BaseController
         $daysInMonth = (int)date('t', strtotime($bulan . '-01'));
         $dailyNilai  = array_fill(0, $daysInMonth, 0);
         foreach (array_merge(
-            $realModel->getDailyForMonth($bulan, $programIds),
-            $evrModel->getDailyForMonth($bulan, $eventIds)
+            $realModel->getDailyForMonth($bulan, $programIds, $exP),
+            $evrModel->getDailyForMonth($bulan, $eventIds, $exE)
         ) as $row) {
             $dailyNilai[(int)date('j', strtotime($row['tanggal'])) - 1] += (int)$row['nilai'];
         }
@@ -718,6 +862,13 @@ class SponsorshipCtrl extends BaseController
             }
         }
 
+        // Sponsor yang dikecualikan karena dobel di antara program/event yang MUNCUL di laporan ini
+        // (dasar catatan di blok keterangan). Yang dikecualikan tetap tampil di rincian, dicoret.
+        $nKecualiProg = 0; $nKecualiEvent = 0;
+        foreach ($sponsorsMap as $rows) { foreach ($rows as $sp) { if (in_array((int)$sp['id'], $exP, true)) $nKecualiProg++; } }
+        foreach ($eventSponsors as $rows) { foreach ($rows as $sp) { if (in_array((int)$sp['id'], $exE, true)) $nKecualiEvent++; } }
+        $labelKec = SponsorshipDobel::labelDikecualikan();
+
         // Analisa bulan ini + program yang beranalisa tetapi di luar daftar relevan (tidak memengaruhi KPI).
         $analisaModel = new SponsorshipSummaryAnalysisModel();
         $analisaMap   = $analisaModel->getMapByMonth($bulan);
@@ -760,10 +911,135 @@ class SponsorshipCtrl extends BaseController
             'analisaMap'     => $analisaMap,
             'prevAnalisaMap' => $analisaModel->getMapByMonth($prevBulan),
             'programAnalisaLain' => $programAnalisaLain,
+            'exP'            => $exP,
+            'exE'            => $exE,
+            'labelKec'       => $labelKec,
+            'nKecualiProg'   => $nKecualiProg,
+            'nKecualiEvent'  => $nKecualiEvent,
             'signatories'    => \App\Libraries\ReportSignatories::resolve('sponsorship_main'),
             'printedBy'      => $this->currentUser()['name'] ?? '',
             'printedAt'      => date('d M Y H:i'),
         ]);
+    }
+
+    // ── Keputusan sponsor dobel (hanya yang berhak) ───────────────────────────
+
+    /** Tujuan kembali yang aman setelah aksi dobel. */
+    private function tujuanDobel(): string
+    {
+        $k = (string)$this->request->getPost('kembali');
+        if ($k === 'summary') {
+            $b = (string)$this->request->getPost('bulan');
+            return '/sponsorship/summary' . (preg_match('/^\d{4}-\d{2}$/', $b) ? '?bulan=' . $b : '') . '#dobel';
+        }
+        return '/sponsorship#dobel';
+    }
+
+    public function putuskanDobel()
+    {
+        $tujuan = $this->tujuanDobel();
+        if (! $this->bolehDobel()) return redirect()->to('/sponsorship')->with('error', 'Akses ditolak.');
+
+        $aksi = (string)$this->request->getPost('aksi');
+        if (! in_array($aksi, ['dobel', 'bukan_dobel'], true)) return redirect()->to($tujuan)->with('error', 'Aksi tidak dikenal.');
+        $sisi = (string)$this->request->getPost('sisi');
+        if ($aksi === 'dobel' && ! in_array($sisi, ['program', 'event'], true)) $sisi = 'program';   // bawaan: program mandiri dikecualikan
+        $catatan = trim((string)$this->request->getPost('catatan'));
+        $catatan = $catatan === '' ? null : mb_substr($catatan, 0, 500);
+
+        $minta = [];
+        foreach ((array)$this->request->getPost('pasangan') as $v) {
+            if (preg_match('/^(\d+):(\d+)$/', (string)$v, $m)) $minta[$m[1] . ':' . $m[2]] = [(int)$m[1], (int)$m[2]];
+        }
+        if (! $minta) return redirect()->to($tujuan)->with('error', 'Pilih minimal satu pasangan sponsor.');
+
+        // Hanya pasangan yang memang terdeteksi (atau sudah punya keputusan) yang diterima.
+        $deteksi = SponsorshipDobel::deteksi();
+        $dikenal = [];
+        foreach ($deteksi['grup'] as $g) { foreach ($g['pasangan'] as $ps) { $dikenal[$ps['ps_id'] . ':' . $ps['es_id']] = true; } }
+        foreach ($deteksi['keputusan'] as $k) { $dikenal[(int)$k['program_sponsor_id'] . ':' . (int)$k['event_sponsor_id']] = true; }
+
+        $db    = db_connect();
+        $uid   = (int)$this->currentUser()['id'];
+        $now   = date('Y-m-d H:i:s');
+        $baru = $ubah = $sama = $ditolak = 0;
+        $detail = [];
+
+        $db->transStart();
+        foreach ($minta as $kunci => [$psId, $esId]) {
+            if (! isset($dikenal[$kunci])) { $ditolak++; continue; }
+            $ps = $db->table('sponsorship_sponsors')->where('id', $psId)->get()->getRowArray();
+            $es = $db->table('event_sponsors')->where('id', $esId)->get()->getRowArray();
+            if (! $ps || ! $es) { $ditolak++; continue; }
+
+            $ada = $db->table('sponsorship_dobel')->where('program_sponsor_id', $psId)->where('event_sponsor_id', $esId)->get()->getRowArray();
+
+            if ($aksi === 'dobel') {
+                // Sisi yang DIPERTAHANKAN tidak boleh sudah dikecualikan oleh keputusan lain (total hilang dua kali).
+                $dipertahankan = $sisi === 'program' ? ['program', $psId] : ['event', $esId];
+                $q = $db->table('sponsorship_dobel')->where('status', 'dobel')->where('sisi_kecuali', $dipertahankan[0]);
+                $q->where($dipertahankan[0] === 'program' ? 'program_sponsor_id' : 'event_sponsor_id', $dipertahankan[1]);
+                if ($ada) $q->where('id !=', (int)$ada['id']);
+                if ($q->countAllResults() > 0) { $ditolak++; continue; }
+            }
+
+            $data = ['status' => $aksi, 'sisi_kecuali' => $aksi === 'dobel' ? $sisi : null];
+            if ($ada) {
+                $serupa = $ada['status'] === $data['status'] && $ada['sisi_kecuali'] === $data['sisi_kecuali']
+                    && ($catatan === null || $catatan === $ada['catatan']);
+                if ($serupa) { $sama++; continue; }   // idempoten
+                $data['catatan'] = $catatan ?? $ada['catatan'];
+                $data['diubah_oleh'] = $uid;
+                $data['diubah_pada'] = $now;
+                $db->table('sponsorship_dobel')->where('id', (int)$ada['id'])->update($data);
+                $ubah++;
+                $detail[] = ['id' => (int)$ada['id'], 'pasangan' => $kunci, 'dari' => $ada['status'] . '/' . ($ada['sisi_kecuali'] ?? '-'), 'ke' => $data['status'] . '/' . ($data['sisi_kecuali'] ?? '-')];
+            } else {
+                $data += ['program_sponsor_id' => $psId, 'event_sponsor_id' => $esId, 'catatan' => $catatan, 'dibuat_oleh' => $uid, 'dibuat_pada' => $now];
+                $db->table('sponsorship_dobel')->insert($data);
+                $baru++;
+                $detail[] = ['id' => (int)$db->insertID(), 'pasangan' => $kunci, 'status' => $data['status'], 'sisi_kecuali' => $data['sisi_kecuali'],
+                             'program_sponsor' => $ps['nama_sponsor'], 'event_sponsor' => $es['nama_sponsor']];
+            }
+        }
+        $db->transComplete();
+        SponsorshipDobel::lupakanMemo();
+
+        if ($baru + $ubah > 0) {
+            ActivityLog::write($baru > 0 ? 'create' : 'update', 'sponsorship_dobel', null,
+                ($aksi === 'dobel' ? 'Konfirmasi dobel' : 'Bukan dobel') . ' · ' . ($baru + $ubah) . ' pasangan',
+                ['aksi' => $aksi, 'sisi_kecuali' => $aksi === 'dobel' ? $sisi : null, 'catatan' => $catatan, 'pasangan' => $detail]);
+        }
+
+        $label = $aksi === 'dobel' ? 'dikonfirmasi dobel (sisi ' . ($sisi === 'program' ? 'program mandiri' : 'event') . ' dikecualikan dari total)' : 'ditandai bukan dobel';
+        $pesan = ($baru + $ubah) . ' pasangan sponsor ' . $label . '.';
+        if ($sama > 0)    $pesan .= ' ' . $sama . ' sudah berstatus sama.';
+        $redirect = redirect()->to($tujuan);
+        if ($ditolak > 0) $redirect = $redirect->with('warning', $ditolak . ' pasangan dilewati (tidak dikenali, sponsor sudah dihapus, atau sisi yang dipertahankan sudah dikecualikan oleh keputusan lain).');
+        return $redirect->with($baru + $ubah + $sama > 0 ? 'success' : 'error', $baru + $ubah + $sama > 0 ? $pesan : 'Tidak ada pasangan yang diproses.');
+    }
+
+    public function batalkanDobel()
+    {
+        $tujuan = $this->tujuanDobel();
+        if (! $this->bolehDobel()) return redirect()->to('/sponsorship')->with('error', 'Akses ditolak.');
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array)$this->request->getPost('id')))));
+        if (! $ids) return redirect()->to($tujuan)->with('error', 'Tidak ada keputusan yang dipilih.');
+
+        $db   = db_connect();
+        $rows = $db->table('sponsorship_dobel')->whereIn('id', $ids)->get()->getResultArray();
+        if ($rows) {
+            $db->table('sponsorship_dobel')->whereIn('id', array_column($rows, 'id'))->delete();
+            SponsorshipDobel::lupakanMemo();
+            ActivityLog::write('delete', 'sponsorship_dobel', null, 'Batalkan keputusan dobel · ' . count($rows) . ' pasangan',
+                ['dibatalkan' => array_map(fn($r) => [
+                    'id' => (int)$r['id'], 'program_sponsor_id' => (int)$r['program_sponsor_id'], 'event_sponsor_id' => (int)$r['event_sponsor_id'],
+                    'status' => $r['status'], 'sisi_kecuali' => $r['sisi_kecuali'],
+                ], $rows)]);
+        }
+        $n = count($rows);
+        return redirect()->to($tujuan)->with('success', $n > 0 ? $n . ' keputusan dibatalkan; angka gabungan dihitung ulang.' : 'Keputusan itu sudah tidak ada.');
     }
 
     // Simpan analisa per program (AJAX) — dipakai di halaman summary

@@ -80,7 +80,7 @@
 
     // ══ D. Tabel Kinerja Program ═════════════════════════════════════════
     var progTable = document.getElementById('ssProgTable');
-    var fState = { q: '', status: '', rel: '', need: false };
+    var fState = { q: '', src: '', status: '', rel: '', need: false };
     function progUnits() {
         return $$('tr.ss-row', progTable).map(function (r) { return { row: r, det: document.getElementById('det-' + r.dataset.key) }; });
     }
@@ -88,7 +88,7 @@
         var shown = 0, all = progUnits();
         all.forEach(function (u) {
             var d = u.row.dataset;
-            var ok = (!fState.q || d.name.indexOf(fState.q) > -1) && (!fState.status || d.status === fState.status) &&
+            var ok = (!fState.q || d.name.indexOf(fState.q) > -1) && (!fState.src || d.src === fState.src) && (!fState.status || d.status === fState.status) &&
                 (!fState.rel || d.rel === fState.rel) && (!fState.need || d.need === '1');
             u.row.hidden = !ok;
             if (u.det) u.det.hidden = !ok || u.row.getAttribute('data-open') !== '1';
@@ -96,7 +96,7 @@
         });
         var c = document.getElementById('ssProgCount'); if (c) c.textContent = shown + (shown !== all.length ? ' / ' + all.length : '');
         var em = document.getElementById('ssProgEmpty'); if (em) em.hidden = shown > 0;
-        var any = fState.q || fState.status || fState.rel || fState.need;
+        var any = fState.q || fState.src || fState.status || fState.rel || fState.need;
         var rs = document.getElementById('ssReset'); if (rs) rs.hidden = !any;
     }
     function syncSeg(group, val) {
@@ -107,9 +107,9 @@
         var b = document.getElementById('ssNeedAnalisa'); if (b) { b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
     }
     function resetFilter(need) {
-        fState = { q: '', status: '', rel: '', need: !!need };
+        fState = { q: '', src: '', status: '', rel: '', need: !!need };
         var si = document.getElementById('ssSearch'); if (si) si.value = '';
-        syncSeg('status', ''); syncSeg('rel', ''); setNeed(!!need); applyProgFilter();
+        syncSeg('src', ''); syncSeg('status', ''); syncSeg('rel', ''); setNeed(!!need); applyProgFilter();
     }
     function setOpen(row, open) {
         var det = document.getElementById('det-' + row.dataset.key);
@@ -357,6 +357,36 @@
                 status.textContent = 'Error koneksi.'; status.className = 'analisa-status small text-danger';
             }
             btn.disabled = false;
+        });
+    });
+
+    // ══ Panel Kemungkinan Sponsor Dobel (hanya ada bila pengguna berhak) ═══
+    $$('.ss-dbl-all').forEach(function (all) {
+        all.addEventListener('change', function () {
+            $$('input[name="pasangan[]"]', all.closest('form')).forEach(function (c) { c.checked = all.checked; });
+        });
+    });
+    $$('.ss-dbl-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            var b = e.submitter, n = $$('input[name="pasangan[]"]:checked', form).length;
+            if (!n) { e.preventDefault(); toast('Pilih minimal satu pasangan'); return; }
+            if (!b) return;
+            var sisi = form.querySelector('select[name="sisi"]');
+            var msg = b.dataset.konfirmasi === 'dobel'
+                ? 'Konfirmasi ' + n + ' pasangan sebagai DOBEL?\n\nSisi ' + (sisi && sisi.value === 'event' ? 'event' : 'program mandiri') + ' dikecualikan dari semua total (data tidak dihapus). Bisa dibatalkan kapan saja.'
+                : 'Tandai ' + n + ' pasangan sebagai BUKAN dobel? Pasangan ini tidak akan muncul lagi di pendeteksi.';
+            if (!window.confirm(msg)) e.preventDefault();
+        });
+    });
+    $$('form.ss-dbl-undo').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            if (!window.confirm('Batalkan keputusan ini? Angka gabungan dihitung ulang.')) e.preventDefault();
+        });
+    });
+    $$('.ss-dbl-jump').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            var d = document.getElementById(a.dataset.open); if (!d) return;
+            e.preventDefault(); d.open = true; scrollToEl(d.closest('.ss-card') || d);
         });
     });
 

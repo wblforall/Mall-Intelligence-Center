@@ -226,3 +226,42 @@
     .si-foot-v { text-align: left; }
 }
 @media (prefers-reduced-motion: reduce) { .page-spon-idx * { transition: none !important; } }
+
+/* ═══ Pendeteksi dobel (ringkas) & Sponsor dari Event (baca-saja) ═══ */
+.si-dbl-bar { display: flex; align-items: center; gap: .75rem; margin: 0 0 1rem; padding: .65rem .95rem; border-radius: 14px; border: 1px solid var(--si-border);
+    background: var(--si-card); color: var(--si-txt); font-size: .84rem; box-shadow: var(--si-shadow); transition: border-color .18s, background .18s; }
+.si-dbl-bar:hover { border-color: rgba(96,165,250,.5); background: var(--si-hover); color: var(--si-txt); }
+.si-dbl-bar.is-todo { border-color: rgba(251,191,36,.45); background: linear-gradient(90deg, var(--si-warn-bg), transparent 70%), var(--si-card); }
+.si-dbl-bar > .bi { font-size: 1.15rem; color: var(--si-warn); flex: none; }
+.si-dbl-tx { flex: 1 1 auto; min-width: 0; line-height: 1.35; }
+.si-dbl-tx small { color: var(--si-muted); margin-left: .4rem; }
+.si-dbl-go { flex: none; font-weight: 700; font-size: .78rem; color: var(--si-blue); white-space: nowrap; }
+[data-theme="dark"] .si-dbl-go { color: #93c5fd; }
+@media (max-width: 575px) { .si-dbl-bar { flex-wrap: wrap; } .si-dbl-go { margin-left: auto; } }
+
+.si-ev { margin-top: 1.5rem; }
+.si-pill-ev { background: var(--si-blue-bg); color: var(--si-blue); display: inline-flex; align-items: center; gap: .35rem; }
+[data-theme="dark"] .si-pill-ev { color: #93c5fd; }
+.si-ev-ro { margin-left: auto; display: inline-flex; align-items: center; gap: .3rem; }
+.si-ev-card { background: var(--si-card); border: 1px solid var(--si-border); border-radius: 16px; box-shadow: var(--si-shadow); overflow: hidden; min-width: 0; }
+.si-ev-head { display: flex; align-items: center; gap: .9rem; padding: .8rem 1rem; cursor: pointer; flex-wrap: wrap; }
+.si-ev-head:hover { background: var(--si-hover); }
+.si-ev-card.is-open .si-chev i { transform: rotate(90deg); }
+.si-ev-main { flex: 1 1 220px; min-width: 0; }
+.si-ev-name { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; }
+.si-ev-meta { display: flex; flex-wrap: wrap; gap: .1rem .9rem; margin-top: .2rem; font-size: .74rem; color: var(--si-muted); }
+.si-ev-meta i { margin-right: .25rem; }
+.si-ev-stats { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; }
+.si-ev-stats > div { display: flex; flex-direction: column; min-width: 0; }
+.si-ev-stats span { font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; color: var(--si-muted); font-weight: 700; }
+.si-ev-stats b { font-size: .92rem; white-space: nowrap; }
+.si-ev-pct { min-width: 86px; } .si-ev-pct .si-bar { margin-top: .2rem; } .si-ev-pct span { font-size: .78rem; font-weight: 800; color: var(--si-txt); letter-spacing: 0; text-transform: none; }
+.si-ev-body { padding: .2rem 1rem 1rem; border-top: 1px solid var(--si-border); }
+.si-ev-scroll { overflow-x: auto; margin-top: .6rem; }
+.si-ev-table { width: 100%; border-collapse: collapse; font-size: .82rem; min-width: 520px; }
+.si-ev-table th { text-align: left; font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; color: var(--si-muted); padding: .3rem .5rem; border-bottom: 1px solid var(--si-border); }
+.si-ev-table td { padding: .4rem .5rem; border-bottom: 1px solid var(--si-border); vertical-align: top; }
+.si-ev-table .si-r { text-align: right; white-space: nowrap; }
+.si-ev-table .si-ev-d { color: var(--si-muted); overflow-wrap: anywhere; max-width: 280px; }
+.si-ev-table tr.is-dobel td { opacity: .55; } .si-ev-table tr.is-dobel td b { text-decoration: line-through; } .si-ev-table tr.is-dobel .si-chip { opacity: 1; }
+@media (max-width: 575px) { .si-ev-head { padding: .75rem .7rem; gap: .6rem; } .si-ev-stats { gap: .8rem; width: 100%; order: 3; } .si-ev-body { padding: .2rem .7rem .9rem; } }

@@ -65,6 +65,19 @@ foreach ($programs as $prog) {
     $maxMonth = max($maxMonth, (int)($monthlyReal[(int)$prog['id']] ?? 0));
     $maxAll   = max($maxAll, (int)($allTimeRealMap[(int)$prog['id']] ?? 0));
 }
+$bolehDobel = ! empty($bolehDobel);
+$nDikecualikan = (int)($nDikecualikan ?? 0);
+$rincianP = $rincianP ?? [];
+$rincianE = $rincianE ?? [];
+// Sponsor program yang dikecualikan karena dobel: tidak ikut hitungan baris; yang tak berhak tidak melihatnya sama sekali.
+$exIdsP = [];
+foreach ($rincianP as $pidX => $listX) {
+    foreach ($listX as $rx) { if ($rx['dobel'] !== null) $exIdsP[(int)$rx['id']] = true; }
+    if (! $bolehDobel) $rincianP[$pidX] = array_values(array_filter($listX, fn($rx) => $rx['dobel'] === null));
+}
+foreach ($rincianE as $eidX => $listX) {
+    if (! $bolehDobel) $rincianE[$eidX] = array_values(array_filter($listX, fn($rx) => $rx['dobel'] === null));
+}
 $aggStatus = array_fill_keys($statusOrder, ['count' => 0, 'nilai' => 0]);
 $nowTs = time();
 foreach ($programs as $ord => $prog) {
@@ -73,7 +86,7 @@ foreach ($programs as $ord => $prog) {
     $committed = (int)(($committedMap[$pid] ?? [])['total_nilai'] ?? 0);
     $thisMonth = (int)($monthlyReal[$pid] ?? 0);
     $allTime   = (int)($allTimeRealMap[$pid] ?? 0);
-    $spList    = $sponsors[$pid] ?? [];
+    $spList    = array_values(array_filter($sponsors[$pid] ?? [], fn($sp) => ! isset($exIdsP[(int)$sp['id']])));
     $byStatus  = [];
     $unpaidN = 0; $unpaidNilai = 0; $unpaidOldest = 0;
     foreach ($spList as $sp) {
@@ -139,6 +152,42 @@ $evDealTot = array_sum(array_column($eventAggs, 'deal'));
 $evRealTot = array_sum(array_column($eventAggs, 'realisasi'));
 $evSponTot = array_sum(array_column($eventAggs, 'jumlah_sponsor'));
 
+// Baris event untuk Kinerja Sumber (relevan = periode event menyentuh bulan terpilih ATAU ada realisasi bulan itu)
+$eRows = [];
+foreach ($eventAggs as $i => $e) {
+    $bulanEv = \App\Libraries\SponsorshipDobel::bulanEvent(['start_date' => $e['event_start_date'], 'event_days' => $e['event_days'] ?? 1]) ?? [];
+    $mon = (int)$e['realisasi'];
+    $eRows[] = [
+        'e' => $e, 'eid' => (int)$e['event_id'], 'ord' => $i, 'deal' => (int)$e['deal'], 'month' => $mon, 'all' => (int)$e['kumulatif'],
+        'nSp' => (int)$e['jumlah_sponsor'], 'relevant' => in_array($bulan, $bulanEv, true) || $mon > 0,
+    ];
+    $maxMonth = max($maxMonth, $mon);
+    $maxAll   = max($maxAll, (int)$e['kumulatif']);
+}
+
+// Tabel rincian sponsor — SAMA untuk program dan event (kolom identik).
+$spTable = function (array $rows, bool $isProg) use ($smFmt, $smShort, $statusLabel, $bolehDobel): void {
+    if (! $rows) { echo '<div class="ss-mek">Belum ada sponsor.</div>'; return; }
+    ?>
+    <div class="ss-scroll ss-sp-scroll"><table class="ss-mini ss-sptable">
+        <thead><tr><th>Sponsor</th><th>Jenis</th><th>Qty / Deskripsi</th><th class="t-r">Nilai</th><th>Status deal</th><th class="t-r">Realisasi</th></tr></thead>
+        <tbody>
+        <?php foreach ($rows as $x): $ex = $x['dobel'] !== null; ?>
+        <tr<?= $ex ? ' class="is-dobel"' : '' ?>>
+            <td class="ss-spn2"><span class="ss-spn-t"><?= esc($x['nama']) ?></span>
+                <?php if ($ex): ?><span class="ss-dbl-tag"><i class="bi bi-files"></i>dobel</span><small class="ss-dbl-note">dicatat di <?= esc($x['dobel']) ?></small><?php endif; ?></td>
+            <td><?= $x['jenis'] === 'cash' ? 'Cash' : 'Barang' ?></td>
+            <td class="ss-spd"><?= $x['rincian'] !== '' ? esc($x['rincian']) : '<span class="ss-dash">—</span>' ?></td>
+            <td class="t-r num" title="<?= esc($smFmt($x['nilai'])) ?>"><?= esc($smShort($x['nilai'])) ?></td>
+            <td><?php if ($isProg): ?><span class="ss-deal" data-deal="<?= esc($x['status']) ?>"><?= esc($statusLabel[$x['status']] ?? $x['status']) ?></span><?php else: ?><span class="ss-deal" data-deal="terkonfirmasi">Deal</span><?php endif; ?></td>
+            <td class="t-r num"><?= $x['real'] > 0 ? '<span title="' . esc($smFmt($x['real'])) . '">' . esc($smShort($x['real'])) . '</span>' : '<span class="ss-dash">—</span>' ?></td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table></div>
+    <?php
+};
+
 $pctRealVsConf = $kpiCommitted > 0 ? round($grandTotal / $kpiCommitted * 100, 1) : null;
 $sumAllProg    = array_sum($allTimeRealMap);
 $pctTarget     = $targetTotal > 0 ? round($sumAllProg / $targetTotal * 100, 1) : null;
@@ -176,7 +225,7 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
         <a href="<?= base_url('sponsorship') ?>" class="ss-iconbtn" title="Kembali ke Deal"><i class="bi bi-arrow-left"></i></a>
         <div class="min-w-0">
             <h1 class="ss-title">Summary Sponsorship</h1>
-            <div class="ss-subtitle">Trend bulanan, realisasi per program, dan breakdown sponsor</div>
+            <div class="ss-subtitle">Program mandiri + event dalam satu pandangan: tren bulanan, kinerja per sumber, dan rincian sponsor</div>
         </div>
     </div>
 
@@ -193,6 +242,14 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
         <?php if ($latestOther): ?>
         <a href="?bulan=<?= esc($latestOther) ?>" class="ss-banner-link">Lihat <?= esc($labelBulan($latestOther)) ?> <i class="bi bi-arrow-right"></i></a>
         <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($bolehDobel && $nDikecualikan > 0): ?>
+    <div class="ss-banner" role="status" id="ssBannerDobel">
+        <i class="bi bi-files"></i>
+        <span><strong><?= $nDikecualikan ?> sponsor</strong> dikecualikan dari semua angka di halaman ini karena dikonfirmasi dobel.</span>
+        <a href="#dobel" class="ss-banner-link">Lihat keputusan <i class="bi bi-arrow-right"></i></a>
     </div>
     <?php endif; ?>
 
@@ -229,9 +286,9 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
             esc($bulanLabel) . ($kpiTerkumpulPrev !== null ? ' · bln lalu ' . esc($smShort($kpiTerkumpulPrev)) : ''),
             $deltaBadge((int)$kpiTerkumpul, $kpiTerkumpulPrev), $smFmt($kpiTerkumpul));
         $kpiCard('blue', 'check2-circle', 'Nilai Dikonfirmasi', $kpiMoney($kpiCommitted),
-            (int)$kpiSponsor . ' sponsor deal', '', $smFmt($kpiCommitted) . ' — status Terkonfirmasi + Lunas (program + event)');
+            (int)$kpiSponsor . ' sponsor deal · program + event', '', $smFmt($kpiCommitted) . ' — program: status Terkonfirmasi + Lunas; event: semua sponsor' . ($bolehDobel && $nDikecualikan > 0 ? '; tanpa ' . $nDikecualikan . ' sponsor dobel' : ''));
         $kpiCard('green', 'piggy-bank', 'Total Terkumpul (All)', $kpiMoney($grandTotal),
-            'standalone + event', '', $smFmt($grandTotal));
+            'program mandiri + event', '', $smFmt($grandTotal));
         $rvBar = $pctRealVsConf !== null
             ? '<div class="ss-bar-mini" aria-hidden="true"><i data-c="' . $barTone($pctRealVsConf) . '" style="width:' . min(100, $pctRealVsConf) . '%"></i></div>' : '';
         $kpiCard('cyan', 'bullseye', 'Realisasi vs Dikonfirmasi',
@@ -281,20 +338,29 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
         </section>
     </div>
 
-    <!-- D. Tabel Kinerja Program -->
+    <?php if ($bolehDobel && $dobel !== null): ?>
+    <?= view('sponsorship/_dobel', ['dobel' => $dobel, 'kembali' => 'summary', 'bulan' => $bulan, 'ringkas' => false, 'fmtRp' => $smFmt, 'fmtShort' => $smShort]) ?>
+    <?php endif; ?>
+
+    <!-- D. Tabel Kinerja Sumber (program mandiri + event) -->
     <section class="ss-card" id="ssPrograms" aria-labelledby="ssProgT">
         <div class="ss-card-h">
-            <h2 id="ssProgT"><i class="bi bi-table"></i>Kinerja Program</h2>
-            <span class="ss-count" id="ssProgCount"><?= count($pRows) ?></span>
-            <span class="ss-hint d-none d-md-inline"><?= $relN ?> berjalan / punya realisasi di <?= esc($bulanLabel) ?> · klik baris untuk analisa &amp; detail sponsor</span>
+            <h2 id="ssProgT"><i class="bi bi-table"></i>Kinerja Sumber</h2>
+            <span class="ss-count" id="ssProgCount"><?= count($pRows) + count($eRows) ?></span>
+            <span class="ss-hint d-none d-md-inline"><?= $relN + count(array_filter($eRows, fn($r) => $r['relevant'])) ?> berjalan / punya realisasi di <?= esc($bulanLabel) ?> · klik baris untuk detail sponsor<?= $canEdit ? ' &amp; analisa' : '' ?></span>
         </div>
-        <?php if (empty($pRows)): ?>
-        <div class="ss-empty"><i class="bi bi-inbox"></i><p>Belum ada program.</p></div>
+        <?php if (empty($pRows) && empty($eRows)): ?>
+        <div class="ss-empty"><i class="bi bi-inbox"></i><p>Belum ada program maupun event bersponsor.</p></div>
         <?php else: ?>
         <div class="ss-filters" id="ssFilters">
-            <label class="ss-search"><i class="bi bi-search"></i><input type="search" id="ssSearch" placeholder="Cari program…" aria-label="Cari program" autocomplete="off"></label>
-            <div class="ss-seg" role="group" aria-label="Status program" data-group="status">
+            <label class="ss-search"><i class="bi bi-search"></i><input type="search" id="ssSearch" placeholder="Cari program / event…" aria-label="Cari program atau event" autocomplete="off"></label>
+            <div class="ss-seg" role="group" aria-label="Jenis sumber" data-group="src">
                 <button type="button" class="is-on" data-v="">Semua</button>
+                <button type="button" data-v="p">Program</button>
+                <button type="button" data-v="e">Event</button>
+            </div>
+            <div class="ss-seg" role="group" aria-label="Status program" data-group="status">
+                <button type="button" class="is-on" data-v="">Semua status</button>
                 <button type="button" data-v="active">Aktif</button>
                 <button type="button" data-v="inactive">Nonaktif</button>
             </div>
@@ -308,17 +374,18 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
             <button type="button" class="ss-link" id="ssReset" hidden><i class="bi bi-x-circle"></i>Reset</button>
         </div>
         <div class="ss-scroll">
-        <table class="ss-table" id="ssProgTable">
+        <table class="ss-table ss-table-src" id="ssProgTable">
             <thead>
             <tr>
-                <th class="ss-sticky" data-sort="name" aria-sort="none"><button type="button">Program</button></th>
+                <th class="ss-sticky" data-sort="name" aria-sort="none"><button type="button">Sumber</button></th>
+                <th data-sort="mal" aria-sort="none"><button type="button">Mal</button></th>
                 <th data-sort="status" data-num aria-sort="none"><button type="button">Status</button></th>
-                <th class="t-r" data-sort="target" data-num aria-sort="none"><button type="button">Target Nilai</button></th>
-                <th class="t-r" data-sort="conf" data-num aria-sort="none"><button type="button">Dikonfirmasi</button></th>
-                <th class="t-r" data-sort="bulan" data-num aria-sort="none"><button type="button">Bulan Ini</button></th>
-                <th class="t-r" data-sort="all" data-num aria-sort="none"><button type="button">All-time</button></th>
-                <th data-sort="prog" data-num aria-sort="none"><button type="button">Progress</button></th>
                 <th data-sort="spons" data-num aria-sort="none"><button type="button">Sponsor</button></th>
+                <th class="t-r" data-sort="deal" data-num aria-sort="none"><button type="button">Nilai Deal</button></th>
+                <th class="t-r" data-sort="target" data-num aria-sort="none"><button type="button">Target</button></th>
+                <th class="t-r" data-sort="bulan" data-num aria-sort="none"><button type="button">Bulan Ini</button></th>
+                <th class="t-r" data-sort="all" data-num aria-sort="none"><button type="button">Kumulatif</button></th>
+                <th data-sort="serap" data-num aria-sort="none"><button type="button" title="Kumulatif realisasi ÷ nilai deal">Penyerapan</button></th>
                 <th class="t-c" data-sort="analisa" data-num aria-sort="none"><button type="button">Analisa</button></th>
             </tr>
             </thead>
@@ -328,18 +395,21 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
                 $periode = $r['mulai'] ? ($fmtTgl($r['mulai']) . ($r['selesai'] && $r['selesai'] !== $r['mulai'] ? ' – ' . $fmtTgl($r['selesai']) : '')) : '';
                 $hvM = $maxMonth > 0 ? round($r['month'] / $maxMonth * .30, 3) : 0;
                 $hvA = $maxAll > 0 ? round($r['all'] / $maxAll * .30, 3) : 0;
+                $com = $committedMap[$pid] ?? []; $cashP = (int)($com['total_cash'] ?? 0); $brgP = (int)($com['total_barang'] ?? 0);
+                $serap = $smPct($r['all'], $r['committed']);
+                $malP = $mallLbl[$p['mall'] ?? ''] ?? '';
             ?>
-            <tr class="ss-row" id="row-<?= $pid ?>" data-key="<?= $pid ?>" data-status="<?= $r['active'] ? 'active' : 'inactive' ?>"
+            <tr class="ss-row" id="row-<?= $pid ?>" data-key="<?= $pid ?>" data-src="p" data-status="<?= $r['active'] ? 'active' : 'inactive' ?>"
                 data-rel="<?= $r['relevant'] ? '1' : '0' ?>" data-need="<?= (! $r['filled'] && $r['relevant'] && $canEdit) ? '1' : '0' ?>" data-ord="<?= $r['ord'] ?>"
-                data-name="<?= esc(mb_strtolower($p['nama_program'])) ?>" data-s-name="<?= esc(mb_strtolower($p['nama_program'])) ?>"
-                data-s-status="<?= $r['active'] ? 0 : 1 ?>" data-s-target="<?= $r['target'] ?>" data-s-conf="<?= $r['committed'] ?>"
-                data-s-bulan="<?= $r['month'] ?>" data-s-all="<?= $r['all'] ?>" data-s-prog="<?= $r['target'] > 0 ? $r['pct'] : -1 ?>"
+                data-name="<?= esc(mb_strtolower($p['nama_program'])) ?>" data-s-name="<?= esc(mb_strtolower($p['nama_program'])) ?>" data-s-mal="<?= esc(mb_strtolower($malP)) ?>"
+                data-s-status="<?= $r['active'] ? 0 : 1 ?>" data-s-target="<?= $r['target'] ?>" data-s-deal="<?= $r['committed'] ?>"
+                data-s-bulan="<?= $r['month'] ?>" data-s-all="<?= $r['all'] ?>" data-s-serap="<?= $r['committed'] > 0 ? $serap : -1 ?>"
                 data-s-spons="<?= $r['nSp'] ?>" data-s-analisa="<?= $r['filled'] ? 1 : 0 ?>">
                 <td class="ss-sticky">
-                    <button type="button" class="ss-exp" aria-expanded="false" aria-controls="det-<?= $pid ?>" title="Buka analisa &amp; detail">
+                    <button type="button" class="ss-exp" aria-expanded="false" aria-controls="det-<?= $pid ?>" title="Buka detail sponsor<?= $canEdit ? ' &amp; analisa' : '' ?>">
                         <i class="bi bi-chevron-right"></i>
                         <span class="ss-pname">
-                            <span class="ss-pname-t"><?= esc($p['nama_program']) ?></span>
+                            <span class="ss-pname-t"><span class="ss-tag is-std">Program</span> <?= esc($p['nama_program']) ?></span>
                             <span class="ss-pname-s">
                                 <?php if ($periode): ?><span class="ss-evname"><i class="bi bi-calendar3"></i><?= esc($periode) ?></span><?php endif; ?>
                                 <?php if ($p['locked']): ?><span class="ss-tag" title="Terkunci"><i class="bi bi-lock-fill"></i>Terkunci</span><?php endif; ?>
@@ -350,25 +420,33 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
                         </span>
                     </button>
                 </td>
+                <td class="ss-muted"><?= $malP !== '' ? esc($malP) : '<span class="ss-dash">—</span>' ?></td>
                 <td><span class="ss-tag <?= $r['active'] ? 'is-on' : 'is-off' ?>"><?= $r['active'] ? 'Aktif' : 'Nonaktif' ?></span></td>
-                <td class="t-r num" title="<?= $r['target'] > 0 ? esc($smFmt($r['target'])) : '' ?>"><?= $r['target'] > 0 ? esc($smShort($r['target'])) : '<span class="ss-dash">—</span>' ?></td>
-                <td class="t-r num ss-c-blue" title="<?= esc($smFmt($r['committed'])) ?>"><?= esc($smShort($r['committed'])) ?></td>
-                <td class="t-r num"><span class="ss-heat" style="--hv:<?= $hvM ?>" title="<?= esc($smFmt($r['month'])) ?>"><?= $r['month'] > 0 ? esc($smShort($r['month'])) : '<span class="ss-dash">—</span>' ?></span></td>
-                <td class="t-r num"><span class="ss-heat" style="--hv:<?= $hvA ?>" title="<?= esc($smFmt($r['all'])) ?>"><?= esc($smShort($r['all'])) ?></span></td>
-                <td>
-                    <?php if ($r['target'] > 0): ?>
-                    <div class="ss-prog is-solo" title="<?= esc($smFmt($r['all'])) ?> dari target <?= esc($smFmt($r['target'])) ?>">
-                        <span class="ss-bar-mini"><i data-c="<?= $barTone($r['pct']) ?>" style="width:<?= $r['pct'] ?>%"></i></span>
-                        <span class="ss-prog-p"><?= $r['pct'] ?>%</span>
-                    </div>
-                    <?php else: ?><span class="ss-dash">—</span><?php endif; ?>
-                </td>
                 <td>
                     <?php if ($r['nSp'] > 0): ?>
                     <div class="ss-sp"><b><?= $r['nSp'] ?></b>
                         <?php foreach ($statusOrder as $s): if (! isset($r['byStatus'][$s])) continue; ?>
                         <span class="ss-deal" data-deal="<?= $s ?>" title="<?= $statusLabel[$s] ?>: <?= $r['byStatus'][$s]['count'] ?> sponsor · <?= esc($smFmt($r['byStatus'][$s]['nilai'])) ?>"><?= $statusLabel[$s] ?> <?= $r['byStatus'][$s]['count'] ?></span>
                         <?php endforeach; ?>
+                    </div>
+                    <?php else: ?><span class="ss-dash">—</span><?php endif; ?>
+                </td>
+                <td class="t-r num ss-c-blue"><span title="<?= esc($smFmt($r['committed'])) ?>"><?= esc($smShort($r['committed'])) ?></span>
+                    <?php if ($cashP && $brgP): ?><div class="ss-sub">cash <?= esc($smShort($cashP)) ?> · barang <?= esc($smShort($brgP)) ?></div><?php endif; ?>
+                </td>
+                <td class="t-r num" title="<?= $r['target'] > 0 ? esc($smFmt($r['target'])) . ' — progres ' . $r['pct'] . '% (kumulatif ÷ target)' : '' ?>">
+                    <?php if ($r['target'] > 0): ?>
+                    <?= esc($smShort($r['target'])) ?>
+                    <div class="ss-sub"><?= $r['pct'] ?>% dari target</div>
+                    <?php else: ?><span class="ss-dash">—</span><?php endif; ?>
+                </td>
+                <td class="t-r num"><span class="ss-heat" style="--hv:<?= $hvM ?>" title="<?= esc($smFmt($r['month'])) ?>"><?= $r['month'] > 0 ? esc($smShort($r['month'])) : '<span class="ss-dash">—</span>' ?></span></td>
+                <td class="t-r num"><span class="ss-heat" style="--hv:<?= $hvA ?>" title="<?= esc($smFmt($r['all'])) ?>"><?= esc($smShort($r['all'])) ?></span></td>
+                <td>
+                    <?php if ($r['committed'] > 0): ?>
+                    <div class="ss-prog is-solo" title="<?= esc($smFmt($r['all'])) ?> terealisasi dari nilai deal <?= esc($smFmt($r['committed'])) ?>">
+                        <span class="ss-bar-mini"><i data-c="<?= $barTone($serap) ?>" style="width:<?= $serap ?>%"></i></span>
+                        <span class="ss-prog-p"><?= $serap ?>%</span>
                     </div>
                     <?php else: ?><span class="ss-dash">—</span><?php endif; ?>
                 </td>
@@ -379,7 +457,7 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
                 </td>
             </tr>
             <tr class="ss-det" id="det-<?= $pid ?>" data-for="<?= $pid ?>" hidden>
-                <td colspan="9">
+                <td colspan="10">
                     <div class="ss-det-in">
                         <div class="ss-det-info">
                             <?php if ($r['prevTL']): ?>
@@ -397,13 +475,6 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
                                 <?php endforeach; ?>
                                 </tbody>
                             </table>
-                            <ul class="ss-splist">
-                                <?php foreach (array_slice($r['sp'], 0, 8) as $sp): ?>
-                                <li><span class="ss-deal" data-deal="<?= esc($sp['status_deal']) ?>"><?= esc($statusLabel[$sp['status_deal']] ?? $sp['status_deal']) ?></span>
-                                    <span class="ss-spn"><?= esc($sp['nama_sponsor']) ?></span><span class="num"><?= esc($smShort($sp['nilai'])) ?></span></li>
-                                <?php endforeach; ?>
-                                <?php if (count($r['sp']) > 8): ?><li class="ss-more-sp">+<?= count($r['sp']) - 8 ?> sponsor lainnya</li><?php endif; ?>
-                            </ul>
                             <?php else: ?>
                             <div class="ss-mek">Belum ada sponsor pada program ini.</div>
                             <?php endif; ?>
@@ -441,65 +512,94 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
                             <?php endif; ?>
                         </div>
                     </div>
+                    <div class="ss-det-in is-one">
+                        <div class="ss-det-sp"><div class="ss-det-spt"><i class="bi bi-people"></i>Daftar sponsor <small>· <?= count($rincianP[$pid] ?? []) ?></small></div><?php $spTable($rincianP[$pid] ?? [], true); ?></div>
+                    </div>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+
+            <?php foreach ($eRows as $r):
+                $e = $r['e']; $eid = $r['eid'];
+                $hvM = $maxMonth > 0 ? round($r['month'] / $maxMonth * .30, 3) : 0;
+                $hvA = $maxAll > 0 ? round($r['all'] / $maxAll * .30, 3) : 0;
+                $malE = $mallLbl[$e['event_mall'] ?? ''] ?? ucfirst((string)($e['event_mall'] ?? ''));
+                $serapE = $smPct($r['all'], $r['deal']);
+            ?>
+            <tr class="ss-row" id="row-e<?= $eid ?>" data-key="e<?= $eid ?>" data-src="e" data-status="event"
+                data-rel="<?= $r['relevant'] ? '1' : '0' ?>" data-need="0" data-ord="<?= $r['ord'] ?>"
+                data-name="<?= esc(mb_strtolower($e['event_name'])) ?>" data-s-name="<?= esc(mb_strtolower($e['event_name'])) ?>" data-s-mal="<?= esc(mb_strtolower($malE)) ?>"
+                data-s-status="2" data-s-target="-1" data-s-deal="<?= $r['deal'] ?>"
+                data-s-bulan="<?= $r['month'] ?>" data-s-all="<?= $r['all'] ?>" data-s-serap="<?= $r['deal'] > 0 ? $serapE : -1 ?>"
+                data-s-spons="<?= $r['nSp'] ?>" data-s-analisa="-1">
+                <td class="ss-sticky">
+                    <button type="button" class="ss-exp" aria-expanded="false" aria-controls="det-e<?= $eid ?>" title="Buka detail sponsor">
+                        <i class="bi bi-chevron-right"></i>
+                        <span class="ss-pname">
+                            <span class="ss-pname-t"><span class="ss-tag is-evt">Event</span> <?= esc($e['event_name']) ?></span>
+                            <span class="ss-pname-s">
+                                <?php if ($e['event_start_date']): ?><span class="ss-evname"><i class="bi bi-calendar3"></i><?= esc($fmtTgl($e['event_start_date'])) ?><?= (int)($e['event_days'] ?? 1) > 1 ? ' · ' . (int)$e['event_days'] . ' hari' : '' ?></span><?php endif; ?>
+                            </span>
+                        </span>
+                    </button>
+                </td>
+                <td class="ss-muted"><?= $malE !== '' ? esc($malE) : '<span class="ss-dash">—</span>' ?></td>
+                <td><span class="ss-dash">—</span></td>
+                <td>
+                    <div class="ss-sp"><b><?= $r['nSp'] ?></b>
+                        <?php if ($bolehDobel && (int)$e['jumlah_dikecualikan'] > 0): ?>
+                        <span class="ss-dbl-tag" title="Dikecualikan dari total karena dicatat di program mandiri"><i class="bi bi-files"></i>−<?= (int)$e['jumlah_dikecualikan'] ?> dobel</span>
+                        <?php endif; ?>
+                    </div>
+                </td>
+                <td class="t-r num ss-c-blue"><span title="<?= esc($smFmt($r['deal'])) ?>"><?= esc($smShort($r['deal'])) ?></span>
+                    <?php if ((int)$e['total_cash'] && (int)$e['total_barang']): ?><div class="ss-sub">cash <?= esc($smShort((int)$e['total_cash'])) ?> · barang <?= esc($smShort((int)$e['total_barang'])) ?></div><?php endif; ?>
+                </td>
+                <td class="t-r num"><span class="ss-dash">—</span></td>
+                <td class="t-r num"><span class="ss-heat" style="--hv:<?= $hvM ?>" title="<?= esc($smFmt($r['month'])) ?>"><?= $r['month'] > 0 ? esc($smShort($r['month'])) : '<span class="ss-dash">—</span>' ?></span></td>
+                <td class="t-r num"><span class="ss-heat" style="--hv:<?= $hvA ?>" title="<?= esc($smFmt($r['all'])) ?>"><?= $r['all'] > 0 ? esc($smShort($r['all'])) : '<span class="ss-dash">—</span>' ?></span></td>
+                <td>
+                    <?php if ($r['deal'] > 0): ?>
+                    <div class="ss-prog is-solo" title="<?= esc($smFmt($r['all'])) ?> terealisasi dari nilai deal <?= esc($smFmt($r['deal'])) ?>">
+                        <span class="ss-bar-mini"><i data-c="<?= $barTone($serapE) ?>" style="width:<?= $serapE ?>%"></i></span>
+                        <span class="ss-prog-p"><?= $serapE ?>%</span>
+                    </div>
+                    <?php else: ?><span class="ss-dash">—</span><?php endif; ?>
+                </td>
+                <td class="t-c"><span class="ss-dash">—</span></td>
+            </tr>
+            <tr class="ss-det" id="det-e<?= $eid ?>" data-for="e<?= $eid ?>" hidden>
+                <td colspan="10">
+                    <div class="ss-det-in is-one">
+                        <div class="ss-det-sp">
+                            <div class="ss-det-spt"><i class="bi bi-people"></i>Daftar sponsor <small>· <?= count($rincianE[$eid] ?? []) ?></small></div>
+                            <?php $spTable($rincianE[$eid] ?? [], false); ?>
+                            <a href="<?= base_url('events/' . $eid . '/sponsors') ?>" class="ss-btn ss-btn-ghost ss-btn-sm ss-det-go">Buka tab Sponsorship event <i class="bi bi-arrow-right"></i></a>
+                        </div>
+                    </div>
                 </td>
             </tr>
             <?php endforeach; ?>
             </tbody>
             <tfoot>
                 <tr>
-                    <td class="ss-sticky">Total <small class="ss-muted">(termasuk event)</small></td>
+                    <td class="ss-sticky">Total gabungan <small class="ss-muted">(program + event)</small></td>
                     <td></td><td></td>
+                    <td class="num"><?= (int)$kpiSponsor ?></td>
                     <td class="t-r num ss-c-blue" title="<?= esc($smFmt($kpiCommitted)) ?>"><?= esc($smShort($kpiCommitted)) ?></td>
+                    <td class="t-r num" title="<?= esc($smFmt($targetTotal)) ?>"><?= $targetTotal > 0 ? esc($smShort($targetTotal)) : '' ?></td>
                     <td class="t-r num" title="<?= esc($smFmt($kpiTerkumpul)) ?>"><?= esc($smShort($kpiTerkumpul)) ?></td>
                     <td class="t-r num" title="<?= esc($smFmt($grandTotal)) ?>"><?= esc($smShort($grandTotal)) ?></td>
-                    <td></td><td></td><td></td>
+                    <td class="num"><?= $pctRealVsConf !== null ? $pctRealVsConf . '%' : '' ?></td>
+                    <td></td>
                 </tr>
             </tfoot>
         </table>
         </div>
-        <div class="ss-empty ss-empty-filter" id="ssProgEmpty" hidden><i class="bi bi-funnel"></i><p>Tidak ada program yang cocok dengan filter.</p></div>
-        <div class="ss-foot-note ss-foot-pad">Baris Total mengikuti angka ringkasan di atas dan <strong>sudah memasukkan sponsor dari event</strong>, sehingga bisa lebih besar dari jumlah baris program.</div>
+        <div class="ss-empty ss-empty-filter" id="ssProgEmpty" hidden><i class="bi bi-funnel"></i><p>Tidak ada program atau event yang cocok dengan filter.</p></div>
+        <div class="ss-foot-note ss-foot-pad">Satu baris per program mandiri dan per event; baris Total gabungan sama dengan angka ringkasan di atas<?= $bolehDobel && $nDikecualikan > 0 ? ' dan <strong>sudah mengecualikan ' . (int)$nDikecualikan . ' sponsor yang dikonfirmasi dobel</strong>' : '' ?>. Penyerapan = kumulatif realisasi ÷ nilai deal.</div>
         <?php endif; ?>
     </section>
-
-    <!-- E. Sponsor dari Event -->
-    <?php if (! empty($eventAggs)): ?>
-    <section class="ss-card" id="ssEvents" aria-labelledby="ssEvT">
-        <div class="ss-card-h">
-            <h2 id="ssEvT"><i class="bi bi-calendar-event"></i>Sponsor dari Event</h2>
-            <span class="ss-count"><?= count($eventAggs) ?></span>
-            <span class="ss-hint">nilai deal dari modul Sponsorship event</span>
-        </div>
-        <div class="ss-scroll">
-        <table class="ss-table is-plain" id="ssEvTable">
-            <thead><tr>
-                <th>Event</th><th>Mall</th><th class="t-c">Sponsor</th><th class="t-r">Nilai Deal</th><th class="t-r">Realisasi Bulan Ini</th>
-            </tr></thead>
-            <tbody>
-            <?php foreach ($eventAggs as $e): ?>
-            <tr>
-                <td><a href="<?= base_url('events/' . (int)$e['event_id'] . '/sponsors') ?>"><?= esc($e['event_name']) ?></a></td>
-                <td class="ss-muted"><?= esc($mallLbl[$e['event_mall']] ?? ucfirst((string)$e['event_mall'])) ?></td>
-                <td class="t-c num"><?= (int)$e['jumlah_sponsor'] ?></td>
-                <td class="t-r num ss-c-blue"><span title="<?= esc($smFmt($e['deal'])) ?>"><?= esc($smShort((int)$e['deal'])) ?></span>
-                    <?php if ((int)$e['total_cash'] && (int)$e['total_barang']): ?>
-                    <div class="ss-sub">cash <?= number_format($e['total_cash']) ?> · barang <?= number_format($e['total_barang']) ?></div>
-                    <?php endif; ?>
-                </td>
-                <td class="t-r num"><?= (int)$e['realisasi'] > 0 ? '<span class="ss-heat" style="--hv:.18" title="' . esc($smFmt($e['realisasi'])) . '">' . esc($smShort((int)$e['realisasi'])) . '</span>' : '<span class="ss-dash">—</span>' ?></td>
-            </tr>
-            <?php endforeach; ?>
-            </tbody>
-            <tfoot><tr>
-                <td>Total Event</td><td></td><td class="t-c num"><?= (int)$evSponTot ?></td>
-                <td class="t-r num ss-c-blue"><?= esc($smShort($evDealTot)) ?></td>
-                <td class="t-r num"><?= $evRealTot > 0 ? esc($smShort($evRealTot)) : '—' ?></td>
-            </tr></tfoot>
-        </table>
-        </div>
-        <div class="ss-foot-note ss-foot-pad"><i class="bi bi-info-circle"></i> Nilai event sudah termasuk di KPI, grafik tren, dan realisasi harian.</div>
-    </section>
-    <?php endif; ?>
 
     <!-- F. Grafik -->
     <div class="ss-grid-2">

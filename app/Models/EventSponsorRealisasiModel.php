@@ -31,12 +31,13 @@ class EventSponsorRealisasiModel extends Model
     // ── Agregasi utk Laporan Bulanan Sponsorship ─────────────────────────
 
     /** Realisasi per event pada satu bulan: [event_id => nilai] */
-    public function getMonthlyByEvents(string $bulan, array $eventIds): array
+    public function getMonthlyByEvents(string $bulan, array $eventIds, array $exclSponsorIds = []): array
     {
         if (empty($eventIds)) return [];
         $rows = $this->db->table('event_sponsor_realisasi')
             ->select('event_id, SUM(nilai) as total_nilai')
             ->whereIn('event_id', $eventIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->where("DATE_FORMAT(tanggal, '%Y-%m')", $bulan)
             ->groupBy('event_id')
             ->get()->getResultArray();
@@ -46,12 +47,13 @@ class EventSponsorRealisasiModel extends Model
     }
 
     /** Kumulatif s/d bulan tertentu per event: [event_id => nilai] */
-    public function getCumulativeByEvents(string $upToMonth, array $eventIds): array
+    public function getCumulativeByEvents(string $upToMonth, array $eventIds, array $exclSponsorIds = []): array
     {
         if (empty($eventIds)) return [];
         $rows = $this->db->table('event_sponsor_realisasi')
             ->select('event_id, SUM(nilai) as total_nilai')
             ->whereIn('event_id', $eventIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->where("DATE_FORMAT(tanggal, '%Y-%m') <=", $upToMonth)
             ->groupBy('event_id')
             ->get()->getResultArray();
@@ -61,27 +63,36 @@ class EventSponsorRealisasiModel extends Model
     }
 
     /** Total realisasi per bulan (semua event terkait) — utk grafik tren */
-    public function getAllMonthlyTotals(array $eventIds): array
+    public function getAllMonthlyTotals(array $eventIds, array $exclSponsorIds = []): array
     {
         if (empty($eventIds)) return [];
         return $this->db->table('event_sponsor_realisasi')
             ->select("DATE_FORMAT(tanggal, '%Y-%m') as bulan, SUM(nilai) as total_nilai")
             ->whereIn('event_id', $eventIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->groupBy('bulan')
             ->orderBy('bulan', 'ASC')
             ->get()->getResultArray();
     }
 
     /** Baris harian satu bulan (semua event terkait) — utk grafik harian */
-    public function getDailyForMonth(string $bulan, array $eventIds): array
+    public function getDailyForMonth(string $bulan, array $eventIds, array $exclSponsorIds = []): array
     {
         if (empty($eventIds)) return [];
         return $this->db->table('event_sponsor_realisasi')
             ->select('tanggal, SUM(nilai) as nilai')
             ->whereIn('event_id', $eventIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->where("DATE_FORMAT(tanggal, '%Y-%m')", $bulan)
             ->groupBy('tanggal')
             ->orderBy('tanggal', 'ASC')
             ->get()->getResultArray();
+    }
+
+    /** Ekspresi SQL aman (hanya bilangan bulat) untuk membuang sponsor yang dikecualikan karena dobel. */
+    private function sqlKecuali(array $ids): string
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        return $ids ? 'sponsor_id NOT IN (' . implode(',', $ids) . ')' : '1=1';
     }
 }

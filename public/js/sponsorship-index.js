@@ -130,4 +130,14 @@
     }
     openHash();
     apply();
+
+    // ── Sponsor dari Event (baca-saja): buka/tutup daftar sponsor ────
+    Array.prototype.slice.call(root.querySelectorAll('.si-ev-card')).forEach(function (card) {
+        var head = card.querySelector('.si-ev-head'), body = card.querySelector('.si-ev-body'), btn = card.querySelector('.si-chev');
+        function toggle() {
+            var open = card.classList.toggle('is-open');
+            body.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        head.addEventListener('click', function (e) { if (e.target.closest('a')) return; toggle(); });
+    });
 })();

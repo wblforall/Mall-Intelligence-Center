@@ -33,12 +33,14 @@ class SponsorshipSponsorModel extends Model
     }
 
     // Sum nilai from active deals (terkonfirmasi + lunas) per program, split by jenis
-    public function getCommittedByPrograms(array $programIds): array
+    public function getCommittedByPrograms(array $programIds, array $exclSponsorIds = []): array
     {
         if (empty($programIds)) return [];
+        $exclSponsorIds = array_values(array_unique(array_map('intval', $exclSponsorIds)));
         $rows = $this->db->table('sponsorship_sponsors')
             ->select('program_id, jenis, SUM(nilai) as total_nilai, COUNT(*) as total_sponsor')
             ->whereIn('program_id', $programIds)
+            ->where($exclSponsorIds ? 'id NOT IN (' . implode(',', $exclSponsorIds) . ')' : '1=1', null, false)
             ->whereIn('status_deal', ['terkonfirmasi', 'lunas'])
             ->groupBy('program_id, jenis')
             ->get()->getResultArray();

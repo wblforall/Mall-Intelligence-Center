@@ -66,6 +66,12 @@
 .prog-analisa3, .prog-belum, .prog-lalu { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
 .prog-analisa3 { border-bottom: 1px solid #efe4c4; } .prog-belum, .prog-lalu { border-bottom: 1px solid var(--garis); }
 
+/* Sponsor dikecualikan karena dobel: tetap tampil, dicoret & redup, tidak masuk total. */
+tr.baris-dobel td { color: var(--redup2); }
+tr.baris-dobel td strong, tr.baris-dobel td.num { text-decoration: line-through; text-decoration-thickness: 1px; }
+.tag-dobel { display: inline-block; margin-left: 5px; padding: 0 5px; border-radius: 6px; background: #fdf1d6; color: #8a5a00; font-size: 8px; font-weight: 700; text-decoration: none; vertical-align: 1px; }
+.subnote.dobel-note { color: #8a5a00; }
+
 /* Rekap & ringkasan tindak lanjut */
 .rekap-wrap { break-inside: avoid; page-break-inside: avoid; }
 .rekap-table tr.grup { break-after: avoid; }
@@ -402,14 +408,16 @@ $stMap = [
     <tbody>
     <?php if (empty($spList)): ?>
         <tr class="empty-row"><td colspan="7">Belum ada sponsor terdaftar.</td></tr>
-    <?php endif; $i = 1; foreach ($spList as $s):
+    <?php endif; $i = 1; $nAktifP = 0; foreach ($spList as $s):
         $sid = (int)$s['id'];
         $rz  = (int)(($realBySponsor[$sid]['total_nilai']) ?? 0);
         $st  = $stMap[$s['status_deal']] ?? [ucfirst((string)$s['status_deal']), 'netral'];
+        $dbl = in_array($sid, $exP ?? [], true);
+        if (! $dbl) $nAktifP++;
     ?>
-        <tr>
+        <tr<?= $dbl ? ' class="baris-dobel"' : '' ?>>
             <td class="num" style="text-align:left"><?= $i++ ?></td>
-            <td><strong><?= esc($s['nama_sponsor']) ?></strong>
+            <td><strong><?= esc($s['nama_sponsor']) ?></strong><?php if ($dbl): ?><span class="tag-dobel">dobel</span><div class="subnote dobel-note">dicatat di <?= esc($labelKec['program'][$sid] ?? 'sisi lain') ?> — tidak dihitung</div><?php endif; ?>
                 <?php if (! empty($s['catatan'])): ?><div class="subnote"><?= esc(mb_substr($s['catatan'], 0, 60)) ?></div><?php endif; ?></td>
             <td style="color:var(--redup)"><?= esc($s['kategori'] ?: '—') ?></td>
             <td><?= $s['jenis'] === 'cash' ? 'Cash' : 'Barang' ?></td>
@@ -420,7 +428,7 @@ $stMap = [
     <?php endforeach; ?>
     </tbody>
     <tfoot><tr>
-        <td colspan="4">Total &middot; <?= $nf(count($spList)) ?> sponsor</td>
+        <td colspan="4">Total &middot; <?= $nf($nAktifP) ?> sponsor<?= $nAktifP !== count($spList) ? ' <span class="bln-ini">(' . $nf(count($spList) - $nAktifP) . ' dikecualikan)</span>' : '' ?></td>
         <td class="num"><?= $rp($komit) ?></td>
         <td class="text-center"><span class="bln-ini">bln ini <?= $now ? $rp($now) : '—' ?></span></td>
         <td class="num"><?= $cum ? $rp($cum) : '—' ?></td>
@@ -464,14 +472,16 @@ $stMap = [
     <tbody>
     <?php if (empty($spList)): ?>
         <tr class="empty-row"><td colspan="6">Belum ada sponsor terdaftar.</td></tr>
-    <?php endif; $i = 1; foreach ($spList as $s):
+    <?php endif; $i = 1; $nAktifE = 0; foreach ($spList as $s):
         $sid = (int)$s['id'];
         $rz  = (int)(($eventRealBySp[$eid][$sid]) ?? 0);
         $qty = (int)($s['qty'] ?? 0);
+        $dbl = in_array($sid, $exE ?? [], true);
+        if (! $dbl) $nAktifE++;
     ?>
-        <tr>
+        <tr<?= $dbl ? ' class="baris-dobel"' : '' ?>>
             <td class="num" style="text-align:left"><?= $i++ ?></td>
-            <td><strong><?= esc($s['nama_sponsor']) ?></strong>
+            <td><strong><?= esc($s['nama_sponsor']) ?></strong><?php if ($dbl): ?><span class="tag-dobel">dobel</span><div class="subnote dobel-note">dicatat di <?= esc($labelKec['event'][$sid] ?? 'sisi lain') ?> — tidak dihitung</div><?php endif; ?>
                 <?php if (! empty($s['deskripsi_barang'])): ?><div class="subnote"><?= esc(mb_substr($s['deskripsi_barang'], 0, 60)) ?></div><?php endif; ?></td>
             <td><?= $s['jenis'] === 'cash' ? 'Cash' : 'Barang' ?></td>
             <td class="<?= $qty ? 'num' : 'zero' ?>"><?= $qty ? $nf($qty) : '—' ?></td>
@@ -481,7 +491,7 @@ $stMap = [
     <?php endforeach; ?>
     </tbody>
     <tfoot><tr>
-        <td colspan="4">Total &middot; <?= $nf(count($spList)) ?> sponsor</td>
+        <td colspan="4">Total &middot; <?= $nf($nAktifE) ?> sponsor<?= $nAktifE !== count($spList) ? ' <span class="bln-ini">(' . $nf(count($spList) - $nAktifE) . ' dikecualikan)</span>' : '' ?></td>
         <td class="num"><?= $rp($deal) ?></td>
         <td class="num"><?= $cum ? $rp($cum) : ($now ? $rp($now) : '—') ?></td>
     </tr></tfoot>
@@ -528,6 +538,9 @@ $stMap = [
     Keterangan: <em>Nilai Deal / Komitmen</em> = nilai kontrak sponsor (cash + barang) · <em>Realisasi / Penerimaan</em> = pembayaran yang sudah masuk · <em>Capaian</em> = kumulatif terhadap target program.
     Status deal: Prospek → Negosiasi → Terkonfirmasi → Lunas (Batal = gagal).
 </div>
+<?php $nKecuali = (int)($nKecualiProg ?? 0) + (int)($nKecualiEvent ?? 0); if ($nKecuali > 0): ?>
+<div class="keterangan"><b><?= $nf($nKecuali) ?> sponsor dikecualikan karena dobel</b> (dicatat di event/program lain; ditampilkan dicoret pada rincian dan tidak dihitung dalam angka mana pun di laporan ini).</div>
+<?php endif; ?>
 <div class="sumber">Sumber: modul Sponsorship &amp; Event Sponsor, Mall Intelligence Center. Periode laporan: <?= $bulanLabel ?>; pembanding: <?= $prevLabel ?>. Program ditampilkan bila periodenya beririsan dengan bulan laporan atau menerima pembayaran pada bulan itu.</div>
 <?php endif; ?>
 

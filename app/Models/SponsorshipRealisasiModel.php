@@ -33,12 +33,13 @@ class SponsorshipRealisasiModel extends Model
     }
 
     // Total realisasi per program (for KPI)
-    public function getTotalByPrograms(array $programIds): array
+    public function getTotalByPrograms(array $programIds, array $exclSponsorIds = []): array
     {
         if (empty($programIds)) return [];
         $rows = $this->db->table('sponsorship_realisasi')
             ->select('program_id, SUM(nilai) as total_nilai')
             ->whereIn('program_id', $programIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->groupBy('program_id')
             ->get()->getResultArray();
         $map = [];
@@ -49,24 +50,26 @@ class SponsorshipRealisasiModel extends Model
     }
 
     // Monthly totals across given program IDs (for trend chart)
-    public function getAllMonthlyTotals(array $programIds): array
+    public function getAllMonthlyTotals(array $programIds, array $exclSponsorIds = []): array
     {
         if (empty($programIds)) return [];
         return $this->db->table('sponsorship_realisasi')
             ->select("DATE_FORMAT(tanggal, '%Y-%m') as bulan, SUM(nilai) as total_nilai")
             ->whereIn('program_id', $programIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->groupBy('bulan')
             ->orderBy('bulan', 'ASC')
             ->get()->getResultArray();
     }
 
     // Per-program totals for a given month
-    public function getMonthlyByPrograms(string $bulan, array $programIds): array
+    public function getMonthlyByPrograms(string $bulan, array $programIds, array $exclSponsorIds = []): array
     {
         if (empty($programIds)) return [];
         $rows = $this->db->table('sponsorship_realisasi')
             ->select('program_id, SUM(nilai) as total_nilai')
             ->whereIn('program_id', $programIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->where("DATE_FORMAT(tanggal, '%Y-%m')", $bulan)
             ->groupBy('program_id')
             ->get()->getResultArray();
@@ -78,12 +81,13 @@ class SponsorshipRealisasiModel extends Model
     }
 
     // Kumulatif s/d bulan tertentu per program (untuk laporan bulanan)
-    public function getCumulativeByPrograms(string $upToMonth, array $programIds): array
+    public function getCumulativeByPrograms(string $upToMonth, array $programIds, array $exclSponsorIds = []): array
     {
         if (empty($programIds)) return [];
         $rows = $this->db->table('sponsorship_realisasi')
             ->select('program_id, SUM(nilai) as total_nilai')
             ->whereIn('program_id', $programIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->where("DATE_FORMAT(tanggal, '%Y-%m') <=", $upToMonth)
             ->groupBy('program_id')
             ->get()->getResultArray();
@@ -93,12 +97,13 @@ class SponsorshipRealisasiModel extends Model
     }
 
     // Daily rows for chart
-    public function getDailyForMonth(string $bulan, array $programIds): array
+    public function getDailyForMonth(string $bulan, array $programIds, array $exclSponsorIds = []): array
     {
         if (empty($programIds)) return [];
         return $this->db->table('sponsorship_realisasi')
             ->select("tanggal, SUM(nilai) as nilai")
             ->whereIn('program_id', $programIds)
+            ->where($this->sqlKecuali($exclSponsorIds), null, false)
             ->where("DATE_FORMAT(tanggal, '%Y-%m')", $bulan)
             ->groupBy('tanggal')
             ->orderBy('tanggal', 'ASC')
@@ -114,5 +119,12 @@ class SponsorshipRealisasiModel extends Model
             ->groupBy('bulan')
             ->orderBy('bulan', 'DESC')
             ->get()->getResultArray();
+    }
+
+    /** Ekspresi SQL aman (hanya bilangan bulat) untuk membuang sponsor yang dikecualikan karena dobel. */
+    private function sqlKecuali(array $ids): string
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        return $ids ? 'sponsor_id NOT IN (' . implode(',', $ids) . ')' : '1=1';
     }
 }

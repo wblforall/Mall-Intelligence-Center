@@ -99,6 +99,23 @@ krsort($yearOpts);
     </div>
 </div>
 
+<?php if (! empty($bolehDobel) && ! empty($dobel)):
+    $dblBelum = (int)($dobel['n_belum'] ?? 0); $dblPutus = (int)($dobel['n_keputusan'] ?? 0); $dblGrup = count(array_filter($dobel['grup'], fn($g) => $g['n_belum'] > 0));
+    if ($dblBelum > 0 || $dblPutus > 0): ?>
+<a href="<?= base_url('sponsorship/summary#dobel') ?>" class="si-dbl-bar<?= $dblBelum > 0 ? ' is-todo' : '' ?>" id="siDblBar">
+    <i class="bi bi-files"></i>
+    <span class="si-dbl-tx">
+        <?php if ($dblBelum > 0): ?>
+        <b><?= $dblBelum ?> kemungkinan sponsor dobel</b> antara program mandiri dan event (<?= $dblGrup ?> pasangan program × event) menunggu keputusan tim.
+        <?php else: ?>
+        <b>Tidak ada kemungkinan dobel yang menunggu.</b>
+        <?php endif; ?>
+        <?php if ($dblPutus > 0): ?><small><?= $dblPutus ?> keputusan tercatat</small><?php endif; ?>
+    </span>
+    <span class="si-dbl-go">Tinjau di Summary <i class="bi bi-arrow-right"></i></span>
+</a>
+<?php endif; endif; ?>
+
 <?php if (empty($programs)): ?>
 <div class="si-empty">
     <i class="bi bi-trophy"></i>
@@ -320,7 +337,10 @@ krsort($yearOpts);
         <div class="si-sp" id="sponsor-<?= $sp['id'] ?>">
             <div class="si-sp-row">
                 <div class="si-sp-name" data-l="Sponsor">
-                    <div class="si-sp-n"><?= esc($sp['nama_sponsor']) ?></div>
+                    <div class="si-sp-n"><?= esc($sp['nama_sponsor']) ?>
+                        <?php if (! empty($bolehDobel) && in_array((int)$sp['id'], $exProgSp ?? [], true)): ?>
+                        <span class="si-chip si-chip-warn" title="Dikecualikan dari Summary gabungan karena dikonfirmasi dobel"><i class="bi bi-files"></i>dobel · dicatat di <?= esc($labelKecProg[(int)$sp['id']] ?? 'sisi lain') ?></span>
+                        <?php endif; ?></div>
                     <?php if ($sp['detail']): ?><div class="si-sp-d"><?= esc($sp['detail']) ?></div><?php endif; ?>
                     <div class="si-sp-d"><i class="bi bi-person"></i>PIC: <?= esc($sp['pic_nama'] ?? '—') ?></div>
                     <?php if (! empty($items)): ?>
@@ -445,6 +465,68 @@ krsort($yearOpts);
     <button type="button" class="si-btn si-btn-sm" id="siReset"><i class="bi bi-x-circle"></i>Reset filter</button>
 </div>
 
+<?php endif; ?>
+
+<?php if (! empty($eventAggs)):
+    $evTotN = array_sum(array_map(fn($e) => (int)$e['jumlah_sponsor'], $eventAggs));
+    $evTotDeal = array_sum(array_map(fn($e) => (int)$e['deal'], $eventAggs));
+    $evTotKum = array_sum(array_map(fn($e) => (int)$e['kumulatif'], $eventAggs)); ?>
+<!-- Sponsor dari Event (baca-saja) -->
+<section class="si-ev" id="sponsorEvent" aria-labelledby="siEvT">
+<div class="si-group-h">
+    <span class="si-pill si-pill-ev" id="siEvT"><i class="bi bi-calendar-event"></i> Sponsor dari Event</span>
+    <span class="si-group-n"><?= count($eventAggs) ?> event · <?= $evTotN ?> sponsor · deal <?= spShort($evTotDeal) ?> · terkumpul <?= spShort($evTotKum) ?></span>
+    <span class="si-group-n si-ev-ro"><i class="bi bi-eye"></i> hanya baca — kelola di tab Sponsorship masing-masing event</span>
+</div>
+<div class="si-list">
+<?php foreach ($eventAggs as $e):
+    $eid = (int)$e['event_id']; $rows = $rincianE[$eid] ?? [];
+    if (empty($bolehDobel)) $rows = array_values(array_filter($rows, fn($x) => $x['dobel'] === null));
+    $dealE = (int)$e['deal']; $kumE = (int)$e['kumulatif']; $pctE = spPct($kumE, $dealE);
+    $malE = $mallLabel[$e['event_mall'] ?? ''] ?? ucfirst((string)($e['event_mall'] ?? ''));
+?>
+<article class="si-ev-card" id="event-<?= $eid ?>">
+    <div class="si-ev-head" data-si-evtoggle>
+        <button type="button" class="si-chev" aria-expanded="false" aria-controls="evbody-<?= $eid ?>" aria-label="Buka atau tutup sponsor event"><i class="bi bi-chevron-right"></i></button>
+        <div class="si-ev-main">
+            <div class="si-ev-name"><span class="si-chip si-chip-warn">Event</span> <span class="si-prog-t"><?= esc($e['event_name']) ?></span></div>
+            <div class="si-ev-meta">
+                <?php if ($malE !== ''): ?><span><i class="bi bi-geo-alt"></i><?= esc($malE) ?></span><?php endif; ?>
+                <?php if (! empty($e['event_start_date'])): ?><span><i class="bi bi-calendar3"></i><?= date('j M Y', strtotime($e['event_start_date'])) ?></span><?php endif; ?>
+            </div>
+        </div>
+        <div class="si-ev-stats">
+            <div><span>Sponsor</span><b><?= (int)$e['jumlah_sponsor'] ?></b></div>
+            <div><span>Nilai deal</span><b title="<?= spFmt($dealE) ?>"><?= spShort($dealE) ?></b></div>
+            <div><span>Terkumpul</span><b class="si-c-cyan" title="<?= spFmt($kumE) ?>"><?= spShort($kumE) ?></b></div>
+            <div class="si-ev-pct"><span><?= $pctE ?>%</span><div class="si-bar"><i style="width:<?= $pctE ?>%"></i></div></div>
+        </div>
+        <a href="<?= base_url('events/' . $eid . '/sponsors') ?>" class="si-btn si-btn-sm" title="Buka tab Sponsorship event ini"><i class="bi bi-box-arrow-up-right"></i><span class="d-none d-md-inline">Tab Sponsorship</span></a>
+    </div>
+    <div class="si-ev-body" id="evbody-<?= $eid ?>" hidden>
+        <?php if (empty($rows)): ?>
+        <div class="si-nosp"><i class="bi bi-people"></i> Belum ada sponsor.</div>
+        <?php else: ?>
+        <div class="si-ev-scroll"><table class="si-ev-table">
+            <thead><tr><th>Sponsor</th><th>Jenis</th><th>Qty / Deskripsi</th><th class="si-r">Nilai</th><th class="si-r">Terkumpul</th></tr></thead>
+            <tbody>
+            <?php foreach ($rows as $x): ?>
+            <tr<?= $x['dobel'] !== null ? ' class="is-dobel"' : '' ?>>
+                <td><b><?= esc($x['nama']) ?></b><?php if ($x['dobel'] !== null): ?> <span class="si-chip si-chip-warn"><i class="bi bi-files"></i>dobel · dicatat di <?= esc($x['dobel']) ?></span><?php endif; ?></td>
+                <td><?= $x['jenis'] === 'cash' ? 'Cash' : 'Barang' ?></td>
+                <td class="si-ev-d"><?= $x['rincian'] !== '' ? esc($x['rincian']) : '—' ?></td>
+                <td class="si-r"><?= spFmt($x['nilai']) ?></td>
+                <td class="si-r"><?= $x['real'] > 0 ? spFmt($x['real']) : '—' ?></td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table></div>
+        <?php endif; ?>
+    </div>
+</article>
+<?php endforeach; ?>
+</div>
+</section>
 <?php endif; ?>
 </div><!-- /.page-spon-idx -->
 
