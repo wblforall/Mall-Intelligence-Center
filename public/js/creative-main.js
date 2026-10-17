@@ -39,21 +39,24 @@
         mapply();
     }
 
-    /* ══════════════ Daftar item ══════════════ */
+    /* ══════════════ Daftar per bulan -> Tema -> item ══════════════ */
     var root = document.getElementById('creIdx');
     if (!root) return;
-    var KEY = 'creIdxOpen', STEP = 25;
+    var KEY = 'creIdxOpen', KEYT = 'creIdxTema', STEP = 25;
 
     var cards = $$('.cr-item', root);
     var groups = $$('.cr-group', root);
-    var limit = {};      // per grup: jumlah kartu yang boleh tampil
-    groups.forEach(function (g) { limit[g.dataset.tipe] = STEP; });
+    var temas = $$('.cr-tema', root);
+    var months = $$('.cr-monthbox', root);
+    var limit = {};      // per grup (tema+jenis): jumlah kartu yang boleh tampil
+    groups.forEach(function (g) { limit[g.dataset.gid] = STEP; });
 
-    // ── Buka/tutup kartu (ingat per tab) ──────────────────────────────
-    function loadOpen() { try { return JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
-    function saveOpen() {
-        try { sessionStorage.setItem(KEY, JSON.stringify($$('.cr-item.is-open', root).map(function (c) { return c.id; }))); } catch (e) { /* abaikan */ }
-    }
+    // ── Ingatan buka/tutup (per tab browser) ──────────────────────────
+    function load(k) { try { return JSON.parse(sessionStorage.getItem(k) || '[]'); } catch (e) { return []; } }
+    function save(k, arr) { try { sessionStorage.setItem(k, JSON.stringify(arr)); } catch (e) { /* abaikan */ } }
+    function saveOpen() { save(KEY, $$('.cr-item.is-open', root).map(function (c) { return c.id; })); }
+    function saveTema() { save(KEYT, $$('.cr-tema.is-open', root).map(function (c) { return c.id; })); }
+
     function showPane(card, name) {
         var body = $('.cr-item-body', card);
         var has = false;
@@ -71,14 +74,44 @@
         if (chev) chev.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) showPane(card, pane || card.dataset.cur || 'detail');
     }
-    var remembered = loadOpen();
+    function setTemaOpen(t, open) {
+        t.classList.toggle('is-open', open);
+        var chev = $('.cr-tema-head .cr-chev', t); if (chev) chev.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    function setMonthOpen(m, open) {
+        m.classList.toggle('is-open', open);
+        var b = $('.cr-month-h', m); if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    var remembered = load(KEY), rememberedT = load(KEYT);
+    temas.forEach(function (t) { if (rememberedT.indexOf(t.id) > -1) setTemaOpen(t, true); });
+    // "Tanpa Tema" tertutup bawaan; item dengan panel yang harus dibuka (perlu ditinjau) membuka induknya
     cards.forEach(function (c) {
-        if (c.dataset.autoopen === '1') setOpen(c, true, c.dataset.pane);
-        else if (remembered.indexOf(c.id) > -1) setOpen(c, true, 'detail');
+        if (c.dataset.autoopen === '1') {
+            setOpen(c, true, c.dataset.pane);
+            var t = c.closest('.cr-tema'), m = c.closest('.cr-monthbox');
+            if (t) setTemaOpen(t, true); if (m) setMonthOpen(m, true);
+        } else if (remembered.indexOf(c.id) > -1) setOpen(c, true, 'detail');
+    });
+
+    // ── Tab Aktif / Terkunci ──────────────────────────────────────────
+    var ptabs = $('#crPTabs'), curPane = 'aktif';
+    function showPaneWrap(name) {
+        curPane = name;
+        $$('[data-cr-pane-wrap]', root).forEach(function (w) { w.hidden = w.dataset.crPaneWrap !== name; });
+        if (ptabs) $$('button', ptabs).forEach(function (b) {
+            var on = b.dataset.crPtab === name; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+    }
+    if (ptabs) ptabs.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-cr-ptab]'); if (b) showPaneWrap(b.dataset.crPtab);
     });
 
     root.addEventListener('click', function (e) {
         var t = e.target;
+        // header bulan
+        var mt = t.closest('[data-cr-month-toggle]');
+        if (mt) { var mb = mt.closest('.cr-monthbox'); setMonthOpen(mb, !mb.classList.contains('is-open')); return; }
         // tab dalam kartu
         var tab = t.closest('[data-cr-tab]');
         if (tab) { showPane(tab.closest('.cr-item'), tab.dataset.crTab); return; }
@@ -112,12 +145,13 @@
             }
             return;
         }
-        // tambah item: toggle / batal
-        var ta2 = t.closest('.toggle-add-item');
-        if (ta2) { toggleAdd(ta2.dataset.tipe); return; }
-        var ac = t.closest('[data-cr-addclose]');
-        if (ac) { toggleAdd(ac.dataset.crAddclose, false); return; }
-        // kepala kartu
+        // kepala kartu Tema
+        var th = t.closest('.cr-tema-head');
+        if (th && !t.closest('[data-cr-notoggle], a, button.dropdown-item')) {
+            var tm = th.closest('.cr-tema');
+            setTemaOpen(tm, !tm.classList.contains('is-open')); saveTema(); return;
+        }
+        // kepala kartu item
         var head = t.closest('.cr-item-head');
         if (head && !t.closest('[data-cr-notoggle], a, button.dropdown-item')) {
             var card = head.closest('.cr-item');
@@ -125,26 +159,73 @@
         }
     });
 
-    // ── Form tambah item ──────────────────────────────────────────────
-    function toggleAdd(tipe, force) {
-        var el = document.getElementById('add-item-' + tipe);
-        if (!el) return;
-        var show = (typeof force === 'boolean') ? force : el.hidden;
-        el.hidden = !show;
-        var btn = $('.toggle-add-item[data-tipe="' + tipe + '"]', root);
-        if (btn) btn.innerHTML = show ? '<i class="bi bi-x-lg"></i>Batal' : '<i class="bi bi-plus-lg"></i>Tambah Item';
-        if (show) {
-            var g = document.getElementById('grup-' + tipe); if (g) g.hidden = false;
-            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            var inp = $('input[name=nama]', el); if (inp) setTimeout(function () { inp.focus({ preventScroll: true }); }, 250);
-        }
+    // ── Modal tambah item ─────────────────────────────────────────────
+    var addModal = document.getElementById('addItemModal');
+    function addToggle() {
+        if (!addModal) return;
+        var tp = document.getElementById('addTipe').value;
+        $$('[data-add-for]', addModal).forEach(function (el) { el.classList.toggle('d-none', el.dataset.addFor.split(' ').indexOf(tp) < 0); });
+        if (window.CRE_CETAKEXTRA) window.CRE_CETAKEXTRA(document.getElementById('addItemForm'), { budgetWajib: tp === 'cetak', temaKey: document.getElementById('addTema').value });
     }
-    $$('[data-cr-add]', root).forEach(function (b) {
-        b.addEventListener('click', function () { toggleAdd(b.dataset.crAdd, true); });
-    });
+    if (addModal) {
+        document.getElementById('addTipe').addEventListener('change', addToggle);
+        document.getElementById('addTema').addEventListener('change', addToggle);
+        var openAdd = function (tipe, tema) {
+            if (tipe) document.getElementById('addTipe').value = tipe;
+            document.getElementById('addTema').value = tema || '';
+            if (tema && document.getElementById('addTema').value !== tema) document.getElementById('addTema').value = '';
+            addToggle();
+            bootstrap.Modal.getOrCreateInstance(addModal).show();
+        };
+        addModal.addEventListener('shown.bs.modal', function () { var n = document.getElementById('addNama'); if (n) n.focus(); });
+        $$('[data-cr-add]', root).forEach(function (b) { b.addEventListener('click', function () { openAdd(b.dataset.crAdd, ''); }); });
+        $$('[data-cr-add-tema]', root).forEach(function (b) { b.addEventListener('click', function () { openAdd('', b.dataset.crAddTema); }); });
+        addToggle();
+    }
+
+    // ── Modal Tema Bulanan (tambah / ubah) ────────────────────────────
+    var temaModal = document.getElementById('temaModal');
+    if (temaModal) {
+        var tf = document.getElementById('temaForm');
+        var openTema = function (d) {
+            d = d || {};
+            tf.action = (window.CRE_BASE || '') + (d.id ? 'tema/' + d.id + '/edit' : 'tema/add');
+            document.getElementById('temaModalTitle').textContent = d.id ? 'Ubah Tema Bulanan' : 'Tema Bulanan Baru';
+            document.getElementById('temaNama').value = d.nama || '';
+            document.getElementById('temaDesk').value = d.deskripsi || '';
+            var ym = (d.bulan || '').match(/^(\d{4})-(\d{2})$/);
+            var thn = document.getElementById('temaThn');
+            if (ym) {
+                if (!$('option[value="' + ym[1] + '"]', thn)) { var o = document.createElement('option'); o.value = o.textContent = ym[1]; thn.appendChild(o); }
+                thn.value = ym[1]; document.getElementById('temaBln').value = ym[2];
+            } else { document.getElementById('temaBln').value = ('0' + (new Date().getMonth() + 1)).slice(-2); thn.value = String(new Date().getFullYear()); }
+            bootstrap.Modal.getOrCreateInstance(temaModal).show();
+        };
+        tf.addEventListener('submit', function () {
+            document.getElementById('temaBulan').value = document.getElementById('temaThn').value + '-' + document.getElementById('temaBln').value;
+        });
+        $$('[data-cr-tema-new]', root).forEach(function (b) { b.addEventListener('click', function () { openTema(); }); });
+        $$('.edit-tema-btn', root).forEach(function (b) { b.addEventListener('click', function () { openTema(b.dataset); }); });
+        temaModal.addEventListener('shown.bs.modal', function () { document.getElementById('temaNama').focus(); });
+    }
+
+    // ── Modal pindahkan ke tema ───────────────────────────────────────
+    var pModal = document.getElementById('pindahModal');
+    if (pModal) {
+        $$('.pindah-item-btn', root).forEach(function (b) {
+            b.addEventListener('click', function () {
+                document.getElementById('pindahForm').action = (window.CRE_BASE || '') + b.dataset.id + '/pindah';
+                document.getElementById('pindahNama').textContent = b.dataset.nama;
+                var sel = document.getElementById('pindahTema'); sel.value = b.dataset.tema || 'none';
+                if (sel.value !== (b.dataset.tema || 'none')) sel.value = 'none';
+                bootstrap.Modal.getOrCreateInstance(pModal).show();
+            });
+        });
+    }
 
     // ── Modal ubah item ───────────────────────────────────────────────
-    var tipeLabels = { master_design: 'Master Design', digital: 'Content Digital', cetak: 'Media Cetak', influencer: 'Influencer', media_prescon: 'Media Prescon' };
+    var DESAIN = ['master_design', 'motion_graphic'];
+    var tipeLabels = { master_design: 'Design', motion_graphic: 'Motion Graphic', digital: 'Content Digital', cetak: 'Media Cetak', influencer: 'Influencer', media_prescon: 'Media Prescon' };
     $$('.edit-item-btn', root).forEach(function (btn) {
         btn.addEventListener('click', function () {
             var d = this.dataset, tipe = d.tipe, isDigital = tipe === 'digital';
@@ -158,8 +239,12 @@
             g('editBudget').value = d.budget;
             g('editDeadline').value = d.deadline || '';
             g('editCatatan').value = d.catatan;
+            var te = g('editTema'); if (te) { te.value = d.tema || 'none'; if (te.value !== (d.tema || 'none')) te.value = 'none'; }
             ['editPlatformDiv', 'editTakeDiv', 'editPicDiv'].forEach(function (id) { g(id).classList.toggle('d-none', !isDigital); });
-            g('editBudgetDiv').classList.toggle('d-none', tipe === 'master_design');
+            g('editBudgetDiv').classList.toggle('d-none', DESAIN.indexOf(tipe) > -1);
+            g('editCetakDiv').classList.toggle('d-none', tipe !== 'cetak');
+            if (window.CRE_CETAKFILL) window.CRE_CETAKFILL(g('editJenisMedia'), g('editUkuran'), tipe === 'cetak' ? d.jenisMedia || '' : '', tipe === 'cetak' ? d.ukuran || '' : '');
+            if (window.CRE_CETAKEXTRA) window.CRE_CETAKEXTRA(g('editItemForm'), { mulai: tipe === 'cetak' ? d.pasangMulai || '' : '', selesai: tipe === 'cetak' ? d.pasangSelesai || '' : '', temaKey: g('editTema').value === 'none' ? '' : g('editTema').value, design: d.designRef || '', budgetWajib: tipe === 'cetak' });
             var hasTarget = tipe === 'digital' || tipe === 'influencer';
             g('editTargetDiv').classList.toggle('d-none', !hasTarget);
             if (hasTarget) { g('editTargetReach').value = d.targetReach || ''; g('editTargetImpressions').value = d.targetImpressions || ''; }
@@ -174,16 +259,24 @@
         });
     });
 
+    var editTemaSel = document.getElementById('editTema');
+    if (editTemaSel) editTemaSel.addEventListener('change', function () {
+        if (window.CRE_DESIGNSYNC) window.CRE_DESIGNSYNC(document.getElementById('editItemForm'), editTemaSel.value === 'none' ? '' : editTemaSel.value, '');
+    });
+
     // ── Filter, cari, urut ────────────────────────────────────────────
     var q = $('#crQ'), fTipe = $('#crFTipe'), fStatus = $('#crFStatus'), fDl = $('#crFDl'), fSrc = $('#crFSrc'),
         sortSel = $('#crSort'), countEl = $('#crCount'), noMatch = $('#crNoMatch'), seg = $('#creativeTabs');
     if (!q) return;
     var fase = '';
-    var total = cards.length;
+    var isRen = function (c) { return c.dataset.rencana === '1'; };
+    var total = cards.filter(function (c) { return !isRen(c); }).length;   // item "Rencana" dihitung terpisah
 
     function matches(c) {
         var d = c.dataset, term = q.value.trim().toLowerCase();
         if (term && d.search.indexOf(term) < 0 && d.name.toLowerCase().indexOf(term) < 0) return false;
+        // item Rencana (paket awal, belum dikerjakan) tidak ikut filter fase / status / tenggat / sumber
+        if (d.rencana === '1' && (fase || fStatus.value || fDl.value || fSrc.value)) return false;
         if (fase && d.tab !== fase) return false;
         if (fTipe.value && d.tipe !== fTipe.value) return false;
         if (fSrc.value && d.src !== fSrc.value) return false;
@@ -198,32 +291,52 @@
         }
         return true;
     }
-    function isFiltered() { return !!(q.value.trim() || fase || fTipe.value || fStatus.value || fDl.value || fSrc.value); }
+    function itemFilterOn() { return !!(fase || fTipe.value || fStatus.value || fDl.value || fSrc.value); }
+    function isFiltered() { return !!(q.value.trim() || itemFilterOn()); }
 
     function apply(resetLimit) {
-        if (resetLimit !== false) groups.forEach(function (g) { limit[g.dataset.tipe] = STEP; });
-        var shownTotal = 0, matched = 0, filtered = isFiltered();
+        if (resetLimit !== false) groups.forEach(function (g) { limit[g.dataset.gid] = STEP; });
+        var matched = 0, matchedAll = 0, filtered = isFiltered(), term = q.value.trim().toLowerCase();
         groups.forEach(function (g) {
-            var list = $('.cr-list', g), more = $('.cr-more', g), n = 0, m = 0;
+            var list = $('.cr-list', g), more = $('.cr-more', g), n = 0, m = 0, lim = limit[g.dataset.gid];
             $$('.cr-item', list).forEach(function (c) {
                 var ok = matches(c); c.dataset.match = ok ? '1' : '0';
-                if (ok) { m++; var vis = n < limit[g.dataset.tipe]; c.hidden = !vis; if (vis) n++; } else { c.hidden = true; }
+                if (ok) { m++; if (!isRen(c)) matched++; var vis = n < lim; c.hidden = !vis; if (vis) n++; } else { c.hidden = true; }
             });
-            matched += m; shownTotal += n;
-            var gc = $('.js-gcount', g); if (gc) gc.textContent = filtered ? m + ' dari ' + $$('.cr-item', list).length : $$('.cr-item', list).length;
+            g.dataset.m = m; matchedAll += m;
+            var all = $$('.cr-item', list).length;
+            var gc = $('.js-gcount', g); if (gc) gc.textContent = filtered ? m + ' dari ' + all : all;
             if (more) {
                 more.hidden = m <= n;
                 var sp = $('[data-cr-more] span', more); if (sp) sp.textContent = 'Tampilkan ' + Math.min(STEP, m - n) + ' lagi (sisa ' + (m - n) + ')';
             }
-            var addOpen = $('.cr-add', g) && !$('.cr-add', g).hidden;
-            var emptyMsg = $('.cr-groupempty', g);
-            g.hidden = filtered && m === 0 && !addOpen;
-            if (emptyMsg && !emptyMsg.closest('.cr-item-body')) emptyMsg.hidden = filtered;
+            g.hidden = filtered && m === 0;
         });
-        countEl.textContent = filtered ? matched + ' dari ' + total + ' item' : total + ' item';
-        noMatch.hidden = matched > 0 || total === 0 || !filtered;
-        // tandai kartu yang cocok kata kunci (nama)
-        var term = q.value.trim().toLowerCase();
+        // kartu Tema: tampil bila ada item cocok (atau namanya cocok kata kunci tanpa filter item)
+        var paneCount = { aktif: 0, terkunci: 0 };
+        temas.forEach(function (t) {
+            var m = 0;
+            $$('.cr-group', t).forEach(function (g) { m += +g.dataset.m || 0; });
+            var selfHit = !!term && !itemFilterOn() && (t.dataset.search.indexOf(term) > -1);
+            var show = !filtered || m > 0 || selfHit;
+            t.hidden = !show;
+            t.classList.toggle('fopen', filtered && show && (m > 0));
+            var rn = $('details.cr-ren', t); if (rn && filtered && m > 0) rn.open = true;
+            t.dataset.show = show ? '1' : '0';
+            if (show && t.dataset.kind !== 'none') paneCount[t.dataset.closed === '1' ? 'terkunci' : 'aktif']++;
+        });
+        months.forEach(function (mo) {
+            var any = $$('.cr-tema', mo).some(function (t) { return t.dataset.show === '1'; });
+            mo.hidden = filtered && !any;
+            mo.classList.toggle('fopen', filtered && any);
+            var n = $('.js-mn', mo); if (n) n.textContent = $$('.cr-tema', mo).filter(function (t) { return t.dataset.show === '1'; }).length;
+        });
+        if (ptabs) $$('button', ptabs).forEach(function (b) {
+            var n = $('.n', b); if (n) n.textContent = filtered ? paneCount[b.dataset.crPtab] : n.dataset.n0;
+        });
+        var nRenAll = cards.filter(isRen).length, nRenHit = filtered ? matchedAll - matched : nRenAll;
+        countEl.textContent = (filtered ? matched + ' dari ' + total + ' item' : total + ' item') + (nRenHit > 0 ? ' · ' + nRenHit + ' rencana' : '');
+        noMatch.hidden = matchedAll > 0 || (total === 0 && nRenAll === 0) || !filtered;
         cards.forEach(function (c) { c.classList.toggle('is-hit', !!term && c.dataset.name.toLowerCase().indexOf(term) > -1 && c.dataset.match === '1'); });
     }
 
@@ -279,46 +392,62 @@
         });
     });
     // Tampilkan lebih banyak
-    $$('.cr-group', root).forEach(function (g) {
+    groups.forEach(function (g) {
         var more = $('.cr-more', g); if (!more) return;
-        $('[data-cr-more]', more).addEventListener('click', function () { limit[g.dataset.tipe] += STEP; apply(false); });
-        $('[data-cr-all]', more).addEventListener('click', function () { limit[g.dataset.tipe] = 1e6; apply(false); });
+        $('[data-cr-more]', more).addEventListener('click', function () { limit[g.dataset.gid] += STEP; apply(false); });
+        $('[data-cr-all]', more).addEventListener('click', function () { limit[g.dataset.gid] = 1e6; apply(false); });
     });
 
-    // ── Tautan #item-X-s dari Summary Bulanan ────────────────────────
+    // ── Tutup Tema yang masih punya item Rencana: hapus / tetap / batal ──
+    var rtModal = document.getElementById('rencanaTutupModal'), rtForm = null;
+    if (rtModal) {
+        root.addEventListener('submit', function (e) {
+            var f = e.target.closest ? e.target.closest('form[data-cr-tutup-rencana]') : null;
+            if (!f) return;
+            e.preventDefault(); rtForm = f;
+            document.getElementById('rencanaTutupN').textContent = f.dataset.crTutupRencana;
+            document.getElementById('rencanaTutupNama').textContent = f.dataset.nama || '';
+            bootstrap.Modal.getOrCreateInstance(rtModal).show();
+        });
+        $$('[data-rencana]', rtModal).forEach(function (b) {
+            b.addEventListener('click', function () {
+                if (!rtForm) return;
+                var h = $('input[name="rencana"]', rtForm);
+                if (!h) { h = document.createElement('input'); h.type = 'hidden'; h.name = 'rencana'; rtForm.appendChild(h); }
+                h.value = b.dataset.rencana;
+                b.disabled = true;
+                HTMLFormElement.prototype.submit.call(rtForm);
+            });
+        });
+        rtModal.addEventListener('hidden.bs.modal', function () { rtForm = null; $$('[data-rencana]', rtModal).forEach(function (b) { b.disabled = false; }); });
+    }
+
+    // ── Tautan #item-X-s / #tema-X (mis. dari Summary Bulanan) ───────
+    function bukaInduk(el) {
+        var wrap = el.closest('[data-cr-pane-wrap]'); if (wrap) showPaneWrap(wrap.dataset.crPaneWrap);
+        var mo = el.closest('.cr-monthbox'); if (mo) setMonthOpen(mo, true);
+        var t = el.closest('.cr-tema'); if (t) setTemaOpen(t, true);
+        var rn = el.closest('details.cr-ren'); if (rn) rn.open = true;
+    }
     function openHash() {
-        var h = location.hash;
-        if (!h || !/^#item-[\w-]+$/.test(h)) return;
+        var h = location.hash, pane = '';
+        var pm = h.match(/^(#[\w-]+)~(\w+)$/);
+        if (pm) { h = pm[1]; pane = pm[2]; }
+        if (!h || !/^#(item|tema)-[\w-]+$/.test(h)) return;
         var el = document.querySelector(h);
         if (!el || !root.contains(el)) return;
-        var g = el.closest('.cr-group'), idx = $$('.cr-item', g).indexOf(el);
-        limit[g.dataset.tipe] = Math.max(limit[g.dataset.tipe], idx + 1);
-        apply(false);
-        setOpen(el, true, el.dataset.pane || 'detail');
+        bukaInduk(el);
+        if (el.classList.contains('cr-item')) {
+            var g = el.closest('.cr-group'), idx = $$('.cr-item', g).indexOf(el);
+            limit[g.dataset.gid] = Math.max(limit[g.dataset.gid], idx + 1);
+            apply(false);
+            setOpen(el, true, pane || el.dataset.pane || 'detail');
+        }
         setTimeout(function () { el.scrollIntoView({ block: 'center' }); }, 80);
     }
-    // ── Item yang baru ditambahkan: tampilkan & tandai (daftar dipaginasi, item baru bisa di luar halaman pertama) ──
-    root.addEventListener('submit', function (e) {
-        var f = e.target;
-        if (f && f.action && /creative\/add$/.test(f.action)) {
-            try {
-                sessionStorage.setItem('creJustAdded', JSON.stringify({ nama: (f.elements.nama || {}).value || '', tipe: (f.elements.tipe || {}).value || '' }));
-            } catch (x) { /* abaikan */ }
-        }
-    });
+    // ── Item yang baru ditambahkan: tampilkan & tandai ──
     function showJustAdded() {
-        var raw; try { raw = sessionStorage.getItem('creJustAdded'); sessionStorage.removeItem('creJustAdded'); } catch (x) { return; }
-        if (!raw) return;
-        var j; try { j = JSON.parse(raw); } catch (x) { return; }
-        var hits = cards.filter(function (c) { return c.dataset.name === j.nama && c.dataset.tipe === j.tipe && c.dataset.src === 's'; });
-        if (!hits.length) return;
-        hits.sort(function (a, b) { return (+b.dataset.id) - (+a.dataset.id); });
-        var el = hits[0], g = el.closest('.cr-group');
-        limit[g.dataset.tipe] = 1e6; apply(false);
-        setOpen(el, true, 'detail');
-        el.classList.add('is-new');
-        setTimeout(function () { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 120);
-        setTimeout(function () { el.classList.remove('is-new'); }, 4000);
+        try { sessionStorage.removeItem('creJustAdded'); } catch (x) { /* abaikan */ }
     }
     apply();
     openHash();

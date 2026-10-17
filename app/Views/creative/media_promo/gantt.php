@@ -74,7 +74,7 @@ $renderDays = function (array $rowUsages, int $rowH) use ($allDates, $totalDays,
             $endSoon = in_array($hit['status'], ['pending', 'approved']) && $hit['tanggal_selesai'] >= $today && mpDays($hit['tanggal_selesai'], $today) <= 7;
             echo '<td colspan="' . $span . '" class="' . trim($barML) . '" style="height:' . $rowH . 'px">';
             echo '<button type="button" class="mp-gbar s-' . esc($hit['status'], 'attr') . ($endSoon ? ' is-ending' : '') . '" data-mp-usage="' . (int) $hit['id'] . '"'
-               . ' title="' . esc($hit['nama_materi'], 'attr') . ' (' . date('d/m', strtotime($hit['tanggal_mulai'])) . '–' . date('d/m', strtotime($hit['tanggal_selesai'])) . ')">'
+               . ' title="' . esc($hit['nama_materi'], 'attr') . ' (' . date('d/m', strtotime($hit['tanggal_mulai'])) . '–' . date('d/m', strtotime($hit['tanggal_selesai'])) . ')' . (! empty($hit['creative_ref']) ? ' · dari Creative' : '') . '">'
                . esc($hit['nama_materi']) . '</button></td>';
             $idx += $span;
         } else {

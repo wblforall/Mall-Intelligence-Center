@@ -151,7 +151,7 @@ $mpSub = 'Ketersediaan titik media cetak & digital per ' . date('d M Y') . ' —
         </div>
         <?php if ($au): ?>
         <div class="mp-spot-use">
-            <b><?= esc($au['nama_materi']) ?></b>
+            <b><?= esc($au['nama_materi']) ?></b> <?= mpDariCreative($au) ?>
             <span><?= esc($au['dept']) ?> · <?= esc(mpRange($au['tanggal_mulai'], $au['tanggal_selesai'])) ?></span>
         </div>
         <?php endif; ?>

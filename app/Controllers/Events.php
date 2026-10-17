@@ -111,6 +111,9 @@ class Events extends BaseController
             (new EventLocationModel())->syncEventLocations((int)$eventId, $locationIds);
         }
 
+        // Paket item awal Creative (item "Rencana") untuk event baru
+        (new \App\Services\CreativePaketService())->tambahkan('event', (int) $eventId, (string) $this->request->getPost('name'), (int) $this->currentUser()['id']);
+
         // Event baru berstatus pending → beri tahu pemegang izin approve,
         // kalau tidak mereka harus rajin membuka daftar event untuk tahu.
         \App\Libraries\Notify::send(
@@ -285,6 +288,17 @@ class Events extends BaseController
         }
         // 3. Promo media hanya di-lepas (workflow terpisah, bukan milik event).
         $db->table('promo_media_usage')->where('event_id', $id)->update(['event_id' => null]);
+
+        // 3b. Turunan Design / Motion Graphic milik item Creative event (tabelnya ber-item_id, bukan event_id).
+        \App\Services\CreativeTurunanService::hapusUntukInduk(
+            'event',
+            array_column($db->table('event_creative_items')->select('id')->where('event_id', $id)->get()->getResultArray(), 'id')
+        );
+
+        // 3c. Titik Media Cetak milik item Creative event: lepas pemesanan terhubung di Media Promo (yang sudah 'done' tetap riwayat).
+        foreach ($db->table('event_creative_items')->select('id')->where('event_id', $id)->where('tipe', 'cetak')->get()->getResultArray() as $ci) {
+            \App\Services\CreativeTitikService::forEvent((int) $id)->lepasUntukItem((int) $ci['id']);
+        }
 
         // 4. Semua tabel anak ber-event_id.
         foreach ([

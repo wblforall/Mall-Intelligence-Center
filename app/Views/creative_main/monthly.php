@@ -19,9 +19,9 @@ $fTgl = function ($d) use ($bulanS): string {
 
 $statusChip   = ['draft' => 'cr-chip-mute', 'review' => 'cr-chip-warn', 'approved' => 'cr-chip-ok', 'revision' => 'cr-chip-bad'];
 $statusLabels = ['draft' => 'Draft', 'review' => 'Review', 'approved' => 'Approved', 'revision' => 'Revision'];
-$tipeLabels   = ['master_design' => 'Master Design', 'digital' => 'Content Digital', 'cetak' => 'Media Cetak', 'influencer' => 'Influencer',
+$tipeLabels   = ['master_design' => 'Design', 'motion_graphic' => 'Motion Graphic', 'digital' => 'Content Digital', 'cetak' => 'Media Cetak', 'influencer' => 'Influencer',
                  'media_prescon' => 'Media Prescon', 'print' => 'Print'];
-$tipeIcons    = ['master_design' => 'vector-pen', 'digital' => 'phone', 'cetak' => 'printer', 'influencer' => 'person-video3',
+$tipeIcons    = ['master_design' => 'vector-pen', 'motion_graphic' => 'film', 'digital' => 'phone', 'cetak' => 'printer', 'influencer' => 'person-video3',
                  'media_prescon' => 'newspaper', 'print' => 'printer'];
 
 $totalItems = count($rows);
@@ -205,7 +205,7 @@ foreach ($rows as $r) { $t = $r['item']['tipe']; $tipeCounts[$t] = ($tipeCounts[
 <?php
 $rowsByTipe = [];
 foreach ($rows as $r) { $rowsByTipe[$r['item']['tipe']][] = $r; }
-$tipeOrder  = array_unique(array_merge(['master_design', 'digital', 'cetak', 'influencer', 'media_prescon', 'print'], array_keys($rowsByTipe)));
+$tipeOrder  = array_unique(array_merge(['master_design', 'motion_graphic', 'digital', 'cetak', 'influencer', 'media_prescon', 'print'], array_keys($rowsByTipe)));
 foreach ($tipeOrder as $tipe):
     if (empty($rowsByTipe[$tipe])) continue;
     $tipeRows  = $rowsByTipe[$tipe];
@@ -251,16 +251,18 @@ foreach ($tipeOrder as $tipe):
                     : base_url('events/' . $item['event_id'] . '/creative');
                 $itgl    = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? '');
                 $stKey   = $item['status'] ?? 'draft';
-                $srch    = mb_strtolower(($item['nama'] ?? '') . ' ' . ($item['pic'] ?? '') . ' ' . ($item['event_name'] ?? ''));
+                $temaNm  = $item['_source'] === 's' ? ($temaNama[(int) $item['id']] ?? '') : ($item['event_name'] ?? '');
+                $srch    = mb_strtolower(($item['nama'] ?? '') . ' ' . ($item['pic'] ?? '') . ' ' . $temaNm);
             ?>
             <tr data-cm-row data-active="<?= $r['hasActivity'] ? '1' : '0' ?>" data-search="<?= esc($srch, 'attr') ?>" class="<?= $r['hasActivity'] ? '' : 'cm-quiet' ?>">
                 <td>
                     <a href="<?= $link ?>" class="cr-rowlink"><?= esc($item['nama']) ?></a>
                     <?php if ($r['hasActivity']): ?><span class="cr-chip cr-chip-ok">aktif</span><?php endif; ?>
+                    <?php if (!empty($r['realMonth']['fs_total'])): ?><span class="cr-chip cr-chip-blue" title="Realisasi bulan ini termasuk <?= $rp($r['realMonth']['fs_total']) ?> dari FlowStore (BTB tertaut)"><i class="bi bi-box-seam"></i>FlowStore</span><?php endif; ?>
                     <?php if (!empty($item['is_closed'])): ?><span class="cr-chip cr-chip-mute"><i class="bi bi-check2-circle"></i>Selesai</span><?php endif; ?>
                     <?php if ($item['_source'] !== 's'): ?><span class="cr-chip cr-chip-gold">Event</span><?php endif; ?>
                     <?php if ($itgl): ?><div class="cm-sub"><i class="bi bi-calendar3"></i> <?= $fTgl($itgl) ?></div><?php endif; ?>
-                    <?php if (!empty($item['event_name'])): ?><div class="cm-sub"><?= esc($item['event_name']) ?></div><?php endif; ?>
+                    <?php if ($temaNm !== ''): ?><div class="cm-sub"><i class="bi bi-diagram-3"></i> <?= esc($temaNm) ?></div><?php endif; ?>
                     <?php if (!empty($item['pic'])): ?><div class="cm-sub"><i class="bi bi-person"></i> <?= esc($item['pic']) ?></div><?php endif; ?>
                 </td>
                 <td><span class="cr-chip <?= $statusChip[$stKey] ?? 'cr-chip-mute' ?>"><?= $statusLabels[$stKey] ?? ucfirst($stKey) ?></span></td>

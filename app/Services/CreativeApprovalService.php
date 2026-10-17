@@ -40,6 +40,14 @@ class CreativeApprovalService
     public const SCOPE_STANDALONE = 'standalone';
     public const SCOPE_EVENT      = 'event';
 
+    /** Jenis "induk" yang memakai alur Opsi & Persetujuan (kelak punya turunan di Tahap 2). */
+    public const TIPE_DESAIN = ['master_design', 'motion_graphic'];
+
+    public static function isDesain(?string $tipe): bool
+    {
+        return in_array($tipe, self::TIPE_DESAIN, true);
+    }
+
     /** Panjang minimum alasan revisi — cukup untuk memaksa kalimat, bukan "ok". */
     public const MIN_ALASAN = 10;
 
@@ -89,6 +97,15 @@ class CreativeApprovalService
             return null;
         }
         return $item;
+    }
+
+    /** Pesan penolakan bila Tema item ini sudah ditutup; null bila boleh. */
+    private function temaTerkunci(array $item): ?string
+    {
+        $tutup = $this->isEvent()
+            ? CreativeTemaService::eventDitutup((int) $this->eventId)
+            : CreativeTemaService::itemTerkunci($item);
+        return $tutup ? CreativeTemaService::PESAN_TEMA_TUTUP : null;
     }
 
     private function fileModel(): CreativeFileModel|EventCreativeFileModel
@@ -274,6 +291,7 @@ class CreativeApprovalService
         $item = $this->temukan($itemId);
         if (! $item) return $this->gagal('Item tidak ditemukan.');
 
+        if ($msg = $this->temaTerkunci($item)) return $this->gagal($msg);
         $status = $item['status'] ?? 'draft';
         if (! in_array($status, ['draft', 'revision'], true)) {
             return $this->gagal($status === 'review'
@@ -339,6 +357,7 @@ class CreativeApprovalService
         $item = $this->temukan($itemId);
         if (! $item) return $this->gagal('Item tidak ditemukan.');
 
+        if ($msg = $this->temaTerkunci($item)) return $this->gagal($msg);
         if (($item['status'] ?? '') !== 'review') {
             return $this->gagal('Hanya materi yang sedang menunggu peninjauan yang bisa disetujui.');
         }
@@ -411,6 +430,7 @@ class CreativeApprovalService
         $item = $this->temukan($itemId);
         if (! $item) return $this->gagal('Item tidak ditemukan.');
 
+        if ($msg = $this->temaTerkunci($item)) return $this->gagal($msg);
         if (($item['status'] ?? '') !== 'review') {
             return $this->gagal('Hanya materi yang sedang menunggu peninjauan yang bisa diminta revisi.');
         }
@@ -468,6 +488,7 @@ class CreativeApprovalService
         $item = $this->temukan($itemId);
         if (! $item) return $this->gagal('Item tidak ditemukan.');
 
+        if ($msg = $this->temaTerkunci($item)) return $this->gagal($msg);
         if (($item['status'] ?? '') !== 'approved') {
             return $this->gagal('Hanya materi yang sudah disetujui yang perlu dibuka kembali.');
         }

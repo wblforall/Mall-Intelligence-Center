@@ -11,6 +11,11 @@ use App\Models\EventCompletionModel;
 use App\Models\CreativeReviewModel;
 use App\Libraries\ActivityLog;
 use App\Services\CreativeApprovalService;
+use App\Services\CreativeTemaService;
+use App\Services\CreativeTurunanService;
+use App\Services\CreativePaketService;
+use App\Services\CreativeTitikService;
+use App\Services\CreativeTurunanOtomatis;
 
 class EventCreativeCtrl extends BaseController
 {
@@ -20,11 +25,47 @@ class EventCreativeCtrl extends BaseController
         return (new EventModel())->find($eventId);
     }
 
+
+    /** Kolom Media Cetak (jenis, ukuran, periode pasang, Design induk); NULL untuk jenis lain. */
+    private function cetakFields(array $post): array
+    {
+        return CreativeTitikService::dataCetak($post);
+    }
+
+    private function sinkronTurunan(int $eventId, string $alasan = ''): void
+    {
+        CreativeTurunanOtomatis::sinkron('e' . $eventId, CreativeTurunanOtomatis::SUMBER_CETAK, $alasan);
+    }
+
+    /** Tema event yang sudah ditutup mengunci seluruh materi creative-nya. */
+    private function tolakBilaTemaTutup(int $eventId)
+    {
+        if (CreativeTemaService::eventDitutup($eventId)) {
+            return redirect()->to("/events/{$eventId}/creative")->with('error', CreativeTemaService::PESAN_TEMA_TUTUP);
+        }
+        return null;
+    }
+
     private function uploadDir(int $eventId): string
     {
         $dir = FCPATH . 'uploads/creative/' . $eventId . '/';
         if (! is_dir($dir)) mkdir($dir, 0755, true);
         return $dir;
+    }
+
+    /** Tombol "Tambahkan paket awal" di tab Creative event (idempoten; tidak membuat item bernama sama dua kali). */
+    public function paketAwal(int $eventId)
+    {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
+        if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
+        $event = (new EventModel())->find($eventId);
+        if (! $event) return redirect()->to('/events')->with('error', 'Event tidak ditemukan.');
+
+        $h = (new CreativePaketService())->tambahkan('event', $eventId, (string) $event['name'], (int) $this->currentUser()['id']);
+        $msg = $h['dibuat'] > 0
+            ? $h['dibuat'] . ' item rencana ditambahkan' . ($h['dilewati'] ? ', ' . $h['dilewati'] . ' sudah ada (dilewati).' : '.')
+            : 'Tidak ada item baru: semua item paket sudah ada di event ini.';
+        return redirect()->to("/events/{$eventId}/creative")->with('success', $msg);
     }
 
     public function index(int $eventId)
@@ -35,6 +76,11 @@ class EventCreativeCtrl extends BaseController
         $itemModel = new EventCreativeItemModel();
         $items     = $itemModel->getByEvent($eventId);
         $itemIds   = array_column($items, 'id');
+
+        // Item "Rencana" (paket awal, belum dikerjakan) tampil di daftar tetapi tidak ikut statistik
+        $nRencana    = count(array_filter($items, fn($it) => ! empty($it['dari_paket'])));
+        $itemsStat   = array_values(array_filter($items, fn($it) => empty($it['dari_paket'])));
+        $turunan     = CreativeTurunanService::forEvent($eventId)->untukItems(array_column(array_filter($items, fn($it) => CreativeApprovalService::isDesain($it['tipe'])), 'id'));
 
         $files     = (new EventCreativeFileModel())->getGroupedByItems($itemIds);
         $reviews   = (new CreativeReviewModel())->getGroupedByItems(CreativeApprovalService::SCOPE_EVENT, $itemIds);
@@ -49,7 +95,7 @@ class EventCreativeCtrl extends BaseController
         // ACT: build per-event analysis using same rule-based engine as monthly
         $totalReach = 0; $totalImpr = 0; $totalViews = 0; $totalEng = 0; $totalFoll = 0;
         $topReach = 0; $topName = ''; $activeCount = 0;
-        foreach ($items as $item) {
+        foreach ($itemsStat as $item) {
             $iid = $item['id'];
             $ins = $insights[$iid] ?? null;
             $hasReal = ! empty($realisasi[$iid]['entries']);
@@ -68,13 +114,13 @@ class EventCreativeCtrl extends BaseController
         $engRate   = $totalReach > 0 ? round($totalEng / $totalReach * 100, 1) : 0;
         $serapan   = $totalBudget > 0 ? min(100, round($totalRealisasi / $totalBudget * 100)) : 0;
         $today     = date('Y-m-d');
-        $overdue   = array_filter($items, fn($it) =>
+        $overdue   = array_filter($itemsStat, fn($it) =>
             !empty($it['deadline']) && $it['deadline'] < $today
             && ($it['status'] ?? '') !== 'approved'
         );
         $analysis = $this->buildEventAnalysis([
             'activeCount'    => $activeCount,
-            'totalItems'     => count($items),
+            'totalItems'     => count($itemsStat),
             'totalReach'     => $totalReach,
             'totalImpr'      => $totalImpr,
             'totalEng'       => $totalEng,
@@ -101,18 +147,33 @@ class EventCreativeCtrl extends BaseController
             'reviews'        => $reviews,
             'realisasi'      => $realisasi,
             'completion'     => $completion,
-            'canEdit'        => $this->canEditMenu('creative') && ! $completion,
+            'temaDitutup'    => CreativeTemaService::eventDitutup($eventId),
+            'canEdit'        => $this->canEditMenu('creative') && ! $completion && ! CreativeTemaService::eventDitutup($eventId),
             'insights'       => $insights,
             'canApprove'     => $this->canApproveCreative(true),
             'analysis'       => $analysis,
+            'nRencana'       => $nRencana,
+            'turunan'        => $turunan,
+            'katalog'        => CreativeTurunanService::katalog(true),
+            'cetakKatalog'   => CreativeTurunanService::cetakKatalog(),
+            'titik'          => CreativeTitikService::forEvent($eventId)->untukItems(array_column(array_filter($items, fn($it) => $it['tipe'] === 'cetak'), 'id')),
+            'designs'        => CreativeTurunanOtomatis::designsTema('e' . $eventId),
+            'jenisMaster'    => CreativeTitikService::jenisBerMaster(),
         ]);
     }
 
     public function store(int $eventId)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $post      = $this->request->getPost();
+        if (! in_array($post['tipe'] ?? '', CreativeTemaService::TIPE_URUT, true)) {
+            return redirect()->to("/events/{$eventId}/creative")->with('error', 'Jenis item tidak dikenal.');
+        }
+        if ($err = CreativeTitikService::validasiCetak($post)) {
+            return redirect()->to("/events/{$eventId}/creative")->with('error', $err);
+        }
         $isDigital = ($post['tipe'] === 'digital');
         $cid = (new EventCreativeItemModel())->insert([
             'event_id'     => $eventId,
@@ -127,14 +188,16 @@ class EventCreativeCtrl extends BaseController
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
             'created_by'   => $this->currentUser()['id'],
-        ]);
+        ] + $this->cetakFields($post));
         ActivityLog::write('create', 'creative', (string)$cid, $post['nama'], ['event_id' => $eventId, 'tipe' => $post['tipe'], 'budget' => $post['budget'] ?? 0]);
+        if ($post['tipe'] === 'cetak') $this->sinkronTurunan($eventId);
 
         return redirect()->to("/events/{$eventId}/creative")->with('success', 'Item berhasil ditambahkan.');
     }
 
     public function update(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $post              = $this->request->getPost();
@@ -145,6 +208,15 @@ class EventCreativeCtrl extends BaseController
         if (CreativeApprovalService::isLocked($existing)) {
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")
                 ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
+        }
+
+        if ($existing && $existing['tipe'] === 'cetak') $post['tipe'] = 'cetak';
+        if ($err = CreativeTitikService::validasiCetak($post)) {
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', $err);
+        }
+        $cetakBaru = $this->cetakFields($post);
+        if ($existing && $existing['tipe'] === 'cetak' && ($err = CreativeTitikService::forEvent($eventId)->selaraskan($existing, $cetakBaru))) {
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', $err);
         }
 
         ActivityLog::captureBefore($existing);
@@ -158,16 +230,22 @@ class EventCreativeCtrl extends BaseController
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
-        ];
+        ] + $this->cetakFields($post);
         $eventCreativeModel->update($id, $eventCreativeData);
         ActivityLog::captureAfter($eventCreativeData);
         ActivityLog::write('update', 'creative', (string)$id, $post['nama'], ['event_id' => $eventId, 'budget' => $post['budget'] ?? 0]);
+        if ($existing && $existing['tipe'] === 'cetak') {
+            CreativeTitikService::forEvent($eventId)->segarkan($id);
+            $berubah = ($existing['jenis_media'] ?? '') !== ($cetakBaru['jenis_media'] ?? '') || ($existing['ukuran'] ?? '') !== ($cetakBaru['ukuran'] ?? '');
+            $this->sinkronTurunan($eventId, $berubah ? 'ukuran atau jenis berubah' : '');
+        }
 
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Item berhasil diperbarui.');
     }
 
     public function delete(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $db        = db_connect();
@@ -181,6 +259,12 @@ class EventCreativeCtrl extends BaseController
                 ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
         }
 
+        if (CreativeTurunanService::adaDisetujui(CreativeTurunanService::SCOPE_EVENT, $id) > 0) {
+            return redirect()->to("/events/{$eventId}/creative#item-{$id}")
+                ->with('error', 'Item punya turunan yang sudah disetujui. Buka kembali atau hapus turunannya dulu.');
+        }
+
+        $lepas = ($citem && $citem['tipe'] === 'cetak') ? CreativeTitikService::forEvent($eventId)->lepasUntukItem($id) : null;
         $db->transStart();
         $fileModel->where('creative_item_id', $id)->delete();
         (new EventCreativeInsightModel())->where('creative_item_id', $id)->delete();
@@ -192,17 +276,25 @@ class EventCreativeCtrl extends BaseController
             return redirect()->to("/events/{$eventId}/creative")->with('error', 'Gagal menghapus item. Silakan coba lagi.');
         }
 
+        CreativeTurunanService::hapusUntukInduk(CreativeTurunanService::SCOPE_EVENT, [$id]);
+
         // Hapus file fisik setelah DB berhasil
         foreach ($files as $f) {
             if (file_exists($dir . $f['file_name'])) unlink($dir . $f['file_name']);
         }
 
         ActivityLog::write('delete', 'creative', (string)$id, $citem['nama'] ?? '', ['event_id' => $eventId]);
-        return redirect()->to("/events/{$eventId}/creative")->with('success', 'Item berhasil dihapus.');
+        if ($lepas !== null) $this->sinkronTurunan($eventId, 'item dihapus');
+        $msg = 'Item berhasil dihapus.';
+        if ($lepas && ($lepas['dilepas'] + $lepas['riwayat']) > 0) {
+            $msg .= ' ' . $lepas['dilepas'] . ' pemesanan titik di Media Promo dilepas' . ($lepas['riwayat'] ? ', ' . $lepas['riwayat'] . ' yang sudah selesai tetap sebagai riwayat' : '') . '.';
+        }
+        return redirect()->to("/events/{$eventId}/creative")->with('success', $msg);
     }
 
     public function uploadFile(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $item = (new EventCreativeItemModel())->find($id);
@@ -249,6 +341,7 @@ class EventCreativeCtrl extends BaseController
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Gagal menyimpan file.');
         }
 
+        CreativeTemaService::tandaiDikerjakan('event', $id);
         ActivityLog::write('update', 'creative', (string) $eventId, 'Upload file creative', [
             'opsi' => $meta['opsi_label'], 'versi' => $meta['versi'],
         ]);
@@ -262,6 +355,7 @@ class EventCreativeCtrl extends BaseController
 
     public function deleteFile(int $eventId, int $id, int $fileId)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $item      = (new EventCreativeItemModel())->find($id);
@@ -291,6 +385,7 @@ class EventCreativeCtrl extends BaseController
     /** Desainer mengirim materi untuk ditinjau. */
     public function ajukan(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) {
             return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
         }
@@ -305,6 +400,7 @@ class EventCreativeCtrl extends BaseController
     /** Peninjau menyetujui sekaligus menetapkan opsi yang dipakai. */
     public function setujui(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canApproveCreative(true)) {
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Anda tidak punya hak menyetujui materi creative.');
         }
@@ -324,6 +420,7 @@ class EventCreativeCtrl extends BaseController
     /** Peninjau meminta revisi — alasan wajib. */
     public function revisi(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canApproveCreative(true)) {
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Anda tidak punya hak menyetujui materi creative.');
         }
@@ -345,6 +442,7 @@ class EventCreativeCtrl extends BaseController
     /** Membuka kembali materi yang sudah disetujui agar bisa diubah. */
     public function buka(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative') && ! $this->canApproveCreative(true)) {
             return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
         }
@@ -368,6 +466,7 @@ class EventCreativeCtrl extends BaseController
 
     public function storeRealisasi(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $post     = $this->request->getPost();
@@ -432,12 +531,14 @@ class EventCreativeCtrl extends BaseController
             \App\Libraries\ImageCompressor::compress($dir . '/' . $name);
         }
 
+        CreativeTemaService::tandaiDikerjakan('event', $id);
         ActivityLog::write('update', 'creative', (string) $eventId, 'Tambah realisasi creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Realisasi berhasil ditambahkan.');
     }
 
     public function deleteRealisasi(int $eventId, int $id, int $rid)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $model = new EventCreativeRealisasiModel();
@@ -456,6 +557,7 @@ class EventCreativeCtrl extends BaseController
 
     public function storeInsight(int $eventId, int $id)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $post     = $this->request->getPost();
@@ -490,12 +592,14 @@ class EventCreativeCtrl extends BaseController
             'created_by'       => $this->currentUser()['id'],
         ]);
 
+        CreativeTemaService::tandaiDikerjakan('event', $id);
         ActivityLog::write('update', 'creative', (string) $eventId, 'Simpan insight creative');
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Insight berhasil disimpan.');
     }
 
     public function deleteInsight(int $eventId, int $id, int $iid)
     {
+        if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $model = new EventCreativeInsightModel();

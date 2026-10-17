@@ -77,7 +77,7 @@ ob_start(); ?>
             <?php else: ?><span class="mp-chk-ph"></span><?php endif; ?>
         </div>
         <div class="min-w-0">
-            <div class="mp-req-t"><?= esc($u['nama_materi']) ?></div>
+            <div class="mp-req-t"><?= esc($u['nama_materi']) ?> <?= mpDariCreative($u) ?></div>
             <div class="mp-req-s"><span class="mp-code"><?= esc($u['spot_kode']) ?></span> <?= esc($u['spot_nama']) ?><?= $u['slot_number'] ? ' · Slot ' . (int) $u['slot_number'] : '' ?>
                 <span class="mp-chip mp-chip-<?= $tipeChip[$u['spot_tipe']] ?? 'mute' ?>" style="margin-left:.3rem"><?= esc(mpTipeLabel($u['spot_tipe'])) ?></span></div>
             <?php if ($u['rejection_reason']): ?>

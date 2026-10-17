@@ -315,3 +315,10 @@
 
 /* Perbaikan verifikasi: pilihan tak terpotong di ponsel */
 @media (max-width: 575px) { .ev-select { padding-left: .5rem; padding-right: 1.4rem; font-size: .78rem; } }
+
+/* Hierarki huruf tab Creative event: judul jenis (1.02rem, bold, aksen jenis) > nama item (.9rem, semibold) > lencana (.72rem) */
+.page-evm.evm-creative .ev-group-t { font-size: 1.02rem; font-weight: 800; padding: .15rem .8rem; letter-spacing: .01em; }
+.page-evm.evm-creative .ev-group-t i { font-size: 1.08rem; }
+.page-evm.evm-creative .ev-card-t { font-size: .9rem; font-weight: 600; }
+.page-evm.evm-creative .ev-card-name .ev-chip { font-size: .72rem; }
+

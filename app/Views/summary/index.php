@@ -798,8 +798,8 @@ $avr = [
     <!-- Creative & Design -->
     <?php if (!empty($creativeItems)): ?>
     <?php
-    $tipeLabels = ['master_design' => 'Master Design', 'digital' => 'Digital', 'cetak' => 'Cetak', 'influencer' => 'Influencer', 'media_prescon' => 'Media Prescon'];
-    $tipeIcons  = ['master_design' => 'bi-vector-pen', 'digital' => 'bi-phone', 'cetak' => 'bi-printer', 'influencer' => 'bi-person-video3', 'media_prescon' => 'bi-newspaper'];
+    $tipeLabels = ['master_design' => 'Design', 'motion_graphic' => 'Motion Graphic', 'digital' => 'Digital', 'cetak' => 'Cetak', 'influencer' => 'Influencer', 'media_prescon' => 'Media Prescon'];
+    $tipeIcons  = ['master_design' => 'bi-vector-pen', 'motion_graphic' => 'bi-film', 'digital' => 'bi-phone', 'cetak' => 'bi-printer', 'influencer' => 'bi-person-video3', 'media_prescon' => 'bi-newspaper'];
     $statusBadge = ['draft' => 'bg-secondary-subtle text-secondary', 'review' => 'bg-warning-subtle text-warning', 'approved' => 'bg-success-subtle text-success', 'revision' => 'bg-danger-subtle text-danger'];
     $statusLabel = ['draft' => 'Draft', 'review' => 'Review', 'approved' => 'Approved', 'revision' => 'Revisi'];
     $platformLbl = ['ig' => 'IG', 'tiktok' => 'TikTok', 'keduanya' => 'IG+TikTok'];
@@ -829,7 +829,7 @@ $avr = [
                             <span class="badge bg-light border text-muted" style="font-size:.62rem">
                                 <i class="<?= $tipeIcons[$ci['tipe']] ?? 'bi-circle' ?> me-1"></i><?= $tipeLabels[$ci['tipe']] ?? $ci['tipe'] ?>
                             </span>
-                            <?php if ($ci['tipe'] === 'master_design'): ?>
+                            <?php if (in_array($ci['tipe'], ['master_design', 'motion_graphic'], true)): ?>
                             <span class="badge <?= $statusBadge[$ci['status']] ?? '' ?>" style="font-size:.62rem"><?= $statusLabel[$ci['status']] ?? $ci['status'] ?></span>
                             <?php endif; ?>
                             <?php if ($ci['platform']): ?>

@@ -47,8 +47,8 @@ $bulanDt    = \DateTime::createFromFormat('Y-m', $bulan);
 $bulanLabel = strtr($bulanDt->format('F Y'), $idBulan);
 
 $statusLabels = ['draft'=>'Draft','review'=>'Review','approved'=>'Approved','revision'=>'Revision'];
-$tipeLabels   = ['print'=>'Print','digital'=>'Content Digital','cetak'=>'Media Cetak','master_design'=>'Master Design','influencer'=>'Influencer','media_prescon'=>'Media Prescon'];
-$tipeOrder    = ['digital','cetak','print','master_design','influencer','media_prescon'];
+$tipeLabels   = ['print'=>'Print','digital'=>'Content Digital','cetak'=>'Media Cetak','master_design'=>'Design','motion_graphic'=>'Motion Graphic','influencer'=>'Influencer','media_prescon'=>'Media Prescon'];
+$tipeOrder    = ['digital','cetak','print','master_design','motion_graphic','influencer','media_prescon'];
 
 $totalItems = count($rows);
 
@@ -299,6 +299,7 @@ if ($draftAktif) $kend[] = [count($draftAktif) . ' item aktif masih berstatus Dr
     <td>
         <strong><?= esc($item['nama']) ?></strong>
         <?php if (!empty($item['is_closed'])): ?> <span class="lencana baik">Selesai</span><?php endif; ?>
+        <?php if (!empty($r['realMonth']['fs_total'])): ?> <span class="lencana netral" title="Realisasi bulan ini termasuk dari FlowStore">FlowStore</span><?php endif; ?>
         <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?>
         <div class="item-tgl"><?= date('d M Y', strtotime($itgl)) ?></div>
         <?php endif; ?>

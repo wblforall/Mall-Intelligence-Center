@@ -13,12 +13,28 @@ class EventCreativeItemModel extends Model
         'event_id', 'tipe', 'nama', 'platform', 'tanggal_take', 'jam_take', 'pic',
         'deskripsi', 'budget', 'target_reach', 'target_impressions', 'deadline', 'status', 'catatan', 'urutan', 'created_by',
         'versi', 'opsi_terakhir', 'review_submitted_at', 'approved_by', 'approved_at',
+        'dari_paket', 'jenis_media', 'ukuran', 'pasang_mulai', 'pasang_selesai', 'design_ref',
     ];
 
-    public function getByEvent(int $eventId): array
+    protected $beforeUpdate = ['bersihkanRencana'];
+
+    /** Item "Rencana" dari paket awal berhenti jadi rencana begitu isinya diubah (bukan sekadar dipindah Tema). */
+    protected function bersihkanRencana(array $d): array
     {
-        return $this->where('event_id', $eventId)
-                    ->orderBy('tipe')->orderBy('urutan')->orderBy('id')
+        $data = $d['data'] ?? [];
+        if (array_key_exists('dari_paket', $data)) return $d;
+        if (! array_diff(array_keys($data), ['tema_id', 'event_id', 'updated_at'])) return $d;
+        $d['data']['dari_paket'] = 0;
+        return $d;
+    }
+
+
+    /** @param bool $tanpaRencana true = lewati item "Rencana" dari paket awal (untuk ringkasan / statistik) */
+    public function getByEvent(int $eventId, bool $tanpaRencana = false): array
+    {
+        $b = $this->where('event_id', $eventId);
+        if ($tanpaRencana) $b->where('dari_paket', 0);
+        return $b->orderBy('tipe')->orderBy('urutan')->orderBy('id')
                     ->findAll();
     }
 

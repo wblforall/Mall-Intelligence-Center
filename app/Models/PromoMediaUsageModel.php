@@ -12,7 +12,7 @@ class PromoMediaUsageModel extends Model
     protected $allowedFields = [
         'batch_id', 'spot_id', 'slot_number', 'dept', 'requested_by', 'event_id', 'nama_materi', 'deskripsi_materi',
         'tanggal_mulai', 'tanggal_selesai', 'status', 'catatan_pemohon', 'sumber', 'is_berbayar', 'catatan_approver',
-        'rejection_reason', 'submitted_at', 'approved_by', 'approved_at', 'created_by',
+        'rejection_reason', 'submitted_at', 'approved_by', 'approved_at', 'created_by', 'creative_ref',
     ];
 
     public function getWithSpot(int $id): ?array
@@ -82,15 +82,33 @@ class PromoMediaUsageModel extends Model
         return $q->get()->getResultArray();
     }
 
-    public function hasConflictCetak(int $spotId, string $tglMulai, string $tglSelesai, ?int $excludeId = null): bool
+    /**
+     * Pemesanan titik cetak (satu pemakai per titik) yang memakan periode ini: status pending / approved dan tanggalnya beririsan.
+     * Aturan bentrok satu-satunya untuk media cetak; dipakai juga oleh Creative (hasConflictCetak dan pemakaiCetak).
+     */
+    private function overlapCetak(array $spotIds, string $tglMulai, string $tglSelesai, array $excludeIds = [])
     {
         $q = $this->db->table('promo_media_usage')
-            ->where('spot_id', $spotId)
+            ->whereIn('spot_id', $spotIds)
             ->whereIn('status', ['pending', 'approved'])
             ->where('tanggal_mulai <=', $tglSelesai)
             ->where('tanggal_selesai >=', $tglMulai);
-        if ($excludeId) $q->where('id !=', $excludeId);
-        return $q->countAllResults() > 0;
+        if ($excludeIds) $q->whereNotIn('id', $excludeIds);
+        return $q;
+    }
+
+    public function hasConflictCetak(int $spotId, string $tglMulai, string $tglSelesai, ?int $excludeId = null): bool
+    {
+        return $this->overlapCetak([$spotId], $tglMulai, $tglSelesai, $excludeId ? [$excludeId] : [])->countAllResults() > 0;
+    }
+
+    /** Siapa yang memakai titik-titik ini pada periode itu: baris pemesanan bentrok (spot_id, nama_materi, dept, requested_by, tanggal, status, creative_ref). */
+    public function pemakaiCetak(array $spotIds, string $tglMulai, string $tglSelesai, array $excludeIds = []): array
+    {
+        if (! $spotIds) return [];
+        return $this->overlapCetak($spotIds, $tglMulai, $tglSelesai, $excludeIds)
+            ->select('id, spot_id, nama_materi, dept, requested_by, tanggal_mulai, tanggal_selesai, status, creative_ref')
+            ->orderBy('tanggal_mulai')->get()->getResultArray();
     }
 
     public function hasConflictDigital(int $spotId, int $slot, string $tglMulai, string $tglSelesai, ?int $excludeId = null): bool

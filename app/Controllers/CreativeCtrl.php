@@ -11,7 +11,13 @@ use App\Models\EventCreativeItemModel;
 use App\Models\EventCreativeRealisasiModel;
 use App\Models\EventCreativeInsightModel;
 use App\Libraries\ActivityLog;
+use App\Libraries\CreativeBiayaFs;
 use App\Services\CreativeApprovalService;
+use App\Services\CreativeTemaService;
+use App\Services\CreativeTurunanService;
+use App\Services\CreativeTitikService;
+use App\Services\CreativeTurunanOtomatis;
+use App\Models\CreativeTemaModel;
 
 class CreativeCtrl extends BaseController
 {
@@ -42,7 +48,7 @@ class CreativeCtrl extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
-$user = $this->currentUser();
+        $user = $this->currentUser();
 
         $standaloneItems = (new CreativeItemModel())->getAll();
         foreach ($standaloneItems as &$item) { $item['_source'] = 's'; }
@@ -52,13 +58,6 @@ $user = $this->currentUser();
         foreach ($eventItems as &$item) { $item['_source'] = 'e'; }
         unset($item);
 
-        $merged = array_merge($standaloneItems, $eventItems);
-
-        $byTipe = [];
-        foreach ($merged as $item) {
-            $byTipe[$item['tipe']][] = $item;
-        }
-
         $standaloneIds = array_column($standaloneItems, 'id');
         $eventItemIds  = array_column($eventItems, 'id');
 
@@ -66,26 +65,38 @@ $user = $this->currentUser();
         $reviews        = (new CreativeReviewModel())->getGroupedByItems(CreativeApprovalService::SCOPE_STANDALONE, $standaloneIds);
         $realisasi      = (new CreativeRealisasiModel())->getGroupedByItems($standaloneIds);
         $eventRealisasi = empty($eventItemIds) ? [] : (new EventCreativeRealisasiModel())->getGroupedByItems($eventItemIds);
+        // Biaya dari FlowStore (BTB tertaut ke item): ditambahkan ke realisasi manual lama. Tanpa tautan, hasilnya identik dengan semula.
+        $biayaFs       = new CreativeBiayaFs();
+        $realisasi      = $biayaFs->gabung($realisasi, 'standalone', $standaloneIds);
+        $eventRealisasi = $biayaFs->gabung($eventRealisasi, 'event', $eventItemIds);
         $insights       = (new CreativeInsightModel())->getGroupedByItems($standaloneIds);
+        $eventInsights  = empty($eventItemIds) ? [] : (new EventCreativeInsightModel())->getGroupedByItems($eventItemIds);
 
-        // Assign _tab: 'realisasi' if has any realisasi, else 'review'
-        foreach ($byTipe as $tipe => &$tipeItems) {
-            foreach ($tipeItems as &$item) {
-                if ($item['_source'] === 's') {
-                    $hasReal = ($realisasi[$item['id']]['total'] ?? 0) > 0;
-                } else {
-                    $hasReal = ($eventRealisasi[$item['id']]['total'] ?? 0) > 0;
-                }
-                $item['_tab'] = $hasReal ? 'realisasi' : 'review';
-            }
-            unset($item);
+        // Fase kartu: 'realisasi' bila sudah ada realisasi, selain itu 'review'
+        foreach ($standaloneItems as &$item) {
+            $item['_tab'] = (($realisasi[$item['id']]['total'] ?? 0) > 0) ? 'realisasi' : 'review';
         }
-        unset($tipeItems);
+        unset($item);
+        foreach ($eventItems as &$item) {
+            $item['_tab'] = (($eventRealisasi[$item['id']]['total'] ?? 0) > 0) ? 'realisasi' : 'review';
+        }
+        unset($item);
+
+        // Item "Rencana" (dari paket awal, belum dikerjakan) tampil di kartu Tema tetapi
+        // TIDAK ikut KPI / hitungan tab: dihitung terpisah.
+        $bukanRencana = fn($it) => empty($it['dari_paket']);
+        $statS = array_values(array_filter($standaloneItems, $bukanRencana));
+        $statE = array_values(array_filter($eventItems, $bukanRencana));
+        $nRencana = (count($standaloneItems) - count($statS)) + (count($eventItems) - count($statE));
+
+        // Pengelompokan per jenis (hanya untuk hitungan KPI/tab di tampilan)
+        $byTipe = [];
+        foreach (array_merge($statS, $statE) as $item) { $byTipe[$item['tipe']][] = $item; }
 
         $totalBudgetStandalone = (new CreativeItemModel())->getTotalBudget();
         $totalBudgetEvent      = array_sum(array_column($eventItems, 'budget'));
         $totalBudget           = $totalBudgetStandalone + $totalBudgetEvent;
-        $totalRealisasi        = empty($standaloneIds) ? 0 : (new CreativeRealisasiModel())->getTotalRealisasi($standaloneIds);
+        $totalRealisasi        = (empty($standaloneIds) ? 0 : (new CreativeRealisasiModel())->getTotalRealisasi($standaloneIds)) + $biayaFs->total('standalone', $standaloneIds);
 
         $tabCounts = ['review' => 0, 'realisasi' => 0];
         foreach ($byTipe as $tipeItems) {
@@ -94,23 +105,150 @@ $user = $this->currentUser();
             }
         }
 
-        $canApprove = $this->canApproveCreative();
+        // Tema sebagai induk: kelompok bulan -> kartu Tema -> item per jenis
+        $tema = (new CreativeTemaService())->susun($standaloneItems, $eventItems, [
+            'sReal' => $realisasi, 'eReal' => $eventRealisasi, 'sIns' => $insights, 'eIns' => $eventInsights,
+        ]);
+
+        // Turunan Design / Motion Graphic (standalone dan event) + katalog untuk daftar centang
+        $desain = fn($it) => CreativeApprovalService::isDesain($it['tipe']);
+        $turunanS = CreativeTurunanService::standalone()->untukItems(array_column(array_filter($standaloneItems, $desain), 'id'));
+        $turunanE = [];
+        $evIds = array_column(array_filter($eventItems, $desain), 'id');
+        if ($evIds) {
+            $grupEv = [];
+            foreach (array_filter($eventItems, $desain) as $it) $grupEv[(int) $it['event_id']][] = (int) $it['id'];
+            foreach ($grupEv as $eid => $ids) $turunanE += CreativeTurunanService::forEvent($eid)->untukItems($ids);
+        }
+        // Titik Media Cetak (standalone dan event) + Design induk per Tema untuk formulir
+        $isCetak = fn($it) => $it['tipe'] === 'cetak';
+        $titikS = CreativeTitikService::standalone()->untukItems(array_column(array_filter($standaloneItems, $isCetak), 'id'));
+        $titikE = [];
+        $grupTe = [];
+        foreach (array_filter($eventItems, $isCetak) as $it) $grupTe[(int) $it['event_id']][] = (int) $it['id'];
+        foreach ($grupTe as $eid => $ids) $titikE += CreativeTitikService::forEvent($eid)->untukItems($ids);
+        $designMap = [];
+        foreach (($tema['cards'] ?? []) as $ck => $c) {
+            $ds = [];
+            foreach (['e', 's'] as $src) {
+                $list = array_filter($c['items'], fn($it) => $it['tipe'] === 'master_design' && $it['_source'] === $src);
+                usort($list, fn($a, $b) => [(int) $a['urutan'], (int) $a['id']] <=> [(int) $b['urutan'], (int) $b['id']]);
+                foreach ($list as $it) $ds[] = ['ref' => ($src === 's' ? 'standalone' : 'event') . ':' . $it['id'], 'nama' => $it['nama']];
+            }
+            if ($ds) $designMap[$ck] = $ds;
+        }
+        $canKatalog = $this->canApproveCreative();
+
+        $canEdit = $this->canEditMenu('creative_main');
 
         return view('creative_main/index', [
             'user'           => $user,
             'byTipe'         => $byTipe,
-            'standaloneItems'=> $standaloneItems,
-            'eventItems'     => $eventItems,
+            'standaloneItems'=> $statS,
+            'eventItems'     => $statE,
+            'nRencana'       => $nRencana,
+            'turunanS'       => $turunanS,
+            'turunanE'       => $turunanE,
+            'titikS'         => $titikS,
+            'titikE'         => $titikE,
+            'designMap'      => $designMap,
+            'jenisMaster'    => CreativeTitikService::jenisBerMaster(),
+            'katalog'        => CreativeTurunanService::katalog(true),
+            'cetakKatalog'   => CreativeTurunanService::cetakKatalog(),
+            'canKatalog'     => $canKatalog,
             'files'          => $files,
             'reviews'        => $reviews,
             'realisasi'      => $realisasi,
+            'eRealisasi'     => $eventRealisasi,
+            'fsBuka'         => $this->urlAntreanFs(),
             'insights'       => $insights,
             'totalBudget'    => $totalBudget,
             'totalRealisasi' => $totalRealisasi,
-            'canEdit'        => $this->canEditMenu('creative_main'),
-            'canApprove'     => $canApprove,
+            'canEdit'        => $canEdit,
+            'canApprove'     => $this->canApproveCreative(),
+            'canClose'       => $this->canApproveCreative(),
             'tabCounts'      => $tabCounts,
+            'tema'           => $tema,
+            'temaPilihan'    => $this->temaPilihan($tema['cards'] ?? []),
         ]);
+    }
+
+
+    /**
+     * Tautan "Buka antrean FlowStore" (tab FlowStore Budget Departemen CCD) — hanya bila pengguna punya hak budget_dept dan dept CCD
+     * terlihat olehnya (admin, atau dept sendiri). Selain itu '' : tim Creative tanpa hak budget hanya MELIHAT biaya tertaut.
+     */
+    private function urlAntreanFs(): string
+    {
+        $ccd = CreativeBiayaFs::deptCcdId();
+        if (! $ccd || ! $this->canViewMenu('budget_dept')) return '';
+        if (! $this->isAdmin() && (int) session()->get('dept_id') !== $ccd) return '';
+        return base_url('budget-dept/flowstore?dept=' . $ccd);
+    }
+
+    /** Kolom Media Cetak (jenis, ukuran, periode pasang, Design induk); NULL untuk jenis lain. */
+    private function cetakFields(array $post): array
+    {
+        return CreativeTitikService::dataCetak($post);
+    }
+
+    /** Kunci Tema ('t5' / 'e13' / '') sebuah item standalone. */
+    private function temaKeyItem(?array $item): string
+    {
+        return $item ? CreativeTitikService::infoTema('standalone', $item)['key'] : '';
+    }
+
+    /** Sinkron turunan otomatis untuk satu atau dua Tema (mis. sebelum dan sesudah item dipindah). */
+    private function sinkronTurunan(array $keys, string $alasan = ''): void
+    {
+        foreach (array_unique(array_filter($keys)) as $k) CreativeTurunanOtomatis::sinkron($k, CreativeTurunanOtomatis::SUMBER_CETAK, $alasan);
+    }
+
+    /** Pilihan Tema untuk formulir item: Tema Bulanan & Event yang belum ditutup. */
+    private function temaPilihan(array $cards): array
+    {
+        $out = ['bulanan' => [], 'event' => []];
+        foreach ($cards as $c) {
+            if (! empty($c['closed'])) continue;
+            $out[$c['kind'] === 'event' ? 'event' : 'bulanan'][] = [
+                'val' => $c['key'], 'nama' => $c['nama'],
+                'ket' => $c['kind'] === 'event' ? CreativeTemaService::bulanLabel((string) $c['bulan']) : CreativeTemaService::bulanLabel((string) $c['bulan']),
+                'bulan' => $c['bulan'],
+            ];
+        }
+        usort($out['bulanan'], fn($a, $b) => strcmp($b['bulan'], $a['bulan']));
+        usort($out['event'],   fn($a, $b) => strcmp($b['bulan'], $a['bulan']));
+        return $out;
+    }
+
+    /** Terjemahkan pilihan "t5" / "e13" / "" menjadi [tema_id, event_id] (atau null bila tak valid / sudah ditutup). */
+    private function parseTema(?string $v, ?array $itemLama = null): ?array
+    {
+        $v = trim((string) $v);
+        if ($v === '' || $v === 'none') return ['tema_id' => null, 'event_id' => null];
+        if (! preg_match('/^([te])(\d+)$/', $v, $m)) return null;
+        $id = (int) $m[2];
+        if ($m[1] === 't') {
+            $t = (new CreativeTemaModel())->find($id);
+            if (! $t) return null;
+            // memindah ke Tema yang sudah ditutup ditolak (kecuali tidak berubah)
+            if ((int) $t['ditutup'] === 1 && (int) ($itemLama['tema_id'] ?? 0) !== $id) return null;
+            return ['tema_id' => $id, 'event_id' => null];
+        }
+        $ev = db_connect()->table('events')->select('id')->where('id', $id)->get()->getRowArray();
+        if (! $ev) return null;
+        if (CreativeTemaService::eventDitutup($id) && (int) ($itemLama['event_id'] ?? 0) !== $id) return null;
+        return ['tema_id' => null, 'event_id' => $id];
+    }
+
+    /** Penolakan standar bila Tema item ini sudah ditutup. */
+    private function tolakBilaTemaTutup(int $id)
+    {
+        $item = (new CreativeItemModel())->find($id);
+        if ($item && CreativeTemaService::itemTerkunci($item)) {
+            return redirect()->to('/creative#item-' . $id . '-s')->with('error', CreativeTemaService::PESAN_TEMA_TUTUP);
+        }
+        return null;
     }
 
     public function monthly()
@@ -122,7 +260,21 @@ $user = $this->currentUser();
         $bulan = $this->request->getGet('bulan') ?? date('Y-m');
         if (!preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
 
-        return view('creative_main/monthly', ['user' => $this->currentUser()] + $this->computeCreativeMonthly($bulan));
+        $data = $this->computeCreativeMonthly($bulan);
+
+        // Nama Tema tiap item standalone (hanya tampilan; angka tidak berubah)
+        $temaNama = [];
+        $db = db_connect();
+        $tn = []; foreach ($db->table('creative_tema')->select('id,nama')->get()->getResultArray() as $t) $tn['t' . $t['id']] = $t['nama'];
+        foreach ($db->table('events')->select('id,name')->get()->getResultArray() as $e) $tn['e' . $e['id']] = $e['name'];
+        foreach ($data['rows'] as $r) {
+            $it = $r['item'];
+            if (($it['_source'] ?? '') !== 's') continue;
+            $k = ! empty($it['tema_id']) ? 't' . $it['tema_id'] : (! empty($it['event_id']) ? 'e' . $it['event_id'] : '');
+            if ($k !== '' && isset($tn[$k])) $temaNama[(int) $it['id']] = $tn[$k];
+        }
+
+        return view('creative_main/monthly', ['user' => $this->currentUser(), 'temaNama' => $temaNama] + $data);
     }
 
     // Hitung seluruh data summary creative untuk satu bulan (dipakai layar & cetak)
@@ -135,11 +287,12 @@ $user = $this->currentUser();
         $prevBulan = date('Y-m', mktime(0, 0, 0, $month - 1, 1, $year));
         $nextBulan = date('Y-m', mktime(0, 0, 0, $month + 1, 1, $year));
 
-        $standaloneItems = (new CreativeItemModel())->getAll();
+        // Item "Rencana" (paket awal, belum dikerjakan) tidak ikut summary
+        $standaloneItems = array_values(array_filter((new CreativeItemModel())->getAll(), fn($i) => empty($i['dari_paket'])));
         foreach ($standaloneItems as &$si) { $si['_source'] = 's'; }
         unset($si);
 
-        $eventItems = (new EventCreativeItemModel())->getAllWithEvents();
+        $eventItems = array_values(array_filter((new EventCreativeItemModel())->getAllWithEvents(), fn($i) => empty($i['dari_paket'])));
         foreach ($eventItems as &$ei) { $ei['_source'] = 'e'; }
         unset($ei);
 
@@ -150,6 +303,11 @@ $user = $this->currentUser();
         $eReal = empty($eventItemIds)  ? [] : (new EventCreativeRealisasiModel())->getMonthlyGrouped($bulan, $eventItemIds);
         $sIns  = empty($standaloneIds) ? [] : (new CreativeInsightModel())->getMonthlyGrouped($bulan, $standaloneIds);
         $eIns  = empty($eventItemIds)  ? [] : (new EventCreativeInsightModel())->getMonthlyGrouped($bulan, $eventItemIds);
+
+        // Biaya FlowStore bulan ini ditambahkan ke realisasi manual (hanya bila ada BTB tertaut)
+        $biayaFs = new CreativeBiayaFs();
+        $sReal = $biayaFs->gabungBulanan($sReal, $bulan, 'standalone', $standaloneIds);
+        $eReal = $biayaFs->gabungBulanan($eReal, $bulan, 'event', $eventItemIds);
 
         $allItems = array_merge($standaloneItems, $eventItems);
 
@@ -170,7 +328,8 @@ $user = $this->currentUser();
 
         // Serapan budget kumulatif (realisasi s/d bulan ini ÷ total budget)
         $realCumulative = (new CreativeRealisasiModel())->getTotalUpTo($bulan, $standaloneIds)
-                        + (new EventCreativeRealisasiModel())->getTotalUpTo($bulan, $eventItemIds);
+                        + (new EventCreativeRealisasiModel())->getTotalUpTo($bulan, $eventItemIds)
+                        + $biayaFs->total('standalone', $standaloneIds, $bulan) + $biayaFs->total('event', $eventItemIds, $bulan);
         $serapanPct     = $totalBudget > 0 ? round($realCumulative / $totalBudget * 100, 1) : 0;
 
         // Delta vs bulan sebelumnya
@@ -399,6 +558,9 @@ $user = $this->currentUser();
     {
         $sReal = $sIds ? (new CreativeRealisasiModel())->getMonthlyGrouped($bulan, $sIds) : [];
         $eReal = $eIds ? (new EventCreativeRealisasiModel())->getMonthlyGrouped($bulan, $eIds) : [];
+        $biayaFs = new CreativeBiayaFs();
+        $sReal = $biayaFs->gabungBulanan($sReal, $bulan, 'standalone', $sIds);
+        $eReal = $biayaFs->gabungBulanan($eReal, $bulan, 'event', $eIds);
         $sIns  = $sIds ? (new CreativeInsightModel())->getMonthlyGrouped($bulan, $sIds) : [];
         $eIns  = $eIds ? (new EventCreativeInsightModel())->getMonthlyGrouped($bulan, $eIds) : [];
         $ins   = array_merge($sIns, $eIns);
@@ -435,7 +597,18 @@ $user = $this->currentUser();
         }
 
         $post      = $this->request->getPost();
+        if (! in_array($post['tipe'] ?? '', CreativeTemaService::TIPE_URUT, true)) {
+            return redirect()->to('/creative')->with('error', 'Jenis item tidak dikenal.');
+        }
         $isDigital = ($post['tipe'] === 'digital');
+
+        $tm = $this->parseTema($post['tema'] ?? '');
+        if ($tm === null) {
+            return redirect()->to('/creative')->with('error', 'Tema yang dipilih tidak valid atau sudah ditutup.');
+        }
+        if ($err = CreativeTitikService::validasiCetak($post)) {
+            return redirect()->to('/creative')->with('error', $err);
+        }
 
         $newId = (new CreativeItemModel())->insert([
             'tipe'         => $post['tipe'],
@@ -455,11 +628,12 @@ $user = $this->currentUser();
             'target_impressions' => (($post['target_impressions'] ?? '') !== '') ? max(0, (int) $post['target_impressions']) : null,
             'deadline'           => ($post['deadline'] ?? '') ?: null,
             'created_by'   => $this->currentUser()['id'],
-        ]);
+        ] + $this->cetakFields($post) + $tm);
 
-        ActivityLog::write('create', 'creative_standalone', (string)$newId, $post['nama'], []);
+        ActivityLog::write('create', 'creative_standalone', (string)$newId, $post['nama'], ['tipe' => $post['tipe']] + $tm);
+        if ($post['tipe'] === 'cetak') $this->sinkronTurunan([$this->temaKeyItem((new CreativeItemModel())->find($newId))]);
 
-        return redirect()->to('/creative')->with('success', 'Item berhasil ditambahkan.');
+        return redirect()->to('/creative#item-' . $newId . '-s')->with('success', 'Item berhasil ditambahkan.');
     }
 
     public function update(int $id)
@@ -467,6 +641,8 @@ $user = $this->currentUser();
         if (!$this->canEditMenu('creative_main')) {
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
+
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
 
         $post           = $this->request->getPost();
         $isDigital      = ($post['tipe'] === 'digital');
@@ -478,8 +654,22 @@ $user = $this->currentUser();
                 ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
         }
 
+        $tm = array_key_exists('tema', $post) ? $this->parseTema($post['tema'], $existing) : [];
+        if ($tm === null) {
+            return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'Tema yang dipilih tidak valid atau sudah ditutup.');
+        }
+
+        if ($existing && $existing['tipe'] === 'cetak') $post['tipe'] = 'cetak';
+        if ($err = CreativeTitikService::validasiCetak($post)) {
+            return redirect()->to('/creative#item-' . $id . '-s')->with('error', $err);
+        }
+        $cetakBaru = $this->cetakFields($post);
+        if ($existing && $existing['tipe'] === 'cetak' && ($err = CreativeTitikService::standalone()->selaraskan($existing, $cetakBaru))) {
+            return redirect()->to('/creative#item-' . $id . '-s')->with('error', $err);
+        }
+
         ActivityLog::captureBefore($existing);
-        $creativeData = [
+        $creativeData = $tm + [
             'tipe'         => $post['tipe'],
             'nama'         => $post['nama'],
             'platform'     => $isDigital ? ($post['platform'] ?? null) : null,
@@ -496,13 +686,44 @@ $user = $this->currentUser();
             'target_reach'       => (($post['target_reach'] ?? '') !== '') ? max(0, (int) $post['target_reach']) : null,
             'target_impressions' => (($post['target_impressions'] ?? '') !== '') ? max(0, (int) $post['target_impressions']) : null,
             'deadline'           => ($post['deadline'] ?? '') ?: null,
-        ];
+        ] + $this->cetakFields($post);
         $creativeModel->update($id, $creativeData);
         ActivityLog::captureAfter($creativeData);
 
         ActivityLog::write('update', 'creative_standalone', (string)$id, $post['nama'], []);
+        if ($existing && $existing['tipe'] === 'cetak') {
+            CreativeTitikService::standalone()->segarkan($id);
+            $berubah = ($existing['jenis_media'] ?? '') !== ($cetakBaru['jenis_media'] ?? '') || ($existing['ukuran'] ?? '') !== ($cetakBaru['ukuran'] ?? '');
+            $this->sinkronTurunan([$this->temaKeyItem($existing), $this->temaKeyItem($creativeModel->find($id))], $berubah ? 'ukuran atau jenis berubah' : '');
+        }
 
-        return redirect()->to('/creative')->with('success', 'Item berhasil diperbarui.');
+        return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Item berhasil diperbarui.');
+    }
+
+    /** Memindahkan item ke Tema lain (hanya penautan; boleh juga untuk materi yang sudah disetujui). */
+    public function pindah(int $id)
+    {
+        if (!$this->canEditMenu('creative_main')) {
+            return redirect()->to('/creative')->with('error', 'Akses ditolak.');
+        }
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
+
+        $model = new CreativeItemModel();
+        $item  = $model->find($id);
+        if (! $item) return redirect()->to('/creative')->with('error', 'Item tidak ditemukan.');
+
+        $tm = $this->parseTema($this->request->getPost('tema'), $item);
+        if ($tm === null) {
+            return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'Tema yang dipilih tidak valid atau sudah ditutup.');
+        }
+        $model->update($id, $tm);
+        ActivityLog::write('update', 'creative_standalone', (string) $id, $item['nama'], ['aksi' => 'pindah_tema'] + $tm);
+        if ($item['tipe'] === 'cetak') {
+            CreativeTitikService::standalone()->segarkan($id);
+            $this->sinkronTurunan([$this->temaKeyItem($item), $this->temaKeyItem($model->find($id))], 'item dipindah ke Tema lain');
+        }
+
+        return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Item dipindahkan.');
     }
 
     public function delete(int $id)
@@ -511,6 +732,8 @@ $user = $this->currentUser();
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
 
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
+
         $item         = (new CreativeItemModel())->find($id);
 
         if (CreativeApprovalService::isLocked($item)) {
@@ -518,6 +741,13 @@ $user = $this->currentUser();
                 ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
         }
 
+        if (CreativeTurunanService::adaDisetujui(CreativeTurunanService::SCOPE_STANDALONE, $id) > 0) {
+            return redirect()->to('/creative#item-' . $id . '-s~turunan')
+                ->with('error', 'Item punya turunan yang sudah disetujui. Buka kembali atau hapus turunannya dulu.');
+        }
+
+        $temaKeyLama = $this->temaKeyItem($item);
+        $lepas = ($item && $item['tipe'] === 'cetak') ? CreativeTitikService::standalone()->lepasUntukItem($id) : null;
         $realisasiRows= (new CreativeRealisasiModel())->where('creative_item_id', $id)->findAll();
         $fileRows     = (new CreativeFileModel())->where('creative_item_id', $id)->findAll();
         $insightRows  = (new CreativeInsightModel())->where('creative_item_id', $id)->findAll();
@@ -533,6 +763,8 @@ $user = $this->currentUser();
         if (!$db->transStatus()) {
             return redirect()->to('/creative')->with('error', 'Gagal menghapus item. Silakan coba lagi.');
         }
+
+        CreativeTurunanService::hapusUntukInduk(CreativeTurunanService::SCOPE_STANDALONE, [$id]);
 
         // Unlink physical files after successful transaction
         foreach ($realisasiRows as $r) {
@@ -553,8 +785,13 @@ $user = $this->currentUser();
         }
 
         ActivityLog::write('delete', 'creative_standalone', (string)$id, $item['nama'] ?? '', []);
+        if ($lepas !== null) $this->sinkronTurunan([$temaKeyLama], 'item dihapus');
 
-        return redirect()->to('/creative')->with('success', 'Item berhasil dihapus.');
+        $msg = 'Item berhasil dihapus.';
+        if ($lepas && ($lepas['dilepas'] + $lepas['riwayat']) > 0) {
+            $msg .= ' ' . $lepas['dilepas'] . ' pemesanan titik di Media Promo dilepas' . ($lepas['riwayat'] ? ', ' . $lepas['riwayat'] . ' yang sudah selesai tetap sebagai riwayat' : '') . '.';
+        }
+        return redirect()->to('/creative')->with('success', $msg);
     }
 
     public function uploadFile(int $id)
@@ -562,6 +799,8 @@ $user = $this->currentUser();
         if (!$this->canEditMenu('creative_main')) {
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
+
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
 
         $item = (new CreativeItemModel())->find($id);
         if (CreativeApprovalService::isLocked($item)) {
@@ -606,6 +845,7 @@ $user = $this->currentUser();
         }
         \App\Libraries\ImageCompressor::compress($dir . '/' . $name);
 
+        CreativeTemaService::tandaiDikerjakan('standalone', $id);
         ActivityLog::write('upload', 'creative_standalone', (string)$id, $name, [
             'opsi' => $meta['opsi_label'], 'versi' => $meta['versi'],
         ]);
@@ -623,6 +863,8 @@ $user = $this->currentUser();
         if (!$this->canEditMenu('creative_main')) {
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
+
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
 
         $item      = (new CreativeItemModel())->find($id);
         $fileModel = new CreativeFileModel();
@@ -731,6 +973,8 @@ $user = $this->currentUser();
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
 
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
+
         $post        = $this->request->getPost();
         $dir         = $this->realisasiDir($id);
         $pendingMoves = [];
@@ -785,6 +1029,7 @@ $user = $this->currentUser();
         if (! $rid) return redirect()->back()->with('error', 'Gagal menyimpan realisasi.');
         foreach ($pendingMoves as [$f, $d, $n]) { $f->move($d, $n); \App\Libraries\ImageCompressor::compress($d . '/' . $n); }
 
+        CreativeTemaService::tandaiDikerjakan('standalone', $id);
         ActivityLog::write('create', 'creative_standalone_realisasi', (string)$id, $post['tanggal'], []);
 
         return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Realisasi berhasil ditambahkan.');
@@ -795,6 +1040,8 @@ $user = $this->currentUser();
         if (!$this->canEditMenu('creative_main')) {
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
+
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
 
         $model = new CreativeRealisasiModel();
         $row   = $model->find($rid);
@@ -821,6 +1068,8 @@ $user = $this->currentUser();
         if (!$this->canEditMenu('creative_main')) {
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
+
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
 
         $post     = $this->request->getPost();
         $dir      = $this->insightDir($id);
@@ -857,6 +1106,7 @@ $user = $this->currentUser();
         if (! $iid) return redirect()->back()->with('error', 'Gagal menyimpan insight.');
         if ($file && $file->isValid() && !$file->hasMoved() && $fileName) { $file->move($dir, $fileName); \App\Libraries\ImageCompressor::compress($dir . '/' . $fileName); }
 
+        CreativeTemaService::tandaiDikerjakan('standalone', $id);
         ActivityLog::write('create', 'creative_standalone_insight', (string)$id, $post['tanggal'], []);
 
         return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Insight berhasil disimpan.');
@@ -867,6 +1117,8 @@ $user = $this->currentUser();
         if (!$this->canEditMenu('creative_main')) {
             return redirect()->to('/creative')->with('error', 'Akses ditolak.');
         }
+
+        if ($r = $this->tolakBilaTemaTutup($id)) return $r;
 
         $model = new CreativeInsightModel();
         $row   = $model->find($iid);

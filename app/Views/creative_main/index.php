@@ -1,12 +1,16 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/creative-main.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-main.css') ?: 1 ?>">
+<link rel="stylesheet" href="<?= base_url('css/creative-turunan.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-turunan.css') ?: 1 ?>">
+<link rel="stylesheet" href="<?= base_url('css/creative-titik.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-titik.css') ?: 1 ?>">
+<link rel="stylesheet" href="<?= base_url('css/creative-biaya-fs.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-biaya-fs.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
 $tipeConfig = [
-    'master_design' => ['label' => 'Master Design',   'icon' => 'bi-vector-pen'],
+    'master_design' => ['label' => 'Design',          'icon' => 'bi-vector-pen'],
+    'motion_graphic'=> ['label' => 'Motion Graphic',  'icon' => 'bi-film'],
     'digital'       => ['label' => 'Content Digital', 'icon' => 'bi-phone'],
     'cetak'         => ['label' => 'Media Cetak',     'icon' => 'bi-printer'],
     'influencer'    => ['label' => 'Influencer',      'icon' => 'bi-person-video3'],
@@ -32,6 +36,7 @@ $insightFields = [
 ];
 $tipePlaceholders = [
     'master_design' => 'KV Utama, Banner Promo...',
+    'motion_graphic'=> 'Opening Bumper, Teaser Event...',
     'digital'       => 'Feed Opening, Story Promo...',
     'cetak'         => 'Spanduk 3x1m, Flyer A5...',
     'influencer'    => 'Nama Influencer',
@@ -64,7 +69,7 @@ foreach ($byTipe as $tipeItems) {
     foreach ($tipeItems as $it) {
         $nAll++;
         if ($it['_source'] === 's') $totalStandalone++;
-        $isRev = $it['tipe'] === 'master_design' && ($it['status'] ?? '') === 'review';
+        $isRev = \App\Services\CreativeApprovalService::isDesain($it['tipe']) && ($it['status'] ?? '') === 'review';
         $dk = $dlInfo($it)['key'];
         if ($isRev) $nReview++;
         if ($dk === 'late') $nLate++;
@@ -85,6 +90,39 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
     }
     return '<a href="' . $url . '" target="_blank" class="cr-c-mute" title="' . esc((string) $orig, 'attr') . '"><i class="bi bi-file-earmark-' . ($ext === 'pdf' ? 'pdf cr-c-bad' : 'fill') . '" style="font-size:1.2rem"></i></a>';
 };
+
+// Variabel bersama untuk kartu Tema & kartu item
+$shared = compact('tipeConfig', 'statusConfig', 'platformLabels', 'imageExts', 'insightFields', 'fTgl', 'rp', 'dlInfo', 'fileCell',
+                  'files', 'realisasi', 'insights', 'reviews', 'canEdit', 'canApprove', 'canClose', 'temaPilihan',
+                  'turunanS', 'turunanE', 'katalog', 'titikS', 'titikE', 'eRealisasi', 'fsBuka');
+$shared['shared'] = $shared;
+
+$nNone    = (int) $tema['none']['n'];
+$nAktif   = count($tema['aktif']) ? array_sum(array_map(fn($m) => count($m['cards']), $tema['aktif'])) : 0;
+$nTutup   = (int) $tema['nTerkunci'];
+$bulanOpt = ['01' => 'Januari', '02' => 'Februari', '03' => 'Maret', '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+             '07' => 'Juli', '08' => 'Agustus', '09' => 'September', '10' => 'Oktober', '11' => 'November', '12' => 'Desember'];
+$thnIni   = (int) date('Y');
+$renderBulan = function (array $months) use ($shared, $rp) {
+    foreach ($months as $i => $m): ?>
+    <section class="cr-monthbox <?= $i < 2 ? 'is-open' : '' ?>" data-month="<?= esc($m['bulan'], 'attr') ?>">
+        <button type="button" class="cr-month-h" data-cr-month-toggle aria-expanded="<?= $i < 2 ? 'true' : 'false' ?>">
+            <span class="cr-chev"><i class="bi bi-chevron-right"></i></span>
+            <span class="cr-month-t"><?= esc($m['label']) ?></span>
+            <span class="cr-month-s">
+                <span><b class="js-mn"><?= count($m['cards']) ?></b> tema</span>
+                <?php if ((int) $m['budget'] > 0): ?><span>Budget <b><?= $rp($m['budget']) ?></b></span><?php endif; ?>
+                <?php if ((int) $m['realisasi'] > 0): ?><span>Realisasi <b><?= $rp($m['realisasi']) ?></b></span><?php endif; ?>
+            </span>
+        </button>
+        <div class="cr-month-body">
+            <?php foreach ($m['cards'] as $c): ?>
+                <?= view('creative_main/_tema_card', ['c' => $c] + $shared, ['saveData' => false]) ?>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endforeach;
+};
 ?>
 
 <div class="page-cre" id="creIdx">
@@ -94,11 +132,15 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
     <div class="cr-head-ico"><i class="bi bi-palette-fill"></i></div>
     <div class="min-w-0">
         <h1 class="cr-title">Creative &amp; Design</h1>
-        <div class="cr-subtitle">Kelola materi desain, konten, dan media — standalone &amp; dari Event</div>
+        <div class="cr-subtitle">Semua materi desain, konten, dan media dikelompokkan per Tema — event atau tema bulanan</div>
     </div>
     <div class="cr-head-act">
         <a href="<?= base_url('creative/monthly-summary') ?>" class="cr-btn"><i class="bi bi-bar-chart-line"></i><span class="d-none d-sm-inline">Summary Bulanan</span></a>
+        <?php if (!empty($canKatalog)): ?>
+        <a href="<?= base_url('creative/katalog') ?>" class="cr-btn" title="Atur katalog turunan dan paket item awal"><i class="bi bi-sliders"></i><span class="d-none d-sm-inline">Katalog &amp; Paket</span></a>
+        <?php endif; ?>
         <?php if ($canEdit): ?>
+        <button type="button" class="cr-btn" data-cr-tema-new><i class="bi bi-calendar-plus"></i><span class="d-none d-sm-inline">Tema Bulanan</span></button>
         <div class="dropdown">
             <button class="cr-btn cr-btn-primary" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="crAddMenuBtn">
                 <i class="bi bi-plus-lg"></i>Tambah Item <i class="bi bi-chevron-down" style="font-size:.65rem"></i>
@@ -127,7 +169,7 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
     <div class="cr-kpi">
         <div class="cr-kpi-l">Item Standalone</div>
         <div class="cr-kpi-v"><?= $totalStandalone ?></div>
-        <div class="cr-kpi-s">dari <?= count($standaloneItems) + count($eventItems) ?> total</div>
+        <div class="cr-kpi-s">dari <?= count($standaloneItems) + count($eventItems) ?> total<?php if (!empty($nRencana)): ?> · <b><?= (int) $nRencana ?> item rencana</b><?php endif; ?></div>
     </div>
     <div class="cr-kpi">
         <div class="cr-kpi-l">Perlu Perhatian</div>
@@ -150,15 +192,15 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
     </div>
 </div>
 
-<?php if ($nAll === 0 && !$canEdit): ?>
-<div class="cr-empty"><i class="bi bi-palette"></i><h5>Belum ada item Creative</h5><p>Item creative akan tampil di sini setelah dibuat.</p></div>
+<?php if ($nAll === 0 && !$canEdit && $tema['nTema'] === 0): ?>
+<div class="cr-empty"><i class="bi bi-palette"></i><h5>Belum ada Tema atau item Creative</h5><p>Tema dan item creative akan tampil di sini setelah dibuat.</p></div>
 <?php else: ?>
 
 <!-- Pencarian & filter -->
 <div class="cr-tools" id="crTools">
     <div class="cr-search">
         <i class="bi bi-search"></i>
-        <input type="search" id="crQ" placeholder="Cari nama, PIC, catatan, event…" autocomplete="off" aria-label="Cari item creative">
+        <input type="search" id="crQ" placeholder="Cari tema, item, PIC, catatan…" autocomplete="off" aria-label="Cari item creative">
     </div>
     <div class="cr-seg" id="creativeTabs" role="group" aria-label="Fase">
         <button type="button" class="is-on" data-tab="">Semua <span class="n"><?= $nAll ?></span></button>
@@ -174,7 +216,7 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
         <option value="review">Dalam Review</option>
         <option value="revision">Perlu Revisi</option>
         <option value="approved">Approved</option>
-        <option value="draft">Draft (Master Design)</option>
+        <option value="draft">Draft (Design &amp; Motion)</option>
         <option value="closed">Selesai / close</option>
     </select>
     <select class="cr-select" id="crFDl" aria-label="Filter tenggat">
@@ -186,8 +228,8 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
     </select>
     <select class="cr-select" id="crFSrc" aria-label="Filter sumber">
         <option value="">Semua sumber</option>
-        <option value="s">Standalone</option>
-        <option value="e">Dari Event</option>
+        <option value="s">Dikerjakan di sini</option>
+        <option value="e">Item event (baca-saja)</option>
     </select>
     <select class="cr-select" id="crSort" aria-label="Urutkan">
         <option value="">Urutan asli</option>
@@ -209,531 +251,37 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
     <button type="button" class="cr-btn" data-cr-resetbtn><i class="bi bi-x-circle"></i>Reset filter</button>
 </div>
 
-<?php foreach ($tipeConfig as $tipe => $cfg):
-    $tipeItems = $byTipe[$tipe] ?? [];
-    if (empty($tipeItems) && !$canEdit) continue;
-    $sCount = count(array_filter($tipeItems, fn($i) => $i['_source'] === 's'));
-    $eCount = count($tipeItems) - $sCount;
-    $hasBudgetField = in_array($tipe, ['cetak', 'influencer', 'digital', 'media_prescon']);
-?>
-<!-- ═══ <?= $cfg['label'] ?> ═══ -->
-<section class="cr-group t-<?= $tipe ?>" data-tipe="<?= $tipe ?>" id="grup-<?= $tipe ?>">
-    <div class="cr-group-h">
-        <div class="cr-group-ico"><i class="bi <?= $cfg['icon'] ?>"></i></div>
-        <h2 class="cr-group-t"><?= $cfg['label'] ?></h2>
-        <span class="cr-group-n"><span class="js-gcount"><?= count($tipeItems) ?></span> item<?= $sCount > 0 && $eCount > 0 ? ' · ' . $sCount . ' standalone · ' . $eCount . ' event' : '' ?></span>
-        <?php if ($canEdit): ?>
-        <button type="button" class="cr-btn cr-btn-sm cr-btn-soft toggle-add-item" data-tipe="<?= $tipe ?>"><i class="bi bi-plus-lg"></i>Tambah Item</button>
-        <?php endif; ?>
-    </div>
+<div class="cr-ptabs" id="crPTabs" role="tablist" aria-label="Status tema">
+    <button type="button" role="tab" class="is-on" data-cr-ptab="aktif" aria-selected="true">Aktif <span class="n" data-n0="<?= $nAktif ?>"><?= $nAktif ?></span></button>
+    <button type="button" role="tab" data-cr-ptab="terkunci" aria-selected="false"><i class="bi bi-lock-fill"></i>Terkunci <span class="n" data-n0="<?= $nTutup ?>"><?= $nTutup ?></span></button>
+</div>
 
-    <?php if ($canEdit): ?>
-    <!-- Form tambah (per jenis) -->
-    <div id="add-item-<?= $tipe ?>" class="cr-add" hidden>
-        <div class="cr-add-t"><i class="bi <?= $cfg['icon'] ?> cr-c-mute"></i>Item <?= $cfg['label'] ?> baru</div>
-        <form method="POST" action="<?= base_url('creative/add') ?>">
-            <?= csrf_field() ?>
-            <input type="hidden" name="tipe" value="<?= $tipe ?>">
-            <div class="cr-fgrid">
-                <div class="cr-f w4">
-                    <label>Nama <span class="req">*</span></label>
-                    <input type="text" name="nama" class="form-control" required placeholder="<?= $tipePlaceholders[$tipe] ?? '' ?>">
-                </div>
-                <div class="cr-f w2">
-                    <label><i class="bi bi-calendar3"></i> Tanggal</label>
-                    <input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>">
-                </div>
-                <?php if ($tipe === 'digital'): ?>
-                <div class="cr-f w2">
-                    <label>Platform</label>
-                    <select name="platform" class="form-select">
-                        <option value="ig">Instagram</option>
-                        <option value="tiktok">TikTok</option>
-                        <option value="keduanya">IG &amp; TikTok</option>
-                    </select>
-                </div>
-                <?php endif; ?>
-                <?php if ($hasBudgetField): ?>
-                <div class="cr-f w2">
-                    <label>Budget (Rp)</label>
-                    <input type="text" name="budget" class="form-control currency-input" placeholder="0">
-                </div>
-                <?php endif; ?>
-                <?php if (in_array($tipe, ['digital', 'influencer'])): ?>
-                <div class="cr-f w2">
-                    <label>Target Reach</label>
-                    <input type="number" name="target_reach" class="form-control" placeholder="0" min="0">
-                </div>
-                <div class="cr-f w2">
-                    <label>Target Impresi</label>
-                    <input type="number" name="target_impressions" class="form-control" placeholder="0" min="0">
-                </div>
-                <?php endif; ?>
-                <div class="cr-f w2">
-                    <label>Deadline</label>
-                    <input type="date" name="deadline" class="form-control">
-                </div>
-                <?php if ($tipe === 'digital'): ?>
-                <div class="cr-f w2">
-                    <label><i class="bi bi-camera"></i> Tanggal Take</label>
-                    <input type="date" name="tanggal_take" class="form-control">
-                </div>
-                <div class="cr-f w2">
-                    <label>Waktu Take</label>
-                    <input type="time" name="jam_take" class="form-control">
-                </div>
-                <div class="cr-f w2">
-                    <label><i class="bi bi-person"></i> PIC</label>
-                    <input type="text" name="pic" class="form-control" placeholder="Nama PIC">
-                </div>
-                <?php endif; ?>
-                <div class="cr-f w6">
-                    <label>Deskripsi / Catatan</label>
-                    <input type="text" name="deskripsi" class="form-control" placeholder="Opsional">
-                </div>
-                <div class="cr-f w6 cr-f-act">
-                    <label class="cr-check" for="close-<?= $tipe ?>" style="margin:0;text-transform:none;letter-spacing:0;font-size:.8rem;color:var(--cr-txt)" title="Tandai item sudah selesai/close">
-                        <input type="checkbox" name="is_closed" value="1" id="close-<?= $tipe ?>">Selesai
-                    </label>
-                    <button type="submit" class="cr-btn cr-btn-primary"><i class="bi bi-plus-lg"></i>Tambah</button>
-                    <button type="button" class="cr-btn" data-cr-addclose="<?= $tipe ?>">Batal</button>
-                </div>
-            </div>
-        </form>
-    </div>
-    <?php endif; ?>
-
-    <?php if (empty($tipeItems)): ?>
-    <div class="cr-groupempty">Belum ada item <?= $cfg['label'] ?>. <?= $canEdit ? 'Klik “Tambah Item” untuk memulai.' : '' ?></div>
-    <?php endif; ?>
-
-    <div class="cr-list">
-    <?php foreach ($tipeItems as $ord => $item):
-        $isS    = $item['_source'] === 's';
-        $iid    = (int) $item['id'];
-        $status = $item['status'] ?? 'draft';
-        $sCfg   = $statusConfig[$status] ?? $statusConfig['draft'];
-        $closed = !empty($item['is_closed']);
-        $iBudget = (int) ($item['budget'] ?? 0);
-        if ($isS) {
-            $iFiles   = $files[$iid] ?? [];
-            $iReal    = $realisasi[$iid] ?? ['total' => 0, 'entries' => []];
-            $iInsight = $insights[$iid] ?? null;
-            $iReviews = $reviews[$iid] ?? [];
-        } else {
-            $iFiles = []; $iReal = ['total' => 0, 'entries' => []]; $iInsight = null; $iReviews = [];
-        }
-        $iTotal = (int) ($iReal['total'] ?? 0);
-        $iPct   = $iBudget > 0 ? min(100, round($iTotal / $iBudget * 100)) : null;
-        $over   = $iTotal > $iBudget && $iBudget > 0;
-        $barCls = $over ? 'cr-bar-over' : ($iPct !== null && $iPct >= 100 ? 'cr-bar-ok' : 'cr-bar-ok');
-        $dl     = $dlInfo($item);
-        $isMD   = $tipe === 'master_design';
-        $terkunci   = $isS && $isMD && $status === 'approved';
-        $perluTinjau = $isS && $isMD && $canApprove && $status === 'review';
-        $itgl   = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? '');
-        $stKey  = $isMD ? $status : ($closed ? 'closed' : 'run');
-        $jmlOpsi = $isMD ? count(array_filter($iFiles, fn($f) => (int) ($f['is_opsi'] ?? 1) === 1)) : 0;
-        $nEntries = count($iReal['entries'] ?? []);
-        $nIns     = $iInsight && !empty($iInsight['entries']) ? count($iInsight['entries']) : 0;
-        $actReach = (int) ($iInsight['max_reach'] ?? 0);
-        $tgtReach = (int) ($item['target_reach'] ?? 0);
-        $tgtImpr  = (int) ($item['target_impressions'] ?? 0);
-        $actImpr  = (int) ($iInsight['max_impressions'] ?? 0);
-
-        // Panel yang tersedia (hanya item standalone yang bisa dikelola di sini)
-        $panes = [];
-        if ($isS && $isMD && ($canEdit || !empty($iFiles) || $iReviews)) $panes['files'] = ['Opsi & Persetujuan', 'bi-images', $jmlOpsi ?: null];
-        if ($isS && $hasBudgetField && ($canEdit || $nEntries)) $panes['realisasi'] = ['Realisasi', 'bi-receipt', $nEntries ?: null];
-        if ($isS && $tipe === 'digital' && ($canEdit || $nIns)) $panes['insight'] = ['Insight', 'bi-graph-up', $nIns ?: null];
-        $autoOpen = $perluTinjau && isset($panes['files']);
-        $primaryPane = $autoOpen ? 'files' : (array_key_first($panes) ?: 'detail');
-
-        $search = mb_strtolower(implode(' ', [
-            $item['nama'], $item['deskripsi'] ?? '', $item['catatan'] ?? '', $item['pic'] ?? '', $item['event_name'] ?? '',
-            $platformLabels[$item['platform'] ?? ''] ?? '', $cfg['label'],
-        ]));
-    ?>
-    <article class="cr-item <?= $isS ? 'is-s' : 'is-e' ?> <?= ($closed || ($isMD && $status === 'approved')) ? 'is-done' : '' ?> creative-item-card"
-        id="<?= $isS ? 'item-' . $iid . '-s' : 'item-e-' . $iid ?>"
-        data-id="<?= $iid ?>" data-ord="<?= $ord ?>" data-src="<?= $isS ? 's' : 'e' ?>" data-tipe="<?= $tipe ?>" data-tab="<?= esc($item['_tab'], 'attr') ?>"
-        data-status="<?= $stKey ?>" data-closed="<?= $closed ? '1' : '0' ?>" data-dl="<?= $dl['key'] ?>"
-        data-deadline="<?= esc($item['deadline'] ?? '', 'attr') ?>" data-tgl="<?= esc($itgl, 'attr') ?>"
-        data-name="<?= esc($item['nama'], 'attr') ?>" data-budget="<?= $iBudget ?>" data-real="<?= $iTotal ?>"
-        data-pane="<?= $primaryPane ?>" data-autoopen="<?= $autoOpen ? '1' : '0' ?>"
-        data-search="<?= esc($search, 'attr') ?>">
-        <div class="cr-item-head" data-cr-toggle>
-            <button type="button" class="cr-chev" aria-expanded="false" aria-label="Buka rincian <?= esc($item['nama'], 'attr') ?>"><i class="bi bi-chevron-right"></i></button>
-
-            <div class="cr-item-main">
-                <div class="cr-item-line">
-                    <span class="cr-item-name"><?= esc($item['nama']) ?></span>
-                    <?php if ($isMD): ?>
-                    <span class="cr-chip <?= $sCfg['chip'] ?>"><i class="bi <?= $sCfg['icon'] ?>"></i><?= $sCfg['label'] ?><?= ($item['versi'] ?? 1) > 1 ? ' · v' . (int) $item['versi'] : '' ?></span>
-                    <?php endif; ?>
-                    <?php if ($tipe === 'digital' && ($item['platform'] ?? '')): ?>
-                    <span class="cr-chip cr-chip-t"><i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?>"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?></span>
-                    <?php endif; ?>
-                    <?php if (!$isS): ?><span class="cr-chip cr-chip-gold"><i class="bi bi-calendar-event"></i>Event</span><?php endif; ?>
-                    <?php if ($closed): ?><span class="cr-chip cr-chip-mute"><i class="bi bi-check2-circle"></i>Selesai</span><?php endif; ?>
-                    <?php if ($dl['key'] === 'done'): ?>
-                    <span class="cr-chip cr-chip-ok" title="Deadline: <?= $fTgl($item['deadline']) ?>"><i class="bi bi-check-circle"></i>Tepat waktu</span>
-                    <?php elseif ($dl['key'] === 'late'): ?>
-                    <span class="cr-chip cr-chip-bad" title="Deadline: <?= $fTgl($item['deadline']) ?>"><i class="bi bi-exclamation-triangle-fill"></i>Terlambat <?= abs($dl['diff']) ?> hari</span>
-                    <?php elseif ($dl['key'] === 'soon'): ?>
-                    <span class="cr-chip cr-chip-warn" title="Deadline: <?= $fTgl($item['deadline']) ?>"><i class="bi bi-clock"></i><?= $dl['diff'] === 0 ? 'Hari ini!' : $dl['diff'] . ' hari lagi' ?></span>
-                    <?php elseif ($dl['key'] === 'ok'): ?>
-                    <span class="cr-chip cr-chip-blue" title="Deadline"><i class="bi bi-calendar-check"></i><?= $fTgl($item['deadline'], false) ?></span>
-                    <?php endif; ?>
-                    <?php if ($perluTinjau): ?><span class="cr-chip cr-chip-warn"><i class="bi bi-clipboard-check"></i>Perlu ditinjau</span><?php endif; ?>
-                    <?php if ($terkunci && $canEdit): ?><span class="cr-chip cr-chip-mute" title="Buka kembali materi di panel Opsi &amp; Persetujuan bila perlu diubah"><i class="bi bi-lock-fill"></i>Terkunci</span><?php endif; ?>
-                </div>
-                <div class="cr-item-meta">
-                    <?php if ($itgl): ?><span><i class="bi bi-calendar3"></i><?= $fTgl($itgl) ?></span><?php endif; ?>
-                    <?php if (!$isS && ($item['event_name'] ?? '')): ?><span><i class="bi bi-calendar-event"></i><?= esc($item['event_name']) ?></span><?php endif; ?>
-                    <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? ''))): ?>
-                    <span><i class="bi bi-camera"></i>Take <b><?= $fTgl($item['tanggal_take'] ?? '') ?></b><?= ($item['jam_take'] ?? '') ? ' ' . substr($item['jam_take'], 0, 5) : '' ?></span>
-                    <?php endif; ?>
-                    <?php if ($tipe === 'digital' && ($item['pic'] ?? '')): ?><span><i class="bi bi-person"></i><b><?= esc($item['pic']) ?></b></span><?php endif; ?>
-                </div>
-                <?php if (($item['deskripsi'] ?? '') !== ''): ?><div class="cr-desc1"><?= esc($item['deskripsi']) ?></div><?php endif; ?>
-            </div>
-
-            <div class="cr-fig">
-                <?php if ($isMD): ?>
-                <div class="cr-fig-row">
-                    <div><span class="cr-fig-l">Opsi desain</span><b><?= $isS ? $jmlOpsi : '—' ?></b></div>
-                    <div><span class="cr-fig-l">Putaran</span><b>v<?= (int) ($item['versi'] ?? 1) ?></b></div>
-                    <div><span class="cr-fig-l">Keputusan</span><b><?= $sCfg['label'] ?></b></div>
-                </div>
-                <?php else: ?>
-                <div class="cr-fig-row">
-                    <div><span class="cr-fig-l">Budget</span><b><?= $iBudget > 0 ? $rp($iBudget) : '—' ?></b></div>
-                    <div><span class="cr-fig-l">Realisasi</span><b class="<?= $iTotal > 0 ? ($over ? 'cr-c-bad' : 'cr-c-ok') : 'cr-c-mute' ?>"><?= $isS ? ($iTotal > 0 ? $rp($iTotal) : '—') : '—' ?></b></div>
-                    <?php if ($tipe === 'digital'): ?>
-                    <div><span class="cr-fig-l">Reach</span><b><?= $actReach > 0 ? number_format($actReach, 0, ',', '.') : '—' ?></b><?php if ($tgtReach > 0): ?> <span class="cr-fig-s">/ <?= number_format($tgtReach, 0, ',', '.') ?></span><?php endif; ?></div>
-                    <?php else: ?>
-                    <div><span class="cr-fig-l">Serapan</span><b><?= $iPct !== null && $isS ? $iPct . '%' : '—' ?></b></div>
-                    <?php endif; ?>
-                </div>
-                <?php if ($isS && $iPct !== null && $iTotal > 0): ?>
-                <div class="cr-fig-bar"><div class="cr-bar <?= $barCls ?>"><i style="width:<?= $iPct ?>%"></i></div><span class="cr-pct <?= $over ? 'cr-c-bad' : 'cr-c-ok' ?>"><?= $iPct ?>%</span></div>
-                <?php endif; ?>
-                <?php endif; ?>
-            </div>
-
-            <div class="cr-item-act" data-cr-notoggle>
-                <?php if (!$isS): ?>
-                <a href="<?= base_url('events/' . $item['event_id'] . '/creative') ?>" class="cr-btn cr-btn-sm cr-btn-warn"><i class="bi bi-box-arrow-up-right"></i><span>Kelola di Event</span></a>
-                <?php elseif ($perluTinjau): ?>
-                <button type="button" class="cr-btn cr-btn-sm cr-btn-primary toggle-files" data-iid="<?= $iid ?>" data-cr-open="files"><i class="bi bi-clipboard-check"></i><span>Tinjau</span></button>
-                <?php elseif ($panes): $pk = array_key_first($panes); ?>
-                <button type="button" class="cr-btn cr-btn-sm cr-btn-soft" data-cr-open="<?= $pk ?>"><i class="bi <?= $panes[$pk][1] ?>"></i><span><?= $panes[$pk][0] ?></span><?php if ($panes[$pk][2]): ?><span class="cr-chip cr-chip-mute"><?= $panes[$pk][2] ?></span><?php endif; ?></button>
-                <?php endif; ?>
-                <?php if ($isS && $canEdit && !$terkunci): ?>
-                <div class="dropdown">
-                    <button type="button" class="cr-iconbtn cr-iconbtn-sm" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi lain untuk <?= esc($item['nama'], 'attr') ?>"><i class="bi bi-three-dots-vertical"></i></button>
-                    <ul class="dropdown-menu dropdown-menu-end cr-menu">
-                        <li><button type="button" class="dropdown-item edit-item-btn"
-                            data-id="<?= $iid ?>"
-                            data-nama="<?= esc($item['nama'], 'attr') ?>"
-                            data-tipe="<?= $tipe ?>"
-                            data-platform="<?= esc($item['platform'] ?? '', 'attr') ?>"
-                            data-tanggal-take="<?= $item['tanggal_take'] ?? '' ?>"
-                            data-jam-take="<?= substr($item['jam_take'] ?? '', 0, 5) ?>"
-                            data-pic="<?= esc($item['pic'] ?? '', 'attr') ?>"
-                            data-deskripsi="<?= esc($item['deskripsi'] ?? '', 'attr') ?>"
-                            data-tanggal="<?= $item['tanggal'] ?? '' ?>"
-                            data-is-closed="<?= $closed ? '1' : '0' ?>"
-                            data-budget="<?= number_format($iBudget, 0, ',', '.') ?>"
-                            data-target-reach="<?= (int) ($item['target_reach'] ?? 0) ?>"
-                            data-target-impressions="<?= (int) ($item['target_impressions'] ?? 0) ?>"
-                            data-deadline="<?= $item['deadline'] ?? '' ?>"
-                            data-catatan="<?= esc($item['catatan'] ?? '', 'attr') ?>"><i class="bi bi-pencil"></i>Ubah item</button></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <form method="POST" action="<?= base_url('creative/' . $iid . '/delete') ?>" onsubmit="return confirm('Hapus item ini beserta semua file dan realisasinya?')">
-                                <?= csrf_field() ?>
-                                <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i>Hapus item</button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-                <?php endif; ?>
-            </div>
+<div id="crPaneAktif" data-cr-pane-wrap="aktif">
+    <?php if ($nNone > 0): ?>
+    <section class="cr-monthbox is-open" data-month="none">
+        <div class="cr-month-body" style="display:flex">
+            <?= view('creative_main/_tema_card', ['c' => $tema['none']] + $shared, ['saveData' => false]) ?>
         </div>
+    </section>
+    <?php endif; ?>
+    <?php if (empty($tema['aktif'])): ?>
+    <div class="cr-empty"><i class="bi bi-calendar-event"></i><h5>Belum ada Tema aktif</h5><p>Tema event muncul otomatis dari daftar event. Buat Tema Bulanan untuk pekerjaan di luar event.</p></div>
+    <?php else: $renderBulan($tema['aktif']); endif; ?>
+</div>
 
-        <div class="cr-item-body" hidden>
-            <?php if (count($panes) > 0): ?>
-            <div class="cr-tabs" role="tablist">
-                <button type="button" role="tab" data-cr-tab="detail"><i class="bi bi-card-text"></i>Rincian</button>
-                <?php foreach ($panes as $pk => $pv): ?>
-                <button type="button" role="tab" data-cr-tab="<?= $pk ?>"><i class="bi <?= $pv[1] ?>"></i><?= $pv[0] ?><?php if ($pv[2]): ?> <span class="n"><?= $pv[2] ?></span><?php endif; ?></button>
-                <?php endforeach; ?>
-            </div>
-            <?php else: ?><div style="height:.75rem"></div><?php endif; ?>
-
-            <!-- Rincian -->
-            <div class="cr-pane" data-cr-pane="detail">
-                <?php if ($isS && $isMD && $status === 'approved'): ?>
-                <div class="cr-final">
-                <?= view('_creative/_final', ['iFiles' => $iFiles, 'fileBase' => 'uploads/creative-standalone/' . $iid . '/'], ['saveData' => false]) ?>
-                </div>
-                <?php endif; ?>
-                <dl class="cr-dl">
-                    <div><dt>Jenis</dt><dd><?= $cfg['label'] ?></dd></div>
-                    <div><dt>Sumber</dt><dd><?= $isS ? 'Creative Standalone' : 'Event: ' . esc($item['event_name'] ?? '') ?></dd></div>
-                    <?php if ($itgl): ?><div><dt>Tanggal</dt><dd><?= $fTgl($itgl) ?></dd></div><?php endif; ?>
-                    <div><dt>Deadline</dt><dd><?= ($item['deadline'] ?? '') ? $fTgl($item['deadline']) : '—' ?></dd></div>
-                    <?php if ($hasBudgetField || $iBudget > 0): ?><div><dt>Budget</dt><dd><?= $iBudget > 0 ? $rp($iBudget) : '—' ?></dd></div><?php endif; ?>
-                    <?php if ($isS && $hasBudgetField): ?><div><dt>Realisasi</dt><dd class="<?= $over ? 'cr-c-bad' : '' ?>"><?= $iTotal > 0 ? $rp($iTotal) . ($iPct !== null ? ' (' . $iPct . '%)' : '') : '—' ?></dd></div><?php endif; ?>
-                    <?php if ($tipe === 'digital'): ?>
-                    <div><dt>Platform</dt><dd><?= esc($platformLabels[$item['platform'] ?? ''] ?? '—') ?></dd></div>
-                    <div><dt>Take</dt><dd><?= (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '')) ? trim($fTgl($item['tanggal_take'] ?? '') . ' ' . substr($item['jam_take'] ?? '', 0, 5)) : '—' ?></dd></div>
-                    <div><dt>PIC</dt><dd><?= ($item['pic'] ?? '') !== '' ? esc($item['pic']) : '—' ?></dd></div>
-                    <?php endif; ?>
-                    <?php if ($tgtReach > 0 || $tgtImpr > 0): ?>
-                    <div><dt>Target reach / impresi</dt><dd><?= number_format($tgtReach, 0, ',', '.') ?> / <?= number_format($tgtImpr, 0, ',', '.') ?></dd></div>
-                    <?php endif; ?>
-                </dl>
-                <?php if (($item['deskripsi'] ?? '') !== ''): ?><p class="cr-text"><?= esc($item['deskripsi']) ?></p><?php endif; ?>
-                <?php if (($item['catatan'] ?? '') !== ''): ?><p class="cr-note"><i class="bi bi-sticky"></i><?= esc($item['catatan']) ?></p><?php endif; ?>
-                <?php if (!$isS): ?>
-                <p class="cr-note"><i class="bi bi-info-circle"></i>Item ini milik event dan hanya bisa dikelola di halaman event. <a href="<?= base_url('events/' . $item['event_id'] . '/creative') ?>" style="color:var(--cr-link);font-weight:600">Buka halaman event</a></p>
-                <?php endif; ?>
-            </div>
-
-            <?php if (isset($panes['files'])): ?>
-            <!-- Opsi desain, keputusan & riwayat -->
-            <div class="cr-pane" data-cr-pane="files" id="files-<?= $iid ?>" hidden>
-                <div class="cr-approval">
-                <?= view('_creative/_approval', [
-                    'iid'        => $iid,
-                    'item'       => $item,
-                    'iFiles'     => $iFiles,
-                    'iReviews'   => $iReviews,
-                    'canEdit'    => $canEdit,
-                    'canApprove' => $canApprove,
-                    'aksiBase'   => 'creative/' . $iid,
-                    'fileBase'   => 'uploads/creative-standalone/' . $iid . '/',
-                    'fileField'  => 'file',
-                    'imageExts'  => $imageExts,
-                ], ['saveData' => false]) ?>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <?php if (isset($panes['realisasi'])): ?>
-            <!-- Realisasi biaya -->
-            <div class="cr-pane" data-cr-pane="realisasi" id="realisasi-<?= $iid ?>" hidden>
-                <div class="cr-pane-h">
-                    <div class="cr-pane-t"><i class="bi bi-receipt"></i>Realisasi Biaya
-                        <?php if ($iTotal > 0): ?><span class="cr-chip cr-chip-ok"><?= $rp($iTotal) ?></span><?php endif; ?>
-                        <?php if ($nEntries): ?><span class="cr-chip cr-chip-mute"><?= $nEntries ?> entri</span><?php endif; ?>
-                    </div>
-                    <?php if ($canEdit): ?>
-                    <button type="button" class="cr-btn cr-btn-sm cr-btn-primary toggle-add-realisasi" data-iid="<?= $iid ?>"><i class="bi bi-plus-lg"></i>Input</button>
-                    <?php endif; ?>
-                </div>
-
-                <?php if ($canEdit): ?>
-                <div id="add-realisasi-<?= $iid ?>" class="cr-formbox" hidden>
-                    <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/add') ?>" <?= in_array($tipe, ['influencer', 'cetak', 'media_prescon']) ? 'enctype="multipart/form-data"' : '' ?>>
-                        <?= csrf_field() ?>
-                        <div class="cr-fgrid">
-                            <div class="cr-f w2"><label>Tanggal</label><input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
-                            <div class="cr-f w3"><label>Nilai (Rp) <span class="req">*</span></label><input type="text" name="nilai" class="form-control currency-input" placeholder="0" required></div>
-                            <?php if ($tipe === 'influencer'): ?>
-                            <div class="cr-f w3"><label>Nama Influencer <span class="req">*</span></label><input type="text" name="nama_influencer" class="form-control" placeholder="@username" required></div>
-                            <?php endif; ?>
-                            <div class="cr-f"><label>Catatan</label><input type="text" name="catatan" class="form-control" placeholder="Opsional"></div>
-                            <?php if ($tipe === 'influencer'): ?>
-                            <div class="cr-f w6"><label><i class="bi bi-image"></i> Screenshot Insight (opsional)</label><input type="file" name="bukti" class="form-control" accept="image/*"></div>
-                            <div class="cr-f w6"><label><i class="bi bi-file-earmark-check"></i> Bukti Serah Terima (opsional)</label><input type="file" name="serah_terima" class="form-control" accept="image/*,.pdf"></div>
-                            <?php elseif ($tipe === 'cetak'): ?>
-                            <div class="cr-f w6"><label><i class="bi bi-image"></i> Bukti Terpasang (opsional)</label><input type="file" name="bukti_terpasang" class="form-control" accept="image/*,.pdf"></div>
-                            <?php elseif ($tipe === 'media_prescon'): ?>
-                            <div class="cr-f w6"><label><i class="bi bi-image"></i> Dokumentasi (opsional)</label><input type="file" name="bukti" class="form-control" accept="image/*,.pdf"></div>
-                            <?php endif; ?>
-                            <div class="cr-f w12 cr-f-act" style="justify-content:flex-end"><button type="submit" class="cr-btn cr-btn-primary"><i class="bi bi-save"></i>Simpan</button></div>
-                        </div>
-                    </form>
-                </div>
-                <?php endif; ?>
-
-                <?php if (!empty($iReal['entries'])): ?>
-                <div class="cr-tbl-wrap">
-                <table class="cr-tbl">
-                    <thead><tr>
-                        <th>Tanggal</th>
-                        <?php if ($tipe === 'influencer'): ?><th>Influencer</th><?php endif; ?>
-                        <th class="r">Nilai</th>
-                        <th>Catatan</th>
-                        <?php if ($tipe === 'influencer'): ?><th title="Screenshot Insight"><i class="bi bi-image"></i> Insight</th><th title="Bukti Serah Terima"><i class="bi bi-file-earmark-check"></i> Serah terima</th><?php endif; ?>
-                        <?php if ($tipe === 'cetak'): ?><th title="Bukti Terpasang"><i class="bi bi-image"></i> Terpasang</th><?php endif; ?>
-                        <?php if ($tipe === 'media_prescon'): ?><th title="Dokumentasi"><i class="bi bi-image"></i> Dokumentasi</th><?php endif; ?>
-                        <?php if ($canEdit): ?><th style="width:48px"></th><?php endif; ?>
-                    </tr></thead>
-                    <tbody>
-                    <?php foreach ($iReal['entries'] as $e): ?>
-                    <tr>
-                        <td class="nw"><?= $fTgl($e['tanggal']) ?></td>
-                        <?php if ($tipe === 'influencer'): ?><td class="fw-semibold"><?= esc($e['nama_influencer'] ?? '—') ?></td><?php endif; ?>
-                        <td class="r nw cr-c-ok fw-bold"><?= $rp($e['nilai']) ?></td>
-                        <td class="cr-note-cell"><?= esc($e['catatan'] ?? '') ?></td>
-                        <?php if ($tipe === 'influencer'): ?>
-                        <td><?= $fileCell($e['file_name'] ?? null, $e['original_name'] ?? null, $iid) ?></td>
-                        <td><?= $fileCell($e['serah_terima_file_name'] ?? null, $e['serah_terima_original_name'] ?? null, $iid) ?></td>
-                        <?php elseif ($tipe === 'cetak'): ?>
-                        <td><?= $fileCell($e['bukti_terpasang_file_name'] ?? null, $e['bukti_terpasang_original_name'] ?? null, $iid) ?></td>
-                        <?php elseif ($tipe === 'media_prescon'): ?>
-                        <td><?= $fileCell($e['file_name'] ?? null, $e['original_name'] ?? null, $iid) ?></td>
-                        <?php endif; ?>
-                        <?php if ($canEdit): ?>
-                        <td>
-                            <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/' . $e['id'] . '/delete') ?>" onsubmit="return confirm('Hapus entri ini?')">
-                                <?= csrf_field() ?>
-                                <button type="submit" class="cr-iconbtn cr-iconbtn-sm" title="Hapus entri" aria-label="Hapus entri"><i class="bi bi-trash"></i></button>
-                            </form>
-                        </td>
-                        <?php endif; ?>
-                    </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                    <tfoot><tr>
-                        <td colspan="<?= $tipe === 'influencer' ? 2 : 1 ?>">Total</td>
-                        <td class="r nw cr-c-ok"><?= $rp($iTotal) ?></td>
-                        <td colspan="<?= 1 + ($tipe === 'influencer' ? 2 : (in_array($tipe, ['cetak', 'media_prescon']) ? 1 : 0)) + ($canEdit ? 1 : 0) ?>"></td>
-                    </tr></tfoot>
-                </table>
-                </div>
-                <?php else: ?>
-                <div class="cr-groupempty">Belum ada realisasi biaya.<?= $canEdit ? ' Klik “Input” untuk mencatat.' : '' ?></div>
-                <?php endif; ?>
-            </div>
-            <?php endif; ?>
-
-            <?php if (isset($panes['insight'])): ?>
-            <!-- Insight -->
-            <div class="cr-pane" data-cr-pane="insight" id="insight-<?= $iid ?>" hidden>
-                <div class="cr-pane-h">
-                    <div class="cr-pane-t"><i class="bi bi-graph-up"></i>Insight
-                        <?php if ($nIns): ?><span class="cr-chip cr-chip-mute"><?= $nIns ?> entri</span><?php endif; ?>
-                    </div>
-                    <?php if ($canEdit): ?>
-                    <button type="button" class="cr-btn cr-btn-sm cr-btn-primary toggle-add-insight" data-iid="<?= $iid ?>"><i class="bi bi-plus-lg"></i>Input</button>
-                    <?php endif; ?>
-                </div>
-
-                <?php if ($iInsight): ?>
-                <?php
-                $insightMetricMap = [
-                    'views' => $iInsight['max_views'] ?? 0, 'reach' => $iInsight['max_reach'] ?? 0, 'impressions' => $iInsight['max_impressions'] ?? 0,
-                    'likes' => $iInsight['max_likes'] ?? 0, 'comments' => $iInsight['max_comments'] ?? 0, 'shares' => $iInsight['max_shares'] ?? 0,
-                    'saves' => $iInsight['max_saves'] ?? 0, 'followers_gained' => $iInsight['total_followers_gained'] ?? 0,
-                ];
-                ?>
-                <div class="cr-metrics">
-                    <?php foreach ($insightFields as $field => $fcfg): $val = $insightMetricMap[$field] ?? 0; if ($val <= 0) continue; ?>
-                    <div class="cr-metric"><i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?>"></i><b><?= number_format($val, 0, ',', '.') ?></b><span><?= $fcfg['label'] ?></span></div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-
-                <?php if (($tgtReach > 0 || $tgtImpr > 0) && ($actReach > 0 || $actImpr > 0)): ?>
-                <div style="margin-bottom:.8rem">
-                    <?php foreach ([['Reach', $actReach, $tgtReach], ['Impresi', $actImpr, $tgtImpr]] as [$tl, $ta, $tt]): if ($tt <= 0) continue;
-                        $pp = min(100, round($ta / $tt * 100)); $bc = $pp >= 100 ? 'cr-bar-ok' : ($pp >= 60 ? '' : 'cr-bar-mid'); ?>
-                    <div class="cr-target"><span class="cr-c-mute"><?= $tl ?></span><div class="cr-bar <?= $bc ?>"><i style="width:<?= $pp ?>%"></i></div><em><?= number_format($ta, 0, ',', '.') ?> / <?= number_format($tt, 0, ',', '.') ?> (<?= $pp ?>%)</em></div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-
-                <?php if ($canEdit): ?>
-                <div id="add-insight-<?= $iid ?>" class="cr-formbox" hidden>
-                    <form method="POST" action="<?= base_url('creative/' . $iid . '/insight/add') ?>" enctype="multipart/form-data">
-                        <?= csrf_field() ?>
-                        <div class="cr-fgrid" style="margin-bottom:.6rem">
-                            <div class="cr-f w2"><label>Tanggal</label><input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
-                            <?php if (($item['platform'] ?? '') === 'keduanya'): ?>
-                            <div class="cr-f w2"><label>Platform</label><select name="platform" class="form-select"><option value="ig">Instagram</option><option value="tiktok">TikTok</option></select></div>
-                            <?php else: ?>
-                            <input type="hidden" name="platform" value="<?= esc($item['platform'] ?? '', 'attr') ?>">
-                            <?php endif; ?>
-                            <div class="cr-f w4"><label><i class="bi bi-image"></i> Screenshot (opsional)</label><input type="file" name="screenshot" class="form-control" accept="image/*"></div>
-                            <div class="cr-f"><label>Catatan</label><input type="text" name="catatan" class="form-control" placeholder="Opsional"></div>
-                        </div>
-                        <div class="cr-fgrid">
-                            <?php foreach ($insightFields as $field => $fcfg): ?>
-                            <div class="cr-f w2"><label><i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?>"></i> <?= $fcfg['label'] ?></label><input type="number" name="<?= $field ?>" class="form-control" value="0" min="0"></div>
-                            <?php endforeach; ?>
-                            <div class="cr-f w12 cr-f-act" style="justify-content:flex-end"><button type="submit" class="cr-btn cr-btn-primary"><i class="bi bi-save"></i>Simpan Insight</button></div>
-                        </div>
-                    </form>
-                </div>
-                <?php endif; ?>
-
-                <?php if ($nIns): ?>
-                <div class="cr-tbl-wrap">
-                <table class="cr-tbl">
-                    <thead><tr>
-                        <th>Tanggal</th>
-                        <?php if (($item['platform'] ?? '') === 'keduanya'): ?><th>Platform</th><?php endif; ?>
-                        <?php foreach ($insightFields as $field => $fcfg): ?><th class="r" title="<?= $fcfg['label'] ?>"><i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?>"></i> <?= $fcfg['label'] ?></th><?php endforeach; ?>
-                        <th><i class="bi bi-image"></i></th>
-                        <th>Catatan</th>
-                        <?php if ($canEdit): ?><th style="width:48px"></th><?php endif; ?>
-                    </tr></thead>
-                    <tbody>
-                    <?php foreach ($iInsight['entries'] as $ins): ?>
-                    <tr>
-                        <td class="nw"><?= $fTgl($ins['tanggal']) ?></td>
-                        <?php if (($item['platform'] ?? '') === 'keduanya'): ?><td><span class="cr-chip cr-chip-t"><?= esc($platformLabels[$ins['platform']] ?? $ins['platform']) ?></span></td><?php endif; ?>
-                        <?php foreach ($insightFields as $field => $fcfg): ?>
-                        <td class="r nw <?= $ins[$field] > 0 ? 'fw-semibold' : 'cr-c-mute' ?>"><?= $ins[$field] > 0 ? number_format($ins[$field], 0, ',', '.') : '—' ?></td>
-                        <?php endforeach; ?>
-                        <td>
-                            <?php if ($ins['file_name']): $su = base_url('uploads/creative-standalone-insight/' . $iid . '/' . $ins['file_name']); ?>
-                            <a href="<?= $su ?>" target="_blank"><img class="thumb" src="<?= $su ?>" alt="Screenshot insight" title="<?= esc($ins['original_name'] ?? '', 'attr') ?>"></a>
-                            <?php else: ?><span class="cr-c-mute">—</span><?php endif; ?>
-                        </td>
-                        <td class="cr-note-cell"><?= esc($ins['catatan'] ?? '') ?></td>
-                        <?php if ($canEdit): ?>
-                        <td>
-                            <form method="POST" action="<?= base_url('creative/' . $iid . '/insight/' . $ins['id'] . '/delete') ?>" onsubmit="return confirm('Hapus entri insight ini?')">
-                                <?= csrf_field() ?>
-                                <button type="submit" class="cr-iconbtn cr-iconbtn-sm" title="Hapus entri" aria-label="Hapus entri insight"><i class="bi bi-trash"></i></button>
-                            </form>
-                        </td>
-                        <?php endif; ?>
-                    </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-                </div>
-                <?php else: ?>
-                <div class="cr-groupempty">Belum ada data insight.<?= $canEdit ? ' Klik “Input” untuk mencatat.' : '' ?></div>
-                <?php endif; ?>
-            </div>
-            <?php endif; ?>
-        </div>
-    </article>
-    <?php endforeach; ?>
-    </div>
-    <div class="cr-more" hidden>
-        <button type="button" class="cr-btn cr-btn-sm" data-cr-more><i class="bi bi-chevron-down"></i><span>Tampilkan lebih banyak</span></button>
-        <button type="button" class="cr-btn cr-btn-sm" data-cr-all>Tampilkan semua</button>
-    </div>
-</section>
-<?php endforeach; ?>
+<div id="crPaneTerkunci" data-cr-pane-wrap="terkunci" hidden>
+    <?php if (empty($tema['terkunci'])): ?>
+    <div class="cr-empty"><i class="bi bi-lock"></i><h5>Belum ada Tema yang ditutup</h5><p>Tema yang sudah selesai ditutup oleh lead Creative atau admin supaya daftar utama tetap ringkas. Materinya terkunci sampai dibuka kembali.</p></div>
+    <?php else: $renderBulan($tema['terkunci']); endif; ?>
+</div>
 
 <!-- Ringkasan -->
 <div class="cr-foot">
-    <span class="cr-c-mute"><?= $totalStandalone ?> standalone · <?= count($eventItems) ?> dari event</span>
+    <span class="cr-c-mute"><?= $totalStandalone ?> item di sini · <?= count($eventItems) ?> dari tab event · <?= $tema['nTema'] ?> tema</span>
     <span>Total Budget: <b class="cr-c-bad"><?= $rp($totalBudget) ?></b></span>
 </div>
 
-<?php endif; // ada item / bisa edit ?>
+<?php endif; ?>
 
 <?php if ($canEdit): ?>
 <!-- Modal ubah item -->
@@ -753,6 +301,18 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
     <div class="mb-3">
         <label class="form-label small fw-semibold">Nama <span class="text-danger">*</span></label>
         <input type="text" name="nama" id="editNama" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold" for="editTema">Tema</label>
+        <select name="tema" id="editTema" class="form-select">
+            <option value="none">Tanpa Tema</option>
+            <?php if ($temaPilihan['bulanan']): ?><optgroup label="Tema Bulanan">
+                <?php foreach ($temaPilihan['bulanan'] as $o): ?><option value="<?= esc($o['val'], 'attr') ?>"><?= esc($o['nama']) ?> · <?= esc($o['ket']) ?></option><?php endforeach; ?>
+            </optgroup><?php endif; ?>
+            <?php if ($temaPilihan['event']): ?><optgroup label="Event">
+                <?php foreach ($temaPilihan['event'] as $o): ?><option value="<?= esc($o['val'], 'attr') ?>"><?= esc($o['nama']) ?> · <?= esc($o['ket']) ?></option><?php endforeach; ?>
+            </optgroup><?php endif; ?>
+        </select>
     </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold"><i class="bi bi-calendar3 me-1"></i>Tanggal</label>
@@ -777,6 +337,9 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
     <div id="editPicDiv" class="mb-3 d-none">
         <label class="form-label small fw-semibold"><i class="bi bi-person me-1"></i>PIC</label>
         <input type="text" name="pic" id="editPic" class="form-control" placeholder="Nama PIC">
+    </div>
+    <div id="editCetakDiv" class="row g-2 mb-3 d-none">
+        <?= view('_creative/_cetak_fields', ['cetakKatalog' => $cetakKatalog, 'uid' => 'edit', 'jenisId' => 'editJenisMedia', 'ukuranId' => 'editUkuran'], ['saveData' => false]) ?>
     </div>
     <div id="editBudgetDiv" class="mb-3">
         <label class="form-label small fw-semibold">Budget (Rp)</label>
@@ -820,10 +383,182 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
 </div></div></div>
 <?php endif; ?>
 
+<?php if ($canEdit): ?>
+<!-- Modal tambah item -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemTitle" aria-hidden="true">
+<div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
+<form id="addItemForm" method="POST" action="<?= base_url('creative/add') ?>">
+<?= csrf_field() ?>
+<div class="modal-header">
+    <h5 class="modal-title fw-semibold" id="addItemTitle">Tambah Item</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+</div>
+<div class="modal-body">
+    <div class="row g-2 mb-3">
+        <div class="col-sm-6">
+            <label class="form-label small fw-semibold" for="addTipe">Jenis <span class="text-danger">*</span></label>
+            <select name="tipe" id="addTipe" class="form-select" required>
+                <?php foreach ($tipeConfig as $tp => $tc): ?><option value="<?= $tp ?>"><?= $tc['label'] ?></option><?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-sm-6">
+            <label class="form-label small fw-semibold" for="addTema">Tema</label>
+            <select name="tema" id="addTema" class="form-select">
+                <option value="">Tanpa Tema</option>
+                <?php if ($temaPilihan['bulanan']): ?><optgroup label="Tema Bulanan">
+                    <?php foreach ($temaPilihan['bulanan'] as $o): ?><option value="<?= esc($o['val'], 'attr') ?>"><?= esc($o['nama']) ?> · <?= esc($o['ket']) ?></option><?php endforeach; ?>
+                </optgroup><?php endif; ?>
+            </select>
+            <div class="form-text" style="font-size:.72rem">Item untuk event diisi di tab Creative event.</div>
+        </div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold" for="addNama">Nama <span class="text-danger">*</span></label>
+        <input type="text" name="nama" id="addNama" class="form-control" required>
+    </div>
+    <div class="row g-2 mb-3">
+        <div class="col-sm-6">
+            <label class="form-label small fw-semibold"><i class="bi bi-calendar3 me-1"></i>Tanggal</label>
+            <input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>">
+        </div>
+        <div class="col-sm-6">
+            <label class="form-label small fw-semibold">Deadline</label>
+            <input type="date" name="deadline" class="form-control">
+        </div>
+    </div>
+    <div class="row g-2 mb-3" data-add-for="digital">
+        <div class="col-sm-4"><label class="form-label small fw-semibold">Platform</label>
+            <select name="platform" class="form-select"><option value="ig">Instagram</option><option value="tiktok">TikTok</option><option value="keduanya">IG &amp; TikTok</option></select></div>
+        <div class="col-sm-4"><label class="form-label small fw-semibold"><i class="bi bi-camera me-1"></i>Tanggal Take</label><input type="date" name="tanggal_take" class="form-control"></div>
+        <div class="col-sm-4"><label class="form-label small fw-semibold">Waktu Take</label><input type="time" name="jam_take" class="form-control"></div>
+        <div class="col-12"><label class="form-label small fw-semibold"><i class="bi bi-person me-1"></i>PIC</label><input type="text" name="pic" class="form-control" placeholder="Nama PIC"></div>
+    </div>
+    <div class="row g-2 mb-3" data-add-for="cetak">
+        <?= view('_creative/_cetak_fields', ['cetakKatalog' => $cetakKatalog, 'uid' => 'add'], ['saveData' => false]) ?>
+    </div>
+    <div class="mb-3" data-add-for="cetak influencer digital media_prescon">
+        <label class="form-label small fw-semibold">Budget (Rp)</label>
+        <input type="text" name="budget" class="form-control currency-input" placeholder="0">
+    </div>
+    <div class="row g-2 mb-3" data-add-for="digital influencer">
+        <div class="col-6"><label class="form-label small fw-semibold">Target Reach</label><input type="number" name="target_reach" class="form-control" placeholder="0" min="0"></div>
+        <div class="col-6"><label class="form-label small fw-semibold">Target Impresi</label><input type="number" name="target_impressions" class="form-control" placeholder="0" min="0"></div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Deskripsi / Catatan</label>
+        <input type="text" name="deskripsi" class="form-control" placeholder="Opsional">
+    </div>
+    <div class="form-check mb-0">
+        <input type="checkbox" class="form-check-input" name="is_closed" id="addIsClosed" value="1">
+        <label class="form-check-label small fw-semibold" for="addIsClosed">Sudah selesai / close</label>
+    </div>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+    <button type="submit" class="btn btn-primary">Tambah</button>
+</div>
+</form>
+</div></div></div>
+
+<!-- Modal Tema Bulanan (tambah / ubah) -->
+<div class="modal fade" id="temaModal" tabindex="-1" aria-labelledby="temaModalTitle" aria-hidden="true">
+<div class="modal-dialog"><div class="modal-content">
+<form id="temaForm" method="POST" action="<?= base_url('creative/tema/add') ?>">
+<?= csrf_field() ?>
+<input type="hidden" name="bulan" id="temaBulan">
+<div class="modal-header">
+    <h5 class="modal-title fw-semibold" id="temaModalTitle">Tema Bulanan</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+</div>
+<div class="modal-body">
+    <div class="mb-3">
+        <label class="form-label small fw-semibold" for="temaNama">Nama tema <span class="text-danger">*</span></label>
+        <input type="text" id="temaNama" name="nama" class="form-control" required maxlength="200" placeholder="mis. Design Agustus — Unity in Diversity Festive">
+    </div>
+    <div class="row g-2 mb-3">
+        <div class="col-7">
+            <label class="form-label small fw-semibold" for="temaBln">Bulan</label>
+            <select id="temaBln" class="form-select"><?php foreach ($bulanOpt as $v => $l): ?><option value="<?= $v ?>"><?= $l ?></option><?php endforeach; ?></select>
+        </div>
+        <div class="col-5">
+            <label class="form-label small fw-semibold" for="temaThn">Tahun</label>
+            <select id="temaThn" class="form-select"><?php for ($y = $thnIni - 2; $y <= $thnIni + 1; $y++): ?><option value="<?= $y ?>" <?= $y === $thnIni ? 'selected' : '' ?>><?= $y ?></option><?php endfor; ?></select>
+        </div>
+    </div>
+    <div class="mb-0">
+        <label class="form-label small fw-semibold" for="temaDesk">Deskripsi</label>
+        <textarea id="temaDesk" name="deskripsi" class="form-control" rows="2" placeholder="Opsional"></textarea>
+    </div>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+    <button type="submit" class="btn btn-primary">Simpan</button>
+</div>
+</form>
+</div></div></div>
+
+<!-- Modal pindahkan ke tema -->
+<div class="modal fade" id="pindahModal" tabindex="-1" aria-labelledby="pindahTitle" aria-hidden="true">
+<div class="modal-dialog"><div class="modal-content">
+<form id="pindahForm" method="POST">
+<?= csrf_field() ?>
+<div class="modal-header">
+    <h5 class="modal-title fw-semibold" id="pindahTitle">Pindahkan ke tema</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+</div>
+<div class="modal-body">
+    <p class="small text-muted mb-2" id="pindahNama"></p>
+    <label class="form-label small fw-semibold" for="pindahTema">Tema tujuan</label>
+    <select name="tema" id="pindahTema" class="form-select">
+        <option value="none">Tanpa Tema</option>
+        <?php if ($temaPilihan['bulanan']): ?><optgroup label="Tema Bulanan">
+            <?php foreach ($temaPilihan['bulanan'] as $o): ?><option value="<?= esc($o['val'], 'attr') ?>"><?= esc($o['nama']) ?> · <?= esc($o['ket']) ?></option><?php endforeach; ?>
+        </optgroup><?php endif; ?>
+        <?php if ($temaPilihan['event']): ?><optgroup label="Event">
+            <?php foreach ($temaPilihan['event'] as $o): ?><option value="<?= esc($o['val'], 'attr') ?>"><?= esc($o['nama']) ?> · <?= esc($o['ket']) ?></option><?php endforeach; ?>
+        </optgroup><?php endif; ?>
+    </select>
+    <div class="form-text" style="font-size:.72rem">Hanya memindahkan penautan; isi dan persetujuan materi tidak berubah.</div>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+    <button type="submit" class="btn btn-primary">Pindahkan</button>
+</div>
+</form>
+</div></div></div>
+<?php endif; ?>
+
+<?php if ($canEdit): ?>
+<?= view('_creative/_turunan_picker', ['katalog' => $katalog, 'pfx' => 'cr'], ['saveData' => false]) ?>
+<?= view('_creative/_titik_picker', ['pfx' => 'cr'], ['saveData' => false]) ?>
+<?php endif; ?>
+
+<?php if (!empty($canClose)): ?>
+<!-- Dialog: tutup Tema yang masih punya item Rencana -->
+<div class="modal fade" id="rencanaTutupModal" tabindex="-1" aria-labelledby="rencanaTutupTitle" aria-hidden="true">
+<div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+<div class="modal-header">
+    <h5 class="modal-title fw-semibold" id="rencanaTutupTitle">Tutup tema</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+</div>
+<div class="modal-body">
+    <p class="mb-2"><b id="rencanaTutupN">0</b> item belum dikerjakan di tema <b id="rencanaTutupNama"></b>: hapus atau tetap?</p>
+    <p class="small text-muted mb-0">“Hapus yang belum dikerjakan” menghapus item rencana dari paket awal yang belum diisi. “Tetap dan tutup” membiarkan item itu apa adanya lalu mengunci tema.</p>
+</div>
+<div class="modal-footer flex-wrap">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+    <button type="button" class="btn btn-outline-primary" data-rencana="tetap"><i class="bi bi-lock me-1"></i>Tetap dan tutup</button>
+    <button type="button" class="btn btn-danger" data-rencana="hapus"><i class="bi bi-trash me-1"></i>Hapus yang belum dikerjakan</button>
+</div>
+</div></div></div>
+<?php endif; ?>
+
 </div><!-- /.page-cre -->
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
-<script>window.CRE_BASE = <?= json_encode(base_url('creative/')) ?>;</script>
+<script>window.CRE_BASE = <?= json_encode(base_url('creative/')) ?>; window.CRE_CETAK = <?= json_encode($cetakKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_TITIKJENIS = <?= json_encode($jenisMaster ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_DESIGNS = <?= json_encode((object) ($designMap ?? []), JSON_UNESCAPED_UNICODE) ?>;</script>
 <script src="<?= base_url('js/creative-main.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-main.js') ?: 1 ?>"></script>
+<script src="<?= base_url('js/creative-turunan.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-turunan.js') ?: 1 ?>"></script>
+<script src="<?= base_url('js/creative-titik.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-titik.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

@@ -217,7 +217,7 @@ foreach ($allBudgets as $b):
 <!-- Creative -->
 <?php if (! empty($creativeItems)): ?>
 <?php
-$creativeTipeLabel = ['master_design'=>'Master Design','digital'=>'Digital','cetak'=>'Cetak','influencer'=>'Influencer','media_prescon'=>'Media Prescon'];
+$creativeTipeLabel = ['master_design' => 'Design','motion_graphic'=>'Motion Graphic','digital'=>'Digital','cetak'=>'Cetak','influencer'=>'Influencer','media_prescon'=>'Media Prescon'];
 $lastTipe = null;
 ?>
 <div class="ev-panel">

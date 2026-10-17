@@ -214,7 +214,7 @@ class EventSummary extends BaseController
         $contentRealisasi       = (new EventContentRealisasiModel())->getTotalByEvent($eventId);
 
         $creativeItemModel    = new EventCreativeItemModel();
-        $creativeItems        = $creativeItemModel->getByEvent($eventId);
+        $creativeItems        = $creativeItemModel->getByEvent($eventId, true);
         $creativeItemIds      = array_column($creativeItems, 'id');
         $creativeRealisasi      = (new EventCreativeRealisasiModel())->getGroupedByItems($creativeItemIds);
         $creativeInsights       = (new EventCreativeInsightModel())->getGroupedByItems($creativeItemIds);
@@ -437,7 +437,7 @@ class EventSummary extends BaseController
         foreach ($allSponsorItems as $itm) { $itemsBySponsors[$itm['sponsor_id']][] = $itm; }
 
         // Creative & Design
-        $creativeItems = (new EventCreativeItemModel())->getByEvent($eventId);
+        $creativeItems = (new EventCreativeItemModel())->getByEvent($eventId, true);
         $byTipe        = [];
         foreach ($creativeItems as $ci) { $byTipe[$ci['tipe']][] = $ci; }
 
@@ -518,7 +518,7 @@ class EventSummary extends BaseController
 
         // Creative
         $creativeItemModel = new EventCreativeItemModel();
-        $creativeItems     = $creativeItemModel->getByEvent($eventId);
+        $creativeItems     = $creativeItemModel->getByEvent($eventId, true);
         $creativeItemIds   = array_column($creativeItems, 'id');
         $creativeFiles     = (new EventCreativeFileModel())->getGroupedByItems($creativeItemIds);
         $creativeRealisasi = (new EventCreativeRealisasiModel())->getGroupedByItems($creativeItemIds);
@@ -713,7 +713,7 @@ class EventSummary extends BaseController
         $contentItems   = $contentModel->getByEvent($eventId);
         $contentBudget  = $contentModel->getTotalBudget($eventId);
         $creativeModel  = new EventCreativeItemModel();
-        $creativeItems  = $creativeModel->getByEvent($eventId);
+        $creativeItems  = $creativeModel->getByEvent($eventId, true);
         $creativeBudget = $creativeModel->getTotalBudget($eventId);
         $deptBudget     = array_sum(array_column($budgetByDept, 'total'));
         $totalBudget    = $deptBudget + $loyaltyBudget + $vmBudget + $contentBudget + $creativeBudget;

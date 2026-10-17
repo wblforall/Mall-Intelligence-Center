@@ -41,3 +41,11 @@ if (! function_exists('mpStatusMeta')) {
 if (! function_exists('mpSumberLabel')) {
     function mpSumberLabel(?string $s): string { return ['internal' => 'Internal', 'tenant' => 'Tenant', 'external' => 'External'][$s ?? 'internal'] ?? (string) $s; }
 }
+
+/** Lencana kecil untuk pemesanan yang dibuat dari modul Creative (kolom creative_ref terisi). */
+if (! function_exists('mpDariCreative')) {
+    function mpDariCreative(array $u): string {
+        if (empty($u['creative_ref'])) return '';
+        return '<span class="mp-chip mp-chip-blue" title="Pemesanan dibuat dari item Media Cetak di Creative (' . esc((string) $u['creative_ref'], 'attr') . ')"><i class="bi bi-palette"></i>dari Creative</span>';
+    }
+}

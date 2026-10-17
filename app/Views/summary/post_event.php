@@ -144,7 +144,7 @@ $mallLabels  = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity S
 $startDate   = $event['start_date'];
 $endDate     = date('Y-m-d', strtotime($startDate . ' +' . ($event['event_days'] - 1) . ' days'));
 $sameDay     = $startDate === $endDate;
-$tipeLabels  = ['master_design' => 'Master Design', 'digital' => 'Content Digital', 'cetak' => 'Media Cetak', 'influencer' => 'Influencer', 'media_prescon' => 'Media Prescon'];
+$tipeLabels  = ['master_design' => 'Design', 'motion_graphic' => 'Motion Graphic', 'digital' => 'Content Digital', 'cetak' => 'Media Cetak', 'influencer' => 'Influencer', 'media_prescon' => 'Media Prescon'];
 $platformLbl = ['ig' => 'Instagram', 'tiktok' => 'TikTok', 'keduanya' => 'IG & TikTok'];
 $statusClass = ['draft' => 'netral', 'review' => 'waspada', 'approved' => 'baik', 'revision' => 'buruk'];
 $statusLabel = ['draft' => 'Draft', 'review' => 'Review', 'approved' => 'Approved', 'revision' => 'Revisi'];
@@ -791,7 +791,7 @@ $marginPct = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
     ?>
     <div class="item-block">
         <div class="item-title">
-            <?php if ($tipe === 'master_design'): ?>
+            <?php if (in_array($tipe, ['master_design', 'motion_graphic'], true)): ?>
             <span class="lencana <?= $statusClass[$ci['status']] ?? 'netral' ?>"><?= $statusLabel[$ci['status']] ?? $ci['status'] ?></span>
             <?php endif; ?>
             <?php if ($ci['platform']): ?>
@@ -811,7 +811,7 @@ $marginPct = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
         </div>
 
         <?php /* ── MASTER DESIGN: file thumbnails ── */ ?>
-        <?php if ($tipe === 'master_design' && !empty($ciFiles)): ?>
+        <?php if (in_array($tipe, ['master_design', 'motion_graphic'], true) && !empty($ciFiles)): ?>
         <div class="file-grid">
             <?php foreach ($ciFiles as $f):
                 $ext   = strtolower(pathinfo($f['file_name'], PATHINFO_EXTENSION));
