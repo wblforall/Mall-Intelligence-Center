@@ -1,0 +1,657 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   MIC — Dashboard "Command Center"
+   Semua aturan di-scope ke .page-dash (hanya halaman Dashboard).
+   Tema gelap = futuristik penuh; tema terang = kartu putih lembut, tanpa neon.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@property --cc-spot {
+    syntax: '<number>';
+    inherits: true;
+    initial-value: 0;
+}
+
+/* ── Variabel (gelap = bawaan) ───────────────────────────────────────── */
+.page-dash {
+    --cc-blue:   #3b82f6;
+    --cc-indigo: #4f46e5;
+    --cc-gold:   #e8c872;
+    --cc-cyan:   #22d3ee;
+    --cc-live:   #22c55e;
+
+    --cc-card-bg:
+        linear-gradient(155deg, rgba(30, 41, 80, .78) 0%, rgba(15, 23, 42, .90) 60%);
+    --cc-card-solid: #111b33;
+    --cc-card-border: rgba(148, 170, 220, .18);
+    --cc-card-shadow: 0 14px 40px -16px rgba(37, 99, 235, .38), 0 2px 6px rgba(2, 6, 23, .45);
+    --cc-sheen: rgba(147, 197, 253, .13);
+    --cc-sheen2: rgba(129, 140, 248, .10);
+    --cc-spot-rgb: 96, 165, 250;
+    --cc-inner-bg: rgba(59, 130, 246, .06);
+    --cc-inner-border: rgba(148, 170, 220, .16);
+    --cc-row-hover: rgba(96, 165, 250, .09);
+    --cc-th: rgba(186, 205, 245, .62);
+    --cc-grid-line: rgba(148, 170, 220, .055);
+    --cc-glow-a: rgba(59, 130, 246, .20);
+    --cc-glow-b: rgba(79, 70, 229, .18);
+    --cc-glow-c: rgba(232, 200, 114, .07);
+    --cc-title-grad: linear-gradient(100deg, #ffffff 0%, #bfdbfe 55%, #e8c872 110%);
+    --cc-pill-bg: rgba(255, 255, 255, .045);
+    --cc-pill-border: rgba(148, 170, 220, .18);
+    --cc-pill-color: rgba(200, 215, 245, .75);
+    --cc-pill-active-bg: linear-gradient(135deg, rgba(59, 130, 246, .34), rgba(79, 70, 229, .34));
+    --cc-pill-active-border: rgba(125, 175, 255, .55);
+    --cc-pill-active-color: #dbeafe;
+    --cc-pill-glow: 0 0 18px -2px rgba(59, 130, 246, .6);
+    --cc-icon-glow: drop-shadow(0 0 6px rgba(96, 165, 250, .65));
+    --cc-kpi-main: linear-gradient(180deg, #ffffff 10%, #93c5fd 100%);
+    position: relative;
+}
+
+[data-theme="light"] .page-dash,
+[data-bs-theme="light"] .page-dash {
+    --cc-card-bg: #ffffff;
+    --cc-card-solid: #ffffff;
+    --cc-card-border: rgba(79, 70, 229, .13);
+    --cc-card-shadow: 0 10px 28px -16px rgba(30, 64, 175, .28), 0 1px 3px rgba(15, 23, 42, .06);
+    --cc-sheen: rgba(59, 130, 246, .07);
+    --cc-sheen2: rgba(232, 200, 114, .10);
+    --cc-spot-rgb: 79, 70, 229;
+    --cc-inner-bg: #f6f8fe;
+    --cc-inner-border: rgba(79, 70, 229, .12);
+    --cc-row-hover: rgba(79, 70, 229, .06);
+    --cc-th: #64748b;
+    --cc-grid-line: rgba(79, 70, 229, .05);
+    --cc-glow-a: rgba(59, 130, 246, .12);
+    --cc-glow-b: rgba(129, 140, 248, .12);
+    --cc-glow-c: rgba(232, 200, 114, .14);
+    --cc-title-grad: none;
+    --cc-pill-bg: #f1f5f9;
+    --cc-pill-border: rgba(79, 70, 229, .12);
+    --cc-pill-color: #64748b;
+    --cc-pill-active-bg: linear-gradient(135deg, #eef2ff, #e0e7ff);
+    --cc-pill-active-border: rgba(79, 70, 229, .35);
+    --cc-pill-active-color: #3730a3;
+    --cc-pill-glow: 0 4px 12px -4px rgba(79, 70, 229, .35);
+    --cc-icon-glow: none;
+    --cc-kpi-main: linear-gradient(180deg, #1e3a8a, #4f46e5);
+}
+
+/* ── Latar: grid halus + cahaya sudut (di bawah konten) ──────────────── */
+.page-dash::before {
+    content: '';
+    position: absolute;
+    inset: -1.5rem;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(640px 420px at 100% 0%, var(--cc-glow-a), transparent 70%),
+        radial-gradient(560px 380px at 0% 18%, var(--cc-glow-b), transparent 70%),
+        radial-gradient(620px 420px at 100% 100%, var(--cc-glow-c), transparent 70%),
+        linear-gradient(var(--cc-grid-line) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(90deg, var(--cc-grid-line) 1px, transparent 1px) 0 0 / 44px 44px;
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 55%, rgba(0, 0, 0, .35) 100%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 55%, rgba(0, 0, 0, .35) 100%);
+}
+
+/* ── 1. Kartu kaca ───────────────────────────────────────────────────── */
+.page-dash .card,
+.page-dash .dash-hero {
+    --mx: -999px;
+    --my: -999px;
+    background:
+        radial-gradient(380px circle at var(--mx) var(--my), rgba(var(--cc-spot-rgb), var(--cc-spot)), transparent 70%),
+        radial-gradient(300px 160px at 0% 0%, var(--cc-sheen), transparent 70%),
+        radial-gradient(260px 140px at 100% 100%, var(--cc-sheen2), transparent 70%),
+        var(--cc-card-solid) !important;
+    border: 1px solid var(--cc-card-border) !important;
+    border-radius: 18px !important;
+    box-shadow: var(--cc-card-shadow), inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+    transition: --cc-spot .3s ease, transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+[data-theme="light"] .page-dash .card,
+[data-theme="light"] .page-dash .dash-hero {
+    box-shadow: var(--cc-card-shadow) !important;
+}
+.page-dash .card:hover,
+.page-dash .dash-hero:hover { --cc-spot: .13; }
+[data-theme="light"] .page-dash .card:hover,
+[data-theme="light"] .page-dash .dash-hero:hover { --cc-spot: .07; }
+
+/* kaca asli (blur) hanya di kartu besar; fallback = latar solid di atas */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    [data-theme="dark"] .page-dash .dash-hero,
+    [data-theme="dark"] .page-dash .dash-today-row .card,
+    [data-theme="dark"] .page-dash .dash-section ~ .card {
+        background:
+            radial-gradient(380px circle at var(--mx) var(--my), rgba(var(--cc-spot-rgb), var(--cc-spot)), transparent 70%),
+            radial-gradient(300px 160px at 0% 0%, var(--cc-sheen), transparent 70%),
+            radial-gradient(260px 140px at 100% 100%, var(--cc-sheen2), transparent 70%),
+            var(--cc-card-bg) !important;
+        -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+        backdrop-filter: blur(14px) saturate(1.2) !important;
+    }
+}
+
+/* kartu di dalam kartu (cuaca, dsb.) — ringan, tanpa sorot/bayangan */
+.page-dash .card .card {
+    background: var(--cc-inner-bg) !important;
+    border: 1px solid var(--cc-inner-border) !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+.page-dash .card .card[style*="ef4444"] { border-color: rgba(239, 68, 68, .55) !important; }
+.page-dash .card .card[style*="--bs-primary"] { border-color: var(--cc-blue) !important; box-shadow: 0 0 14px -4px rgba(59, 130, 246, .55) !important; }
+
+.page-dash .card-header {
+    position: relative;
+    background: linear-gradient(90deg, rgba(96, 165, 250, .07), transparent 70%) !important;
+    border-bottom: 1px solid var(--cc-card-border) !important;
+    border-radius: 18px 18px 0 0 !important;
+}
+[data-theme="light"] .page-dash .card-header {
+    background: linear-gradient(90deg, rgba(79, 70, 229, .045), transparent 70%) !important;
+}
+/* aksen emas pendek di judul kartu */
+.page-dash .card-header:not(.p-0)::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 28%;
+    bottom: 28%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, var(--cc-gold), rgba(232, 200, 114, .25));
+}
+.page-dash .card-header > .fw-semibold > .bi:first-child,
+.page-dash .card-header h6 > .bi:first-child {
+    color: var(--cc-blue);
+    filter: var(--cc-icon-glow);
+}
+.page-dash .card-body { position: relative; }
+
+/* hover naik: hanya kartu yang bisa diklik / KPI (wrapper-nya yang .fade-up) */
+.page-dash .dash-kpi-grid .card:hover,
+.page-dash .traffic-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(96, 165, 250, .42) !important;
+}
+
+/* ── 2. Header (hero) + bento ────────────────────────────────────────── */
+.page-dash .dash-hero {
+    padding: 1.15rem 1.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+    position: relative;
+}
+.page-dash .dash-hero h4 {
+    font-size: 1.65rem;
+    letter-spacing: -.01em;
+}
+[data-theme="dark"] .page-dash .dash-hero h4 {
+    background: var(--cc-title-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+.page-dash .dash-hero h4::after {
+    content: '';
+    display: block;
+    width: 34px;
+    height: 3px;
+    margin-top: .35rem;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--cc-gold), rgba(232, 200, 114, 0));
+    -webkit-text-fill-color: initial;
+}
+.page-dash .dash-hero-meta { font-variant-numeric: tabular-nums; }
+.page-dash .dash-hero-meta #localTime { letter-spacing: .04em; }
+
+/* titik 'live' (hiasan CSS) */
+.page-dash #localTime::before,
+.page-dash #weatherWidget::before,
+.page-dash .cc-live-badge::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: .45rem;
+    border-radius: 50%;
+    vertical-align: middle;
+    background: var(--cc-live);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, .55);
+    animation: ccLive 2.2s ease-out infinite;
+}
+.page-dash #weatherWidget::before { background: var(--cc-cyan); box-shadow: 0 0 0 0 rgba(34, 211, 238, .5); animation-name: ccLiveCyan; }
+.page-dash .cc-live-badge::before { width: 6px; height: 6px; margin-right: .3rem; margin-top: -2px; }
+.page-dash .badge .bi-circle-fill { color: var(--cc-live); animation: ccBlink 2.2s ease-in-out infinite; }
+@keyframes ccLive {
+    0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, .55); }
+    70%  { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+@keyframes ccLiveCyan {
+    0%   { box-shadow: 0 0 0 0 rgba(34, 211, 238, .5); }
+    70%  { box-shadow: 0 0 0 7px rgba(34, 211, 238, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+}
+@keyframes ccBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* KPI Events: bento — Total Events menonjol */
+.page-dash .dash-kpi-grid {
+    --bs-gutter-x: 0;
+    --bs-gutter-y: 0;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 0;
+}
+.page-dash .dash-kpi-grid > * {
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    flex: none;
+    grid-column: span 4;
+}
+.page-dash .dash-kpi-grid > .dash-kpi-main { grid-column: 1 / -1; }
+@media (max-width: 575.98px) {
+    .page-dash .dash-kpi-grid > *:not(.dash-kpi-main) { grid-column: span 6; }
+    .page-dash .dash-kpi-grid > *:last-child { grid-column: 1 / -1; }
+}
+@media (min-width: 992px) {
+    .page-dash .dash-kpi-grid > * { grid-column: span 2; }
+    .page-dash .dash-kpi-grid > .dash-kpi-main { grid-column: span 6; }
+}
+
+/* warna aksen per kartu (dipakai KPI & Traffic) */
+.page-dash .kpi-total  { --kc: var(--cc-blue);  --kc2: var(--cc-indigo); }
+.page-dash .kpi-active { --kc: var(--c-ev-active, #10b981);   --kc2: #34d399; }
+.page-dash .kpi-draft  { --kc: var(--c-ev-upcoming, #f59e0b); --kc2: #fbbf24; }
+.page-dash .kpi-done   { --kc: #8ba3c7; --kc2: #b6c7e3; }
+.page-dash .traffic-ewalk { --kc: var(--c-ewalk, #3b82f6); --kc2: #60a5fa; }
+.page-dash .traffic-pentacity { --kc: var(--c-penta, #10b981); --kc2: #34d399; }
+[data-theme="light"] .page-dash .kpi-draft { --kc: #d97706; --kc2: #f59e0b; }
+[data-theme="light"] .page-dash .kpi-done  { --kc: #64748b; --kc2: #94a3b8; }
+
+/* kartu: cahaya aksen halus di sudut (bukan garis tebal), padding lapang */
+.page-dash .kpi-card, .page-dash .traffic-card {
+    position: relative;
+    overflow: hidden;
+    border-top: 0 !important;
+    border-left: 1px solid var(--cc-card-border) !important;
+    border-radius: 20px !important;
+}
+.page-dash .kpi-card {
+    padding: 1.15rem 1.2rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: .85rem;
+    text-align: left !important;
+}
+.page-dash .kpi-card::before,
+.page-dash .traffic-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: auto; height: auto;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+        radial-gradient(220px 130px at 0% 0%, color-mix(in srgb, var(--kc) 24%, transparent), transparent 72%),
+        linear-gradient(135deg, color-mix(in srgb, var(--kc) 7%, transparent), transparent 55%);
+    box-shadow: none;
+}
+.page-dash .kpi-card > *, .page-dash .traffic-card > * { position: relative; }
+
+.page-dash .kpi-head, .page-dash .tf-head { display: flex; align-items: center; gap: .6rem; }
+.page-dash .kpi-chip {
+    flex: none;
+    width: 1.9rem; height: 1.9rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    font-size: .95rem;
+    color: var(--kc);
+    background: color-mix(in srgb, var(--kc) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--kc) 34%, transparent);
+    box-shadow: 0 0 16px -2px color-mix(in srgb, var(--kc) 55%, transparent);
+}
+[data-theme="light"] .page-dash .kpi-chip { box-shadow: none; }
+.page-dash .kpi-label {
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--cc-th);
+    line-height: 1.2;
+}
+.page-dash .kpi-mid { display: flex; align-items: flex-end; justify-content: space-between; gap: .6rem; }
+.page-dash .kpi-num {
+    font-size: clamp(2.4rem, 2.6vw, 3rem) !important;
+    font-weight: 800 !important;
+    line-height: 1;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--bs-body-color) !important;
+    text-align: left;
+}
+.page-dash .kpi-card:not(.kpi-total) .kpi-sub { margin-top: auto; }
+.page-dash .kpi-sub {
+    font-size: .78rem;
+    line-height: 1.3;
+    color: var(--cc-th);
+    opacity: .95;
+    font-variant-numeric: tabular-nums;
+}
+
+/* cincin proporsi */
+.page-dash .kpi-ring { flex: none; width: 3.5rem; height: 3.5rem; transform: rotate(-90deg); overflow: visible; }
+.page-dash .kpi-ring circle { fill: none; stroke-width: 4.5; }
+.page-dash .rg-track { stroke: color-mix(in srgb, var(--kc) 17%, transparent); }
+.page-dash .rg-fill {
+    stroke: var(--kc);
+    stroke-linecap: round;
+    stroke-dasharray: var(--p, 0) 100;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--kc) 60%, transparent));
+    animation: kpiRing .6s ease-out .1s backwards;
+}
+[data-theme="light"] .page-dash .rg-fill { filter: none; }
+.page-dash .rg-fill[style*="--p:0"] { stroke: none; }
+.page-dash .rg-txt {
+    transform: rotate(90deg);
+    transform-origin: 22px 22px;
+    font-size: 9.5px;
+    font-weight: 700;
+    fill: var(--bs-body-color);
+    stroke: none !important;
+    font-variant-numeric: tabular-nums;
+}
+@keyframes kpiRing { from { stroke-dasharray: 0 100; } }
+
+/* kartu Total: angka sangat besar + bar segmen + legenda */
+.page-dash .dash-kpi-main .kpi-card { padding: 1.35rem 1.6rem 1.3rem; gap: .8rem; justify-content: space-between; }
+.page-dash .dash-kpi-main .kpi-num {
+    font-size: clamp(3.4rem, 6vw, 4.8rem) !important;
+    background: var(--cc-kpi-main);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent !important;
+}
+.page-dash .dash-kpi-main .kpi-sub { font-size: .82rem; }
+.page-dash .kpi-legend {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: .3rem;
+    font-size: .78rem; color: var(--cc-th);
+}
+.page-dash .kpi-legend li { display: flex; align-items: center; gap: .45rem; }
+.page-dash .kpi-legend i { width: .55rem; height: .55rem; border-radius: 50%; flex: none; }
+.page-dash .kpi-legend b { color: var(--bs-body-color); font-variant-numeric: tabular-nums; min-width: 1ch; text-align: right; }
+.page-dash .lg-active i, .page-dash .sg-active { background: var(--c-ev-active, #10b981); }
+.page-dash .lg-draft i,  .page-dash .sg-draft  { background: #f59e0b; }
+.page-dash .lg-done i,   .page-dash .sg-done   { background: #8ba3c7; }
+.page-dash .lg-other i,  .page-dash .sg-other  { background: color-mix(in srgb, var(--cc-th) 55%, transparent); }
+.page-dash .kpi-seg {
+    display: flex; height: .6rem; gap: 3px;
+    border-radius: 99px; overflow: hidden;
+    background: color-mix(in srgb, var(--cc-th) 14%, transparent);
+}
+.page-dash .kpi-seg span {
+    flex: 0 0 auto;
+    width: var(--w, 0%);
+    border-radius: 99px;
+    transform-origin: left;
+    animation: kpiSeg .6s ease-out .1s backwards;
+}
+.page-dash .kpi-seg span[style*="--w:0.000%"], .page-dash .kpi-seg span[style*="--w:0%"] { display: none; }
+@keyframes kpiSeg { from { transform: scaleX(0); } }
+
+/* kartu Traffic */
+.page-dash .traffic-card .card-body { padding: 1.15rem 1.3rem 1.2rem; }
+.page-dash .tf-head { align-items: flex-start; margin-bottom: 1.1rem; }
+.page-dash .tf-chip { width: 2.3rem; height: 2.3rem; font-size: 1.15rem; border-radius: 12px; }
+.page-dash .tf-title { flex: 1; min-width: 0; }
+.page-dash .tf-name { font-weight: 700; font-size: 1.05rem; letter-spacing: -.005em; color: var(--kc2); line-height: 1.2; }
+[data-theme="light"] .page-dash .tf-name { color: var(--kc); }
+.page-dash .tf-status { margin-top: .25rem; font-size: .8rem; }
+.page-dash .tf-edit { border-radius: 10px; flex: none; }
+.page-dash .tf-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; text-align: left; }
+.page-dash .tf-metric + .tf-metric { padding-left: 1rem; border-left: 1px solid var(--cc-card-border); }
+.page-dash .traffic-card .tf-num {
+    font-size: clamp(1.9rem, 2.3vw, 2.5rem) !important;
+    font-weight: 800 !important;
+    line-height: 1.1;
+    margin: .3rem 0 .15rem;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--bs-body-color);
+}
+.page-dash .traffic-card .tf-num-main { color: var(--kc2); }
+[data-theme="light"] .page-dash .traffic-card .tf-num-main { color: var(--kc); }
+.page-dash .traffic-card .traffic-bar { background: linear-gradient(90deg, var(--kc), var(--kc2)) !important; box-shadow: 0 0 10px -2px var(--kc); border-radius: 99px; }
+[data-theme="light"] .page-dash .traffic-card .traffic-bar { box-shadow: none; }
+
+/* periode aktif */
+.page-dash [style*="--period-accent"] { border-left-width: 3px !important; }
+
+/* ── 6. Judul bagian + tab pil kaca ──────────────────────────────────── */
+.page-dash .dash-section h5 {
+    position: relative;
+    letter-spacing: -.005em;
+}
+.page-dash .dash-section h5::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -6px;
+    width: 30px;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--cc-gold), rgba(232, 200, 114, 0));
+}
+.page-dash .dash-section > .bi {
+    color: var(--cc-blue) !important;
+    filter: var(--cc-icon-glow);
+}
+.page-dash .dash-section hr {
+    border: 0;
+    height: 1px;
+    opacity: 1;
+    background: linear-gradient(90deg, rgba(232, 200, 114, .45), rgba(96, 165, 250, .25) 40%, transparent);
+}
+
+.page-dash .nav-tabs {
+    border-bottom: 0 !important;
+    gap: .4rem;
+}
+.page-dash .card-header-tabs {
+    margin: 0 !important;
+    padding: .65rem .9rem !important;
+}
+.page-dash .nav-tabs .nav-link {
+    background: var(--cc-pill-bg) !important;
+    border: 1px solid var(--cc-pill-border) !important;
+    color: var(--cc-pill-color) !important;
+    border-radius: 999px !important;
+    margin: 0 !important;
+    padding: .38rem .95rem;
+    font-weight: 500;
+    transition: background .2s, color .2s, box-shadow .2s, border-color .2s;
+}
+.page-dash .nav-tabs .nav-link:hover {
+    color: var(--txt) !important;
+    border-color: rgba(125, 175, 255, .4) !important;
+}
+.page-dash .nav-tabs .nav-link.active {
+    background: var(--cc-pill-active-bg) !important;
+    border-color: var(--cc-pill-active-border) !important;
+    color: var(--cc-pill-active-color) !important;
+    font-weight: 600;
+    box-shadow: var(--cc-pill-glow);
+}
+.page-dash .nav-tabs.nav-tabs-sm .nav-link { padding: .25rem .7rem !important; }
+.page-dash .nav-tabs.nav-tabs-sm { border-bottom: 0 !important; padding-bottom: .5rem; }
+.page-dash .nav-tabs .nav-link .text-muted { color: inherit !important; opacity: .7; }
+
+/* label kecil di dalam kartu */
+.page-dash .text-uppercase.fw-semibold { letter-spacing: .08em !important; }
+.page-dash .text-uppercase.fw-semibold > .bi,
+.page-dash .text-uppercase.fw-semibold > span > .bi:first-child { color: var(--cc-blue); }
+
+/* ── Strip ekonomi, blok indikator, daftar BBM, berita ───────────────── */
+.page-dash .eco-strip > div {
+    border-color: var(--cc-card-border) !important;
+    transition: background .2s;
+    animation: ccFadeIn .35s ease-out backwards;
+    border-radius: 10px;
+}
+.page-dash .eco-strip > div:nth-child(1) { animation-delay: 0.00s; }
+.page-dash .eco-strip > div:nth-child(2) { animation-delay: 0.03s; }
+.page-dash .eco-strip > div:nth-child(3) { animation-delay: 0.06s; }
+.page-dash .eco-strip > div:nth-child(4) { animation-delay: 0.09s; }
+.page-dash .eco-strip > div:nth-child(5) { animation-delay: 0.12s; }
+.page-dash .eco-strip > div:nth-child(6) { animation-delay: 0.15s; }
+.page-dash .eco-strip > div:hover { background: var(--cc-row-hover); }
+.page-dash .eco-strip [id^="strip-"] {
+    font-size: 1.28rem !important;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.01em;
+}
+.page-dash .eco-strip .text-uppercase { letter-spacing: .08em !important;  white-space: nowrap; }
+@keyframes ccFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.page-dash .rounded.border[style*="--bs-tertiary-bg"] {
+    background: var(--cc-inner-bg) !important;
+    border-color: var(--cc-inner-border) !important;
+    border-radius: 12px !important;
+}
+.page-dash .rounded.border { border-radius: 12px !important; }
+.page-dash [id^="macro-"][id$="-val"],
+.page-dash #ihsg-val,
+.page-dash #bbmPriceList .fw-bold { font-variant-numeric: tabular-nums; }
+.page-dash .eco-news-item { transition: border-color .2s, background .2s, transform .2s; }
+.page-dash .eco-news-item:hover { border-color: rgba(96, 165, 250, .4) !important; background: var(--cc-row-hover) !important; }
+
+/* ── 7. Tabel & daftar ───────────────────────────────────────────────── */
+.page-dash .table { font-variant-numeric: tabular-nums; --bs-table-bg: transparent; }
+.page-dash .table > :not(caption) > * > * { background-color: transparent; }
+.page-dash .table tbody tr { transition: background .15s; }
+.page-dash .table tbody tr:hover > * { background-color: var(--cc-row-hover); }
+.page-dash .table thead th {
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 600;
+    color: var(--cc-th);
+}
+.page-dash .event-row { transition: background .15s; animation: ccFadeIn .35s ease-out backwards; }
+.page-dash .event-row:hover { background: var(--cc-row-hover); }
+.page-dash .event-row:nth-child(n+2) { animation-delay: .05s; }
+.page-dash .event-row:nth-child(n+4) { animation-delay: .1s; }
+.page-dash .event-row:nth-child(n+8) { animation-delay: .15s; }
+.page-dash .card-body.p-0 > .bg-light {
+    background: linear-gradient(90deg, rgba(96, 165, 250, .08), transparent 80%) !important;
+    border-color: var(--cc-card-border) !important;
+}
+.page-dash .dash-today-row a.border-bottom { border-color: var(--cc-card-border) !important; transition: background .15s; border-radius: 8px; padding-left: .4rem; padding-right: .4rem; }
+.page-dash .dash-today-row a:hover { background: var(--cc-row-hover); }
+.page-dash .badge { letter-spacing: .01em; }
+
+/* ── Responsif ───────────────────────────────────────────────────────── */
+@media (max-width: 575.98px) {
+    .page-dash .dash-hero { padding: 1rem 1.1rem; }
+    .page-dash .dash-hero h4 { font-size: 1.4rem; }
+    .page-dash .dash-hero-meta { text-align: left !important; }
+    .page-dash .dash-kpi-grid { gap: .75rem; }
+    .page-dash .traffic-card .tf-num { font-size: 1.7rem !important; }
+    .page-dash .kpi-card { padding: 1rem 1rem .95rem; }
+    .page-dash .kpi-num { font-size: 2.3rem !important; }
+    .page-dash .dash-kpi-main .kpi-num { font-size: 3.4rem !important; }
+    .page-dash .traffic-card .card-body { padding: 1rem; }
+    .page-dash .tf-metric + .tf-metric { padding-left: .8rem; }
+}
+
+/* ── Sorot kursor hanya di perangkat dengan penunjuk halus ───────────── */
+@media (hover: none), (pointer: coarse) {
+    .page-dash .card:hover, .page-dash .dash-hero:hover { --cc-spot: 0; }
+    .page-dash .dash-kpi-grid .card:hover, .page-dash .traffic-card:hover { transform: none; }
+}
+
+/* ── 9. Gerak berkurang: matikan semua animasi/transisi BARU ─────────── */
+@media (prefers-reduced-motion: reduce) {
+    .page-dash .card, .page-dash .dash-hero,
+    .page-dash .nav-tabs .nav-link, .page-dash .eco-news-item,
+    .page-dash .eco-strip > div, .page-dash .table tbody tr,
+    .page-dash .card-header, .page-dash .dash-today-row a { transition: none !important; }
+    .page-dash .eco-strip > div, .page-dash .event-row { animation: none !important; }
+    .page-dash #localTime::before, .page-dash #weatherWidget::before,
+    .page-dash .cc-live-badge::before, .page-dash .badge .bi-circle-fill { animation: none !important; }
+    .page-dash .card:hover, .page-dash .dash-hero:hover { --cc-spot: 0; transform: none !important; }
+    .page-dash .rg-fill, .page-dash .kpi-seg span { animation: none !important; }
+}
+
+/* ── 10. Analisa AI Ekonomi (tab Market Intelligence) ───────────────── */
+.page-dash .ai-eko-bar {
+    border: 1px solid var(--cc-inner-border, var(--bs-border-color));
+    background: var(--cc-inner-bg, var(--bs-tertiary-bg));
+    border-radius: .6rem;
+    padding: .55rem .75rem;
+    font-size: .72rem;
+}
+.page-dash .ai-eko-badge {
+    display: inline-flex; align-items: center;
+    padding: .18rem .55rem; border-radius: 999px;
+    font-size: .62rem; font-weight: 700; letter-spacing: .06em;
+    color: #fff; background: linear-gradient(100deg, #4f46e5, #2563eb);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .12) inset;
+}
+.page-dash .ai-eko-meta { color: var(--bs-secondary-color); white-space: nowrap; }
+.page-dash .ai-eko-lama { color: var(--bs-warning-text-emphasis); }
+.page-dash .ai-eko-warn {
+    border: 1px solid var(--bs-warning-border-subtle);
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border-radius: .45rem; padding: .35rem .6rem;
+}
+.page-dash .ai-eko-foot { color: var(--bs-secondary-color); font-size: .64rem; }
+.page-dash .ai-eko-bar-kosong { margin-bottom: .5rem; }
+.page-dash .ai-eko-btn { font-size: .68rem; padding: .15rem .55rem; white-space: nowrap; }
+.page-dash .ai-eko-ringkasan,
+.page-dash .ai-eko-implikasi {
+    background: var(--cc-inner-bg, var(--bs-tertiary-bg));
+    border-color: var(--cc-inner-border, var(--bs-border-color)) !important;
+}
+.page-dash .ai-eko-riset-badge {
+    display: inline-flex; align-items: center;
+    padding: .16rem .5rem; border-radius: 999px;
+    font-size: .62rem; font-weight: 700; letter-spacing: .04em;
+    color: var(--bs-success-text-emphasis); background: var(--bs-success-bg-subtle);
+    border: 1px solid var(--bs-success-border-subtle);
+}
+.page-dash .ai-eko-jadwal { color: var(--bs-secondary-color); }
+.page-dash .ai-eko-jadwal strong { color: var(--bs-body-color); font-weight: 600; }
+.page-dash .ai-eko-sep { margin: 0 .25rem; opacity: .6; }
+.page-dash .ai-eko-sumber summary { cursor: pointer; color: var(--bs-secondary-color); font-weight: 600; }
+.page-dash .ai-eko-sumber summary:hover { color: var(--bs-body-color); }
+.page-dash .ai-eko-sumber-list > li {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .6rem;
+    padding: .3rem 0; border-top: 1px solid var(--cc-inner-border, var(--bs-border-color));
+    overflow-wrap: anywhere;
+}
+.page-dash .ai-sumber-lbl { font-weight: 700; min-width: 7.5rem; }
+.page-dash .ai-sumber-nilai { font-variant-numeric: tabular-nums; }
+.page-dash .ai-sumber-per { color: var(--bs-secondary-color); }
+.page-dash .ai-sumber-kutip { flex-basis: 100%; color: var(--bs-secondary-color); font-style: italic; font-size: .66rem; }
+.page-dash .ai-sumber-warn .ai-sumber-nilai { color: var(--bs-warning-text-emphasis); }
+.page-dash .ai-sumber-src a { color: var(--bs-link-color); text-decoration: none; }
+.page-dash .ai-sumber-src a:hover, .page-dash .ai-sumber-berita a:hover { text-decoration: underline; }
+.page-dash .ai-sumber-berita li { padding: .1rem 0; }
+.page-dash .ai-sumber-berita a { color: var(--bs-link-color); text-decoration: none; }
+@media (max-width: 575.98px) {
+    .page-dash .ai-eko-meta { white-space: normal; }
+    .page-dash .ai-eko-bar > .d-flex > .ms-auto { margin-left: 0 !important; width: 100%; }
+}

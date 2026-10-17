@@ -106,7 +106,55 @@ class Dashboard extends BaseController
             'economicData' => $economicData,
             'bbmNews'      => $bbmNews,
             'themePeriods' => $themePeriods,
+            // Analisa AI Ekonomi (null → tampilan memakai aturan cadangan di view)
+            'aiEkonomi'    => \App\Libraries\AiEkonomi::terbaru(),
         ]);
+    }
+
+    // Admin only — buat ulang Analisa AI Ekonomi sekarang (tombol 'Perbarui analisa').
+    // Batas laju 10 menit antar panggilan; lihat juga perintah terjadwal mic:ai-ekonomi.
+    public function analisaEkonomi()
+    {
+        $isAdmin = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+        $balik   = base_url('/') . '#mi-insight';
+        if (! $isAdmin) {
+            return redirect()->to(base_url('/'))->with('error', 'Hanya admin yang dapat memperbarui analisa.');
+        }
+
+        $cache = cache();
+        $sisa  = (int) $cache->get('ai_eko_manual') + \App\Libraries\AiEkonomi::JEDA_MANUAL_DT - time();
+        if ($sisa > 0) {
+            return redirect()->to($balik)->with('error', 'Analisa baru saja diperbarui. Coba lagi dalam ' . max(1, (int) ceil($sisa / 60)) . ' menit.');
+        }
+
+        if (\App\Libraries\AiEkonomi::penyedia() === null) {
+            return redirect()->to($balik)->with('error', 'Kunci AI belum diatur di server; tampilan memakai aturan cadangan.');
+        }
+        // 'Riset ulang sekarang' (berbayar, web search): hanya admin, batas laju 1x / 6 jam.
+        // Tombol 'Perbarui analisa' biasa memakai snapshot riset terakhir tanpa mencari ulang.
+        $riset = (bool) $this->request->getPost('riset');
+        if ($riset) {
+            // Batas laju dari dua sumber: percobaan terakhir lewat tombol (cache) dan riset terakhir yang
+            // tersimpan di DB (termasuk riset terjadwal oleh cron, yang berjalan sebagai user lain).
+            $metaR   = \App\Libraries\AiEkonomi::metaRiset();
+            $terakhir = max((int) $cache->get('ai_eko_riset'), (int) ($metaR['dicek_ts'] ?? 0));
+            $sisaR = $terakhir + \App\Libraries\AiEkonomi::JEDA_RISET_DT - time();
+            if ($sisaR > 0) {
+                return redirect()->to($balik)->with('error', 'Riset web baru saja dijalankan. Coba lagi dalam ' . max(1, (int) ceil($sisaR / 60)) . ' menit.');
+            }
+            $cache->save('ai_eko_riset', time(), \App\Libraries\AiEkonomi::JEDA_RISET_DT);
+        }
+        $cache->save('ai_eko_manual', time(), \App\Libraries\AiEkonomi::JEDA_MANUAL_DT);
+
+        @set_time_limit($riset ? 480 : 240);
+        ignore_user_abort(true);
+        $r = \App\Libraries\AiEkonomi::buat(['paksa' => true, 'riset' => $riset, 'oleh' => (int) $this->currentUser()['id']]);
+
+        if ($r['status'] === 'ok') {
+            ActivityLog::write('update', 'dashboard', null, 'Perbarui analisa AI ekonomi');
+            return redirect()->to($balik)->with('success', 'Analisa AI diperbarui.');
+        }
+        return redirect()->to($balik)->with('error', 'Analisa belum dapat diperbarui: ' . $r['pesan']);
     }
 
     // Auto-fetch BBM prices from MyPertamina — available to all authenticated users

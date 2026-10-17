@@ -1,15 +1,8 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/dashboard-cc.css') ?>?v=<?= @filemtime(FCPATH . 'css/dashboard-cc.css') ?: 1 ?>">
 <style>
-/* ── Entrance ── */
-.fade-up {
-    opacity: 0;
-    transform: translateY(16px);
-    animation: fadeUp .5s cubic-bezier(.22,.68,0,1.1) forwards;
-}
-@keyframes fadeUp {
-    to { opacity: 1; transform: translateY(0); }
-}
+/* Animasi masuk halaman = standar di layouts/main.php (docs/ANIMASI.md). */
 
 /* ── Active event pulse dot ── */
 @keyframes pulseGreen {
@@ -31,7 +24,7 @@
     border-radius: 2px;
     transform-origin: left;
     transform: scaleX(0);
-    transition: transform .8s cubic-bezier(.22,.68,0,1.1);
+    transition: transform .5s ease-out;
 }
 .traffic-bar.animate { transform: scaleX(1); }
 
@@ -83,6 +76,7 @@
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
+<div class="page-dash">
 
 <?php
 $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Shopping Venue', 'keduanya' => 'eWalk Simply FUNtastic & Pentacity Shopping Venue'];
@@ -103,13 +97,16 @@ function daysLabel(int $d): string {
 }
 ?>
 
+<!-- ══ ISPU — kualitas udara Balikpapan (data resmi KLHK) ═══════════════ -->
+<?= view('dashboard/_ispu') ?>
+
 <!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4 fade-up" style="animation-delay:.05s">
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up dash-hero" style="animation-delay:.05s">
     <div>
         <h4 class="fw-bold mb-0">Dashboard</h4>
         <small class="text-muted">Selamat datang, <?= esc($user['name']) ?></small>
     </div>
-    <div class="text-end">
+    <div class="text-end dash-hero-meta">
         <div class="fw-semibold small" id="localDate"></div>
         <div class="font-monospace small text-muted" id="localTime"></div>
         <div id="weatherWidget" class="small text-muted mt-1">
@@ -120,7 +117,7 @@ function daysLabel(int $d): string {
 
 <!-- ══ Hari Ini di Mall + Hari Libur (lintas-dept) ═════════════════════════ -->
 <?php $mallLabel = ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity']; ?>
-<div class="row g-3 mb-4 fade-up" style="animation-delay:.08s">
+<div class="row g-3 mb-4 fade-up dash-today-row" style="animation-delay:.08s">
     <div class="col-lg-8">
         <div class="card h-100">
         <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-calendar-event me-2"></i>Hari Ini di Mall</span></div>
@@ -177,32 +174,57 @@ function daysLabel(int $d): string {
 <div class="row g-3 mb-4">
 
 <!-- KPI Events -->
-<div class="col-12">
-<div class="row g-3 h-100">
-    <div class="col-6 col-sm-3 fade-up" style="animation-delay:.1s">
-        <div class="card text-center h-100 py-3">
-            <div class="fs-2 fw-bold" data-count="<?= $counts['total'] ?>"><?= $counts['total'] ?></div>
-            <div class="small text-muted">Total Events</div>
+<?php
+/* Proporsi dihitung dari $counts (data yang sama dengan angka KPI); total 0 → 0% (aman dari bagi nol). */
+$kTotal = max(0, (int) $counts['total']);
+$kAct   = max(0, (int) $counts['active']);
+$kDraft = max(0, (int) $counts['draft']);
+$kDone  = max(0, (int) $counts['completed']);
+$kOther = max(0, $kTotal - $kAct - $kDraft - $kDone);   // status lain (mis. berjalan/batal) — tidak disembunyikan
+$kPct   = static fn (int $n): int => $kTotal > 0 ? (int) min(100, round($n / $kTotal * 100)) : 0;
+$kSeg   = static fn (int $n): string => $kTotal > 0 ? number_format($n / $kTotal * 100, 3, '.', '') : '0';
+$kpiCards = [
+    ['cls'=>'kpi-active', 'label'=>'Aktif',   'icon'=>'bi-lightning-charge', 'n'=>$kAct,   'delay'=>'.17s'],
+    ['cls'=>'kpi-draft',  'label'=>'Draft',   'icon'=>'bi-pencil-square',    'n'=>$kDraft, 'delay'=>'.24s'],
+    ['cls'=>'kpi-done',   'label'=>'Selesai', 'icon'=>'bi-check2-circle',    'n'=>$kDone,  'delay'=>'.31s'],
+];
+?>
+<div class="col-12 dash-kpi">
+<div class="row g-3 h-100 dash-kpi-grid">
+    <div class="col-6 col-sm-3 fade-up dash-kpi-main" style="animation-delay:.1s">
+        <div class="card h-100 kpi-card kpi-total">
+            <div class="kpi-head"><span class="kpi-chip"><i class="bi bi-calendar-event"></i></span><span class="kpi-label">Total Events</span></div>
+            <div class="kpi-mid">
+                <div class="fs-2 fw-bold kpi-num" data-count="<?= $kTotal ?>"><?= $kTotal ?></div>
+                <ul class="kpi-legend">
+                    <li class="lg-active"><i></i><b><?= $kAct ?></b> aktif</li>
+                    <li class="lg-draft"><i></i><b><?= $kDraft ?></b> draft</li>
+                    <li class="lg-done"><i></i><b><?= $kDone ?></b> selesai</li>
+                    <?php if ($kOther > 0): ?><li class="lg-other"><i></i><b><?= $kOther ?></b> lainnya</li><?php endif; ?>
+                </ul>
+            </div>
+            <div class="kpi-sub"><?= $kTotal > 0 ? esc($kAct . ' aktif · ' . $kDraft . ' draft · ' . $kDone . ' selesai' . ($kOther > 0 ? ' · ' . $kOther . ' lainnya' : '')) : 'Belum ada event' ?></div>
+            <div class="kpi-seg" role="img" aria-label="Komposisi status event">
+                <span class="sg-active" style="--w:<?= $kSeg($kAct) ?>%"></span><span class="sg-draft" style="--w:<?= $kSeg($kDraft) ?>%"></span><span class="sg-done" style="--w:<?= $kSeg($kDone) ?>%"></span><span class="sg-other" style="--w:<?= $kSeg($kOther) ?>%"></span>
+            </div>
         </div>
     </div>
-    <div class="col-6 col-sm-3 fade-up" style="animation-delay:.17s">
-        <div class="card text-center h-100 py-3" style="border-top:3px solid var(--c-ev-active)">
-            <div class="fs-2 fw-bold text-success" data-count="<?= $counts['active'] ?>"><?= $counts['active'] ?></div>
-            <div class="small text-muted">Aktif</div>
+    <?php foreach ($kpiCards as $kc): $pct = $kPct($kc['n']); ?>
+    <div class="col-6 col-sm-3 fade-up" style="animation-delay:<?= $kc['delay'] ?>">
+        <div class="card h-100 kpi-card <?= $kc['cls'] ?>">
+            <div class="kpi-head"><span class="kpi-chip"><i class="bi <?= $kc['icon'] ?>"></i></span><span class="kpi-label"><?= $kc['label'] ?></span></div>
+            <div class="kpi-mid">
+                <div class="fs-2 fw-bold kpi-num" data-count="<?= $kc['n'] ?>"><?= $kc['n'] ?></div>
+                <svg class="kpi-ring" viewBox="0 0 44 44" role="img" aria-label="<?= $pct ?>% dari total">
+                    <circle class="rg-track" cx="22" cy="22" r="18" pathLength="100"/>
+                    <circle class="rg-fill" cx="22" cy="22" r="18" pathLength="100" style="--p:<?= $pct ?>"/>
+                    <text x="22" y="22" class="rg-txt" text-anchor="middle" dominant-baseline="central"><?= $pct ?>%</text>
+                </svg>
+            </div>
+            <div class="kpi-sub"><?= $kTotal > 0 ? $pct . '% dari total' : 'belum ada event' ?></div>
         </div>
     </div>
-    <div class="col-6 col-sm-3 fade-up" style="animation-delay:.24s">
-        <div class="card text-center h-100 py-3" style="border-top:3px solid var(--c-ev-upcoming)">
-            <div class="fs-2 fw-bold text-warning" data-count="<?= $counts['draft'] ?>"><?= $counts['draft'] ?></div>
-            <div class="small text-muted">Draft</div>
-        </div>
-    </div>
-    <div class="col-6 col-sm-3 fade-up" style="animation-delay:.31s">
-        <div class="card text-center h-100 py-3" style="border-top:3px solid var(--c-ev-past)">
-            <div class="fs-2 fw-bold text-secondary" data-count="<?= $counts['completed'] ?>"><?= $counts['completed'] ?></div>
-            <div class="small text-muted">Selesai</div>
-        </div>
-    </div>
+    <?php endforeach; ?>
 </div>
 </div>
 
@@ -261,14 +283,13 @@ foreach ($trafficMalls as $mall => $cfg):
     $barPct   = $t['month'] > 0 ? min(100, round($t['month'] / $maxMonth * 100)) : 0;
 ?>
 <div class="col-12 col-md-6 fade-up" style="animation-delay:<?= $trafficDelays[$mall] ?>">
-<div class="card h-100" style="border-left:4px solid <?= $cfg['hex'] ?>">
+<div class="card h-100 traffic-card traffic-<?= $mall ?>">
 <div class="card-body">
-    <div class="d-flex justify-content-between align-items-start mb-3">
-        <div>
-            <span class="fw-semibold" style="color:<?= $cfg['hex'] ?>">
-                <i class="bi bi-building me-1"></i><?= $cfg['label'] ?>
-            </span>
-            <div class="small text-muted mt-1">
+    <div class="tf-head">
+        <span class="kpi-chip tf-chip"><i class="bi bi-person-walking"></i></span>
+        <div class="tf-title">
+            <span class="tf-name"><?= $cfg['label'] ?></span>
+            <div class="tf-status">
                 <?php if ($hasToday): ?>
                 <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Data hari ini sudah diisi</span>
                 <?php else: ?>
@@ -276,26 +297,26 @@ foreach ($trafficMalls as $mall => $cfg):
                 <?php endif; ?>
             </div>
         </div>
-        <a href="<?= base_url('traffic/input/'.$mall.'/'.$today) ?>" class="btn btn-sm" style="background:<?= $cfg['bg'] ?>;color:<?= $cfg['hex'] ?>;border:1px solid <?= $cfg['hex'] ?>">
+        <a href="<?= base_url('traffic/input/'.$mall.'/'.$today) ?>" class="btn btn-sm tf-edit" style="background:<?= $cfg['bg'] ?>;color:<?= $cfg['hex'] ?>;border:1px solid <?= $cfg['hex'] ?>">
             <i class="bi bi-pencil"></i>
         </a>
     </div>
-    <div class="row g-0 text-center mb-3">
-        <div class="col-6 border-end">
-            <div class="small text-muted">Hari Ini</div>
-            <div class="fw-bold fs-5" style="color:<?= $cfg['hex'] ?>"
+    <div class="tf-metrics">
+        <div class="tf-metric">
+            <div class="kpi-label">Hari Ini</div>
+            <div class="fw-bold fs-5 tf-num tf-num-main"
                  <?= $hasToday ? 'data-count="'.$t['today'].'"' : '' ?>>
                 <?= $hasToday ? number_format($t['today']) : '—' ?>
             </div>
-            <div class="small text-muted">pengunjung</div>
+            <div class="kpi-sub">pengunjung</div>
         </div>
-        <div class="col-6">
-            <div class="small text-muted">Bulan Ini</div>
-            <div class="fw-bold fs-5"
+        <div class="tf-metric">
+            <div class="kpi-label">Bulan Ini</div>
+            <div class="fw-bold fs-5 tf-num"
                  <?= $t['month'] > 0 ? 'data-count="'.$t['month'].'"' : '' ?>>
                 <?= $t['month'] > 0 ? number_format($t['month']) : '—' ?>
             </div>
-            <div class="small text-muted">
+            <div class="kpi-sub">
                 <?= $t['last_date'] ? 'update ' . date('d M', strtotime($t['last_date'])) : 'belum ada data' ?>
             </div>
         </div>
@@ -333,7 +354,7 @@ foreach ($trafficMalls as $mall => $cfg):
 </div>
 
 <!-- ══ MARKET INTELLIGENCE (segment terpisah) ═════════════════════════════ -->
-<div class="d-flex align-items-center gap-2 mt-5 mb-3 fade-up">
+<div class="d-flex align-items-center gap-2 mt-5 mb-3 fade-up dash-section">
     <i class="bi bi-graph-up-arrow fs-5" style="color:var(--bs-primary)"></i>
     <h5 class="fw-bold mb-0">Market Intelligence</h5>
     <span class="badge bg-secondary-subtle text-secondary">Konteks Ekonomi & Pasar</span>
@@ -389,7 +410,7 @@ $stripItems = [
 
     <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
         <i class="bi bi-currency-exchange me-1"></i>Kurs Valuta
-        <span class="badge bg-success-subtle text-success border ms-1" style="font-size:.58rem;vertical-align:middle">LIVE</span>
+        <span class="badge bg-success-subtle text-success border ms-1 cc-live-badge" style="font-size:.58rem;vertical-align:middle">LIVE</span>
     </div>
 
     <div id="kursLoading" class="text-muted small mb-3 d-flex align-items-center gap-2">
@@ -645,6 +666,136 @@ $stripItems = [
 
 </div><!-- /mi-kondisi -->
 <div class="tab-pane fade" id="mi-insight" role="tabpanel">
+<?php
+// ── Analisa AI Ekonomi: hasil terbaru (null → aturan cadangan di bawah, tampilan lama) ──
+$ai      = $aiEkonomi ?? null;
+$aiAdmin = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
+$aiLabelData = [];   // indikator yang hilang / basi / memakai snapshot
+if ($ai) {
+    // Peringatan kuning hanya untuk indikator yang MASIH hilang / basi / memakai snapshot lama
+    // (catatan lain, mis. lingkup PDRB atau umur riset 9-14 hari, bukan peringatan).
+    $aiNamaInd = ['bi_rate' => 'BI Rate', 'inflasi' => 'Inflasi', 'pdb' => 'PDB nasional', 'pdrb_bpn' => 'PDRB Balikpapan', 'ihsg' => 'IHSG', 'bbm' => 'Harga BBM'];
+    $aiPeringatan = (array) ($ai['fakta']['data_hilang'] ?? []);
+    foreach ((array) ($ai['fakta']['indikator'] ?? []) as $kid => $e) {
+        if (is_array($e) && (! empty($e['basi']) || ($e['sumber'] ?? '') === 'snapshot')) $aiPeringatan[] = $aiNamaInd[$kid] ?? $kid;
+    }
+    foreach ($aiPeringatan as $l) {
+        if ($l !== '' && ! in_array($l, $aiLabelData, true)) $aiLabelData[] = $l;
+    }
+}
+$aiBar = function (string $tab) use ($ai, $aiAdmin, $aiLabelData) {
+    $tombol = '';
+    if ($aiAdmin) {
+        $tombol = '<form method="post" action="' . esc(base_url('dashboard/analisa-ekonomi'), 'attr') . '" class="ai-eko-form m-0">'
+            . csrf_field()
+            . '<button type="submit" class="btn btn-sm btn-outline-secondary ai-eko-btn" title="Ambil data terbaru lalu minta AI menulis ulang analisa (maks. 1x per 10 menit)">'
+            . '<i class="bi bi-arrow-repeat me-1"></i><span>' . ($ai ? 'Perbarui analisa' : 'Buat analisa AI') . '</span></button>'
+            . '<button type="submit" name="riset" value="1" class="btn btn-sm btn-outline-secondary ai-eko-btn ms-1" title="Cari ulang data terbaru di web (berbayar, maks. 1x per 6 jam) lalu perbarui analisa" onclick="return confirm(\'Riset ulang memakai pencarian web berbayar (sekitar Rp5-8 ribu) dan memakan waktu 1-3 menit. Lanjutkan?\')">'
+            . '<i class="bi bi-globe2 me-1"></i><span>Riset ulang sekarang</span></button></form>';
+    }
+    if (! $ai) {
+        if ($tombol !== '') echo '<div class="ai-eko-bar ai-eko-bar-kosong d-flex justify-content-end mb-2">' . $tombol . '</div>';
+        return;
+    }
+    $dibuat  = \App\Libraries\AiEkonomi::tglId($ai['dibuat_pada'], true);
+    $dataPer = \App\Libraries\AiEkonomi::tglId((string) ($ai['fakta']['tanggal_analisis'] ?? $ai['dibuat_pada']));
+    $lama    = $ai['umur_jam'] > 36;
+    $risetMeta = $ai['riset'] ?? null;
+    $risetPakai = false;
+    foreach ((array) ($ai['fakta']['indikator'] ?? []) as $e) {
+        if (is_array($e) && ($e['sumber'] ?? '') === 'riset_web') { $risetPakai = true; break; }
+    }
+    if (! $risetPakai && ! empty($ai['fakta']['berita_riset'])) $risetPakai = true;
+    $adaCatatan = ! empty($ai['hasil']['catatan_data']);
+    ?>
+    <div class="ai-eko-bar mb-3" data-tab="<?= esc($tab, 'attr') ?>">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="ai-eko-badge"><i class="bi bi-stars me-1"></i>DITULIS AI</span>
+            <span class="ai-eko-meta"><i class="bi bi-cpu me-1"></i><?= esc(\App\Libraries\AiEkonomi::namaEngine($ai['model'])) ?></span>
+            <span class="ai-eko-meta"><i class="bi bi-clock me-1"></i>Dibuat <?= esc($dibuat) ?></span>
+            <span class="ai-eko-meta"><i class="bi bi-calendar-check me-1"></i>Data per <?= esc($dataPer) ?></span>
+            <?php if ($lama): ?><span class="ai-eko-meta ai-eko-lama"><i class="bi bi-hourglass-split me-1"></i>berumur <?= (int) $ai['umur_jam'] ?> jam</span><?php endif; ?>
+            <?php if ($risetPakai): ?><span class="ai-eko-riset-badge" title="Sebagian angka berasal dari riset web ke sumber resmi/berita"><i class="bi bi-globe2 me-1"></i>Riset web</span><?php endif; ?>
+            <span class="ms-auto"><?= $tombol ?></span>
+        </div>
+        <?php if ($risetMeta): ?>
+        <div class="ai-eko-jadwal mt-1">
+            <i class="bi bi-search me-1"></i>Riset web terakhir: <strong><?= esc(\App\Libraries\AiEkonomi::hariTgl((int) $risetMeta['dicek_ts'])) ?></strong>
+            <span class="ai-eko-sep">·</span> berikutnya: <strong><?= esc(\App\Libraries\AiEkonomi::hariTgl((int) $risetMeta['berikutnya_ts'])) ?></strong>
+        </div>
+        <?php endif; ?>
+        <?php if ($aiLabelData || ($tab === 'insight' && $adaCatatan)): ?>
+        <div class="ai-eko-warn mt-2" role="note">
+            <div class="fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i><?= $aiLabelData ? 'Sebagian data hilang atau basi: ' . esc(implode(', ', $aiLabelData)) : 'Catatan data' ?></div>
+            <?php if ($tab === 'insight' && $adaCatatan): ?>
+            <ul class="mb-0 ps-3 mt-1">
+                <?php foreach ($ai['hasil']['catatan_data'] as $c): ?><li><?= esc($c) ?></li><?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+        <?php
+        // ── Lipatan 'Sumber data': nilai, periode, dicek, sumber (tautan hanya untuk domain tepercaya) ──
+        $labelInd = ['bi_rate' => 'BI Rate', 'inflasi' => 'Inflasi', 'pdb' => 'PDB nasional', 'pdrb_bpn' => 'PDRB Balikpapan', 'ihsg' => 'IHSG', 'bbm' => 'Harga BBM'];
+        $jenisSumber = ['langsung' => 'Pengambilan langsung', 'manual' => 'Input admin', 'db' => 'Input admin (DB)', 'snapshot' => 'Snapshot lama', 'riset_web' => 'Riset web'];
+        $tautan = static function (string $url, string $nama): string {
+            if (\App\Libraries\AiEkonomi::urlTepercaya($url)) {
+                return '<a href="' . esc($url, 'attr') . '" target="_blank" rel="noopener noreferrer">' . esc($nama) . ' <i class="bi bi-box-arrow-up-right"></i></a>';
+            }
+            return esc($nama);
+        };
+        $barisSumber = [];
+        foreach ($labelInd as $kid => $lbl) {
+            $e = $ai['fakta']['indikator'][$kid] ?? null;
+            if (! is_array($e) || ($e['sumber'] ?? '') === 'hilang') { $barisSumber[] = ['lbl' => $lbl, 'nilai' => 'tidak tersedia', 'per' => '', 'sumber' => '—', 'hilang' => true]; continue; }
+            if (isset($e['daftar'])) {
+                $nilai = implode(' · ', array_map(fn($b) => (string) ($b['nama'] ?? '') . ' Rp ' . number_format((int) ($b['harga_rp_per_liter'] ?? 0), 0, ',', '.'), array_slice((array) $e['daftar'], 0, 5)));
+                if (! empty($e['wilayah'])) $nilai .= ' (' . $e['wilayah'] . ')';
+            } else {
+                $nilai = trim((string) ($e['nilai'] ?? '—') . ' ' . (string) ($e['satuan'] ?? ''));
+            }
+            $web = ($e['sumber'] ?? '') === 'riset_web';
+            $barisSumber[] = [
+                'lbl' => $lbl, 'nilai' => $nilai, 'web' => $web, 'basi' => ! empty($e['basi']),
+                'per' => $web ? 'rilis terbaru: ' . (string) ($e['periode'] ?? '—') : (string) ($e['periode'] ?? ''),
+                'dicek' => $web ? \App\Libraries\AiEkonomi::tglId((string) ($e['diambil_pada'] ?? '')) : '',
+                'sumber' => $web ? $tautan((string) ($e['url'] ?? ''), (string) ($e['sumber_nama'] ?? 'sumber')) : esc($jenisSumber[$e['sumber'] ?? ''] ?? (string) ($e['sumber'] ?? '')),
+                'kutipan' => $web ? (string) ($e['kutipan'] ?? '') : '',
+            ];
+        }
+        $beritaRiset = (array) ($ai['fakta']['berita_riset']['daftar'] ?? []);
+        ?>
+        <details class="ai-eko-sumber mt-2">
+            <summary><i class="bi bi-diagram-3 me-1"></i>Sumber data<?= $risetPakai ? ' &amp; riset web' : '' ?></summary>
+            <ul class="ai-eko-sumber-list list-unstyled mb-0 mt-2">
+                <?php foreach ($barisSumber as $b): ?>
+                <li class="<?= ! empty($b['hilang']) || ! empty($b['basi']) ? 'ai-sumber-warn' : '' ?>">
+                    <span class="ai-sumber-lbl"><?= esc($b['lbl']) ?></span>
+                    <span class="ai-sumber-nilai"><?= esc($b['nilai']) ?></span>
+                    <?php if ($b['per'] !== ''): ?><span class="ai-sumber-per"><?= esc($b['per']) ?></span><?php endif; ?>
+                    <?php if (! empty($b['dicek'])): ?><span class="ai-sumber-per">dicek: <?= esc($b['dicek']) ?></span><?php endif; ?>
+                    <span class="ai-sumber-src"><?= $b['sumber'] /* sudah di-escape */ ?></span>
+                    <?php if (! empty($b['kutipan'])): ?><span class="ai-sumber-kutip">“<?= esc($b['kutipan']) ?>”</span><?php endif; ?>
+                </li>
+                <?php endforeach; ?>
+                <?php if ($beritaRiset): ?>
+                <li>
+                    <span class="ai-sumber-lbl">Headline riset web</span>
+                    <ul class="ai-sumber-berita list-unstyled mb-0 w-100">
+                        <?php foreach ($beritaRiset as $bt): if (! is_array($bt)) continue; ?>
+                        <li><?= $tautan((string) ($bt['url'] ?? ''), (string) ($bt['judul'] ?? '')) ?> <span class="ai-sumber-per">— <?= esc((string) ($bt['sumber'] ?? '')) ?>, <?= esc(\App\Libraries\AiEkonomi::tglId((string) ($bt['tanggal'] ?? ''))) ?></span></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </li>
+                <?php endif; ?>
+            </ul>
+        </details>
+        <div class="ai-eko-foot mt-1">Analisis dari indikator publik &amp; berita; bukan prediksi pasti. Periksa sebelum dikutip.</div>
+    </div>
+    <?php
+};
+$aiBar('insight');
+?>
 <!-- ── Insight Ekonomi ──────────────────────────────────────────────────── -->
 <?php
 $bi   = $eco['bi_rate'];
@@ -734,10 +885,27 @@ $sectors = [
     ],
 ];
 
+// Analisa AI menggantikan kalimat aturan (nama sektor persis sama; teks di-escape)
+if ($ai) {
+    $sectors = array_map(fn($s) => [
+        'nama'   => esc($s['nama']),
+        'trend'  => ['naik' => 'up', 'stabil' => 'flat', 'turun' => 'down'][$s['arah']] ?? 'flat',
+        'reason' => esc($s['alasan']),
+    ], $ai['hasil']['sektor']);
+}
+
 $upSectors   = array_filter($sectors, fn($s) => $s['trend'] === 'up');
 $downSectors = array_filter($sectors, fn($s) => $s['trend'] === 'down');
 $flatSectors = array_filter($sectors, fn($s) => $s['trend'] === 'flat');
 ?>
+<?php if ($ai): ?>
+<div class="ai-eko-ringkasan rounded border px-3 py-2 mb-3">
+    <div class="small fw-semibold text-muted text-uppercase mb-1" style="letter-spacing:.05em"><i class="bi bi-card-text me-1 text-primary"></i>Ringkasan</div>
+    <?php foreach ($ai['hasil']['ringkasan'] as $kal): ?>
+    <p class="mb-1" style="font-size:.82rem;line-height:1.45"><?= esc($kal) ?></p>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 <div class="border-top pt-3 mt-1">
     <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
         <i class="bi bi-lightbulb me-1 text-warning"></i>Insight Ekonomi
@@ -786,8 +954,18 @@ $flatSectors = array_filter($sectors, fn($s) => $s['trend'] === 'flat');
     </div>
 </div>
 
+<?php if ($ai): ?>
+<div class="ai-eko-implikasi rounded border px-3 py-2 mt-3">
+    <div class="small fw-semibold text-muted text-uppercase mb-1" style="letter-spacing:.05em"><i class="bi bi-building me-1 text-success"></i>Implikasi untuk mal <span class="fw-normal text-lowercase ms-1" style="font-size:.65rem">leasing · event · promosi E-Walk &amp; Pentacity</span></div>
+    <ul class="mb-0 ps-3" style="font-size:.8rem;line-height:1.45">
+        <?php foreach ($ai['hasil']['implikasi_mal'] as $im): ?><li class="mb-1"><?= esc($im) ?></li><?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+
 </div><!-- /mi-insight -->
 <div class="tab-pane fade" id="mi-dayabeli" role="tabpanel">
+<?php $aiBar('dayabeli'); ?>
 <!-- ── Daya Beli & Segmen ───────────────────────────────────────────────── -->
 <?php
 // Tentukan status tiap segmen berdasarkan indikator
@@ -875,6 +1053,21 @@ $segments = [
         'spend'  => 'Biaya operasional, restocking, sewa & utilitas',
     ],
 ];
+
+// Analisa AI menggantikan status/poin/pos belanja tiap kelas (nama persis sama)
+if ($ai) {
+    $aiKelas = [];
+    foreach ($ai['hasil']['kelas'] as $k) $aiKelas[$k['nama']] = $k;
+    foreach ($segments as &$sg) {
+        if (isset($aiKelas[$sg['nama']])) {
+            $k = $aiKelas[$sg['nama']];
+            $sg['status'] = $k['status'];
+            $sg['poin']   = array_map('esc', $k['poin']);
+            $sg['spend']  = esc($k['belanja']);
+        }
+    }
+    unset($sg);
+}
 ?>
 <div class="border-top pt-3 mt-2">
     <div class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em">
@@ -912,6 +1105,7 @@ $segments = [
 
 </div><!-- /mi-dayabeli -->
 <div class="tab-pane fade" id="mi-segmen" role="tabpanel">
+<?php $aiBar('segmen'); ?>
 <!-- ── Segmen Prospektif ─────────────────────────────────────────────────── -->
 <?php
 // Proxy kondisi keuangan orang tua untuk segmen dependen (Gen Z, Mahasiswa)
@@ -1015,6 +1209,21 @@ $prospects = [
     ],
 ];
 
+// Analisa AI menggantikan skor & alasan tiap segmen (nama persis sama); fokus/trigger tetap
+if ($ai) {
+    $aiPro = [];
+    foreach ($ai['hasil']['prospektif'] as $x) $aiPro[$x['nama']] = $x;
+    foreach ($prospects as &$pr) {
+        if (isset($aiPro[$pr['nama']])) {
+            $x = $aiPro[$pr['nama']];
+            $pr['score']   = $x['skor'];
+            $pr['why']     = array_map('esc', $x['alasan']);
+            $pr['peluang'] = esc($x['peluang']);
+        }
+    }
+    unset($pr);
+}
+
 // Sort: score tertinggi dulu
 usort($prospects, fn($a, $b) => $b['score'] - $a['score']);
 
@@ -1056,6 +1265,9 @@ $prospekLabel = [
             </div>
 
             <div class="border-top pt-1" style="font-size:.65rem">
+                <?php if (! empty($p['peluang'])): ?>
+                <div class="text-muted mb-1"><i class="bi bi-stars me-1"></i><strong>Peluang:</strong> <?= $p['peluang'] ?></div>
+                <?php endif; ?>
                 <div class="text-muted mb-1"><i class="bi bi-bag me-1"></i><strong>Fokus tenant:</strong> <?= $p['focus'] ?></div>
                 <div class="text-muted"><i class="bi bi-lightning me-1"></i><strong>Trigger:</strong> <?= $p['trigger'] ?></div>
             </div>
@@ -1066,6 +1278,36 @@ $prospekLabel = [
 </div>
 
 </div><!-- /mi-segmen -->
+<script>
+(function () {
+    // Tombol 'Perbarui analisa': kunci tombol & beri tahu bahwa proses ±30 dtk
+    document.querySelectorAll('.ai-eko-form').forEach(function (f) {
+        f.addEventListener('submit', function (ev) {
+            // tombol yang dinonaktifkan tidak ikut terkirim → salin name/value tombol pengirim (mis. riset=1)
+            var sb = ev.submitter;
+            if (sb && sb.name) {
+                var hid = document.createElement('input');
+                hid.type = 'hidden'; hid.name = sb.name; hid.value = sb.value;
+                f.appendChild(hid);
+            }
+            var risetUlang = !!(sb && sb.name === 'riset');
+            document.querySelectorAll('.ai-eko-btn').forEach(function (b) {
+                b.disabled = true;
+                b.querySelector('span').textContent = risetUlang ? 'Meriset… (1-3 menit)' : 'Menganalisa… (±30 dtk)';
+                b.querySelector('i').className = 'bi bi-hourglass-split me-1';
+            });
+        });
+    });
+    // Kembali dari POST: buka tab Market Intelligence yang diminta lewat #hash
+    var h = location.hash;
+    if (h === '#mi-insight' || h === '#mi-dayabeli' || h === '#mi-segmen') {
+        window.addEventListener('load', function () {
+            var b = document.querySelector('[data-bs-target="' + h + '"]');
+            if (b) { b.click(); var c = b.closest('.card'); if (c) c.scrollIntoView({block: 'start'}); }
+        });
+    }
+})();
+</script>
 </div><!-- /tab-content -->
 </div><!-- /card-body -->
 </div>
@@ -1319,8 +1561,10 @@ foreach ($sections as $sec):
 </div>
 </div>
 
+</div><!-- /page-dash -->
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<script src="<?= base_url('js/dashboard-cc.js') ?>?v=<?= @filemtime(FCPATH . 'js/dashboard-cc.js') ?: 1 ?>" defer></script>
 <script>
 (function () {
     /* ── Clock ── */
@@ -1356,8 +1600,11 @@ foreach ($sections as $sec):
     })();
 
     /* ── Count-up ── */
+    // Satu-satunya halaman dengan count-up (standar: ≤ 0.8 dtk; reduced-motion = angka langsung utuh).
+    const _reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     function countUp(el, target, delay) {
-        const duration = Math.min(1000, 300 + target * 0.4);
+        if (_reduceMotion) return;
+        const duration = Math.min(800, 300 + target * 0.4);
         setTimeout(() => {
             const start = performance.now();
             const original = el.textContent;
@@ -1365,7 +1612,7 @@ foreach ($sections as $sec):
                 const p = Math.min((now - start) / duration, 1);
                 const ease = 1 - Math.pow(1 - p, 3);
                 const v = Math.round(ease * target);
-                el.textContent = v.toLocaleString('id-ID');
+                el.textContent = p >= 1 ? original : v.toLocaleString('id-ID');
                 if (p < 1) requestAnimationFrame(step);
             };
             requestAnimationFrame(step);
@@ -1374,7 +1621,7 @@ foreach ($sections as $sec):
 
     document.querySelectorAll('[data-count]').forEach((el, i) => {
         const target = parseInt(el.dataset.count);
-        if (target > 0) countUp(el, target, 200 + i * 60);
+        if (target > 0) countUp(el, target, Math.min(i * 30, 150));
     });
 
     /* ── Traffic bar ── */
@@ -1383,7 +1630,7 @@ foreach ($sections as $sec):
             bar.style.width = bar.dataset.pct + '%';
             bar.classList.add('animate');
         });
-    }, 600);
+    }, 100);
 
     /* ── Exchange rates (live, no API key) ─────────────────────────────── */
     (async function loadKurs() {
@@ -1435,13 +1682,13 @@ foreach ($sections as $sec):
                 }
             });
 
-            document.getElementById('kursLoading').style.display = 'none';
+            document.getElementById('kursLoading').classList.replace('d-flex','d-none');
             document.getElementById('kursTable').style.display   = '';
             const now = new Date();
             const elR = document.getElementById('ecoRefreshedAt');
             if (elR) elR.textContent = 'Kurs: ' + now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
         } catch (e) {
-            document.getElementById('kursLoading').style.display = 'none';
+            document.getElementById('kursLoading').classList.replace('d-flex','d-none');
             document.getElementById('kursError').style.display   = '';
         }
     })();
@@ -1707,16 +1954,6 @@ foreach ($sections as $sec):
         }
     });
 
-    /* ── Event row stagger ── */
-    document.querySelectorAll('.event-row').forEach((row, i) => {
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-10px)';
-        row.style.transition = `opacity .3s ease ${.6 + i * .04}s, transform .3s ease ${.6 + i * .04}s`;
-        requestAnimationFrame(() => {
-            row.style.opacity = '1';
-            row.style.transform = 'translateX(0)';
-        });
-    });
 })();
 
 /* ── Greeting popup — tampil setiap login, auto-dismiss 3 detik ── */

@@ -11,7 +11,7 @@ class AuthFilter implements FilterInterface
     public function before(RequestInterface $request, $arguments = null)
     {
         if (! session()->get('logged_in')) {
-            return redirect()->to('/login')->with('error', 'Silakan login terlebih dahulu.');
+            return redirect()->to('/login')->with('error', 'Please sign in first.');
         }
 
         // Force-logout: jika akun dinonaktifkan ATAU akses diubah admin setelah user login,
@@ -26,8 +26,8 @@ class AuthFilter implements FilterInterface
                 if (! $u || (int) $u['is_active'] === 0 || $changed) {
                     session()->destroy();
                     return redirect()->to('/login')->with('error', $u && (int) $u['is_active'] === 0
-                        ? 'Akun Anda dinonaktifkan. Hubungi admin.'
-                        : 'Akses Anda diperbarui. Silakan login ulang.');
+                        ? 'Your account has been deactivated. Contact an admin.'
+                        : 'Your access has been updated. Please sign in again.');
                 }
             }
         }

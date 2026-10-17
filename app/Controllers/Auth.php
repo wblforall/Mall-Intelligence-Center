@@ -26,7 +26,7 @@ class Auth extends Controller
         // Throttle login attempts per IP (DoS / credential-spraying guard, in addition to per-account lockout).
         $throttler = \Config\Services::throttler();
         if ($throttler->check(md5($this->request->getIPAddress() . '_login'), 10, MINUTE) === false) {
-            return redirect()->back()->with('error', 'Terlalu banyak percobaan login. Coba lagi sebentar.')->withInput();
+            return redirect()->back()->with('error', 'Too many login attempts. Please try again shortly.')->withInput();
         }
 
         $email    = $this->request->getPost('email');
@@ -39,11 +39,11 @@ class Auth extends Controller
             // Equalize response time with the password_verify path to limit account enumeration.
             password_verify($password, '$2y$10$usesomesillystringforsalt0123456789abcdefghijklmnopqrstuv');
             ActivityLog::write('login_failed', 'auth', null, 'Login gagal — email tidak ditemukan', ['email' => $email]);
-            return redirect()->back()->with('error', 'Email atau password salah.')->withInput();
+            return redirect()->back()->with('error', 'Incorrect email or password.')->withInput();
         }
 
         if (! $user['is_active']) {
-            return redirect()->back()->with('error', 'Akun Anda dinonaktifkan.')->withInput();
+            return redirect()->back()->with('error', 'Your account has been deactivated.')->withInput();
         }
 
         // Cek apakah akun terkunci
@@ -52,7 +52,7 @@ class Auth extends Controller
             if ($lockedUntil > time()) {
                 $menitLagi = (int)ceil(($lockedUntil - time()) / 60);
                 return redirect()->back()
-                    ->with('error', "Akun terkunci karena terlalu banyak percobaan login. Coba lagi dalam {$menitLagi} menit.")
+                    ->with('error', "Account locked due to too many login attempts. Try again in {$menitLagi} minutes.")
                     ->withInput();
             }
             // Lock sudah kadaluarsa — reset otomatis
@@ -71,7 +71,7 @@ class Auth extends Controller
                 ]);
                 ActivityLog::write('login_failed', 'auth', (string)$user['id'], 'Akun dikunci setelah ' . $attempts . ' percobaan gagal');
                 return redirect()->back()
-                    ->with('error', 'Akun dikunci selama 15 menit karena terlalu banyak percobaan login yang gagal.')
+                    ->with('error', 'Account locked for 15 minutes due to too many failed login attempts.')
                     ->withInput();
             }
 
@@ -79,7 +79,7 @@ class Auth extends Controller
             $sisa = $maxAttempts - $attempts;
             ActivityLog::write('login_failed', 'auth', (string)$user['id'], "Login gagal (percobaan ke-{$attempts})");
             return redirect()->back()
-                ->with('error', "Email atau password salah. {$sisa} percobaan lagi sebelum akun dikunci.")
+                ->with('error', "Incorrect email or password. {$sisa} attempts left before the account is locked.")
                 ->withInput();
         }
 
@@ -255,7 +255,7 @@ class Auth extends Controller
         }
 
         $model->consume($token);
-        return redirect()->to('/login')->with('success', 'Password berhasil direset. Silakan login.');
+        return redirect()->to('/login')->with('success', 'Password reset successfully. Please sign in.');
     }
 
     private function buildResetEmail(string $name, string $url): string
@@ -280,6 +280,6 @@ class Auth extends Controller
     {
         ActivityLog::write('logout', 'auth', (string)session()->get('user_id'), session()->get('user_name'));
         session()->destroy();
-        return redirect()->to('/login')->with('success', 'Anda berhasil logout.');
+        return redirect()->to('/login')->with('success', 'You have been signed out.');
     }
 }
