@@ -351,7 +351,7 @@ class Dashboard extends BaseController
 
         $d = $json['daily'];
         $days = [];
-        $hari = ['Sun'=>'Min','Mon'=>'Sen','Tue'=>'Sel','Wed'=>'Rab','Thu'=>'Kam','Fri'=>'Jum','Sat'=>'Sab'];
+        $hari = ['Sun'=>'Minggu','Mon'=>'Senin','Tue'=>'Selasa','Wed'=>'Rabu','Thu'=>'Kamis','Fri'=>'Jumat','Sat'=>'Sabtu'];
         foreach ($d['time'] as $i => $tgl) {
             $info = $this->weatherCodeInfo((int) ($d['weather_code'][$i] ?? 0));
             $days[] = [

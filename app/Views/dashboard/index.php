@@ -2047,6 +2047,7 @@ foreach ($sections as $sec):
         const res  = await fetch('<?= base_url('dashboard/weather') ?>');
         const data = await res.json();
         if (! data.ok || ! data.days) throw new Error('no data');
+        const hariPenuh = {Min:'Minggu',Sen:'Senin',Sel:'Selasa',Rab:'Rabu',Kam:'Kamis',Jum:'Jumat',Sab:'Sabtu'}; // data lama di cache masih singkat
         box.innerHTML = data.days.map((d, i) => {
             const hot = d.feels_max != null && d.feels_max >= 38; // panas ekstrem -> tandai merah
             const cardStyle = hot
@@ -2055,7 +2056,7 @@ foreach ($sections as $sec):
             return `
             <div class="col">
                 <div class="card h-100 py-2 px-1" style="${cardStyle}">
-                    <div class="small fw-semibold ${hot?'text-danger':''}">${d.hari}</div>
+                    <div class="small fw-semibold ${hot?'text-danger':''}">${hariPenuh[d.hari] || d.hari}</div>
                     <div class="text-muted" style="font-size:.68rem">${d.tgl_label}</div>
                     <i class="bi ${d.icon} my-1" style="font-size:1.5rem;color:${hot?'#ef4444':'#f59e0b'}"></i>
                     <div class="small fw-bold">${d.tmax}°<span class="text-muted fw-normal">/${d.tmin}°</span></div>

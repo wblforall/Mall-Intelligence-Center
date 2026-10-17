@@ -37,8 +37,8 @@ final class Ispu
      * SISPU tidak punya stasiun di BSB, jadi ubin BSB dihitung (bukan diukur) dari
      * stasiun resmi terdekat. Ganti koordinat di sini bila titik acuan berubah.
      */
-    public const BSB_LAT  = -1.2690;
-    public const BSB_LNG  = 116.8270;
+    public const BSB_LAT  = -1.272937;   // Plus Code PVG5+RQ Gn. Bahagia, Balikpapan (diberikan pemilik 18 Okt 2026)
+    public const BSB_LNG  = 116.859437;
     public const BSB_ID   = 'BSB_ESTIMASI';
     public const BSB_NAMA = 'Kawasan BSB · estimasi';
 
