@@ -451,6 +451,9 @@ $user = $this->currentUser();
             'closed_at'    => !empty($post['is_closed']) ? (($post['closed_at'] ?? '') ?: date('Y-m-d')) : null,
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
+            'target_reach'       => (($post['target_reach'] ?? '') !== '') ? max(0, (int) $post['target_reach']) : null,
+            'target_impressions' => (($post['target_impressions'] ?? '') !== '') ? max(0, (int) $post['target_impressions']) : null,
+            'deadline'           => ($post['deadline'] ?? '') ?: null,
             'created_by'   => $this->currentUser()['id'],
         ]);
 
@@ -490,6 +493,9 @@ $user = $this->currentUser();
             'closed_at'    => !empty($post['is_closed']) ? (($post['closed_at'] ?? '') ?: date('Y-m-d')) : null,
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
+            'target_reach'       => (($post['target_reach'] ?? '') !== '') ? max(0, (int) $post['target_reach']) : null,
+            'target_impressions' => (($post['target_impressions'] ?? '') !== '') ? max(0, (int) $post['target_impressions']) : null,
+            'deadline'           => ($post['deadline'] ?? '') ?: null,
         ];
         $creativeModel->update($id, $creativeData);
         ActivityLog::captureAfter($creativeData);

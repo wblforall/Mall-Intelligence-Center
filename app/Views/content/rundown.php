@@ -1,4 +1,7 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
@@ -9,44 +12,49 @@ for ($i = 0; $i < $event['event_days']; $i++) {
 }
 ?>
 
+<div class="page-evs">
+
 <?= view('partials/complete_data_bar', ['event' => $event, 'module' => 'content', 'completion' => $completion, 'canEdit' => $canEdit, 'user' => $user]) ?>
 
-<div class="d-flex align-items-center gap-2 mb-4">
-    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <div>
-        <h4 class="fw-bold mb-0">Rundown</h4>
-        <small class="text-muted"><?= esc($event['name']) ?></small>
+<!-- Header -->
+<div class="ev-head">
+    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="ev-iconbtn ev-back" title="Kembali ke Summary event" aria-label="Kembali ke Summary event"><i class="bi bi-arrow-left"></i></a>
+    <div class="min-w-0">
+        <h1 class="ev-title">Rundown</h1>
+        <div class="ev-subtitle"><?= esc($event['name']) ?> · <span id="evSesiCount">0</span> sesi · <?= (int) $event['event_days'] ?> hari</div>
     </div>
-    <?php if ($canEdit): ?>
-    <button class="btn btn-sm btn-outline-primary ms-auto" id="addRowBtn">
-        <i class="bi bi-plus-lg me-1"></i> Tambah Sesi
-    </button>
-    <?php else: ?>
-    <div class="ms-auto"></div>
-    <?php endif; ?>
-    <a href="<?= base_url('events/'.$event['id'].'/rundown/print') ?>" target="_blank"
-       class="btn btn-sm btn-outline-secondary <?= $canEdit ? '' : 'ms-auto' ?>">
-        <i class="bi bi-printer me-1"></i> Print / Save PDF
-    </a>
+    <div class="ev-head-act">
+        <a href="<?= base_url('events/'.$event['id'].'/content') ?>" class="ev-btn"><i class="bi bi-collection-play"></i><span class="d-none d-sm-inline">Content Event</span></a>
+        <a href="<?= base_url('events/'.$event['id'].'/rundown/print') ?>" target="_blank" class="ev-btn"><i class="bi bi-printer"></i><span class="d-none d-sm-inline">Print / Save PDF</span></a>
+        <?php if ($canEdit): ?>
+        <button type="button" class="ev-btn ev-btn-primary" id="addRowBtn"><i class="bi bi-plus-lg"></i>Tambah Sesi</button>
+        <?php endif; ?>
+    </div>
 </div>
+<?= view('partials/event_tabs', ['event' => $event]) ?>
 
-<div class="card">
-<div class="card-body p-0">
+<div class="ev-day" id="evDays"></div>
+
+<?php if ($canEdit): ?>
+<div class="ev-note"><i class="bi bi-info-circle"></i><div class="min-w-0">Seret ikon <i class="bi bi-grip-vertical"></i> untuk mengubah urutan. Baris biru berasal dari <a href="<?= base_url('events/'.$event['id'].'/content') ?>">Content Event</a> dan diubah di sana. Klik <strong>Simpan Rundown</strong> untuk menyimpan.</div></div>
+<?php endif; ?>
+
+<div class="ev-panel">
 <form method="POST" action="<?= base_url('events/'.$event['id'].'/rundown/save') ?>">
 <?= csrf_field() ?>
-<div class="table-responsive">
-<table class="table table-sm align-middle mb-0" id="rundownTable">
+<div class="ev-tablewrap">
+<table class="ev-rd" id="rundownTable">
 <thead>
 <tr>
-    <?php if ($canEdit): ?><th style="width:28px"></th><?php endif; ?>
-    <th style="width:190px">Tanggal</th>
-    <th style="width:90px">Mulai</th>
-    <th style="width:90px">Selesai</th>
-    <th>Sesi / Acara</th>
-    <th>Deskripsi</th>
-    <th style="width:110px">PIC</th>
-    <th style="width:110px">Lokasi</th>
-    <?php if ($canEdit): ?><th style="width:40px"></th><?php endif; ?>
+    <?php if ($canEdit): ?><th style="width:34px"><span class="visually-hidden">Urutan</span></th><?php endif; ?>
+    <th class="col-tgl">Tanggal</th>
+    <th class="col-jam">Mulai</th>
+    <th class="col-jam">Selesai</th>
+    <th class="col-sesi">Sesi / Acara</th>
+    <th class="col-desk">Deskripsi</th>
+    <th class="col-pic">PIC</th>
+    <th class="col-lok">Lokasi</th>
+    <?php if ($canEdit): ?><th style="width:44px"><span class="visually-hidden">Hapus</span></th><?php endif; ?>
 </tr>
 </thead>
 <tbody id="rundownBody">
@@ -67,7 +75,7 @@ for ($i = 0; $i < $event['event_days']; $i++) {
     <td><input type="text" name="deskripsi[]" class="form-control form-control-sm" placeholder="Detail singkat" <?= !$canEdit ? 'readonly' : '' ?>></td>
     <td><input type="text" name="pic[]" class="form-control form-control-sm" placeholder="Nama PIC" <?= !$canEdit ? 'readonly' : '' ?>></td>
     <td><input type="text" name="lokasi[]" class="form-control form-control-sm" placeholder="Stage, Lobby..." <?= !$canEdit ? 'readonly' : '' ?>></td>
-    <?php if ($canEdit): ?><td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-trash"></i></button></td><?php endif; ?>
+    <?php if ($canEdit): ?><td><button type="button" class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad remove-row" title="Hapus sesi" aria-label="Hapus sesi"><i class="bi bi-trash"></i></button></td><?php endif; ?>
 </tr>
 <?php endforeach; ?>
 <?php else: ?>
@@ -75,7 +83,7 @@ for ($i = 0; $i < $event['event_days']; $i++) {
 <?php foreach ($rows as $r):
     $fromContent = ! empty($r['content_item_id']);
 ?>
-<tr class="<?= $fromContent ? 'table-primary' : '' ?>">
+<tr class="<?= $fromContent ? 'is-content' : '' ?>">
     <?php if ($canEdit): ?>
     <td class="text-muted text-center" style="cursor:<?= $fromContent ? 'default' : 'grab' ?>">
         <?php if ($fromContent): ?>
@@ -87,7 +95,7 @@ for ($i = 0; $i < $event['event_days']; $i++) {
     <?php endif; ?>
     <td>
         <?php if ($fromContent): ?>
-        <span class="form-control-sm d-block"><?= array_key_exists($r['tanggal'], $eventDates) ? $eventDates[$r['tanggal']] : $r['tanggal'] ?></span>
+        <span class="col-tgl small d-block"><?= array_key_exists($r['tanggal'], $eventDates) ? $eventDates[$r['tanggal']] : $r['tanggal'] ?></span>
         <?php else: ?>
         <select name="tanggal[]" class="form-select form-select-sm" <?= !$canEdit ? 'disabled' : '' ?>>
             <?php foreach ($eventDates as $dv => $dl): ?>
@@ -112,7 +120,7 @@ for ($i = 0; $i < $event['event_days']; $i++) {
     </td>
     <td>
         <?php if ($fromContent): ?>
-        <span class="small fw-medium"><?= esc($r['sesi']) ?> <span class="badge bg-primary-subtle text-primary ms-1" style="font-size:.65rem">Content</span></span>
+        <span class="small fw-medium"><?= esc($r['sesi']) ?> <span class="ev-chip ev-chip-blue ms-1">Content</span></span>
         <?php else: ?>
         <input type="text" name="sesi[]" class="form-control form-control-sm" value="<?= esc($r['sesi']) ?>" <?= !$canEdit ? 'readonly' : '' ?>>
         <?php endif; ?>
@@ -141,7 +149,7 @@ for ($i = 0; $i < $event['event_days']; $i++) {
     <?php if ($canEdit): ?>
     <td>
         <?php if (! $fromContent): ?>
-        <button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-trash"></i></button>
+        <button type="button" class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad remove-row" title="Hapus sesi" aria-label="Hapus sesi"><i class="bi bi-trash"></i></button>
         <?php endif; ?>
     </td>
     <?php endif; ?>
@@ -153,19 +161,19 @@ for ($i = 0; $i < $event['event_days']; $i++) {
 </table>
 </div>
 <?php if ($canEdit): ?>
-<div class="p-3 border-top">
-    <button type="submit" class="btn btn-primary">
-        <i class="bi bi-check-lg me-1"></i> Simpan Rundown
-    </button>
+<div class="ev-panel-f" style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
+    <span class="ev-mute">Perubahan baru tersimpan setelah klik tombol ini.</span>
+    <button type="submit" class="ev-btn ev-btn-primary"><i class="bi bi-check-lg"></i>Simpan Rundown</button>
 </div>
 <?php endif; ?>
 </form>
 </div>
-</div>
 
+</div><!-- /page-evs -->
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="<?= base_url('js/events-summary.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-summary.js') ?: 1 ?>"></script>
 <script>
 <?php if ($canEdit): ?>
 const dateOptions = <?= json_encode(array_map(
@@ -191,7 +199,7 @@ document.getElementById('addRowBtn').addEventListener('click', function() {
         <td><input type="text" name="deskripsi[]" class="form-control form-control-sm" placeholder="Detail singkat"></td>
         <td><input type="text" name="pic[]" class="form-control form-control-sm" placeholder="Nama PIC"></td>
         <td><input type="text" name="lokasi[]" class="form-control form-control-sm" placeholder="Stage, Lobby..."></td>
-        <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-trash"></i></button></td>
+        <td><button type="button" class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad remove-row" title="Hapus sesi" aria-label="Hapus sesi"><i class="bi bi-trash"></i></button></td>
     </tr>`;
     document.getElementById('rundownBody').insertAdjacentHTML('beforeend', row);
 });
@@ -203,8 +211,7 @@ document.getElementById('rundownBody').addEventListener('click', function(e) {
 Sortable.create(document.getElementById('rundownBody'), {
     animation: 150,
     handle: '.drag-handle',
-    ghostClass: 'table-active',
-    chosenClass: 'table-primary',
+    ghostClass: 'sortable-ghost',
 });
 <?php endif; ?>
 </script>

@@ -1,24 +1,40 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
 $deptMap = [];
 foreach ($departments as $d) { $deptMap[$d['id']] = $d['name']; }
+$rp = static fn($n) => 'Rp ' . number_format((int) $n, 0, ',', '.');
+// Subtotal per departemen (hanya penjumlahan dari item yang sudah ada)
+$perDept = [];
+foreach ($items as $it) {
+    $k = $it['dept_name'] ?? '-';
+    $perDept[$k] = ($perDept[$k] ?? 0) + (int) $it['jumlah'];
+}
+arsort($perDept);
+$maxItem = 0;
+foreach ($items as $it) { $maxItem = max($maxItem, (int) $it['jumlah']); }
 ?>
+<div class="page-evs">
 
 <!-- Header -->
-<div class="d-flex align-items-center gap-2 mb-4">
-    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <div>
-        <h4 class="fw-bold mb-0">Other Cost</h4>
-        <small class="text-muted"><?= esc($event['name']) ?></small>
+<div class="ev-head">
+    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="ev-iconbtn ev-back" title="Kembali ke Summary event" aria-label="Kembali ke Summary event"><i class="bi bi-arrow-left"></i></a>
+    <div class="min-w-0">
+        <h1 class="ev-title">Other Cost</h1>
+        <div class="ev-subtitle"><?= esc($event['name']) ?></div>
     </div>
-    <?php if ($canEdit): ?>
-    <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="modal" data-bs-target="#addModal">
-        <i class="bi bi-plus-lg me-1"></i>Tambah
-    </button>
-    <?php endif; ?>
+    <div class="ev-head-act">
+        <a href="<?= base_url('events/'.$event['id'].'/budget') ?>" class="ev-btn"><i class="bi bi-wallet2"></i><span class="d-none d-sm-inline">Budget Summary</span></a>
+        <?php if ($canEdit): ?>
+        <button class="ev-btn ev-btn-primary" data-bs-toggle="modal" data-bs-target="#addModal"><i class="bi bi-plus-lg"></i>Tambah</button>
+        <?php endif; ?>
+    </div>
 </div>
+<?= view('partials/event_tabs', ['event' => $event]) ?>
 
 <?php if (session()->getFlashdata('success')): ?>
 <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
@@ -32,48 +48,82 @@ foreach ($departments as $d) { $deptMap[$d['id']] = $d['name']; }
 <?php endif; ?>
 
 <?php if (empty($items)): ?>
-<div class="card"><div class="card-body text-center py-5 text-muted">
-    <i class="bi bi-receipt display-4 d-block mb-2 opacity-25"></i>
-    <p>Belum ada other cost untuk event ini.</p>
-</div></div>
+<div class="ev-empty">
+    <i class="bi bi-receipt"></i>
+    <h5>Belum ada other cost untuk event ini</h5>
+    <p>Catat biaya di luar modul Loyalty, VM, Content, dan Creative — per departemen.</p>
+    <?php if ($canEdit): ?>
+    <button class="ev-btn ev-btn-primary" data-bs-toggle="modal" data-bs-target="#addModal"><i class="bi bi-plus-lg"></i>Tambah Other Cost Pertama</button>
+    <?php endif; ?>
+</div>
 <?php else: ?>
 
-<!-- Summary strip -->
-<div class="card mb-3">
-    <div class="card-body py-3 d-flex align-items-center gap-3">
-        <div class="rounded-2 p-2 bg-warning-subtle"><i class="bi bi-wallet2 text-warning fs-5"></i></div>
-        <div>
-            <div class="text-muted small">Total Other Cost</div>
-            <div class="fw-bold fs-5">Rp <?= number_format($total, 0, ',', '.') ?></div>
-        </div>
-        <div class="ms-auto text-muted small"><?= count($items) ?> item</div>
+<!-- Strip KPI -->
+<div class="ev-kpis ev-k3">
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Total Other Cost</div>
+        <div class="ev-kpi-v ev-warn"><?= $rp($total) ?></div>
+        <div class="ev-kpi-s">seluruh item</div>
+    </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Jumlah Item</div>
+        <div class="ev-kpi-v"><?= count($items) ?></div>
+        <div class="ev-kpi-s">dari <?= count($perDept) ?> departemen</div>
+    </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Terbesar</div>
+        <div class="ev-kpi-v"><?= $rp($maxItem) ?></div>
+        <div class="ev-kpi-s"><?= $total > 0 ? round($maxItem / $total * 100) . '% dari total' : '' ?></div>
     </div>
 </div>
 
-<div class="card">
-    <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-            <thead class="table-light">
+<!-- Per departemen -->
+<?php if (count($perDept) > 1): ?>
+<div class="ev-panel">
+    <div class="ev-panel-h"><h2 class="ev-panel-t"><i class="bi bi-buildings"></i>Per Departemen</h2></div>
+    <div class="ev-tablewrap">
+    <table class="ev-table"><tbody>
+    <?php foreach ($perDept as $dn => $sum): $pc = $total > 0 ? round($sum / $total * 100) : 0; ?>
+    <tr><td class="ev-wrap"><?= esc($dn) ?></td>
+        <td style="width:40%"><div class="ev-bar ev-bar-mid"><i style="width:<?= $pc ?>%"></i></div></td>
+        <td class="r nw" style="width:1%"><b><?= $rp($sum) ?></b> <span class="ev-sub d-inline ms-1"><?= $pc ?>%</span></td></tr>
+    <?php endforeach; ?>
+    </tbody></table>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Pencarian -->
+<div class="ev-tools">
+    <div class="ev-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="evQ" placeholder="Cari kategori, keterangan, atau departemen…" autocomplete="off" aria-label="Cari other cost">
+    </div>
+    <span class="ev-count" id="evCount"></span>
+</div>
+
+<div class="ev-panel">
+    <div class="ev-tablewrap">
+        <table class="ev-table">
+            <thead>
                 <tr>
-                    <th class="ps-3">Dept</th>
+                    <th>Dept</th>
                     <th>Nama / Kategori</th>
                     <th>Keterangan</th>
-                    <th class="text-end">Jumlah</th>
-                    <?php if ($canEdit): ?><th></th><?php endif; ?>
+                    <th class="r">Jumlah</th>
+                    <?php if ($canEdit): ?><th class="r">Aksi</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($items as $it): ?>
-            <tr>
-                <td class="ps-3">
-                    <span class="badge bg-secondary-subtle text-secondary-emphasis"><?= esc($it['dept_name'] ?? '-') ?></span>
-                </td>
-                <td class="fw-semibold"><?= esc($it['kategori']) ?></td>
-                <td class="text-muted small"><?= esc($it['keterangan'] ?? '') ?></td>
-                <td class="text-end fw-semibold">Rp <?= number_format((int)$it['jumlah'], 0, ',', '.') ?></td>
+            <tr data-search="<?= esc(strtolower(($it['dept_name'] ?? '') . ' ' . $it['kategori'] . ' ' . ($it['keterangan'] ?? '')), 'attr') ?>">
+                <td><span class="ev-chip ev-chip-mute"><?= esc($it['dept_name'] ?? '-') ?></span></td>
+                <td class="fw-semibold ev-wrap"><?= esc($it['kategori']) ?></td>
+                <td class="ev-mute ev-wrap"><?= esc($it['keterangan'] ?? '') ?></td>
+                <td class="r nw fw-semibold"><?= $rp($it['jumlah']) ?></td>
                 <?php if ($canEdit): ?>
-                <td class="text-end pe-3">
-                    <button class="btn btn-sm btn-outline-secondary"
+                <td class="r nw">
+                    <button class="ev-iconbtn ev-iconbtn-sm" title="Edit" aria-label="Edit <?= esc($it['kategori'], 'attr') ?>"
                         data-bs-toggle="modal" data-bs-target="#editModal"
                         data-id="<?= $it['id'] ?>"
                         data-dept="<?= $it['department_id'] ?>"
@@ -82,7 +132,7 @@ foreach ($departments as $d) { $deptMap[$d['id']] = $d['name']; }
                         data-jumlah="<?= (int)$it['jumlah'] ?>">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-sm btn-outline-danger"
+                    <button class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad" title="Hapus" aria-label="Hapus <?= esc($it['kategori'], 'attr') ?>"
                         data-bs-toggle="modal" data-bs-target="#deleteModal"
                         data-id="<?= $it['id'] ?>"
                         data-label="<?= esc($it['kategori'], 'attr') ?>">
@@ -93,15 +143,16 @@ foreach ($departments as $d) { $deptMap[$d['id']] = $d['name']; }
             </tr>
             <?php endforeach; ?>
             </tbody>
-            <tfoot class="table-light">
+            <tfoot>
                 <tr>
-                    <td colspan="3" class="ps-3 fw-semibold text-end">Total</td>
-                    <td class="text-end fw-bold">Rp <?= number_format($total, 0, ',', '.') ?></td>
+                    <td colspan="3" class="r">Total</td>
+                    <td class="r nw"><?= $rp($total) ?></td>
                     <?php if ($canEdit): ?><td></td><?php endif; ?>
                 </tr>
             </tfoot>
         </table>
     </div>
+    <div class="ev-empty-sm" id="evNoMatch" hidden>Tidak ada item yang cocok dengan pencarian.</div>
 </div>
 <?php endif; ?>
 
@@ -213,8 +264,10 @@ foreach ($departments as $d) { $deptMap[$d['id']] = $d['name']; }
 </div>
 <?php endif; ?>
 
+</div><!-- /page-evs -->
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<script src="<?= base_url('js/events-summary.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-summary.js') ?: 1 ?>"></script>
 <?php if ($canEdit): ?>
 <script>
 document.querySelectorAll('[data-bs-target="#editModal"]').forEach(btn => {

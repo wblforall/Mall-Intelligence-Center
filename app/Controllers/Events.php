@@ -29,9 +29,29 @@ class Events extends BaseController
         $incompleteCount = count(array_filter($events, fn($e) => $e['status'] === 'waiting_data' && $e['approval_status'] === 'approved'));
         $pendingCount    = $canApprove ? count(array_filter($events, fn($e) => $e['approval_status'] === 'pending')) : 0;
 
+        // Data pendamping daftar (hanya baca): modul yang sudah ditandai selesai & lokasi tiap event.
+        $ids       = array_column($events, 'id');
+        $doneMap   = [];
+        $locMap    = [];
+        if ($ids) {
+            $db = \Config\Database::connect();
+            foreach ($db->table('event_completions')->select('event_id, module')->whereIn('event_id', $ids)->get()->getResultArray() as $r) {
+                $doneMap[(int) $r['event_id']][] = $r['module'];
+            }
+            foreach ($db->table('event_location_map elm')->select('elm.event_id, el.nama')
+                        ->join('event_locations el', 'el.id = elm.location_id')
+                        ->whereIn('elm.event_id', $ids)->orderBy('el.mall')->orderBy('el.nama')
+                        ->get()->getResultArray() as $r) {
+                $locMap[(int) $r['event_id']][] = $r['nama'];
+            }
+        }
+
         return view('events/index', [
             'user'            => $user,
             'events'          => $events,
+            'doneMap'         => $doneMap,
+            'locMap'          => $locMap,
+            'requiredModules' => \App\Models\EventCompletionModel::REQUIRED_MODULES,
             'incompleteCount' => $incompleteCount,
             'pendingCount'    => $pendingCount,
             'canApprove'      => $canApprove,

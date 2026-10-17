@@ -1,30 +1,23 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
-<style>
-.fade-up {
-    opacity: 0;
-    transform: translateY(14px);
-    animation: fadeUpCrI .5s cubic-bezier(.22,.68,0,1.2) forwards;
-}
-@keyframes fadeUpCrI { to { opacity: 1; transform: translateY(0); } }
-</style>
+<link rel="stylesheet" href="<?= base_url('css/creative-main.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-main.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
 $tipeConfig = [
-    'master_design' => ['label' => 'Master Design',   'icon' => 'bi-vector-pen',   'color' => 'primary',   'bg' => 'bg-primary-subtle'],
-    'digital'       => ['label' => 'Content Digital', 'icon' => 'bi-phone',         'color' => 'info',      'bg' => 'bg-info-subtle'],
-    'cetak'         => ['label' => 'Media Cetak',      'icon' => 'bi-printer',       'color' => 'secondary', 'bg' => 'bg-secondary-subtle'],
-    'influencer'    => ['label' => 'Influencer',       'icon' => 'bi-person-video3', 'color' => 'warning',   'bg' => 'bg-warning-subtle'],
-    'media_prescon' => ['label' => 'Media Prescon',    'icon' => 'bi-newspaper',     'color' => 'dark',      'bg' => 'bg-dark-subtle'],
+    'master_design' => ['label' => 'Master Design',   'icon' => 'bi-vector-pen'],
+    'digital'       => ['label' => 'Content Digital', 'icon' => 'bi-phone'],
+    'cetak'         => ['label' => 'Media Cetak',     'icon' => 'bi-printer'],
+    'influencer'    => ['label' => 'Influencer',      'icon' => 'bi-person-video3'],
+    'media_prescon' => ['label' => 'Media Prescon',   'icon' => 'bi-newspaper'],
 ];
 $platformLabels = ['ig' => 'Instagram', 'tiktok' => 'TikTok', 'keduanya' => 'IG & TikTok'];
 $statusConfig = [
-    'draft'    => ['label' => 'Draft',        'badge' => 'bg-secondary-subtle text-secondary'],
-    'review'   => ['label' => 'Dalam Review', 'badge' => 'bg-warning-subtle text-warning'],
-    'approved' => ['label' => 'Approved',     'badge' => 'bg-success-subtle text-success'],
-    'revision' => ['label' => 'Perlu Revisi', 'badge' => 'bg-danger-subtle text-danger'],
+    'draft'    => ['label' => 'Draft',        'chip' => 'cr-chip-mute', 'icon' => 'bi-pencil'],
+    'review'   => ['label' => 'Dalam Review', 'chip' => 'cr-chip-warn', 'icon' => 'bi-hourglass-split'],
+    'approved' => ['label' => 'Approved',     'chip' => 'cr-chip-ok',   'icon' => 'bi-check-circle-fill'],
+    'revision' => ['label' => 'Perlu Revisi', 'chip' => 'cr-chip-bad',  'icon' => 'bi-arrow-repeat'],
 ];
 $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 $insightFields = [
@@ -44,932 +37,718 @@ $tipePlaceholders = [
     'influencer'    => 'Nama Influencer',
     'media_prescon' => 'Press Kit, Backdrop Prescon...',
 ];
+$bulanS = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+$fTgl = function ($d, bool $tahun = true) use ($bulanS): string {
+    if (!$d || $d === '0000-00-00') return '';
+    $t = strtotime($d);
+    return date('d', $t) . ' ' . $bulanS[(int) date('n', $t) - 1] . ($tahun ? ' ' . date('Y', $t) : '');
+};
+$rp   = fn($n) => 'Rp ' . number_format((int) $n, 0, ',', '.');
+$today = date('Y-m-d');
 
-// Total standalone count across all tipes
-$totalStandalone = 0;
+// Tenggat: kunci none|done|late|soon|ok + selisih hari
+$dlInfo = function (array $item) use ($today): array {
+    $dl = $item['deadline'] ?? '';
+    if (!$dl || $dl === '0000-00-00') return ['key' => 'none', 'diff' => 0];
+    $diff = (int) ((strtotime($dl) - strtotime($today)) / 86400);
+    $done = !empty($item['is_closed']) || ($item['status'] ?? '') === 'approved';
+    if ($done) return ['key' => 'done', 'diff' => $diff];
+    if ($diff < 0) return ['key' => 'late', 'diff' => $diff];
+    if ($diff <= 3) return ['key' => 'soon', 'diff' => $diff];
+    return ['key' => 'ok', 'diff' => $diff];
+};
+
+// Total & hitungan yang butuh tindakan (dihitung dari data yang sama dengan daftar)
+$totalStandalone = 0; $nReview = 0; $nLate = 0; $nSoon = 0; $nAttention = 0; $nAll = 0;
 foreach ($byTipe as $tipeItems) {
-    foreach ($tipeItems as $item) {
-        if ($item['_source'] === 's') $totalStandalone++;
+    foreach ($tipeItems as $it) {
+        $nAll++;
+        if ($it['_source'] === 's') $totalStandalone++;
+        $isRev = $it['tipe'] === 'master_design' && ($it['status'] ?? '') === 'review';
+        $dk = $dlInfo($it)['key'];
+        if ($isRev) $nReview++;
+        if ($dk === 'late') $nLate++;
+        if ($dk === 'soon') $nSoon++;
+        if ($isRev || $dk === 'late') $nAttention++;
     }
 }
+$realPct   = $totalBudget > 0 ? min(100, round($totalRealisasi / $totalBudget * 100)) : null;
+$overBudget = $totalBudget > 0 && $totalRealisasi > $totalBudget;
+
+// Satu sel berkas bukti pada tabel realisasi
+$fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): string {
+    if (!$file) return '<span class="cr-c-mute">—</span>';
+    $url = base_url('uploads/creative-standalone-realisasi/' . $iid . '/' . $file);
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    if (in_array($ext, $imageExts)) {
+        return '<a href="' . $url . '" target="_blank"><img class="thumb" src="' . $url . '" alt="" title="' . esc((string) $orig, 'attr') . '"></a>';
+    }
+    return '<a href="' . $url . '" target="_blank" class="cr-c-mute" title="' . esc((string) $orig, 'attr') . '"><i class="bi bi-file-earmark-' . ($ext === 'pdf' ? 'pdf cr-c-bad' : 'fill') . '" style="font-size:1.2rem"></i></a>';
+};
 ?>
 
+<div class="page-cre" id="creIdx">
+
 <!-- Header -->
-<div class="d-flex align-items-center gap-2 mb-4 fade-up" style="animation-delay:.05s">
-    <div class="rounded-2 d-flex align-items-center justify-content-center flex-shrink-0"
-         style="width:36px;height:36px;background:rgba(99,102,241,.15)">
-        <i class="bi bi-palette-fill" style="color:var(--bs-primary);font-size:1rem"></i>
+<div class="cr-head">
+    <div class="cr-head-ico"><i class="bi bi-palette-fill"></i></div>
+    <div class="min-w-0">
+        <h1 class="cr-title">Creative &amp; Design</h1>
+        <div class="cr-subtitle">Kelola materi desain, konten, dan media — standalone &amp; dari Event</div>
     </div>
-    <div>
-        <h4 class="fw-bold mb-0">Creative &amp; Design</h4>
-        <small class="text-muted">Standalone &amp; dari Event</small>
+    <div class="cr-head-act">
+        <a href="<?= base_url('creative/monthly-summary') ?>" class="cr-btn"><i class="bi bi-bar-chart-line"></i><span class="d-none d-sm-inline">Summary Bulanan</span></a>
+        <?php if ($canEdit): ?>
+        <div class="dropdown">
+            <button class="cr-btn cr-btn-primary" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="crAddMenuBtn">
+                <i class="bi bi-plus-lg"></i>Tambah Item <i class="bi bi-chevron-down" style="font-size:.65rem"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end cr-menu">
+                <li class="dropdown-item-text">Pilih jenis item</li>
+                <?php foreach ($tipeConfig as $tp => $tc): ?>
+                <li><button type="button" class="dropdown-item" data-cr-add="<?= $tp ?>"><i class="bi <?= $tc['icon'] ?>"></i><?= $tc['label'] ?></button></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 
-<!-- KPI strip -->
-<div class="row g-3 mb-4">
-    <div class="col-sm-4">
-        <div class="card border-primary-subtle h-100 fade-up" style="animation-delay:.14s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-primary-subtle"><i class="bi bi-palette text-primary fs-5"></i></div>
-                    <span class="small text-muted">Item Standalone</span>
-                </div>
-                <div class="fw-bold fs-4 text-primary" data-count="<?= $totalStandalone ?>"><?= $totalStandalone ?></div>
-                <div class="small text-muted">dari <?= count($standaloneItems) + count($eventItems) ?> total</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-4">
-        <div class="card border-danger-subtle h-100 fade-up" style="animation-delay:.24s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-danger-subtle"><i class="bi bi-wallet2 text-danger fs-5"></i></div>
-                    <span class="small text-muted">Total Budget</span>
-                </div>
-                <div class="fw-bold fs-4 text-danger">Rp <?= number_format($totalBudget, 0, ',', '.') ?></div>
-                <div class="small text-muted">standalone + event</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-4">
-        <?php
-        $realPct   = $totalBudget > 0 ? min(100, round($totalRealisasi / $totalBudget * 100)) : null;
-        $realColor = $totalRealisasi > $totalBudget && $totalBudget > 0 ? 'danger' : 'success';
-        ?>
-        <div class="card border-<?= $realColor ?>-subtle h-100 fade-up" style="animation-delay:.34s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-<?= $realColor ?>-subtle"><i class="bi bi-receipt text-<?= $realColor ?> fs-5"></i></div>
-                    <span class="small text-muted">Total Realisasi</span>
-                </div>
-                <div class="fw-bold fs-4 text-<?= $realColor ?>">Rp <?= number_format($totalRealisasi, 0, ',', '.') ?></div>
-                <?php if ($realPct !== null): ?>
-                <div class="small text-muted"><?= $realPct ?>% dari budget</div>
-                <?php else: ?>
-                <div class="small text-muted">standalone only</div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Tabs -->
-<ul class="nav nav-tabs mb-3" id="creativeTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active d-flex align-items-center gap-1"
-                id="tab-review" data-bs-toggle="tab" data-tab="review"
-                type="button" role="tab" style="font-size:.85rem;padding:.4rem .85rem">
-            <i class="bi bi-hourglass-split text-warning" style="font-size:.8rem"></i>
-            Review
-            <?php if (($tabCounts['review'] ?? 0) > 0): ?>
-            <span class="badge rounded-pill bg-warning ms-1" style="font-size:.65rem"><?= $tabCounts['review'] ?></span>
-            <?php endif; ?>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link d-flex align-items-center gap-1"
-                id="tab-realisasi" data-bs-toggle="tab" data-tab="realisasi"
-                type="button" role="tab" style="font-size:.85rem;padding:.4rem .85rem">
-            <i class="bi bi-receipt-cutoff text-success" style="font-size:.8rem"></i>
-            Realisasi
-            <?php if (($tabCounts['realisasi'] ?? 0) > 0): ?>
-            <span class="badge rounded-pill bg-success ms-1" style="font-size:.65rem"><?= $tabCounts['realisasi'] ?></span>
-            <?php endif; ?>
-        </button>
-    </li>
-</ul>
-
-<!-- Flash messages -->
+<!-- Flash -->
 <?php if (session()->getFlashdata('success')): ?>
-<div class="alert alert-success alert-dismissible fade show py-2" role="alert">
-    <i class="bi bi-check-circle me-1"></i><?= esc(session()->getFlashdata('success')) ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
+<div class="cr-flash cr-flash-ok" role="alert"><i class="bi bi-check-circle"></i><span><?= esc(session()->getFlashdata('success')) ?></span><button type="button" aria-label="Tutup" onclick="this.parentNode.remove()">&times;</button></div>
 <?php endif; ?>
 <?php if (session()->getFlashdata('error')): ?>
-<div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
-    <i class="bi bi-exclamation-triangle me-1"></i><?= esc(session()->getFlashdata('error')) ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
+<div class="cr-flash cr-flash-bad" role="alert"><i class="bi bi-exclamation-triangle"></i><span><?= esc(session()->getFlashdata('error')) ?></span><button type="button" aria-label="Tutup" onclick="this.parentNode.remove()">&times;</button></div>
 <?php endif; ?>
+
+<!-- Strip KPI -->
+<div class="cr-kpis">
+    <div class="cr-kpi">
+        <div class="cr-kpi-l">Item Standalone</div>
+        <div class="cr-kpi-v"><?= $totalStandalone ?></div>
+        <div class="cr-kpi-s">dari <?= count($standaloneItems) + count($eventItems) ?> total</div>
+    </div>
+    <div class="cr-kpi">
+        <div class="cr-kpi-l">Perlu Perhatian</div>
+        <div class="cr-kpi-v <?= $nAttention > 0 ? 'cr-c-warn' : 'cr-c-ok' ?>"><?= $nAttention ?></div>
+        <div class="cr-kpi-s">
+            <button type="button" data-cr-quick="review" class="<?= $nReview ? 'b-warn' : '' ?>"><?= $nReview ?> menunggu review</button> ·
+            <button type="button" data-cr-quick="late" class="<?= $nLate ? 'b-bad' : '' ?>"><?= $nLate ?> terlambat</button>
+        </div>
+    </div>
+    <div class="cr-kpi">
+        <div class="cr-kpi-l">Total Budget</div>
+        <div class="cr-kpi-v"><?= $rp($totalBudget) ?></div>
+        <div class="cr-kpi-s">standalone + event</div>
+    </div>
+    <div class="cr-kpi">
+        <div class="cr-kpi-l">Total Realisasi</div>
+        <div class="cr-kpi-v <?= $overBudget ? 'cr-c-bad' : 'cr-c-ok' ?>"><?= $rp($totalRealisasi) ?></div>
+        <div class="cr-kpi-s"><?= $realPct !== null ? $realPct . '% dari budget' : 'standalone only' ?></div>
+        <?php if ($realPct !== null): ?><div class="cr-bar <?= $overBudget ? 'cr-bar-over' : 'cr-bar-ok' ?>"><i style="width:<?= $realPct ?>%"></i></div><?php endif; ?>
+    </div>
+</div>
+
+<?php if ($nAll === 0 && !$canEdit): ?>
+<div class="cr-empty"><i class="bi bi-palette"></i><h5>Belum ada item Creative</h5><p>Item creative akan tampil di sini setelah dibuat.</p></div>
+<?php else: ?>
+
+<!-- Pencarian & filter -->
+<div class="cr-tools" id="crTools">
+    <div class="cr-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="crQ" placeholder="Cari nama, PIC, catatan, event…" autocomplete="off" aria-label="Cari item creative">
+    </div>
+    <div class="cr-seg" id="creativeTabs" role="group" aria-label="Fase">
+        <button type="button" class="is-on" data-tab="">Semua <span class="n"><?= $nAll ?></span></button>
+        <button type="button" data-tab="review"><i class="bi bi-hourglass-split"></i>Review <span class="n"><?= (int) ($tabCounts['review'] ?? 0) ?></span></button>
+        <button type="button" data-tab="realisasi"><i class="bi bi-receipt-cutoff"></i>Realisasi <span class="n"><?= (int) ($tabCounts['realisasi'] ?? 0) ?></span></button>
+    </div>
+    <select class="cr-select" id="crFTipe" aria-label="Filter jenis">
+        <option value="">Semua jenis</option>
+        <?php foreach ($tipeConfig as $tp => $tc): ?><option value="<?= $tp ?>"><?= $tc['label'] ?></option><?php endforeach; ?>
+    </select>
+    <select class="cr-select" id="crFStatus" aria-label="Filter status">
+        <option value="">Semua status</option>
+        <option value="review">Dalam Review</option>
+        <option value="revision">Perlu Revisi</option>
+        <option value="approved">Approved</option>
+        <option value="draft">Draft (Master Design)</option>
+        <option value="closed">Selesai / close</option>
+    </select>
+    <select class="cr-select" id="crFDl" aria-label="Filter tenggat">
+        <option value="">Semua tenggat</option>
+        <option value="late">Terlambat</option>
+        <option value="soon">Segera (≤ 3 hari)</option>
+        <option value="has">Punya tenggat</option>
+        <option value="none">Tanpa tenggat</option>
+    </select>
+    <select class="cr-select" id="crFSrc" aria-label="Filter sumber">
+        <option value="">Semua sumber</option>
+        <option value="s">Standalone</option>
+        <option value="e">Dari Event</option>
+    </select>
+    <select class="cr-select" id="crSort" aria-label="Urutkan">
+        <option value="">Urutan asli</option>
+        <option value="tenggat">Tenggat terdekat</option>
+        <option value="tanggal">Tanggal terbaru</option>
+        <option value="nama">Nama A–Z</option>
+        <option value="budget">Budget terbesar</option>
+        <option value="real">Realisasi terbesar</option>
+    </select>
+    <div class="cr-tools-end">
+        <span class="cr-count" id="crCount" aria-live="polite"><?= $nAll ?> item</span>
+        <button type="button" class="cr-btn cr-btn-sm" id="crReset"><i class="bi bi-x-circle"></i>Reset</button>
+    </div>
+</div>
+
+<div class="cr-empty" id="crNoMatch" hidden>
+    <i class="bi bi-funnel"></i><h5>Tidak ada item yang cocok</h5>
+    <p>Ubah kata kunci atau filter, atau reset untuk melihat semua item.</p>
+    <button type="button" class="cr-btn" data-cr-resetbtn><i class="bi bi-x-circle"></i>Reset filter</button>
+</div>
 
 <?php foreach ($tipeConfig as $tipe => $cfg):
     $tipeItems = $byTipe[$tipe] ?? [];
     if (empty($tipeItems) && !$canEdit) continue;
-
-    $standaloneOfTipe = array_values(array_filter($tipeItems, fn($i) => $i['_source'] === 's'));
-    $eventOfTipe      = array_values(array_filter($tipeItems, fn($i) => $i['_source'] === 'e'));
-    $sCount           = count($standaloneOfTipe);
-    $eCount           = count($eventOfTipe);
+    $sCount = count(array_filter($tipeItems, fn($i) => $i['_source'] === 's'));
+    $eCount = count($tipeItems) - $sCount;
+    $hasBudgetField = in_array($tipe, ['cetak', 'influencer', 'digital', 'media_prescon']);
 ?>
+<!-- ═══ <?= $cfg['label'] ?> ═══ -->
+<section class="cr-group t-<?= $tipe ?>" data-tipe="<?= $tipe ?>" id="grup-<?= $tipe ?>">
+    <div class="cr-group-h">
+        <div class="cr-group-ico"><i class="bi <?= $cfg['icon'] ?>"></i></div>
+        <h2 class="cr-group-t"><?= $cfg['label'] ?></h2>
+        <span class="cr-group-n"><span class="js-gcount"><?= count($tipeItems) ?></span> item<?= $sCount > 0 && $eCount > 0 ? ' · ' . $sCount . ' standalone · ' . $eCount . ' event' : '' ?></span>
+        <?php if ($canEdit): ?>
+        <button type="button" class="cr-btn cr-btn-sm cr-btn-soft toggle-add-item" data-tipe="<?= $tipe ?>"><i class="bi bi-plus-lg"></i>Tambah Item</button>
+        <?php endif; ?>
+    </div>
 
-<!-- ═══ TIPE SECTION: <?= $cfg['label'] ?> ═══ -->
-<div class="tipe-section" data-tipe="<?= $tipe ?>">
-<div class="d-flex align-items-center gap-2 mb-2 mt-4">
-    <i class="<?= $cfg['icon'] ?> text-<?= $cfg['color'] ?> fs-5"></i>
-    <h6 class="fw-bold mb-0 text-<?= $cfg['color'] ?>"><?= $cfg['label'] ?></h6>
-    <?php if ($sCount > 0): ?>
-    <span class="badge bg-<?= $cfg['color'] ?> text-white"><?= $sCount ?> standalone</span>
-    <?php endif; ?>
-    <?php if ($eCount > 0): ?>
-    <span class="badge bg-warning text-dark"><?= $eCount ?> event</span>
-    <?php endif; ?>
     <?php if ($canEdit): ?>
-    <button class="btn btn-sm btn-outline-<?= $cfg['color'] ?> ms-auto toggle-add-item"
-            data-tipe="<?= $tipe ?>">
-        <i class="bi bi-plus-lg me-1"></i>Tambah Item
-    </button>
-    <?php endif; ?>
-</div>
-
-<?php if ($canEdit): ?>
-<!-- Inline add form for this tipe (collapsible) -->
-<div id="add-item-<?= $tipe ?>" class="d-none mb-3">
-    <div class="card border-<?= $cfg['color'] ?>-subtle">
-        <div class="card-body py-2 px-3 <?= $cfg['bg'] ?> bg-opacity-50">
-            <form method="POST" action="<?= base_url('creative/add') ?>">
-                <?= csrf_field() ?>
-                <input type="hidden" name="tipe" value="<?= $tipe ?>">
-                <div class="row g-2 align-items-end">
-                    <div class="col-sm-3">
-                        <label class="form-label small fw-semibold mb-1">Nama <span class="text-danger">*</span></label>
-                        <input type="text" name="nama" class="form-control form-control-sm" required
-                               placeholder="<?= $tipePlaceholders[$tipe] ?? '' ?>">
-                    </div>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1"><i class="bi bi-calendar3 me-1"></i>Tanggal</label>
-                        <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>">
-                    </div>
-                    <?php if ($tipe === 'digital'): ?>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Platform</label>
-                        <select name="platform" class="form-select form-select-sm">
-                            <option value="ig">Instagram</option>
-                            <option value="tiktok">TikTok</option>
-                            <option value="keduanya">IG &amp; TikTok</option>
-                        </select>
-                    </div>
-                    <?php endif; ?>
-                    <?php if (in_array($tipe, ['cetak', 'influencer', 'digital', 'media_prescon'])): ?>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Budget (Rp)</label>
-                        <input type="text" name="budget" class="form-control form-control-sm currency-input" placeholder="0">
-                    </div>
-                    <?php endif; ?>
-                    <?php if (in_array($tipe, ['digital', 'influencer'])): ?>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Target Reach</label>
-                        <input type="number" name="target_reach" class="form-control form-control-sm" placeholder="0" min="0">
-                    </div>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Target Impresi</label>
-                        <input type="number" name="target_impressions" class="form-control form-control-sm" placeholder="0" min="0">
-                    </div>
-                    <?php endif; ?>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Deadline</label>
-                        <input type="date" name="deadline" class="form-control form-control-sm">
-                    </div>
-                    <div class="col">
-                        <label class="form-label small fw-semibold mb-1">Deskripsi / Catatan</label>
-                        <input type="text" name="deskripsi" class="form-control form-control-sm" placeholder="Opsional">
-                    </div>
-                    <div class="col-sm-auto">
-                        <div class="form-check mb-1" title="Tandai item sudah selesai/close">
-                            <input type="checkbox" class="form-check-input" name="is_closed" value="1" id="close-<?= $tipe ?>">
-                            <label class="form-check-label small" for="close-<?= $tipe ?>">Selesai</label>
-                        </div>
-                        <button type="submit" class="btn btn-<?= $cfg['color'] ?> btn-sm">Tambah</button>
-                    </div>
+    <!-- Form tambah (per jenis) -->
+    <div id="add-item-<?= $tipe ?>" class="cr-add" hidden>
+        <div class="cr-add-t"><i class="bi <?= $cfg['icon'] ?> cr-c-mute"></i>Item <?= $cfg['label'] ?> baru</div>
+        <form method="POST" action="<?= base_url('creative/add') ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="tipe" value="<?= $tipe ?>">
+            <div class="cr-fgrid">
+                <div class="cr-f w4">
+                    <label>Nama <span class="req">*</span></label>
+                    <input type="text" name="nama" class="form-control" required placeholder="<?= $tipePlaceholders[$tipe] ?? '' ?>">
+                </div>
+                <div class="cr-f w2">
+                    <label><i class="bi bi-calendar3"></i> Tanggal</label>
+                    <input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>">
                 </div>
                 <?php if ($tipe === 'digital'): ?>
-                <div class="row g-2 mt-1">
-                    <div class="col-sm-3">
-                        <label class="form-label small fw-semibold mb-1"><i class="bi bi-camera me-1"></i>Tanggal Take</label>
-                        <input type="date" name="tanggal_take" class="form-control form-control-sm">
-                    </div>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Waktu Take</label>
-                        <input type="time" name="jam_take" class="form-control form-control-sm">
-                    </div>
-                    <div class="col-sm-3">
-                        <label class="form-label small fw-semibold mb-1"><i class="bi bi-person me-1"></i>PIC</label>
-                        <input type="text" name="pic" class="form-control form-control-sm" placeholder="Nama PIC">
-                    </div>
+                <div class="cr-f w2">
+                    <label>Platform</label>
+                    <select name="platform" class="form-select">
+                        <option value="ig">Instagram</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="keduanya">IG &amp; TikTok</option>
+                    </select>
                 </div>
                 <?php endif; ?>
-            </form>
-        </div>
+                <?php if ($hasBudgetField): ?>
+                <div class="cr-f w2">
+                    <label>Budget (Rp)</label>
+                    <input type="text" name="budget" class="form-control currency-input" placeholder="0">
+                </div>
+                <?php endif; ?>
+                <?php if (in_array($tipe, ['digital', 'influencer'])): ?>
+                <div class="cr-f w2">
+                    <label>Target Reach</label>
+                    <input type="number" name="target_reach" class="form-control" placeholder="0" min="0">
+                </div>
+                <div class="cr-f w2">
+                    <label>Target Impresi</label>
+                    <input type="number" name="target_impressions" class="form-control" placeholder="0" min="0">
+                </div>
+                <?php endif; ?>
+                <div class="cr-f w2">
+                    <label>Deadline</label>
+                    <input type="date" name="deadline" class="form-control">
+                </div>
+                <?php if ($tipe === 'digital'): ?>
+                <div class="cr-f w2">
+                    <label><i class="bi bi-camera"></i> Tanggal Take</label>
+                    <input type="date" name="tanggal_take" class="form-control">
+                </div>
+                <div class="cr-f w2">
+                    <label>Waktu Take</label>
+                    <input type="time" name="jam_take" class="form-control">
+                </div>
+                <div class="cr-f w2">
+                    <label><i class="bi bi-person"></i> PIC</label>
+                    <input type="text" name="pic" class="form-control" placeholder="Nama PIC">
+                </div>
+                <?php endif; ?>
+                <div class="cr-f w6">
+                    <label>Deskripsi / Catatan</label>
+                    <input type="text" name="deskripsi" class="form-control" placeholder="Opsional">
+                </div>
+                <div class="cr-f w6 cr-f-act">
+                    <label class="cr-check" for="close-<?= $tipe ?>" style="margin:0;text-transform:none;letter-spacing:0;font-size:.8rem;color:var(--cr-txt)" title="Tandai item sudah selesai/close">
+                        <input type="checkbox" name="is_closed" value="1" id="close-<?= $tipe ?>">Selesai
+                    </label>
+                    <button type="submit" class="cr-btn cr-btn-primary"><i class="bi bi-plus-lg"></i>Tambah</button>
+                    <button type="button" class="cr-btn" data-cr-addclose="<?= $tipe ?>">Batal</button>
+                </div>
+            </div>
+        </form>
     </div>
-</div>
-<?php endif; ?>
+    <?php endif; ?>
 
-<?php if (empty($tipeItems)): ?>
-<div class="card mb-3"><div class="card-body text-center py-3 text-muted small fst-italic">
-    Belum ada item <?= $cfg['label'] ?>. <?= $canEdit ? 'Klik "Tambah Item" untuk memulai.' : '' ?>
-</div></div>
-<?php endif; ?>
+    <?php if (empty($tipeItems)): ?>
+    <div class="cr-groupempty">Belum ada item <?= $cfg['label'] ?>. <?= $canEdit ? 'Klik “Tambah Item” untuk memulai.' : '' ?></div>
+    <?php endif; ?>
 
-<!-- Standalone items for this tipe -->
-<?php foreach ($standaloneOfTipe as $item):
-    $iid     = $item['id'];
-    $iFiles  = $files[$iid]    ?? [];
-    $iReal   = $realisasi[$iid] ?? ['total' => 0, 'entries' => []];
-    $iInsight= $insights[$iid]  ?? null;
-    $iTotal  = (int)($iReal['total'] ?? 0);
-    $iBudget = (int)($item['budget'] ?? 0);
-    $iPct    = $iBudget > 0 ? min(100, round($iTotal / $iBudget * 100)) : null;
-    $iColor  = $iTotal > $iBudget && $iBudget > 0 ? 'danger' : 'success';
-    $status  = $item['status'] ?? 'draft';
-    $sCfg    = $statusConfig[$status] ?? $statusConfig['draft'];
-?>
-<div class="card mb-3 border-start border-4 border-primary creative-item-card" data-tab="<?= $item['_tab'] ?>" id="item-<?= $iid ?>-s">
-    <!-- Source strip -->
-    <div class="card-header py-1 px-3 bg-primary-subtle d-flex align-items-center gap-2" style="font-size:.75rem">
-        <i class="bi bi-vector-pen text-primary"></i>
-        <span class="fw-semibold text-primary">Creative Standalone</span>
-    </div>
-    <div class="card-body pb-2">
-        <div class="d-flex justify-content-between align-items-start gap-3">
-            <!-- Left: info -->
-            <div class="flex-grow-1 min-w-0">
-                <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
-                    <?php if ($tipe === 'master_design'): ?>
-                    <span class="badge <?= $sCfg['badge'] ?>" style="font-size:.65rem"><?= $sCfg['label'] ?><?= ($item['versi'] ?? 1) > 1 ? ' · v' . (int) $item['versi'] : '' ?></span>
+    <div class="cr-list">
+    <?php foreach ($tipeItems as $ord => $item):
+        $isS    = $item['_source'] === 's';
+        $iid    = (int) $item['id'];
+        $status = $item['status'] ?? 'draft';
+        $sCfg   = $statusConfig[$status] ?? $statusConfig['draft'];
+        $closed = !empty($item['is_closed']);
+        $iBudget = (int) ($item['budget'] ?? 0);
+        if ($isS) {
+            $iFiles   = $files[$iid] ?? [];
+            $iReal    = $realisasi[$iid] ?? ['total' => 0, 'entries' => []];
+            $iInsight = $insights[$iid] ?? null;
+            $iReviews = $reviews[$iid] ?? [];
+        } else {
+            $iFiles = []; $iReal = ['total' => 0, 'entries' => []]; $iInsight = null; $iReviews = [];
+        }
+        $iTotal = (int) ($iReal['total'] ?? 0);
+        $iPct   = $iBudget > 0 ? min(100, round($iTotal / $iBudget * 100)) : null;
+        $over   = $iTotal > $iBudget && $iBudget > 0;
+        $barCls = $over ? 'cr-bar-over' : ($iPct !== null && $iPct >= 100 ? 'cr-bar-ok' : 'cr-bar-ok');
+        $dl     = $dlInfo($item);
+        $isMD   = $tipe === 'master_design';
+        $terkunci   = $isS && $isMD && $status === 'approved';
+        $perluTinjau = $isS && $isMD && $canApprove && $status === 'review';
+        $itgl   = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? '');
+        $stKey  = $isMD ? $status : ($closed ? 'closed' : 'run');
+        $jmlOpsi = $isMD ? count(array_filter($iFiles, fn($f) => (int) ($f['is_opsi'] ?? 1) === 1)) : 0;
+        $nEntries = count($iReal['entries'] ?? []);
+        $nIns     = $iInsight && !empty($iInsight['entries']) ? count($iInsight['entries']) : 0;
+        $actReach = (int) ($iInsight['max_reach'] ?? 0);
+        $tgtReach = (int) ($item['target_reach'] ?? 0);
+        $tgtImpr  = (int) ($item['target_impressions'] ?? 0);
+        $actImpr  = (int) ($iInsight['max_impressions'] ?? 0);
+
+        // Panel yang tersedia (hanya item standalone yang bisa dikelola di sini)
+        $panes = [];
+        if ($isS && $isMD && ($canEdit || !empty($iFiles) || $iReviews)) $panes['files'] = ['Opsi & Persetujuan', 'bi-images', $jmlOpsi ?: null];
+        if ($isS && $hasBudgetField && ($canEdit || $nEntries)) $panes['realisasi'] = ['Realisasi', 'bi-receipt', $nEntries ?: null];
+        if ($isS && $tipe === 'digital' && ($canEdit || $nIns)) $panes['insight'] = ['Insight', 'bi-graph-up', $nIns ?: null];
+        $autoOpen = $perluTinjau && isset($panes['files']);
+        $primaryPane = $autoOpen ? 'files' : (array_key_first($panes) ?: 'detail');
+
+        $search = mb_strtolower(implode(' ', [
+            $item['nama'], $item['deskripsi'] ?? '', $item['catatan'] ?? '', $item['pic'] ?? '', $item['event_name'] ?? '',
+            $platformLabels[$item['platform'] ?? ''] ?? '', $cfg['label'],
+        ]));
+    ?>
+    <article class="cr-item <?= $isS ? 'is-s' : 'is-e' ?> <?= ($closed || ($isMD && $status === 'approved')) ? 'is-done' : '' ?> creative-item-card"
+        id="<?= $isS ? 'item-' . $iid . '-s' : 'item-e-' . $iid ?>"
+        data-id="<?= $iid ?>" data-ord="<?= $ord ?>" data-src="<?= $isS ? 's' : 'e' ?>" data-tipe="<?= $tipe ?>" data-tab="<?= esc($item['_tab'], 'attr') ?>"
+        data-status="<?= $stKey ?>" data-closed="<?= $closed ? '1' : '0' ?>" data-dl="<?= $dl['key'] ?>"
+        data-deadline="<?= esc($item['deadline'] ?? '', 'attr') ?>" data-tgl="<?= esc($itgl, 'attr') ?>"
+        data-name="<?= esc($item['nama'], 'attr') ?>" data-budget="<?= $iBudget ?>" data-real="<?= $iTotal ?>"
+        data-pane="<?= $primaryPane ?>" data-autoopen="<?= $autoOpen ? '1' : '0' ?>"
+        data-search="<?= esc($search, 'attr') ?>">
+        <div class="cr-item-head" data-cr-toggle>
+            <button type="button" class="cr-chev" aria-expanded="false" aria-label="Buka rincian <?= esc($item['nama'], 'attr') ?>"><i class="bi bi-chevron-right"></i></button>
+
+            <div class="cr-item-main">
+                <div class="cr-item-line">
+                    <span class="cr-item-name"><?= esc($item['nama']) ?></span>
+                    <?php if ($isMD): ?>
+                    <span class="cr-chip <?= $sCfg['chip'] ?>"><i class="bi <?= $sCfg['icon'] ?>"></i><?= $sCfg['label'] ?><?= ($item['versi'] ?? 1) > 1 ? ' · v' . (int) $item['versi'] : '' ?></span>
                     <?php endif; ?>
                     <?php if ($tipe === 'digital' && ($item['platform'] ?? '')): ?>
-                    <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
-                        <i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?> me-1"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?>
-                    </span>
+                    <span class="cr-chip cr-chip-t"><i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?>"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?></span>
                     <?php endif; ?>
-                    <span class="fw-semibold"><?= esc($item['nama']) ?></span>
-                    <?php if (!empty($item['is_closed'])): ?><span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-check2-circle me-1"></i>Selesai</span><?php endif; ?>
-                    <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?><span class="text-muted ms-1" style="font-size:.7rem"><i class="bi bi-calendar3"></i> <?= date('d M Y', strtotime($itgl)) ?></span><?php endif; ?>
-                    <?php if (!empty($item['deadline'])): $dlDiff = (int)((strtotime($item['deadline']) - strtotime(date('Y-m-d'))) / 86400); $isDone = !empty($item['is_closed']) || ($item['status'] ?? '') === 'approved'; if ($isDone): ?><span class="badge bg-success-subtle text-success ms-1" style="font-size:.6rem"><i class="bi bi-check-circle me-1"></i>Tepat waktu</span><?php elseif ($dlDiff < 0): ?><span class="badge bg-danger ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-exclamation-triangle-fill me-1"></i>Terlambat <?= abs($dlDiff) ?> hari</span><?php elseif ($dlDiff <= 3): ?><span class="badge bg-warning text-dark ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-clock me-1"></i><?= $dlDiff === 0 ? 'Hari ini!' : $dlDiff.' hari lagi' ?></span><?php else: ?><span class="badge bg-info-subtle text-info ms-1" style="font-size:.6rem"><i class="bi bi-calendar-check me-1"></i><?= date('d M', strtotime($item['deadline'])) ?></span><?php endif; endif; ?>
-                </div>
-                <?php // Materi final harus terbaca tanpa membuka panel — inilah yang
-                      // dicari orang produksi saat mengambil file untuk dicetak. ?>
-                <?php if ($tipe === 'master_design' && $status === 'approved'): ?>
-                <?= view('_creative/_final', [
-                    'iFiles'   => $iFiles,
-                    'fileBase' => 'uploads/creative-standalone/' . $iid . '/',
-                ], ['saveData' => false]) ?>
-                <?php endif; ?>
-                <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '') || ($item['pic'] ?? ''))): ?>
-                <div class="small text-muted mb-1">
-                    <?php if ($item['tanggal_take'] || $item['jam_take']): ?>
-                    <i class="bi bi-camera me-1"></i>Take:
-                    <?php if ($item['tanggal_take']): ?><strong class="text-body"><?= date('d M Y', strtotime($item['tanggal_take'])) ?></strong><?php endif; ?>
-                    <?php if ($item['jam_take']): ?> <?= substr($item['jam_take'], 0, 5) ?><?php endif; ?>
+                    <?php if (!$isS): ?><span class="cr-chip cr-chip-gold"><i class="bi bi-calendar-event"></i>Event</span><?php endif; ?>
+                    <?php if ($closed): ?><span class="cr-chip cr-chip-mute"><i class="bi bi-check2-circle"></i>Selesai</span><?php endif; ?>
+                    <?php if ($dl['key'] === 'done'): ?>
+                    <span class="cr-chip cr-chip-ok" title="Deadline: <?= $fTgl($item['deadline']) ?>"><i class="bi bi-check-circle"></i>Tepat waktu</span>
+                    <?php elseif ($dl['key'] === 'late'): ?>
+                    <span class="cr-chip cr-chip-bad" title="Deadline: <?= $fTgl($item['deadline']) ?>"><i class="bi bi-exclamation-triangle-fill"></i>Terlambat <?= abs($dl['diff']) ?> hari</span>
+                    <?php elseif ($dl['key'] === 'soon'): ?>
+                    <span class="cr-chip cr-chip-warn" title="Deadline: <?= $fTgl($item['deadline']) ?>"><i class="bi bi-clock"></i><?= $dl['diff'] === 0 ? 'Hari ini!' : $dl['diff'] . ' hari lagi' ?></span>
+                    <?php elseif ($dl['key'] === 'ok'): ?>
+                    <span class="cr-chip cr-chip-blue" title="Deadline"><i class="bi bi-calendar-check"></i><?= $fTgl($item['deadline'], false) ?></span>
                     <?php endif; ?>
-                    <?php if ($item['pic'] ?? ''): ?>
-                    <?php if ($item['tanggal_take'] || $item['jam_take']): ?>&nbsp;·&nbsp;<?php endif; ?>
-                    <i class="bi bi-person me-1"></i><strong class="text-body"><?= esc($item['pic']) ?></strong>
+                    <?php if ($perluTinjau): ?><span class="cr-chip cr-chip-warn"><i class="bi bi-clipboard-check"></i>Perlu ditinjau</span><?php endif; ?>
+                    <?php if ($terkunci && $canEdit): ?><span class="cr-chip cr-chip-mute" title="Buka kembali materi di panel Opsi &amp; Persetujuan bila perlu diubah"><i class="bi bi-lock-fill"></i>Terkunci</span><?php endif; ?>
+                </div>
+                <div class="cr-item-meta">
+                    <?php if ($itgl): ?><span><i class="bi bi-calendar3"></i><?= $fTgl($itgl) ?></span><?php endif; ?>
+                    <?php if (!$isS && ($item['event_name'] ?? '')): ?><span><i class="bi bi-calendar-event"></i><?= esc($item['event_name']) ?></span><?php endif; ?>
+                    <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? ''))): ?>
+                    <span><i class="bi bi-camera"></i>Take <b><?= $fTgl($item['tanggal_take'] ?? '') ?></b><?= ($item['jam_take'] ?? '') ? ' ' . substr($item['jam_take'], 0, 5) : '' ?></span>
                     <?php endif; ?>
+                    <?php if ($tipe === 'digital' && ($item['pic'] ?? '')): ?><span><i class="bi bi-person"></i><b><?= esc($item['pic']) ?></b></span><?php endif; ?>
                 </div>
-                <?php endif; ?>
-                <?php if ($item['deskripsi'] ?? ''): ?>
-                <p class="small text-muted mb-1" style="white-space:pre-line"><?= esc($item['deskripsi']) ?></p>
-                <?php endif; ?>
-                <?php if ($iBudget > 0): ?>
-                <div class="small text-muted">
-                    <i class="bi bi-cash me-1"></i>Budget: <strong class="text-body">Rp <?= number_format($iBudget, 0, ',', '.') ?></strong>
-                    <?php if ($iTotal > 0): ?>
-                    · Realisasi: <strong class="text-<?= $iColor ?>">Rp <?= number_format($iTotal, 0, ',', '.') ?></strong>
-                    <?php if ($iPct !== null): ?><span class="text-<?= $iColor ?>">(<?= $iPct ?>%)</span><?php endif; ?>
-                    <?php endif; ?>
-                </div>
-                <?php if ($iPct !== null && $iTotal > 0): ?>
-                <div class="progress mt-1" style="height:3px;max-width:200px">
-                    <div class="progress-bar bg-<?= $iColor ?>" style="width:<?= min(100, $iPct) ?>%"></div>
-                </div>
-                <?php endif; ?>
-                <?php endif; ?>
-                <?php if ($item['catatan'] ?? ''): ?>
-                <div class="small text-muted mt-1"><i class="bi bi-sticky me-1"></i><?= esc($item['catatan']) ?></div>
-                <?php endif; ?>
+                <?php if (($item['deskripsi'] ?? '') !== ''): ?><div class="cr-desc1"><?= esc($item['deskripsi']) ?></div><?php endif; ?>
             </div>
 
-            <!-- Right: action buttons -->
-            <div class="d-flex gap-1 flex-shrink-0 align-items-start">
-                <?php // Panel "Opsi & Persetujuan" di bawah sudah terbuka sendiri untuk
-                      // materi yang menunggu keputusan; ini sekadar penanda, bukan tombol
-                      // toggle — mengklik toggle justru akan menutup panel yang dicari. ?>
-                <?php if ($tipe === 'master_design' && $canApprove && $status === 'review'): ?>
-                <span class="badge bg-warning text-dark" style="font-size:.65rem" title="Keputusan Anda ditunggu di panel Opsi &amp; Persetujuan">
-                    <i class="bi bi-clipboard-check me-1"></i>Perlu ditinjau
-                </span>
-                <?php endif; ?>
-                <?php // Item yang sudah disetujui ditolak oleh controller, jadi tombolnya
-                      // jangan ditampilkan — kalau tidak, satu-satunya hasil klik adalah pesan galat. ?>
-                <?php $terkunci = $tipe === 'master_design' && $status === 'approved'; ?>
-                <?php if ($terkunci && $canEdit): ?>
-                <span class="badge bg-secondary-subtle text-secondary" style="font-size:.62rem"
-                      title="Buka kembali materi di panel Opsi &amp; Persetujuan bila perlu diubah">
-                    <i class="bi bi-lock-fill me-1"></i>Terkunci
-                </span>
-                <?php endif; ?>
-                <?php if ($canEdit && ! $terkunci): ?>
-                <button class="btn btn-xs btn-outline-secondary edit-item-btn"
-                        style="padding:.2rem .5rem;font-size:.72rem"
-                        data-id="<?= $iid ?>"
-                        data-nama="<?= esc($item['nama'], 'attr') ?>"
-                        data-tipe="<?= $tipe ?>"
-                        data-platform="<?= esc($item['platform'] ?? '', 'attr') ?>"
-                        data-tanggal-take="<?= $item['tanggal_take'] ?? '' ?>"
-                        data-jam-take="<?= substr($item['jam_take'] ?? '', 0, 5) ?>"
-                        data-pic="<?= esc($item['pic'] ?? '', 'attr') ?>"
-                        data-deskripsi="<?= esc($item['deskripsi'] ?? '', 'attr') ?>"
-                        data-tanggal="<?= $item['tanggal'] ?? '' ?>"
-                        data-is-closed="<?= !empty($item['is_closed']) ? '1' : '0' ?>"
-                        data-budget="<?= number_format($iBudget, 0, ',', '.') ?>"
-                        data-target-reach="<?= (int)($item['target_reach'] ?? 0) ?>"
-                        data-target-impressions="<?= (int)($item['target_impressions'] ?? 0) ?>"
-                        data-deadline="<?= $item['deadline'] ?? '' ?>"
-                        data-catatan="<?= esc($item['catatan'] ?? '', 'attr') ?>">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <form method="POST" action="<?= base_url('creative/' . $iid . '/delete') ?>"
-                      onsubmit="return confirm('Hapus item ini beserta semua file dan realisasinya?')">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-xs btn-outline-danger" style="padding:.2rem .5rem;font-size:.72rem">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </form>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- Sub-section toggle buttons -->
-        <?php $hasToggles = ($tipe === 'master_design') || in_array($tipe, ['cetak', 'influencer', 'digital', 'media_prescon']); ?>
-        <?php if ($hasToggles && ($canEdit || !empty($iFiles) || !empty($iReal['entries']) || $iInsight)): ?>
-        <div class="d-flex flex-wrap gap-1 mt-2 pt-2 border-top">
-            <?php if ($tipe === 'master_design'): ?>
-            <button class="btn btn-xs btn-outline-primary toggle-files"
-                    style="padding:.2rem .5rem;font-size:.72rem"
-                    data-iid="<?= $iid ?>">
-                <i class="bi bi-images me-1"></i>Opsi &amp; Persetujuan
-                <?php $jmlOpsi = count(array_filter($iFiles, fn($f) => (int)($f['is_opsi'] ?? 1) === 1)); ?>
-                <?php if ($jmlOpsi): ?><span class="badge bg-primary-subtle text-primary ms-1" style="font-size:.65rem"><?= $jmlOpsi ?></span><?php endif; ?>
-            </button>
-            <?php endif; ?>
-            <?php if (in_array($tipe, ['cetak', 'influencer', 'digital', 'media_prescon'])): ?>
-            <button class="btn btn-xs btn-outline-secondary toggle-realisasi"
-                    style="padding:.2rem .5rem;font-size:.72rem"
-                    data-iid="<?= $iid ?>">
-                <i class="bi bi-receipt me-1"></i>Realisasi
-                <?php if ($iTotal > 0): ?><span class="badge bg-secondary-subtle text-secondary ms-1" style="font-size:.65rem">Rp <?= number_format($iTotal, 0, ',', '.') ?></span><?php endif; ?>
-            </button>
-            <?php endif; ?>
-            <?php if ($tipe === 'digital'): ?>
-            <button class="btn btn-xs btn-outline-info toggle-insight"
-                    style="padding:.2rem .5rem;font-size:.72rem"
-                    data-iid="<?= $iid ?>">
-                <i class="bi bi-graph-up me-1"></i>Insight
-                <?php if ($iInsight && !empty($iInsight['entries'])): ?><span class="badge bg-info-subtle text-info ms-1" style="font-size:.65rem"><?= count($iInsight['entries']) ?> entri</span><?php endif; ?>
-            </button>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
-    </div>
-
-    <?php if ($tipe === 'master_design'): ?>
-    <!-- ── Opsi desain, keputusan & riwayat (master_design) ── -->
-    <div id="files-<?= $iid ?>" class="<?= ($canApprove && $status === 'review') ? '' : 'd-none' ?> border-top">
-        <?= view('_creative/_approval', [
-            'iid'        => $iid,
-            'item'       => $item,
-            'iFiles'     => $iFiles,
-            'iReviews'   => $reviews[$iid] ?? [],
-            'canEdit'    => $canEdit,
-            'canApprove' => $canApprove,
-            'aksiBase'   => 'creative/' . $iid,
-            'fileBase'   => 'uploads/creative-standalone/' . $iid . '/',
-            'fileField'  => 'file',
-            'imageExts'  => $imageExts,
-        ], ['saveData' => false]) ?>
-    </div>
-    <?php endif; // master_design ?>
-
-    <?php if (in_array($tipe, ['cetak', 'influencer', 'digital', 'media_prescon'])): ?>
-    <!-- ── Realisasi section ── -->
-    <div id="realisasi-<?= $iid ?>" class="d-none border-top">
-        <div class="px-3 py-2 bg-light d-flex justify-content-between align-items-center">
-            <span class="small fw-semibold text-muted">
-                <i class="bi bi-receipt me-1"></i>Realisasi Biaya
-                <?php if ($iTotal > 0): ?>
-                <span class="badge bg-secondary-subtle text-secondary ms-1">Rp <?= number_format($iTotal, 0, ',', '.') ?></span>
-                <?php endif; ?>
-                <?php if (!empty($iReal['entries'])): ?>
-                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1"><?= count($iReal['entries']) ?> entri</span>
-                <?php endif; ?>
-            </span>
-            <?php if ($canEdit): ?>
-            <button class="btn btn-xs btn-outline-primary toggle-add-realisasi"
-                    style="padding:.2rem .6rem;font-size:.75rem"
-                    data-iid="<?= $iid ?>">
-                <i class="bi bi-plus-lg me-1"></i>Input
-            </button>
-            <?php endif; ?>
-        </div>
-
-        <?php if ($canEdit): ?>
-        <div id="add-realisasi-<?= $iid ?>" class="d-none px-3 py-2 border-bottom bg-white">
-            <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/add') ?>"
-                  <?= in_array($tipe, ['influencer', 'cetak', 'media_prescon']) ? 'enctype="multipart/form-data"' : '' ?>>
-                <?= csrf_field() ?>
-                <div class="row g-2 align-items-end">
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Tanggal</label>
-                        <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
-                    </div>
-                    <div class="col-sm-3">
-                        <label class="form-label small fw-semibold mb-1">Nilai (Rp) <span class="text-danger">*</span></label>
-                        <input type="text" name="nilai" class="form-control form-control-sm currency-input" placeholder="0" required>
-                    </div>
-                    <?php if ($tipe === 'influencer'): ?>
-                    <div class="col-sm-3">
-                        <label class="form-label small fw-semibold mb-1">Nama Influencer <span class="text-danger">*</span></label>
-                        <input type="text" name="nama_influencer" class="form-control form-control-sm" placeholder="@username" required>
-                    </div>
-                    <?php endif; ?>
-                    <div class="col">
-                        <label class="form-label small fw-semibold mb-1">Catatan</label>
-                        <input type="text" name="catatan" class="form-control form-control-sm" placeholder="Opsional">
-                    </div>
-                    <div class="col-sm-auto">
-                        <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
-                    </div>
+            <div class="cr-fig">
+                <?php if ($isMD): ?>
+                <div class="cr-fig-row">
+                    <div><span class="cr-fig-l">Opsi desain</span><b><?= $isS ? $jmlOpsi : '—' ?></b></div>
+                    <div><span class="cr-fig-l">Putaran</span><b>v<?= (int) ($item['versi'] ?? 1) ?></b></div>
+                    <div><span class="cr-fig-l">Keputusan</span><b><?= $sCfg['label'] ?></b></div>
                 </div>
-                <?php if ($tipe === 'influencer'): ?>
-                <div class="row g-2 mt-1">
-                    <div class="col-sm-5">
-                        <label class="form-label small fw-semibold mb-1">
-                            <i class="bi bi-image me-1"></i>Screenshot Insight
-                            <span class="fw-normal text-muted">(opsional)</span>
-                        </label>
-                        <input type="file" name="bukti" class="form-control form-control-sm" accept="image/*">
-                    </div>
-                    <div class="col-sm-5">
-                        <label class="form-label small fw-semibold mb-1">
-                            <i class="bi bi-file-earmark-check me-1"></i>Bukti Serah Terima
-                            <span class="fw-normal text-muted">(opsional)</span>
-                        </label>
-                        <input type="file" name="serah_terima" class="form-control form-control-sm" accept="image/*,.pdf">
-                    </div>
-                </div>
-                <?php endif; ?>
-                <?php if ($tipe === 'cetak'): ?>
-                <div class="row g-2 mt-1">
-                    <div class="col-sm-5">
-                        <label class="form-label small fw-semibold mb-1">
-                            <i class="bi bi-image me-1"></i>Bukti Terpasang
-                            <span class="fw-normal text-muted">(opsional)</span>
-                        </label>
-                        <input type="file" name="bukti_terpasang" class="form-control form-control-sm" accept="image/*,.pdf">
-                    </div>
-                </div>
-                <?php endif; ?>
-                <?php if ($tipe === 'media_prescon'): ?>
-                <div class="row g-2 mt-1">
-                    <div class="col-sm-5">
-                        <label class="form-label small fw-semibold mb-1">
-                            <i class="bi bi-image me-1"></i>Dokumentasi
-                            <span class="fw-normal text-muted">(opsional)</span>
-                        </label>
-                        <input type="file" name="bukti" class="form-control form-control-sm" accept="image/*,.pdf">
-                    </div>
-                </div>
-                <?php endif; ?>
-            </form>
-        </div>
-        <?php endif; ?>
-
-        <?php if (!empty($iReal['entries'])): ?>
-        <div class="table-responsive">
-        <table class="table table-sm mb-0" style="font-size:.8rem">
-        <thead class="table-light">
-            <tr>
-                <th class="ps-3">Tanggal</th>
-                <?php if ($tipe === 'influencer'): ?><th>Influencer</th><?php endif; ?>
-                <th>Nilai</th>
-                <th>Catatan</th>
-                <?php if ($tipe === 'influencer'): ?>
-                <th title="Screenshot Insight"><i class="bi bi-image text-muted"></i></th>
-                <th title="Bukti Serah Terima"><i class="bi bi-file-earmark-check text-muted"></i></th>
-                <?php endif; ?>
-                <?php if ($tipe === 'cetak'): ?>
-                <th title="Bukti Terpasang"><i class="bi bi-image text-muted"></i></th>
-                <?php endif; ?>
-                <?php if ($tipe === 'media_prescon'): ?>
-                <th title="Dokumentasi"><i class="bi bi-image text-muted"></i></th>
-                <?php endif; ?>
-                <?php if ($canEdit): ?><th style="width:40px"></th><?php endif; ?>
-            </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($iReal['entries'] as $e): ?>
-        <tr>
-            <td class="ps-3 small"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
-            <?php if ($tipe === 'influencer'): ?>
-            <td class="small fw-medium"><?= esc($e['nama_influencer'] ?? '—') ?></td>
-            <?php endif; ?>
-            <td class="small fw-semibold text-success">Rp <?= number_format($e['nilai'], 0, ',', '.') ?></td>
-            <td class="small text-muted"><?= esc($e['catatan'] ?? '') ?></td>
-            <?php if ($tipe === 'influencer'): ?>
-            <?php
-                $fileColumns = [
-                    ['file' => $e['file_name'],              'orig' => $e['original_name']],
-                    ['file' => $e['serah_terima_file_name'], 'orig' => $e['serah_terima_original_name']],
-                ];
-            ?>
-            <?php foreach ($fileColumns as $fc): ?>
-            <td>
-                <?php if ($fc['file']): ?>
-                <?php $fUrl = base_url('uploads/creative-standalone-realisasi/' . $iid . '/' . $fc['file']);
-                      $fExt = strtolower(pathinfo($fc['file'], PATHINFO_EXTENSION)); ?>
-                <?php if (in_array($fExt, $imageExts)): ?>
-                <a href="<?= $fUrl ?>" target="_blank">
-                    <img src="<?= $fUrl ?>" alt="" style="height:32px;width:auto;border-radius:4px;object-fit:cover"
-                         title="<?= esc($fc['orig']) ?>">
-                </a>
                 <?php else: ?>
-                <a href="<?= $fUrl ?>" target="_blank" class="text-muted" title="<?= esc($fc['orig']) ?>">
-                    <i class="bi bi-file-earmark-<?= $fExt === 'pdf' ? 'pdf text-danger' : 'fill' ?>" style="font-size:1.1rem"></i>
-                </a>
-                <?php endif; ?>
-                <?php else: ?>
-                <span class="text-muted">—</span>
-                <?php endif; ?>
-            </td>
-            <?php endforeach; ?>
-            <?php endif; ?>
-            <?php if ($tipe === 'cetak'): ?>
-            <td>
-                <?php if ($e['bukti_terpasang_file_name']): ?>
-                <?php $fUrl = base_url('uploads/creative-standalone-realisasi/' . $iid . '/' . $e['bukti_terpasang_file_name']);
-                      $fExt = strtolower(pathinfo($e['bukti_terpasang_file_name'], PATHINFO_EXTENSION)); ?>
-                <?php if (in_array($fExt, $imageExts)): ?>
-                <a href="<?= $fUrl ?>" target="_blank">
-                    <img src="<?= $fUrl ?>" alt="" style="height:32px;width:auto;border-radius:4px;object-fit:cover"
-                         title="<?= esc($e['bukti_terpasang_original_name']) ?>">
-                </a>
-                <?php else: ?>
-                <a href="<?= $fUrl ?>" target="_blank" class="text-muted" title="<?= esc($e['bukti_terpasang_original_name']) ?>">
-                    <i class="bi bi-file-earmark-<?= $fExt === 'pdf' ? 'pdf text-danger' : 'fill' ?>" style="font-size:1.1rem"></i>
-                </a>
-                <?php endif; ?>
-                <?php else: ?>
-                <span class="text-muted">—</span>
-                <?php endif; ?>
-            </td>
-            <?php endif; ?>
-            <?php if ($tipe === 'media_prescon'): ?>
-            <td>
-                <?php if ($e['file_name']): ?>
-                <?php $fUrl = base_url('uploads/creative-standalone-realisasi/' . $iid . '/' . $e['file_name']);
-                      $fExt = strtolower(pathinfo($e['file_name'], PATHINFO_EXTENSION)); ?>
-                <?php if (in_array($fExt, $imageExts)): ?>
-                <a href="<?= $fUrl ?>" target="_blank">
-                    <img src="<?= $fUrl ?>" alt="" style="height:32px;width:auto;border-radius:4px;object-fit:cover"
-                         title="<?= esc($e['original_name']) ?>">
-                </a>
-                <?php else: ?>
-                <a href="<?= $fUrl ?>" target="_blank" class="text-muted" title="<?= esc($e['original_name']) ?>">
-                    <i class="bi bi-file-earmark-<?= $fExt === 'pdf' ? 'pdf text-danger' : 'fill' ?>" style="font-size:1.1rem"></i>
-                </a>
-                <?php endif; ?>
-                <?php else: ?>
-                <span class="text-muted">—</span>
-                <?php endif; ?>
-            </td>
-            <?php endif; ?>
-            <?php if ($canEdit): ?>
-            <td>
-                <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/' . $e['id'] . '/delete') ?>"
-                      onsubmit="return confirm('Hapus entri ini?')">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-xs btn-outline-danger" style="padding:.15rem .4rem;font-size:.7rem">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </form>
-            </td>
-            <?php endif; ?>
-        </tr>
-        <?php endforeach; ?>
-        <tr class="table-light fw-semibold">
-            <td class="ps-3 small" colspan="<?= $tipe === 'influencer' ? 2 : 1 ?>">Total</td>
-            <td class="small text-success">Rp <?= number_format($iTotal, 0, ',', '.') ?></td>
-            <td colspan="<?= ($tipe === 'influencer' ? 2 : 0) + ($canEdit ? 2 : 1) ?>"></td>
-        </tr>
-        </tbody>
-        </table>
-        </div>
-        <?php endif; ?>
-    </div>
-    <?php endif; // realisasi section ?>
-
-    <?php if ($tipe === 'digital'): ?>
-    <!-- ── Insight section ── -->
-    <div id="insight-<?= $iid ?>" class="d-none border-top">
-        <div class="px-3 py-2 bg-info-subtle d-flex justify-content-between align-items-center">
-            <span class="small fw-semibold text-info-emphasis">
-                <i class="bi bi-graph-up me-1"></i>Insight
-                <?php if ($iInsight && !empty($iInsight['entries'])): ?>
-                <span class="badge bg-info text-white ms-1"><?= count($iInsight['entries']) ?> entri</span>
-                <?php endif; ?>
-            </span>
-            <?php if ($canEdit): ?>
-            <button class="btn btn-xs btn-outline-info toggle-add-insight"
-                    style="padding:.2rem .6rem;font-size:.75rem"
-                    data-iid="<?= $iid ?>">
-                <i class="bi bi-plus-lg me-1"></i>Input
-            </button>
-            <?php endif; ?>
-        </div>
-
-        <?php if ($iInsight): ?>
-        <div class="px-3 py-2 d-flex flex-wrap gap-2">
-            <?php
-            $insightMetricMap = [
-                'views'            => $iInsight['max_views']              ?? 0,
-                'reach'            => $iInsight['max_reach']              ?? 0,
-                'impressions'      => $iInsight['max_impressions']        ?? 0,
-                'likes'            => $iInsight['max_likes']              ?? 0,
-                'comments'         => $iInsight['max_comments']           ?? 0,
-                'shares'           => $iInsight['max_shares']             ?? 0,
-                'saves'            => $iInsight['max_saves']              ?? 0,
-                'followers_gained' => $iInsight['total_followers_gained'] ?? 0,
-            ];
-            foreach ($insightFields as $field => $fcfg):
-                $val = $insightMetricMap[$field] ?? 0;
-                if ($val <= 0) continue;
-            ?>
-            <div class="d-flex align-items-center gap-1 px-2 py-1 rounded-2 bg-<?= $fcfg['color'] ?>-subtle">
-                <i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?>" style="font-size:.8rem"></i>
-                <span class="small fw-semibold text-<?= $fcfg['color'] ?>"><?= number_format($val, 0, ',', '.') ?></span>
-                <span class="text-muted" style="font-size:.7rem"><?= $fcfg['label'] ?></span>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
-
-        <?php
-        $tgtReach = (int)($item['target_reach'] ?? 0);
-        $tgtImpr  = (int)($item['target_impressions'] ?? 0);
-        $actReach = (int)($iInsight['max_reach'] ?? 0);
-        $actImpr  = (int)($iInsight['max_impressions'] ?? 0);
-        if (($tgtReach > 0 || $tgtImpr > 0) && ($actReach > 0 || $actImpr > 0)):
-        ?>
-        <div class="px-3 py-2 border-top">
-            <?php if ($tgtReach > 0): ?>
-            <?php $pctR = min(100, $tgtReach > 0 ? round($actReach / $tgtReach * 100) : 0); $colR = $pctR >= 100 ? 'success' : ($pctR >= 60 ? 'primary' : 'warning'); ?>
-            <div class="mb-1 d-flex align-items-center gap-2">
-                <span class="text-muted" style="font-size:.72rem;width:72px">Reach</span>
-                <div class="flex-grow-1" style="height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden">
-                    <div style="width:<?= $pctR ?>%;height:100%;border-radius:999px;background:var(--bs-<?= $colR ?>)"></div>
-                </div>
-                <span class="text-muted" style="font-size:.72rem"><?= number_format($actReach,0,',','.') ?> / <?= number_format($tgtReach,0,',','.') ?> (<?= $pctR ?>%)</span>
-            </div>
-            <?php endif; ?>
-            <?php if ($tgtImpr > 0): ?>
-            <?php $pctI = min(100, $tgtImpr > 0 ? round($actImpr / $tgtImpr * 100) : 0); $colI = $pctI >= 100 ? 'success' : ($pctI >= 60 ? 'primary' : 'warning'); ?>
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-muted" style="font-size:.72rem;width:72px">Impresi</span>
-                <div class="flex-grow-1" style="height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden">
-                    <div style="width:<?= $pctI ?>%;height:100%;border-radius:999px;background:var(--bs-<?= $colI ?>)"></div>
-                </div>
-                <span class="text-muted" style="font-size:.72rem"><?= number_format($actImpr,0,',','.') ?> / <?= number_format($tgtImpr,0,',','.') ?> (<?= $pctI ?>%)</span>
-            </div>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
-
-        <?php if ($canEdit): ?>
-        <div id="add-insight-<?= $iid ?>" class="d-none px-3 py-2 border-top border-bottom bg-white">
-            <form method="POST" action="<?= base_url('creative/' . $iid . '/insight/add') ?>"
-                  enctype="multipart/form-data">
-                <?= csrf_field() ?>
-                <div class="row g-2 mb-2 align-items-end">
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Tanggal</label>
-                        <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
-                    </div>
-                    <?php if (($item['platform'] ?? '') === 'keduanya'): ?>
-                    <div class="col-sm-2">
-                        <label class="form-label small fw-semibold mb-1">Platform</label>
-                        <select name="platform" class="form-select form-select-sm">
-                            <option value="ig">Instagram</option>
-                            <option value="tiktok">TikTok</option>
-                        </select>
-                    </div>
+                <div class="cr-fig-row">
+                    <div><span class="cr-fig-l">Budget</span><b><?= $iBudget > 0 ? $rp($iBudget) : '—' ?></b></div>
+                    <div><span class="cr-fig-l">Realisasi</span><b class="<?= $iTotal > 0 ? ($over ? 'cr-c-bad' : 'cr-c-ok') : 'cr-c-mute' ?>"><?= $isS ? ($iTotal > 0 ? $rp($iTotal) : '—') : '—' ?></b></div>
+                    <?php if ($tipe === 'digital'): ?>
+                    <div><span class="cr-fig-l">Reach</span><b><?= $actReach > 0 ? number_format($actReach, 0, ',', '.') : '—' ?></b><?php if ($tgtReach > 0): ?> <span class="cr-fig-s">/ <?= number_format($tgtReach, 0, ',', '.') ?></span><?php endif; ?></div>
                     <?php else: ?>
-                    <input type="hidden" name="platform" value="<?= esc($item['platform'] ?? '', 'attr') ?>">
+                    <div><span class="cr-fig-l">Serapan</span><b><?= $iPct !== null && $isS ? $iPct . '%' : '—' ?></b></div>
                     <?php endif; ?>
-                    <div class="col-sm-4">
-                        <label class="form-label small fw-semibold mb-1">
-                            <i class="bi bi-image me-1"></i>Screenshot
-                            <span class="fw-normal text-muted">(opsional)</span>
-                        </label>
-                        <input type="file" name="screenshot" class="form-control form-control-sm" accept="image/*">
-                    </div>
-                    <div class="col">
-                        <label class="form-label small fw-semibold mb-1">Catatan</label>
-                        <input type="text" name="catatan" class="form-control form-control-sm" placeholder="Opsional">
-                    </div>
                 </div>
-                <div class="row g-2 mb-2">
-                    <?php foreach ($insightFields as $field => $fcfg): ?>
-                    <div class="col-6 col-sm-3">
-                        <label class="form-label small fw-semibold mb-1">
-                            <i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?> me-1"></i><?= $fcfg['label'] ?>
-                        </label>
-                        <input type="number" name="<?= $field ?>" class="form-control form-control-sm" value="0" min="0">
+                <?php if ($isS && $iPct !== null && $iTotal > 0): ?>
+                <div class="cr-fig-bar"><div class="cr-bar <?= $barCls ?>"><i style="width:<?= $iPct ?>%"></i></div><span class="cr-pct <?= $over ? 'cr-c-bad' : 'cr-c-ok' ?>"><?= $iPct ?>%</span></div>
+                <?php endif; ?>
+                <?php endif; ?>
+            </div>
+
+            <div class="cr-item-act" data-cr-notoggle>
+                <?php if (!$isS): ?>
+                <a href="<?= base_url('events/' . $item['event_id'] . '/creative') ?>" class="cr-btn cr-btn-sm cr-btn-warn"><i class="bi bi-box-arrow-up-right"></i><span>Kelola di Event</span></a>
+                <?php elseif ($perluTinjau): ?>
+                <button type="button" class="cr-btn cr-btn-sm cr-btn-primary toggle-files" data-iid="<?= $iid ?>" data-cr-open="files"><i class="bi bi-clipboard-check"></i><span>Tinjau</span></button>
+                <?php elseif ($panes): $pk = array_key_first($panes); ?>
+                <button type="button" class="cr-btn cr-btn-sm cr-btn-soft" data-cr-open="<?= $pk ?>"><i class="bi <?= $panes[$pk][1] ?>"></i><span><?= $panes[$pk][0] ?></span><?php if ($panes[$pk][2]): ?><span class="cr-chip cr-chip-mute"><?= $panes[$pk][2] ?></span><?php endif; ?></button>
+                <?php endif; ?>
+                <?php if ($isS && $canEdit && !$terkunci): ?>
+                <div class="dropdown">
+                    <button type="button" class="cr-iconbtn cr-iconbtn-sm" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi lain untuk <?= esc($item['nama'], 'attr') ?>"><i class="bi bi-three-dots-vertical"></i></button>
+                    <ul class="dropdown-menu dropdown-menu-end cr-menu">
+                        <li><button type="button" class="dropdown-item edit-item-btn"
+                            data-id="<?= $iid ?>"
+                            data-nama="<?= esc($item['nama'], 'attr') ?>"
+                            data-tipe="<?= $tipe ?>"
+                            data-platform="<?= esc($item['platform'] ?? '', 'attr') ?>"
+                            data-tanggal-take="<?= $item['tanggal_take'] ?? '' ?>"
+                            data-jam-take="<?= substr($item['jam_take'] ?? '', 0, 5) ?>"
+                            data-pic="<?= esc($item['pic'] ?? '', 'attr') ?>"
+                            data-deskripsi="<?= esc($item['deskripsi'] ?? '', 'attr') ?>"
+                            data-tanggal="<?= $item['tanggal'] ?? '' ?>"
+                            data-is-closed="<?= $closed ? '1' : '0' ?>"
+                            data-budget="<?= number_format($iBudget, 0, ',', '.') ?>"
+                            data-target-reach="<?= (int) ($item['target_reach'] ?? 0) ?>"
+                            data-target-impressions="<?= (int) ($item['target_impressions'] ?? 0) ?>"
+                            data-deadline="<?= $item['deadline'] ?? '' ?>"
+                            data-catatan="<?= esc($item['catatan'] ?? '', 'attr') ?>"><i class="bi bi-pencil"></i>Ubah item</button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="POST" action="<?= base_url('creative/' . $iid . '/delete') ?>" onsubmit="return confirm('Hapus item ini beserta semua file dan realisasinya?')">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i>Hapus item</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="cr-item-body" hidden>
+            <?php if (count($panes) > 0): ?>
+            <div class="cr-tabs" role="tablist">
+                <button type="button" role="tab" data-cr-tab="detail"><i class="bi bi-card-text"></i>Rincian</button>
+                <?php foreach ($panes as $pk => $pv): ?>
+                <button type="button" role="tab" data-cr-tab="<?= $pk ?>"><i class="bi <?= $pv[1] ?>"></i><?= $pv[0] ?><?php if ($pv[2]): ?> <span class="n"><?= $pv[2] ?></span><?php endif; ?></button>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?><div style="height:.75rem"></div><?php endif; ?>
+
+            <!-- Rincian -->
+            <div class="cr-pane" data-cr-pane="detail">
+                <?php if ($isS && $isMD && $status === 'approved'): ?>
+                <div class="cr-final">
+                <?= view('_creative/_final', ['iFiles' => $iFiles, 'fileBase' => 'uploads/creative-standalone/' . $iid . '/'], ['saveData' => false]) ?>
+                </div>
+                <?php endif; ?>
+                <dl class="cr-dl">
+                    <div><dt>Jenis</dt><dd><?= $cfg['label'] ?></dd></div>
+                    <div><dt>Sumber</dt><dd><?= $isS ? 'Creative Standalone' : 'Event: ' . esc($item['event_name'] ?? '') ?></dd></div>
+                    <?php if ($itgl): ?><div><dt>Tanggal</dt><dd><?= $fTgl($itgl) ?></dd></div><?php endif; ?>
+                    <div><dt>Deadline</dt><dd><?= ($item['deadline'] ?? '') ? $fTgl($item['deadline']) : '—' ?></dd></div>
+                    <?php if ($hasBudgetField || $iBudget > 0): ?><div><dt>Budget</dt><dd><?= $iBudget > 0 ? $rp($iBudget) : '—' ?></dd></div><?php endif; ?>
+                    <?php if ($isS && $hasBudgetField): ?><div><dt>Realisasi</dt><dd class="<?= $over ? 'cr-c-bad' : '' ?>"><?= $iTotal > 0 ? $rp($iTotal) . ($iPct !== null ? ' (' . $iPct . '%)' : '') : '—' ?></dd></div><?php endif; ?>
+                    <?php if ($tipe === 'digital'): ?>
+                    <div><dt>Platform</dt><dd><?= esc($platformLabels[$item['platform'] ?? ''] ?? '—') ?></dd></div>
+                    <div><dt>Take</dt><dd><?= (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '')) ? trim($fTgl($item['tanggal_take'] ?? '') . ' ' . substr($item['jam_take'] ?? '', 0, 5)) : '—' ?></dd></div>
+                    <div><dt>PIC</dt><dd><?= ($item['pic'] ?? '') !== '' ? esc($item['pic']) : '—' ?></dd></div>
+                    <?php endif; ?>
+                    <?php if ($tgtReach > 0 || $tgtImpr > 0): ?>
+                    <div><dt>Target reach / impresi</dt><dd><?= number_format($tgtReach, 0, ',', '.') ?> / <?= number_format($tgtImpr, 0, ',', '.') ?></dd></div>
+                    <?php endif; ?>
+                </dl>
+                <?php if (($item['deskripsi'] ?? '') !== ''): ?><p class="cr-text"><?= esc($item['deskripsi']) ?></p><?php endif; ?>
+                <?php if (($item['catatan'] ?? '') !== ''): ?><p class="cr-note"><i class="bi bi-sticky"></i><?= esc($item['catatan']) ?></p><?php endif; ?>
+                <?php if (!$isS): ?>
+                <p class="cr-note"><i class="bi bi-info-circle"></i>Item ini milik event dan hanya bisa dikelola di halaman event. <a href="<?= base_url('events/' . $item['event_id'] . '/creative') ?>" style="color:var(--cr-link);font-weight:600">Buka halaman event</a></p>
+                <?php endif; ?>
+            </div>
+
+            <?php if (isset($panes['files'])): ?>
+            <!-- Opsi desain, keputusan & riwayat -->
+            <div class="cr-pane" data-cr-pane="files" id="files-<?= $iid ?>" hidden>
+                <div class="cr-approval">
+                <?= view('_creative/_approval', [
+                    'iid'        => $iid,
+                    'item'       => $item,
+                    'iFiles'     => $iFiles,
+                    'iReviews'   => $iReviews,
+                    'canEdit'    => $canEdit,
+                    'canApprove' => $canApprove,
+                    'aksiBase'   => 'creative/' . $iid,
+                    'fileBase'   => 'uploads/creative-standalone/' . $iid . '/',
+                    'fileField'  => 'file',
+                    'imageExts'  => $imageExts,
+                ], ['saveData' => false]) ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if (isset($panes['realisasi'])): ?>
+            <!-- Realisasi biaya -->
+            <div class="cr-pane" data-cr-pane="realisasi" id="realisasi-<?= $iid ?>" hidden>
+                <div class="cr-pane-h">
+                    <div class="cr-pane-t"><i class="bi bi-receipt"></i>Realisasi Biaya
+                        <?php if ($iTotal > 0): ?><span class="cr-chip cr-chip-ok"><?= $rp($iTotal) ?></span><?php endif; ?>
+                        <?php if ($nEntries): ?><span class="cr-chip cr-chip-mute"><?= $nEntries ?> entri</span><?php endif; ?>
                     </div>
+                    <?php if ($canEdit): ?>
+                    <button type="button" class="cr-btn cr-btn-sm cr-btn-primary toggle-add-realisasi" data-iid="<?= $iid ?>"><i class="bi bi-plus-lg"></i>Input</button>
+                    <?php endif; ?>
+                </div>
+
+                <?php if ($canEdit): ?>
+                <div id="add-realisasi-<?= $iid ?>" class="cr-formbox" hidden>
+                    <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/add') ?>" <?= in_array($tipe, ['influencer', 'cetak', 'media_prescon']) ? 'enctype="multipart/form-data"' : '' ?>>
+                        <?= csrf_field() ?>
+                        <div class="cr-fgrid">
+                            <div class="cr-f w2"><label>Tanggal</label><input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
+                            <div class="cr-f w3"><label>Nilai (Rp) <span class="req">*</span></label><input type="text" name="nilai" class="form-control currency-input" placeholder="0" required></div>
+                            <?php if ($tipe === 'influencer'): ?>
+                            <div class="cr-f w3"><label>Nama Influencer <span class="req">*</span></label><input type="text" name="nama_influencer" class="form-control" placeholder="@username" required></div>
+                            <?php endif; ?>
+                            <div class="cr-f"><label>Catatan</label><input type="text" name="catatan" class="form-control" placeholder="Opsional"></div>
+                            <?php if ($tipe === 'influencer'): ?>
+                            <div class="cr-f w6"><label><i class="bi bi-image"></i> Screenshot Insight (opsional)</label><input type="file" name="bukti" class="form-control" accept="image/*"></div>
+                            <div class="cr-f w6"><label><i class="bi bi-file-earmark-check"></i> Bukti Serah Terima (opsional)</label><input type="file" name="serah_terima" class="form-control" accept="image/*,.pdf"></div>
+                            <?php elseif ($tipe === 'cetak'): ?>
+                            <div class="cr-f w6"><label><i class="bi bi-image"></i> Bukti Terpasang (opsional)</label><input type="file" name="bukti_terpasang" class="form-control" accept="image/*,.pdf"></div>
+                            <?php elseif ($tipe === 'media_prescon'): ?>
+                            <div class="cr-f w6"><label><i class="bi bi-image"></i> Dokumentasi (opsional)</label><input type="file" name="bukti" class="form-control" accept="image/*,.pdf"></div>
+                            <?php endif; ?>
+                            <div class="cr-f w12 cr-f-act" style="justify-content:flex-end"><button type="submit" class="cr-btn cr-btn-primary"><i class="bi bi-save"></i>Simpan</button></div>
+                        </div>
+                    </form>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!empty($iReal['entries'])): ?>
+                <div class="cr-tbl-wrap">
+                <table class="cr-tbl">
+                    <thead><tr>
+                        <th>Tanggal</th>
+                        <?php if ($tipe === 'influencer'): ?><th>Influencer</th><?php endif; ?>
+                        <th class="r">Nilai</th>
+                        <th>Catatan</th>
+                        <?php if ($tipe === 'influencer'): ?><th title="Screenshot Insight"><i class="bi bi-image"></i> Insight</th><th title="Bukti Serah Terima"><i class="bi bi-file-earmark-check"></i> Serah terima</th><?php endif; ?>
+                        <?php if ($tipe === 'cetak'): ?><th title="Bukti Terpasang"><i class="bi bi-image"></i> Terpasang</th><?php endif; ?>
+                        <?php if ($tipe === 'media_prescon'): ?><th title="Dokumentasi"><i class="bi bi-image"></i> Dokumentasi</th><?php endif; ?>
+                        <?php if ($canEdit): ?><th style="width:48px"></th><?php endif; ?>
+                    </tr></thead>
+                    <tbody>
+                    <?php foreach ($iReal['entries'] as $e): ?>
+                    <tr>
+                        <td class="nw"><?= $fTgl($e['tanggal']) ?></td>
+                        <?php if ($tipe === 'influencer'): ?><td class="fw-semibold"><?= esc($e['nama_influencer'] ?? '—') ?></td><?php endif; ?>
+                        <td class="r nw cr-c-ok fw-bold"><?= $rp($e['nilai']) ?></td>
+                        <td class="cr-note-cell"><?= esc($e['catatan'] ?? '') ?></td>
+                        <?php if ($tipe === 'influencer'): ?>
+                        <td><?= $fileCell($e['file_name'] ?? null, $e['original_name'] ?? null, $iid) ?></td>
+                        <td><?= $fileCell($e['serah_terima_file_name'] ?? null, $e['serah_terima_original_name'] ?? null, $iid) ?></td>
+                        <?php elseif ($tipe === 'cetak'): ?>
+                        <td><?= $fileCell($e['bukti_terpasang_file_name'] ?? null, $e['bukti_terpasang_original_name'] ?? null, $iid) ?></td>
+                        <?php elseif ($tipe === 'media_prescon'): ?>
+                        <td><?= $fileCell($e['file_name'] ?? null, $e['original_name'] ?? null, $iid) ?></td>
+                        <?php endif; ?>
+                        <?php if ($canEdit): ?>
+                        <td>
+                            <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/' . $e['id'] . '/delete') ?>" onsubmit="return confirm('Hapus entri ini?')">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="cr-iconbtn cr-iconbtn-sm" title="Hapus entri" aria-label="Hapus entri"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                        <?php endif; ?>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                    <tfoot><tr>
+                        <td colspan="<?= $tipe === 'influencer' ? 2 : 1 ?>">Total</td>
+                        <td class="r nw cr-c-ok"><?= $rp($iTotal) ?></td>
+                        <td colspan="<?= 1 + ($tipe === 'influencer' ? 2 : (in_array($tipe, ['cetak', 'media_prescon']) ? 1 : 0)) + ($canEdit ? 1 : 0) ?>"></td>
+                    </tr></tfoot>
+                </table>
+                </div>
+                <?php else: ?>
+                <div class="cr-groupempty">Belum ada realisasi biaya.<?= $canEdit ? ' Klik “Input” untuk mencatat.' : '' ?></div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if (isset($panes['insight'])): ?>
+            <!-- Insight -->
+            <div class="cr-pane" data-cr-pane="insight" id="insight-<?= $iid ?>" hidden>
+                <div class="cr-pane-h">
+                    <div class="cr-pane-t"><i class="bi bi-graph-up"></i>Insight
+                        <?php if ($nIns): ?><span class="cr-chip cr-chip-mute"><?= $nIns ?> entri</span><?php endif; ?>
+                    </div>
+                    <?php if ($canEdit): ?>
+                    <button type="button" class="cr-btn cr-btn-sm cr-btn-primary toggle-add-insight" data-iid="<?= $iid ?>"><i class="bi bi-plus-lg"></i>Input</button>
+                    <?php endif; ?>
+                </div>
+
+                <?php if ($iInsight): ?>
+                <?php
+                $insightMetricMap = [
+                    'views' => $iInsight['max_views'] ?? 0, 'reach' => $iInsight['max_reach'] ?? 0, 'impressions' => $iInsight['max_impressions'] ?? 0,
+                    'likes' => $iInsight['max_likes'] ?? 0, 'comments' => $iInsight['max_comments'] ?? 0, 'shares' => $iInsight['max_shares'] ?? 0,
+                    'saves' => $iInsight['max_saves'] ?? 0, 'followers_gained' => $iInsight['total_followers_gained'] ?? 0,
+                ];
+                ?>
+                <div class="cr-metrics">
+                    <?php foreach ($insightFields as $field => $fcfg): $val = $insightMetricMap[$field] ?? 0; if ($val <= 0) continue; ?>
+                    <div class="cr-metric"><i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?>"></i><b><?= number_format($val, 0, ',', '.') ?></b><span><?= $fcfg['label'] ?></span></div>
                     <?php endforeach; ?>
                 </div>
-                <div class="text-end">
-                    <button type="submit" class="btn btn-info btn-sm text-white"><i class="bi bi-save me-1"></i>Simpan Insight</button>
-                </div>
-            </form>
-        </div>
-        <?php endif; ?>
+                <?php endif; ?>
 
-        <?php if ($iInsight && !empty($iInsight['entries'])): ?>
-        <div class="table-responsive">
-        <table class="table table-sm mb-0" style="font-size:.75rem">
-        <thead class="table-light">
-            <tr>
-                <th class="ps-3">Tanggal</th>
-                <?php if (($item['platform'] ?? '') === 'keduanya'): ?><th>Platform</th><?php endif; ?>
-                <?php foreach ($insightFields as $field => $fcfg): ?>
-                <th class="text-end" title="<?= $fcfg['label'] ?>">
-                    <i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?>"></i>
-                </th>
-                <?php endforeach; ?>
-                <th><i class="bi bi-image text-muted"></i></th>
-                <th>Catatan</th>
-                <?php if ($canEdit): ?><th style="width:40px"></th><?php endif; ?>
-            </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($iInsight['entries'] as $ins): ?>
-        <tr>
-            <td class="ps-3 small"><?= date('d M Y', strtotime($ins['tanggal'])) ?></td>
-            <?php if (($item['platform'] ?? '') === 'keduanya'): ?>
-            <td class="small">
-                <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
-                    <?= esc($platformLabels[$ins['platform']] ?? $ins['platform']) ?>
-                </span>
-            </td>
-            <?php endif; ?>
-            <?php foreach ($insightFields as $field => $fcfg): ?>
-            <td class="small text-end <?= $ins[$field] > 0 ? 'fw-medium text-' . $fcfg['color'] : 'text-muted' ?>">
-                <?= $ins[$field] > 0 ? number_format($ins[$field], 0, ',', '.') : '—' ?>
-            </td>
-            <?php endforeach; ?>
-            <td>
-                <?php if ($ins['file_name']): ?>
-                <a href="<?= base_url('uploads/creative-standalone-insight/' . $iid . '/' . $ins['file_name']) ?>" target="_blank">
-                    <img src="<?= base_url('uploads/creative-standalone-insight/' . $iid . '/' . $ins['file_name']) ?>"
-                         alt="ss" style="height:32px;width:auto;border-radius:4px;object-fit:cover"
-                         title="<?= esc($ins['original_name'] ?? '') ?>">
-                </a>
+                <?php if (($tgtReach > 0 || $tgtImpr > 0) && ($actReach > 0 || $actImpr > 0)): ?>
+                <div style="margin-bottom:.8rem">
+                    <?php foreach ([['Reach', $actReach, $tgtReach], ['Impresi', $actImpr, $tgtImpr]] as [$tl, $ta, $tt]): if ($tt <= 0) continue;
+                        $pp = min(100, round($ta / $tt * 100)); $bc = $pp >= 100 ? 'cr-bar-ok' : ($pp >= 60 ? '' : 'cr-bar-mid'); ?>
+                    <div class="cr-target"><span class="cr-c-mute"><?= $tl ?></span><div class="cr-bar <?= $bc ?>"><i style="width:<?= $pp ?>%"></i></div><em><?= number_format($ta, 0, ',', '.') ?> / <?= number_format($tt, 0, ',', '.') ?> (<?= $pp ?>%)</em></div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($canEdit): ?>
+                <div id="add-insight-<?= $iid ?>" class="cr-formbox" hidden>
+                    <form method="POST" action="<?= base_url('creative/' . $iid . '/insight/add') ?>" enctype="multipart/form-data">
+                        <?= csrf_field() ?>
+                        <div class="cr-fgrid" style="margin-bottom:.6rem">
+                            <div class="cr-f w2"><label>Tanggal</label><input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
+                            <?php if (($item['platform'] ?? '') === 'keduanya'): ?>
+                            <div class="cr-f w2"><label>Platform</label><select name="platform" class="form-select"><option value="ig">Instagram</option><option value="tiktok">TikTok</option></select></div>
+                            <?php else: ?>
+                            <input type="hidden" name="platform" value="<?= esc($item['platform'] ?? '', 'attr') ?>">
+                            <?php endif; ?>
+                            <div class="cr-f w4"><label><i class="bi bi-image"></i> Screenshot (opsional)</label><input type="file" name="screenshot" class="form-control" accept="image/*"></div>
+                            <div class="cr-f"><label>Catatan</label><input type="text" name="catatan" class="form-control" placeholder="Opsional"></div>
+                        </div>
+                        <div class="cr-fgrid">
+                            <?php foreach ($insightFields as $field => $fcfg): ?>
+                            <div class="cr-f w2"><label><i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?>"></i> <?= $fcfg['label'] ?></label><input type="number" name="<?= $field ?>" class="form-control" value="0" min="0"></div>
+                            <?php endforeach; ?>
+                            <div class="cr-f w12 cr-f-act" style="justify-content:flex-end"><button type="submit" class="cr-btn cr-btn-primary"><i class="bi bi-save"></i>Simpan Insight</button></div>
+                        </div>
+                    </form>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($nIns): ?>
+                <div class="cr-tbl-wrap">
+                <table class="cr-tbl">
+                    <thead><tr>
+                        <th>Tanggal</th>
+                        <?php if (($item['platform'] ?? '') === 'keduanya'): ?><th>Platform</th><?php endif; ?>
+                        <?php foreach ($insightFields as $field => $fcfg): ?><th class="r" title="<?= $fcfg['label'] ?>"><i class="<?= $fcfg['icon'] ?> text-<?= $fcfg['color'] ?>"></i> <?= $fcfg['label'] ?></th><?php endforeach; ?>
+                        <th><i class="bi bi-image"></i></th>
+                        <th>Catatan</th>
+                        <?php if ($canEdit): ?><th style="width:48px"></th><?php endif; ?>
+                    </tr></thead>
+                    <tbody>
+                    <?php foreach ($iInsight['entries'] as $ins): ?>
+                    <tr>
+                        <td class="nw"><?= $fTgl($ins['tanggal']) ?></td>
+                        <?php if (($item['platform'] ?? '') === 'keduanya'): ?><td><span class="cr-chip cr-chip-t"><?= esc($platformLabels[$ins['platform']] ?? $ins['platform']) ?></span></td><?php endif; ?>
+                        <?php foreach ($insightFields as $field => $fcfg): ?>
+                        <td class="r nw <?= $ins[$field] > 0 ? 'fw-semibold' : 'cr-c-mute' ?>"><?= $ins[$field] > 0 ? number_format($ins[$field], 0, ',', '.') : '—' ?></td>
+                        <?php endforeach; ?>
+                        <td>
+                            <?php if ($ins['file_name']): $su = base_url('uploads/creative-standalone-insight/' . $iid . '/' . $ins['file_name']); ?>
+                            <a href="<?= $su ?>" target="_blank"><img class="thumb" src="<?= $su ?>" alt="Screenshot insight" title="<?= esc($ins['original_name'] ?? '', 'attr') ?>"></a>
+                            <?php else: ?><span class="cr-c-mute">—</span><?php endif; ?>
+                        </td>
+                        <td class="cr-note-cell"><?= esc($ins['catatan'] ?? '') ?></td>
+                        <?php if ($canEdit): ?>
+                        <td>
+                            <form method="POST" action="<?= base_url('creative/' . $iid . '/insight/' . $ins['id'] . '/delete') ?>" onsubmit="return confirm('Hapus entri insight ini?')">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="cr-iconbtn cr-iconbtn-sm" title="Hapus entri" aria-label="Hapus entri insight"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                        <?php endif; ?>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+                </div>
                 <?php else: ?>
-                <span class="text-muted">—</span>
+                <div class="cr-groupempty">Belum ada data insight.<?= $canEdit ? ' Klik “Input” untuk mencatat.' : '' ?></div>
                 <?php endif; ?>
-            </td>
-            <td class="small text-muted"><?= esc($ins['catatan'] ?? '') ?></td>
-            <?php if ($canEdit): ?>
-            <td>
-                <form method="POST" action="<?= base_url('creative/' . $iid . '/insight/' . $ins['id'] . '/delete') ?>"
-                      onsubmit="return confirm('Hapus entri insight ini?')">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-xs btn-outline-danger" style="padding:.15rem .4rem;font-size:.7rem">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </form>
-            </td>
+            </div>
             <?php endif; ?>
-        </tr>
-        <?php endforeach; ?>
-        </tbody>
-        </table>
         </div>
-        <?php endif; ?>
+    </article>
+    <?php endforeach; ?>
     </div>
-    <?php endif; // tipe === digital ?>
+    <div class="cr-more" hidden>
+        <button type="button" class="cr-btn cr-btn-sm" data-cr-more><i class="bi bi-chevron-down"></i><span>Tampilkan lebih banyak</span></button>
+        <button type="button" class="cr-btn cr-btn-sm" data-cr-all>Tampilkan semua</button>
+    </div>
+</section>
+<?php endforeach; ?>
 
+<!-- Ringkasan -->
+<div class="cr-foot">
+    <span class="cr-c-mute"><?= $totalStandalone ?> standalone · <?= count($eventItems) ?> dari event</span>
+    <span>Total Budget: <b class="cr-c-bad"><?= $rp($totalBudget) ?></b></span>
 </div>
-<?php endforeach; // standaloneOfTipe ?>
 
-<?php if (!empty($eventOfTipe)): ?>
-<!-- "Dari Event" divider -->
-<div class="d-flex align-items-center gap-2 my-3 dari-event-divider">
-    <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Dari Event</span>
-    <div class="flex-grow-1 border-top"></div>
-</div>
-
-<!-- Event items for this tipe -->
-<?php foreach ($eventOfTipe as $item):
-    $iBudget = (int)($item['budget'] ?? 0);
-    $status  = $item['status'] ?? 'draft';
-    $sCfg    = $statusConfig[$status] ?? $statusConfig['draft'];
-?>
-<div class="card mb-3 border-start border-4 border-warning creative-item-card" data-tab="<?= $item['_tab'] ?>" id="item-e-<?= $item['id'] ?>">
-    <!-- Source strip -->
-    <div class="card-header py-1 px-3 bg-warning-subtle d-flex align-items-center gap-2" style="font-size:.75rem">
-        <i class="bi bi-calendar-event text-warning-emphasis"></i>
-        <span class="fw-semibold text-warning-emphasis">Creative Event</span>
-        <span class="text-warning-emphasis ms-1">· <?= esc($item['event_name'] ?? '') ?></span>
-    </div>
-    <div class="card-body pb-2">
-        <div class="d-flex justify-content-between align-items-start gap-3">
-            <!-- Left: info (read-only) -->
-            <div class="flex-grow-1 min-w-0">
-                <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
-                    <?php if ($tipe === 'master_design'): ?>
-                    <span class="badge <?= $sCfg['badge'] ?>" style="font-size:.65rem"><?= $sCfg['label'] ?></span>
-                    <?php endif; ?>
-                    <?php if ($tipe === 'digital' && ($item['platform'] ?? '')): ?>
-                    <span class="badge bg-info-subtle text-info" style="font-size:.65rem">
-                        <i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?> me-1"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?>
-                    </span>
-                    <?php endif; ?>
-                    <span class="fw-semibold"><?= esc($item['nama']) ?></span>
-                    <?php if (!empty($item['is_closed'])): ?><span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-check2-circle me-1"></i>Selesai</span><?php endif; ?>
-                    <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?><span class="text-muted ms-1" style="font-size:.7rem"><i class="bi bi-calendar3"></i> <?= date('d M Y', strtotime($itgl)) ?></span><?php endif; ?>
-                    <?php if (!empty($item['deadline'])): $dlDiff = (int)((strtotime($item['deadline']) - strtotime(date('Y-m-d'))) / 86400); $isDone = !empty($item['is_closed']) || ($item['status'] ?? '') === 'approved'; if ($isDone): ?><span class="badge bg-success-subtle text-success ms-1" style="font-size:.6rem"><i class="bi bi-check-circle me-1"></i>Tepat waktu</span><?php elseif ($dlDiff < 0): ?><span class="badge bg-danger ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-exclamation-triangle-fill me-1"></i>Terlambat <?= abs($dlDiff) ?> hari</span><?php elseif ($dlDiff <= 3): ?><span class="badge bg-warning text-dark ms-1" style="font-size:.6rem" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-clock me-1"></i><?= $dlDiff === 0 ? 'Hari ini!' : $dlDiff.' hari lagi' ?></span><?php else: ?><span class="badge bg-info-subtle text-info ms-1" style="font-size:.6rem"><i class="bi bi-calendar-check me-1"></i><?= date('d M', strtotime($item['deadline'])) ?></span><?php endif; endif; ?>
-                </div>
-                <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '') || ($item['pic'] ?? ''))): ?>
-                <div class="small text-muted mb-1">
-                    <?php if ($item['tanggal_take'] || $item['jam_take']): ?>
-                    <i class="bi bi-camera me-1"></i>Take:
-                    <?php if ($item['tanggal_take']): ?><strong class="text-body"><?= date('d M Y', strtotime($item['tanggal_take'])) ?></strong><?php endif; ?>
-                    <?php if ($item['jam_take']): ?> <?= substr($item['jam_take'], 0, 5) ?><?php endif; ?>
-                    <?php endif; ?>
-                    <?php if ($item['pic'] ?? ''): ?>
-                    <?php if ($item['tanggal_take'] || $item['jam_take']): ?>&nbsp;·&nbsp;<?php endif; ?>
-                    <i class="bi bi-person me-1"></i><strong class="text-body"><?= esc($item['pic']) ?></strong>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-                <?php if ($item['deskripsi'] ?? ''): ?>
-                <p class="small text-muted mb-1" style="white-space:pre-line"><?= esc($item['deskripsi']) ?></p>
-                <?php endif; ?>
-                <?php if ($iBudget > 0): ?>
-                <div class="small text-muted">
-                    <i class="bi bi-cash me-1"></i>Budget: <strong class="text-body">Rp <?= number_format($iBudget, 0, ',', '.') ?></strong>
-                </div>
-                <?php endif; ?>
-                <?php if ($item['catatan'] ?? ''): ?>
-                <div class="small text-muted mt-1"><i class="bi bi-sticky me-1"></i><?= esc($item['catatan']) ?></div>
-                <?php endif; ?>
-            </div>
-            <!-- Right: Kelola di Event -->
-            <div class="flex-shrink-0">
-                <a href="<?= base_url('events/' . $item['event_id'] . '/creative') ?>"
-                   class="btn btn-xs btn-outline-warning" style="padding:.2rem .6rem;font-size:.72rem">
-                    <i class="bi bi-box-arrow-up-right me-1"></i>Kelola di Event
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="border-top px-3 py-2 text-center">
-        <a href="<?= base_url('events/' . $item['event_id'] . '/creative') ?>" class="small text-muted">
-            <i class="bi bi-box-arrow-up-right me-1"></i>Kelola di halaman event
-        </a>
-    </div>
-</div>
-<?php endforeach; // eventOfTipe ?>
-<?php endif; // has event items ?>
-
-</div><?php // close .tipe-section ?>
-<?php endforeach; // tipeConfig ?>
-
-<!-- Footer -->
-<div class="card mt-3">
-    <div class="card-body py-2 d-flex justify-content-between align-items-center">
-        <span class="small text-muted"><?= $totalStandalone ?> standalone · <?= count($eventItems) ?> dari event</span>
-        <span class="fw-bold">Total Budget: <span class="text-danger">Rp <?= number_format($totalBudget, 0, ',', '.') ?></span></span>
-    </div>
-</div>
+<?php endif; // ada item / bisa edit ?>
 
 <?php if ($canEdit): ?>
-<!-- Edit Item Modal -->
-<div class="modal fade" id="editItemModal" tabindex="-1">
-<div class="modal-dialog"><div class="modal-content">
+<!-- Modal ubah item -->
+<div class="modal fade" id="editItemModal" tabindex="-1" aria-labelledby="editItemTitle" aria-hidden="true">
+<div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
 <form id="editItemForm" method="POST">
 <?= csrf_field() ?>
 <div class="modal-header">
-    <h5 class="modal-title fw-semibold">Edit Item</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <h5 class="modal-title fw-semibold" id="editItemTitle">Ubah Item</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
 </div>
 <div class="modal-body">
     <div class="mb-3">
         <label class="form-label small fw-semibold">Tipe</label>
-        <div id="editTipeDisplay" class="form-control form-control-sm bg-light text-muted" style="cursor:default"></div>
+        <div id="editTipeDisplay" class="form-control form-control-sm bg-body-secondary text-muted" style="cursor:default"></div>
     </div>
     <div class="mb-3">
         <label class="form-label small fw-semibold">Nama <span class="text-danger">*</span></label>
@@ -991,12 +770,8 @@ foreach ($byTipe as $tipeItems) {
     <div id="editTakeDiv" class="mb-3 d-none">
         <label class="form-label small fw-semibold"><i class="bi bi-camera me-1"></i>Tanggal &amp; Waktu Take</label>
         <div class="row g-2">
-            <div class="col-7">
-                <input type="date" name="tanggal_take" id="editTanggalTake" class="form-control">
-            </div>
-            <div class="col-5">
-                <input type="time" name="jam_take" id="editJamTake" class="form-control">
-            </div>
+            <div class="col-7"><input type="date" name="tanggal_take" id="editTanggalTake" class="form-control"></div>
+            <div class="col-5"><input type="time" name="jam_take" id="editJamTake" class="form-control"></div>
         </div>
     </div>
     <div id="editPicDiv" class="mb-3 d-none">
@@ -1045,229 +820,10 @@ foreach ($byTipe as $tipeItems) {
 </div></div></div>
 <?php endif; ?>
 
+</div><!-- /.page-cre -->
+
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
-<script>
-// KPI count-up
-(function() {
-    const dur = 900;
-    document.querySelectorAll('[data-count]').forEach(el => {
-        const target = parseInt(el.dataset.count) || 0;
-        if (!target) return;
-        const start = performance.now();
-        function step(now) {
-            const t = Math.min(1, (now - start) / dur);
-            const ease = 1 - Math.pow(1 - t, 3);
-            el.textContent = Math.round(ease * target).toLocaleString('id-ID');
-            if (t < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-    });
-})();
-
-// Item card stagger (visible cards on initial load)
-document.querySelectorAll('.creative-item-card:not(.d-none)').forEach((card, i) => {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(14px)';
-    setTimeout(() => {
-        card.style.transition = 'opacity .4s ease, transform .4s ease';
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0)';
-    }, 120 + i * 55);
-});
-
-// Progress bar animation
-document.querySelectorAll('.progress-bar').forEach((bar, i) => {
-    const target = bar.style.width;
-    if (!target || parseFloat(target) === 0) return;
-    bar.style.width = '0';
-    setTimeout(() => {
-        bar.style.transition = 'width .6s ease';
-        bar.style.width = target;
-    }, 350 + i * 40);
-});
-</script>
-<script>
-<?php if ($canEdit): ?>
-// Toggle inline add-item forms (per tipe)
-document.querySelectorAll('.toggle-add-item').forEach(btn => {
-    btn.addEventListener('click', function () {
-        const tipe = this.dataset.tipe;
-        const el   = document.getElementById('add-item-' + tipe);
-        el.classList.toggle('d-none');
-        this.innerHTML = el.classList.contains('d-none')
-            ? '<i class="bi bi-plus-lg me-1"></i>Tambah Item'
-            : '<i class="bi bi-x me-1"></i>Batal';
-    });
-});
-
-// Toggle realisasi add form
-document.querySelectorAll('.toggle-add-realisasi').forEach(btn => {
-    btn.addEventListener('click', function () {
-        const el = document.getElementById('add-realisasi-' + this.dataset.iid);
-        el.classList.toggle('d-none');
-        this.innerHTML = el.classList.contains('d-none')
-            ? '<i class="bi bi-plus-lg me-1"></i>Input'
-            : '<i class="bi bi-x me-1"></i>Tutup';
-    });
-});
-
-// Toggle insight add form
-document.querySelectorAll('.toggle-add-insight').forEach(btn => {
-    btn.addEventListener('click', function () {
-        const el = document.getElementById('add-insight-' + this.dataset.iid);
-        el.classList.toggle('d-none');
-        this.innerHTML = el.classList.contains('d-none')
-            ? '<i class="bi bi-plus-lg me-1"></i>Input'
-            : '<i class="bi bi-x me-1"></i>Tutup';
-    });
-});
-
-// Edit modal
-document.querySelectorAll('.edit-item-btn').forEach(btn => {
-    btn.addEventListener('click', function () {
-        const tipe      = this.dataset.tipe;
-        const isDigital = tipe === 'digital';
-        const tipeLabels = {
-            'master_design': 'Master Design',
-            'digital':       'Content Digital',
-            'cetak':         'Media Cetak',
-            'influencer':    'Influencer',
-            'media_prescon': 'Media Prescon',
-        };
-        document.getElementById('editItemForm').action   = '<?= base_url('creative/') ?>' + this.dataset.id + '/edit';
-        document.getElementById('editTipeDisplay').textContent = tipeLabels[tipe] || tipe;
-        document.getElementById('editNama').value        = this.dataset.nama;
-        document.getElementById('editTanggal').value     = this.dataset.tanggal || '';
-        document.getElementById('editIsClosed').checked  = this.dataset.isClosed === '1';
-        document.getElementById('editDeskripsi').value   = this.dataset.deskripsi;
-        document.getElementById('editBudget').value      = this.dataset.budget;
-        document.getElementById('editDeadline').value    = this.dataset.deadline || '';
-        document.getElementById('editCatatan').value     = this.dataset.catatan;
-        document.getElementById('editPlatformDiv').classList.toggle('d-none', !isDigital);
-        document.getElementById('editTakeDiv').classList.toggle('d-none', !isDigital);
-        document.getElementById('editPicDiv').classList.toggle('d-none', !isDigital);
-        document.getElementById('editBudgetDiv').classList.toggle('d-none', tipe === 'master_design');
-        const hasTarget = tipe === 'digital' || tipe === 'influencer';
-        document.getElementById('editTargetDiv').classList.toggle('d-none', !hasTarget);
-        if (hasTarget) {
-            document.getElementById('editTargetReach').value       = this.dataset.targetReach || '';
-            document.getElementById('editTargetImpressions').value = this.dataset.targetImpressions || '';
-        }
-        if (isDigital) {
-            document.getElementById('editPlatform').value    = this.dataset.platform;
-            document.getElementById('editTanggalTake').value = this.dataset.tanggalTake;
-            document.getElementById('editJamTake').value     = this.dataset.jamTake;
-            document.getElementById('editPic').value         = this.dataset.pic;
-        }
-        let tipeInput = document.getElementById('editTipeHidden');
-        if (!tipeInput) {
-            tipeInput = document.createElement('input');
-            tipeInput.type = 'hidden'; tipeInput.name = 'tipe'; tipeInput.id = 'editTipeHidden';
-            document.getElementById('editItemForm').appendChild(tipeInput);
-        }
-        tipeInput.value = tipe;
-        new bootstrap.Modal(document.getElementById('editItemModal')).show();
-    });
-});
-<?php endif; ?>
-
-// Toggle panel opsi & persetujuan.
-// Tombol "Tinjau" di header memakai class yang sama, jadi keduanya membuka
-// panel yang sama tanpa handler terpisah.
-document.querySelectorAll('.toggle-files').forEach(btn => {
-    btn.addEventListener('click', function () {
-        const el = document.getElementById('files-' + this.dataset.iid);
-        if (!el) return;
-        el.classList.toggle('d-none');
-        if (!el.classList.contains('d-none')) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    });
-});
-
-// Panel alasan revisi / buka kembali — muncul di tempat, bukan modal,
-// supaya opsi desain tetap terlihat saat alasannya ditulis.
-[['toggle-revisi', 'revisi-'], ['toggle-buka', 'buka-']].forEach(([cls, prefix]) => {
-    document.querySelectorAll('.' + cls).forEach(btn => {
-        btn.addEventListener('click', function () {
-            const el = document.getElementById(prefix + this.dataset.iid);
-            if (!el) return;
-            el.classList.toggle('d-none');
-            if (!el.classList.contains('d-none')) {
-                const ta = el.querySelector('textarea');
-                if (ta) ta.focus();
-            }
-        });
-    });
-});
-
-// Toggle realisasi section
-document.querySelectorAll('.toggle-realisasi').forEach(btn => {
-    btn.addEventListener('click', function () {
-        const el = document.getElementById('realisasi-' + this.dataset.iid);
-        if (!el) return;
-        el.classList.toggle('d-none');
-        const isHidden = el.classList.contains('d-none');
-        const count = this.querySelector('.badge');
-        const countHtml = count ? ' ' + count.outerHTML : '';
-        this.innerHTML = (isHidden
-            ? '<i class="bi bi-receipt me-1"></i>Realisasi'
-            : '<i class="bi bi-receipt me-1"></i>Realisasi') + countHtml;
-    });
-});
-
-// Toggle insight section
-document.querySelectorAll('.toggle-insight').forEach(btn => {
-    btn.addEventListener('click', function () {
-        const el = document.getElementById('insight-' + this.dataset.iid);
-        if (!el) return;
-        el.classList.toggle('d-none');
-        const isHidden = el.classList.contains('d-none');
-        const count = this.querySelector('.badge');
-        const countHtml = count ? ' ' + count.outerHTML : '';
-        this.innerHTML = (isHidden
-            ? '<i class="bi bi-graph-up me-1"></i>Insight'
-            : '<i class="bi bi-graph-up me-1"></i>Insight') + countHtml;
-    });
-});
-
-// Tab filtering
-(function () {
-    function applyTab(activeTab) {
-        document.querySelectorAll('.creative-item-card').forEach(card => {
-            card.classList.toggle('d-none', card.dataset.tab !== activeTab);
-        });
-        document.querySelectorAll('.tipe-section').forEach(section => {
-            const visible    = section.querySelectorAll('.creative-item-card:not(.d-none)').length;
-            const canAddHere = section.querySelector('.toggle-add-item') !== null;
-            section.classList.toggle('d-none', visible === 0 && !canAddHere);
-            const divider = section.querySelector('.dari-event-divider');
-            if (divider) {
-                const visibleEvent = section.querySelectorAll('.creative-item-card[data-tab="' + activeTab + '"].border-warning').length;
-                divider.classList.toggle('d-none', visibleEvent === 0);
-            }
-        });
-        // Update add-item button visibility: only meaningful for standalone (draft tab)
-        document.querySelectorAll('.toggle-add-item').forEach(btn => {
-            btn.classList.toggle('d-none', activeTab === 'archived');
-        });
-    }
-
-    applyTab('review');
-
-    document.querySelectorAll('#creativeTabs .nav-link').forEach(btn => {
-        btn.addEventListener('shown.bs.tab', function () {
-            applyTab(this.dataset.tab);
-        });
-    });
-})();
-
-document.querySelectorAll('.currency-input').forEach(inp => {
-    inp.addEventListener('input', function () {
-        let n = parseInt(this.value.replace(/[^0-9]/g, '')) || 0;
-        this.value = n.toLocaleString('id-ID');
-    });
-});
-</script>
+<script>window.CRE_BASE = <?= json_encode(base_url('creative/')) ?>;</script>
+<script src="<?= base_url('js/creative-main.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-main.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

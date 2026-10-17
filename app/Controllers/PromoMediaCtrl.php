@@ -32,6 +32,20 @@ class PromoMediaCtrl extends BaseController
         return null;
     }
 
+    /** Data sub-navigasi modul Media Promo (dipakai _nav.php di semua halaman modul). */
+    private function mpNav(string $active): array
+    {
+        $canApprove = $this->canApprovePromoMedia();
+        return [
+            'active' => $active,
+            'canEdit' => $this->canEditMenu('creative_main'),
+            'canApprove' => $canApprove,
+            'pending' => $canApprove
+                ? db_connect()->table('promo_media_usage')->where('status', 'pending')->countAllResults()
+                : 0,
+        ];
+    }
+
     public function index()
     {
         if ($r = $this->checkView()) return $r;
@@ -48,6 +62,7 @@ class PromoMediaCtrl extends BaseController
         $depts = db_connect()->table('departments')->select('id, name')->orderBy('name')->get()->getResultArray();
 
         return view('creative/media_promo/index', [
+            'mp' => $this->mpNav('index'),
             'user'       => $this->currentUser(),
             'cetak'      => array_values($cetak),
             'digital'    => array_values($digital),
@@ -68,6 +83,7 @@ class PromoMediaCtrl extends BaseController
         $digital   = array_values(array_filter($spots, fn($s) => $s['tipe'] === 'digital'));
 
         return view('creative/media_promo/master', [
+            'mp' => $this->mpNav('master'),
             'user'    => $this->currentUser(),
             'cetak'   => $cetak,
             'digital' => $digital,
@@ -164,6 +180,7 @@ class PromoMediaCtrl extends BaseController
 
         $usageModel = new PromoMediaUsageModel();
         return view('creative/media_promo/pending', [
+            'mp' => $this->mpNav('pending'),
             'user'    => $this->currentUser(),
             'groups'  => $usageModel->getPendingGrouped(),
             'canEdit' => true,
@@ -351,6 +368,7 @@ class PromoMediaCtrl extends BaseController
         $depts = db_connect()->table('promo_media_usage')->select('dept')->distinct()->orderBy('dept')->get()->getResultArray();
 
         return view('creative/media_promo/gantt', [
+            'mp' => $this->mpNav('gantt'),
             'user'       => $this->currentUser(),
             'usages'     => $usages,
             'spots'      => $spots,
@@ -442,6 +460,7 @@ class PromoMediaCtrl extends BaseController
         usort($spotOccupancy, fn($a, $b) => $b['pct'] <=> $a['pct']);
 
         return view('creative/media_promo/summary', [
+            'mp' => $this->mpNav('summary'),
             'user'          => $this->currentUser(),
             'bulan'         => $bulan,
             'bulanMulai'    => $bulanMulai,
@@ -596,6 +615,7 @@ class PromoMediaCtrl extends BaseController
             'sumberCounts'  => $sumberCounts,
             'berbayarCount' => $berbayarCount,
             'spotOccupancy' => $spotOccupancy,
+            'usages'        => $usages,
             'totalRequest'  => array_sum($statusCounts),
             'printedBy'     => $this->currentUser()['name'] ?? '',
             'printedAt'     => date('d M Y H:i'),

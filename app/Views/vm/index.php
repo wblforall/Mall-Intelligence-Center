@@ -1,191 +1,282 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
-<style>
-.fade-up { opacity:0; transform:translateY(14px); animation:fadeUpVmI .55s cubic-bezier(.22,.68,0,1.2) forwards; }
-@keyframes fadeUpVmI { to { opacity:1; transform:translateY(0); } }
-</style>
+<link rel="stylesheet" href="<?= base_url('css/events-modul.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-modul.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
-<?= view('partials/complete_data_bar', ['event' => $event, 'module' => 'vm', 'completion' => $completion, 'canEdit' => $canEdit, 'user' => $user]) ?>
+<?php
+if (! function_exists('evRp')) {
+    function evRp($n): string { return 'Rp ' . number_format((float) $n, 0, ',', '.'); }
+}
+$today = strtotime(date('Y-m-d'));
+$vmBase = 'uploads/vm/' . $event['id'] . '/';
+$nOver = $nDone = $nNoReal = 0;
+foreach ($items as $it) {
+    $rt = $realisasi[$it['id']]['total'] ?? 0;
+    $bd = (int) $it['budget'];
+    if ($it['tanggal_deadline'] && strtotime($it['tanggal_deadline']) < $today) $nOver++;
+    if ($bd > 0 && $rt >= $bd) $nDone++;
+    if (empty($realisasi[$it['id']]['entries'])) $nNoReal++;
+}
+$sisaVM = $totalBudgetVM - $totalRealisasiVM;
+$barAll = $totalPct >= 100 ? 'ok' : ($totalPct >= 50 ? 'mid' : 'low');
 
-<div class="d-flex align-items-center gap-2 mb-4 fade-up" style="animation-delay:.05s">
-    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <div>
-        <h4 class="fw-bold mb-0">Dekorasi & Visual Merchandising</h4>
-        <small class="text-muted"><?= esc($event['name']) ?></small>
+$actions = '';
+if ($canEdit) {
+    $actions = '<button class="ev-btn ev-btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal"><i class="bi bi-plus-lg"></i>Tambah Item</button>';
+}
+?>
+
+<div class="page-evm evm-vm" id="evmRoot" data-key="vm-<?= $event['id'] ?>" data-unit="item">
+
+<?= view('partials/evm_head', ['event' => $event, 'module' => 'vm', 'completion' => $completion, 'canEdit' => $canEdit,
+    'title' => 'Dekorasi & Visual Merchandising', 'icon' => 'bi-palette-fill', 'actions' => $actions]) ?>
+
+<!-- Strip KPI -->
+<div class="ev-kpis">
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Item Dekorasi</div>
+        <div class="ev-kpi-v"><?= count($items) ?></div>
+        <div class="ev-kpi-s"><?= $nNoReal ?> belum ada realisasi</div>
     </div>
-    <?php if ($canEdit): ?>
-    <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="modal" data-bs-target="#addItemModal">
-        <i class="bi bi-plus-lg me-1"></i> Tambah Item
-    </button>
-    <?php endif; ?>
+    <div class="ev-kpi t-warn">
+        <div class="ev-kpi-l">Total Budget</div>
+        <div class="ev-kpi-v ev-c-warn"><?= evRp($totalBudgetVM) ?></div>
+        <div class="ev-kpi-s">seluruh item dekorasi</div>
+    </div>
+    <div class="ev-kpi t-cyan">
+        <div class="ev-kpi-l">Total Realisasi</div>
+        <div class="ev-kpi-v ev-c-cyan"><?= evRp($totalRealisasiVM) ?></div>
+        <div class="ev-kpi-s"><?= $totalBudgetVM > 0 ? $totalPct . '% dari budget' : 'belum ada budget' ?></div>
+        <?php if ($totalBudgetVM > 0): ?><div class="ev-bar ev-bar-<?= $barAll ?>"><i style="width:<?= $totalPct ?>%"></i></div><?php endif; ?>
+    </div>
+    <div class="ev-kpi <?= $sisaVM < 0 ? 't-bad' : 't-ok' ?>">
+        <div class="ev-kpi-l"><?= $sisaVM < 0 ? 'Melebihi Budget' : 'Sisa Budget' ?></div>
+        <div class="ev-kpi-v <?= $sisaVM < 0 ? 'ev-c-bad' : 'ev-c-ok' ?>"><?= evRp(abs($sisaVM)) ?></div>
+        <div class="ev-kpi-s"><?= $nDone ?> item sudah mencapai budget</div>
+    </div>
+    <div class="ev-kpi <?= $nOver > 0 ? 't-bad' : 't-ok' ?>">
+        <div class="ev-kpi-l">Lewat Deadline</div>
+        <div class="ev-kpi-v <?= $nOver > 0 ? 'ev-c-bad' : '' ?>"><?= $nOver ?></div>
+        <div class="ev-kpi-s">item melewati tanggal deadline</div>
+    </div>
 </div>
 
 <?php if (empty($items)): ?>
-<div class="card"><div class="card-body text-center py-5 text-muted">
-    <i class="bi bi-palette display-4 d-block mb-2 opacity-25"></i>
-    <p>Belum ada item dekorasi untuk event ini.</p>
-</div></div>
+<div class="ev-empty">
+    <i class="bi bi-palette"></i>
+    <h5>Belum ada item dekorasi untuk event ini</h5>
+    <p>Catat backdrop, signage, dan display beserta budget, lalu input realisasi biayanya di sini.</p>
+    <?php if ($canEdit): ?>
+    <button class="ev-btn ev-btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal"><i class="bi bi-plus-lg"></i>Tambah Item Pertama</button>
+    <?php endif; ?>
+</div>
 <?php else: ?>
-<?php foreach ($items as $it):
-    $rData     = $realisasi[$it['id']] ?? ['total' => 0, 'entries' => []];
+
+<div class="ev-tools">
+    <div class="ev-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="evQ" placeholder="Cari item atau referensi…" autocomplete="off" aria-label="Cari item dekorasi">
+    </div>
+    <select class="ev-select" data-ev-filter="state" aria-label="Filter progres">
+        <option value="">Semua progres</option>
+        <option value="belum">Belum ada realisasi</option>
+        <option value="jalan">Berjalan</option>
+        <option value="penuh">Mencapai budget</option>
+        <option value="over">Melebihi budget</option>
+    </select>
+    <select class="ev-select" data-ev-filter="dl" aria-label="Filter deadline">
+        <option value="">Semua deadline</option>
+        <option value="lewat">Lewat deadline</option>
+        <option value="ada">Punya deadline</option>
+        <option value="tanpa">Tanpa deadline</option>
+    </select>
+    <select class="ev-select" id="evSort" aria-label="Urutkan">
+        <option value="" data-dir="asc">Urutan: input</option>
+        <option value="name" data-type="str" data-dir="asc">Nama A–Z</option>
+        <option value="budget" data-dir="desc">Budget terbesar</option>
+        <option value="sisa" data-dir="desc">Sisa terbesar</option>
+        <option value="dlts" data-dir="asc">Deadline terdekat</option>
+    </select>
+    <div class="ev-tools-end">
+        <span class="ev-count" id="evCount" aria-live="polite"></span>
+        <button type="button" class="ev-btn ev-btn-sm" id="evExpand" title="Buka semua item"><i class="bi bi-arrows-expand"></i><span class="d-none d-md-inline">Buka semua</span></button>
+        <button type="button" class="ev-btn ev-btn-sm" id="evCollapse" title="Tutup semua item"><i class="bi bi-arrows-collapse"></i><span class="d-none d-md-inline">Tutup semua</span></button>
+    </div>
+</div>
+
+<div class="ev-empty ev-empty-filter" id="evNoMatch" hidden>
+    <i class="bi bi-search"></i>
+    <h5>Tidak ada item yang cocok</h5>
+    <p>Ubah kata kunci atau filter.</p>
+    <button type="button" class="ev-btn" id="evReset"><i class="bi bi-x-circle"></i>Reset filter</button>
+</div>
+
+<section class="ev-group">
+<div class="ev-list">
+<?php foreach ($items as $n => $it):
+    $iid       = $it['id'];
+    $rData     = $realisasi[$iid] ?? ['total' => 0, 'entries' => []];
     $rTotal    = $rData['total'];
-    $budget    = (int)$it['budget'];
+    $budget    = (int) $it['budget'];
     $pct       = $budget > 0 ? min(100, round($rTotal / $budget * 100)) : 0;
-    $barColor  = $pct >= 100 ? 'danger' : ($pct >= 60 ? 'warning' : ($pct >= 30 ? 'primary' : 'secondary'));
+    $barColor  = $pct >= 100 ? 'ok' : ($pct >= 50 ? 'mid' : 'low');
+    $sisa      = $budget - $rTotal;
+    $state     = empty($rData['entries']) ? 'belum' : ($budget > 0 && $rTotal > $budget ? 'over' : ($budget > 0 && $rTotal >= $budget ? 'penuh' : 'jalan'));
+    $stLabel   = ['belum' => 'Belum ada realisasi', 'jalan' => 'Berjalan', 'penuh' => 'Mencapai budget', 'over' => 'Melebihi budget'][$state];
+    $stChip    = ['belum' => 'mute', 'jalan' => 'warn', 'penuh' => 'ok', 'over' => 'bad'][$state];
+    if ($state === 'over') $barColor = 'low';
+    $dl        = $it['tanggal_deadline'] ?: '';
+    $overDl    = $dl && strtotime($dl) < $today;
+    $dlDiff    = $dl ? (int) ((strtotime($dl) - $today) / 86400) : null;
+    $search    = mb_strtolower($it['nama_item'] . ' ' . ($it['deskripsi_referensi'] ?? '') . ' ' . ($it['catatan'] ?? ''));
 ?>
-<div class="card mb-3" id="item-<?= $it['id'] ?>">
-<div class="card-body">
-    <div class="d-flex justify-content-between align-items-start">
-        <div class="flex-grow-1">
-            <h6 class="fw-bold mb-1"><?= esc($it['nama_item']) ?></h6>
-            <?php if ($it['deskripsi_referensi']): ?>
-            <p class="small text-muted mb-2" style="white-space:pre-line"><?= esc($it['deskripsi_referensi']) ?></p>
-            <?php endif; ?>
-            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-            <?php if ($it['tanggal_deadline']): ?>
-            <?php $overDeadline = strtotime($it['tanggal_deadline']) < strtotime(date('Y-m-d')); ?>
-            <span class="small <?= $overDeadline ? 'text-danger fw-semibold' : 'text-muted' ?>">
-                <i class="bi bi-calendar-event me-1"></i>Deadline: <?= date('d M Y', strtotime($it['tanggal_deadline'])) ?>
-            </span>
-            <?php if ($overDeadline): ?>
-            <span class="badge bg-danger" style="font-size:.62rem"><i class="bi bi-exclamation-triangle-fill me-1"></i>Lewat Deadline</span>
-            <?php endif; ?>
-            <?php endif; ?>
-            <?php if ($it['catatan']): ?>
-            <span class="small text-muted"><i class="bi bi-sticky me-1"></i><?= esc($it['catatan']) ?></span>
-            <?php endif; ?>
+<article class="ev-card<?= $state === 'over' ? ' is-bad' : ($state === 'penuh' ? ' is-ok' : '') ?>" id="item-<?= $iid ?>"
+         data-name="<?= esc($it['nama_item'], 'attr') ?>" data-search="<?= esc($search, 'attr') ?>"
+         data-state="<?= $state ?>" data-dl="<?= $overDl ? 'lewat' : ($dl ? 'ada' : 'tanpa') ?>"
+         data-budget="<?= $budget ?>" data-sisa="<?= $sisa ?>" data-dlts="<?= $dl ? strtotime($dl) : '' ?>" data-order="<?= $n ?>">
+    <div class="ev-card-head" data-ev-toggle>
+        <button type="button" class="ev-chev" aria-expanded="false" aria-controls="body-<?= $iid ?>" aria-label="Buka atau tutup rincian item"><i class="bi bi-chevron-right"></i></button>
+        <div class="min-w-0">
+            <div class="ev-card-name">
+                <span class="ev-card-t"><?= esc($it['nama_item']) ?></span>
+                <span class="ev-chip ev-chip-<?= $stChip ?>"><?= $stLabel ?></span>
+                <?php if ($overDl): ?><span class="ev-chip ev-chip-bad"><i class="bi bi-exclamation-triangle-fill"></i>Lewat deadline</span><?php endif; ?>
             </div>
-            <!-- Budget vs Realisasi -->
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small text-muted">Realisasi: <strong>Rp <?= number_format($rTotal,0,',','.') ?></strong> / Rp <?= number_format($budget,0,',','.') ?></span>
-                <span class="small fw-bold text-<?= $barColor ?>"><?= $pct ?>%</span>
-            </div>
-            <div class="progress mb-2" style="height:6px">
-                <div class="progress-bar bg-<?= $barColor ?>" style="width:<?= $pct ?>%"></div>
+            <div class="ev-card-meta">
+                <?php if ($dl): ?><span class="<?= $overDl ? 'ev-c-bad' : '' ?>"><i class="bi bi-calendar-event"></i>Deadline <?= date('d M Y', strtotime($dl)) ?><?php if (! $overDl && $dlDiff <= 7): ?> (<?= $dlDiff === 0 ? 'hari ini' : $dlDiff . ' hari lagi' ?>)<?php endif; ?></span><?php endif; ?>
+                <span><i class="bi bi-receipt"></i><?= count($rData['entries']) ?> realisasi</span>
+                <?php if ($it['catatan']): ?><span><i class="bi bi-sticky"></i><?= esc($it['catatan']) ?></span><?php endif; ?>
             </div>
         </div>
-        <?php if ($canEdit): ?>
-        <div class="d-flex gap-1 ms-3">
-            <button class="btn btn-sm btn-outline-secondary edit-btn"
-                data-id="<?= $it['id'] ?>"
-                data-nama="<?= esc($it['nama_item']) ?>"
-                data-deskripsi="<?= esc($it['deskripsi_referensi']) ?>"
-                data-budget="<?= number_format($budget,0,',','.') ?>"
-                data-catatan="<?= esc($it['catatan']) ?>"
-                data-deadline="<?= esc($it['tanggal_deadline'] ?? '') ?>">
-                <i class="bi bi-pencil"></i>
-            </button>
-            <form method="POST" action="<?= base_url('events/'.$event['id'].'/vm/'.$it['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus item ini?')">
-                <?= csrf_field() ?>
-                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
-            </form>
-        </div>
-        <?php endif; ?>
-    </div>
-
-    <!-- Realisasi section -->
-    <div class="mt-2 border-top pt-2">
-        <?php if ($canEdit): ?>
-        <button class="btn btn-sm btn-outline-primary mb-2 toggle-realisasi" data-target="real-<?= $it['id'] ?>">
-            <i class="bi bi-plus-circle me-1"></i>Input Realisasi
-        </button>
-        <div id="real-<?= $it['id'] ?>" class="d-none mb-2">
-        <form method="POST" action="<?= base_url('events/'.$event['id'].'/vm/'.$it['id'].'/realisasi/add') ?>" enctype="multipart/form-data">
-        <?= csrf_field() ?>
-        <div class="row g-2 align-items-end">
-            <div class="col-auto">
-                <label class="form-label small mb-1">Tanggal</label>
-                <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
+        <div class="ev-fig">
+            <div class="ev-fig-row">
+                <div><span class="ev-fig-l">Budget</span><b><?= evRp($budget) ?></b></div>
+                <div><span class="ev-fig-l">Realisasi</span><b class="ev-c-cyan"><?= evRp($rTotal) ?></b></div>
+                <div><span class="ev-fig-l"><?= $sisa < 0 ? 'Lebih' : 'Sisa' ?></span><b class="<?= $sisa < 0 ? 'ev-c-bad' : ($sisa > 0 ? 'ev-c-warn' : 'ev-c-ok') ?>"><?= evRp(abs($sisa)) ?></b></div>
             </div>
-            <div class="col-auto">
-                <label class="form-label small mb-1">Jumlah (Rp)</label>
-                <input type="text" name="jumlah" class="form-control form-control-sm currency-input" value="0" required>
-            </div>
-            <div class="col">
-                <label class="form-label small mb-1">Keterangan</label>
-                <input type="text" name="catatan" class="form-control form-control-sm" placeholder="Opsional">
-            </div>
-            <div class="col-auto">
-                <label class="form-label small mb-1">Foto</label>
-                <input type="file" name="foto" class="form-control form-control-sm" accept="image/*">
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg"></i></button>
+            <div class="ev-fig-bar">
+                <div class="ev-bar ev-bar-<?= $barColor ?>"><i style="width:<?= $pct ?>%"></i></div>
+                <span class="ev-pct"><?= $budget > 0 ? $pct . '%' : '—' ?></span>
             </div>
         </div>
-        </form>
-        </div>
-        <?php endif; ?>
-
-        <?php if (! empty($rData['entries'])): ?>
-        <table class="table table-sm table-hover mb-0">
-        <thead><tr>
-            <th class="small">Tanggal</th>
-            <th class="small">Keterangan</th>
-            <th class="small">Foto</th>
-            <th class="text-end small">Jumlah</th>
-            <?php if ($canEdit): ?><th></th><?php endif; ?>
-        </tr></thead>
-        <tbody>
-        <?php foreach ($rData['entries'] as $re): ?>
-        <tr>
-            <td class="small"><?= date('d/m/Y', strtotime($re['tanggal'])) ?></td>
-            <td class="small text-muted"><?= esc($re['catatan'] ?? '—') ?></td>
-            <td>
-                <?php if (!empty($re['foto_file_name'])): ?>
-                <a href="<?= base_url('uploads/vm/'.$event['id'].'/'.$re['foto_file_name']) ?>" target="_blank">
-                    <img src="<?= base_url('uploads/vm/'.$event['id'].'/'.$re['foto_file_name']) ?>"
-                         style="width:60px;height:45px;object-fit:cover;border-radius:4px">
-                </a>
-                <?php else: ?>
-                <span class="text-muted small">—</span>
-                <?php endif; ?>
-            </td>
-            <td class="text-end small">Rp <?= number_format($re['jumlah'],0,',','.') ?></td>
+        <div class="ev-card-act" data-ev-notoggle>
             <?php if ($canEdit): ?>
-            <td>
-                <form method="POST" action="<?= base_url('events/'.$event['id'].'/vm/'.$it['id'].'/realisasi/'.$re['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus entri ini?')">
-                    <?= csrf_field() ?>
-                    <button class="btn btn-sm btn-link text-danger p-0" title="Hapus"><i class="bi bi-x-circle"></i></button>
-                </form>
-            </td>
+            <button type="button" class="ev-btn ev-btn-sm ev-btn-ok" data-ev-open="real-<?= $iid ?>" title="Input realisasi biaya"><i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline">Realisasi</span></button>
+            <div class="dropdown">
+                <button class="ev-iconbtn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi item"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end ev-menu">
+                    <li>
+                        <button type="button" class="dropdown-item edit-btn"
+                            data-id="<?= $iid ?>"
+                            data-nama="<?= esc($it['nama_item']) ?>"
+                            data-deskripsi="<?= esc($it['deskripsi_referensi']) ?>"
+                            data-budget="<?= number_format($budget, 0, ',', '.') ?>"
+                            data-catatan="<?= esc($it['catatan']) ?>"
+                            data-deadline="<?= esc($it['tanggal_deadline'] ?? '') ?>"><i class="bi bi-pencil"></i>Edit item</button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="POST" action="<?= base_url('events/' . $event['id'] . '/vm/' . $iid . '/delete') ?>" onsubmit="return confirm('Hapus item ini?')">
+                            <?= csrf_field() ?>
+                            <button class="dropdown-item text-danger"><i class="bi bi-trash"></i>Hapus item</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
             <?php endif; ?>
-        </tr>
-        <?php endforeach; ?>
-        <tr class="table-light fw-bold">
-            <td colspan="3" class="small">Total Realisasi</td>
-            <td class="text-end small text-<?= $barColor ?>">Rp <?= number_format($rTotal,0,',','.') ?></td>
-            <?php if ($canEdit): ?><td></td><?php endif; ?>
-        </tr>
-        </tbody>
-        </table>
-        <?php elseif (! $canEdit): ?>
-        <p class="small text-muted mb-0">Belum ada realisasi.</p>
-        <?php endif; ?>
+        </div>
     </div>
-</div>
-</div>
-<?php endforeach; ?>
 
-<!-- Total footer -->
-<div class="card border-warning-subtle">
-<div class="card-body py-2">
-    <div class="d-flex justify-content-between align-items-center mb-1">
-        <span class="small fw-bold text-muted">Total Budget</span>
-        <span class="fw-bold text-warning">Rp <?= number_format($totalBudgetVM,0,',','.') ?></span>
+    <div class="ev-card-body" id="body-<?= $iid ?>" hidden>
+        <?php if ($it['deskripsi_referensi']): ?>
+        <div class="ev-pad"><p class="ev-desc"><?= esc($it['deskripsi_referensi']) ?></p></div>
+        <?php endif; ?>
+        <div class="ev-sec s-cyan">
+            <div class="ev-sec-h">
+                <span class="ev-sec-t"><i class="bi bi-receipt"></i>Realisasi biaya
+                    <?php if ($rTotal > 0): ?><span class="ev-chip ev-chip-mute"><?= evRp($rTotal) ?></span><?php endif; ?></span>
+                <?php if ($canEdit): ?>
+                <button type="button" class="ev-btn ev-btn-xs ev-btn-soft" data-ev-panel="real-<?= $iid ?>" aria-expanded="false"><i class="bi bi-plus-lg"></i>Input realisasi</button>
+                <?php endif; ?>
+            </div>
+            <?php if ($canEdit): ?>
+            <div class="ev-panel" id="real-<?= $iid ?>" hidden>
+                <form method="POST" action="<?= base_url('events/' . $event['id'] . '/vm/' . $iid . '/realisasi/add') ?>" enctype="multipart/form-data">
+                    <?= csrf_field() ?>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-2 col-6">
+                            <label class="form-label">Tanggal</label>
+                            <input type="date" name="tanggal" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label">Jumlah (Rp)</label>
+                            <input type="text" name="jumlah" class="form-control form-control-sm currency-input" value="0" required>
+                        </div>
+                        <div class="col-md">
+                            <label class="form-label">Keterangan</label>
+                            <input type="text" name="catatan" class="form-control form-control-sm" placeholder="Opsional">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Foto bukti</label>
+                            <input type="file" name="foto" class="form-control form-control-sm" accept="image/*">
+                        </div>
+                        <div class="col-md-auto d-flex gap-2">
+                            <button type="submit" class="ev-btn ev-btn-sm ev-btn-primary"><i class="bi bi-check-lg"></i>Simpan</button>
+                            <button type="button" class="ev-btn ev-btn-sm" data-ev-panel="real-<?= $iid ?>">Batal</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <?php endif; ?>
+
+            <?php if (! empty($rData['entries'])): ?>
+            <div class="ev-tbl-wrap">
+            <table class="ev-tbl ev-stack">
+                <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Foto</th><th class="ev-num">Jumlah</th><?php if ($canEdit): ?><th></th><?php endif; ?></tr></thead>
+                <tbody>
+                <?php foreach ($rData['entries'] as $re): ?>
+                <tr>
+                    <td class="ev-nowrap" data-l="Tanggal"><?= date('d M Y', strtotime($re['tanggal'])) ?></td>
+                    <td data-l="Keterangan"><?= esc($re['catatan'] ?: '—') ?></td>
+                    <td data-l="Foto">
+                        <?php if (! empty($re['foto_file_name'])): $furl = base_url($vmBase . $re['foto_file_name']); ?>
+                        <a class="ev-thumb" href="<?= $furl ?>" target="_blank" title="Foto bukti"><img src="<?= $furl ?>" alt="Foto bukti" loading="lazy"></a>
+                        <?php else: ?><span class="ev-c-mute">—</span><?php endif; ?>
+                    </td>
+                    <td class="ev-num" data-l="Jumlah"><?= evRp($re['jumlah']) ?></td>
+                    <?php if ($canEdit): ?>
+                    <td class="ev-act-cell">
+                        <form method="POST" action="<?= base_url('events/' . $event['id'] . '/vm/' . $iid . '/realisasi/' . $re['id'] . '/delete') ?>" class="ev-form-inline" onsubmit="return confirm('Hapus entri ini?')">
+                            <?= csrf_field() ?>
+                            <button class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad" title="Hapus entri" aria-label="Hapus entri realisasi"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
+                    <?php endif; ?>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+                <tfoot><tr><td colspan="3">Total realisasi</td><td class="ev-num"><?= evRp($rTotal) ?></td><?php if ($canEdit): ?><td></td><?php endif; ?></tr></tfoot>
+            </table>
+            </div>
+            <?php else: ?>
+            <div class="ev-empty-sm">Belum ada realisasi.</div>
+            <?php endif; ?>
+        </div>
     </div>
-    <div class="d-flex justify-content-between align-items-center mb-1">
-        <span class="small fw-bold text-muted">Total Realisasi</span>
-        <span class="fw-bold">Rp <?= number_format($totalRealisasiVM,0,',','.') ?> <span class="text-muted fw-normal small">(<?= $totalPct ?>%)</span></span>
-    </div>
-    <div class="progress" style="height:5px">
-        <div class="progress-bar bg-warning" style="width:<?= $totalPct ?>%"></div>
-    </div>
+</article>
+<?php endforeach; ?>
 </div>
+</section>
+
+<div class="ev-foot">
+    <span class="ev-foot-l"><?= count($items) ?> item</span>
+    <span class="ev-foot-v ev-c-warn"><?= evRp($totalBudgetVM) ?><small>total budget</small></span>
+    <span class="ev-foot-v ev-c-cyan"><?= evRp($totalRealisasiVM) ?><small>realisasi (<?= $totalPct ?>%)</small></span>
 </div>
 <?php endif; ?>
+
+</div><!-- /page-evm -->
 
 <?php if ($canEdit): ?>
 <div class="modal fade" id="addItemModal" tabindex="-1">
@@ -238,37 +329,6 @@
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
-document.querySelectorAll('.card.mb-3').forEach((card, i) => {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(16px)';
-    setTimeout(() => {
-        card.style.transition = 'opacity .45s ease, transform .45s ease';
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0)';
-    }, 80 + i * 80);
-});
-(function() {
-    const n = document.querySelectorAll('.card.mb-3').length;
-    const footer = document.querySelector('.card.border-warning-subtle');
-    if (footer) {
-        footer.style.opacity = '0';
-        footer.style.transform = 'translateY(12px)';
-        setTimeout(() => {
-            footer.style.transition = 'opacity .4s ease, transform .4s ease';
-            footer.style.opacity = '1';
-            footer.style.transform = 'translateY(0)';
-        }, 120 + n * 80);
-    }
-})();
-document.querySelectorAll('.progress-bar').forEach((bar, i) => {
-    const target = bar.style.width;
-    if (!target || parseFloat(target) === 0) return;
-    bar.style.width = '0';
-    setTimeout(() => {
-        bar.style.transition = 'width .7s ease';
-        bar.style.width = target;
-    }, 300 + i * 60);
-});
 <?php if ($canEdit): ?>
 document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -281,15 +341,10 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
         new bootstrap.Modal(document.getElementById('editItemModal')).show();
     });
 });
-document.querySelectorAll('.toggle-realisasi').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const target = document.getElementById(this.dataset.target);
-        target.classList.toggle('d-none');
-    });
-});
 <?php endif; ?>
 document.querySelectorAll('.currency-input').forEach(inp => {
     inp.addEventListener('input', function() { let n = parseInt(this.value.replace(/[^0-9]/g,''))||0; this.value=n.toLocaleString('id-ID'); });
 });
 </script>
+<script src="<?= base_url('js/events-modul.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-modul.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

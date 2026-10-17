@@ -1,130 +1,103 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
 $profit          = $revenue - $totalBudget;
 $roiPct          = $totalBudget > 0 ? round($revenue / $totalBudget * 100) : 0;
-$roiColor        = $roiPct >= 100 ? 'success' : ($roiPct >= 60 ? 'primary' : ($roiPct >= 30 ? 'warning' : 'danger'));
+$roiCls          = $roiPct >= 100 ? 'ok' : ($roiPct >= 60 ? 'cyan' : ($roiPct >= 30 ? 'warn' : 'bad'));
+$roiBar          = $roiPct >= 100 ? 'ev-bar-ok' : ($roiPct >= 60 ? 'ev-bar-blue' : ($roiPct >= 30 ? 'ev-bar-mid' : 'ev-bar-low'));
 $deptBudgetTotal = array_sum(array_column($budgetByDept, 'total'));
+$rp = static fn($n) => 'Rp ' . number_format((int) $n, 0, ',', '.');
 
-// Allocation bar segments: combine all dept budgets as one "Departemen" block
+// Alokasi: semua budget departemen digabung sebagai satu blok "Departemen"
 $allocItems = [];
-if ($deptBudgetTotal > 0) $allocItems[] = ['label' => 'Departemen',        'amount' => $deptBudgetTotal, 'color' => '#dc3545'];
-if ($loyaltyBudget  > 0)  $allocItems[] = ['label' => 'Program Loyalty',   'amount' => $loyaltyBudget,   'color' => '#0d6efd'];
-if ($vmBudget       > 0)  $allocItems[] = ['label' => 'Dekorasi & VM',     'amount' => $vmBudget,        'color' => '#ffc107'];
-if ($contentBudget  > 0)  $allocItems[] = ['label' => 'Content Event',     'amount' => $contentBudget,   'color' => '#0dcaf0'];
-if ($creativeBudget > 0)  $allocItems[] = ['label' => 'Creative & Design', 'amount' => $creativeBudget,  'color' => '#9c27b0'];
+if ($deptBudgetTotal > 0) $allocItems[] = ['label' => 'Departemen',        'amount' => $deptBudgetTotal, 'color' => '#ef4444'];
+if ($loyaltyBudget  > 0)  $allocItems[] = ['label' => 'Program Loyalty',   'amount' => $loyaltyBudget,   'color' => '#3b82f6'];
+if ($vmBudget       > 0)  $allocItems[] = ['label' => 'Dekorasi & VM',     'amount' => $vmBudget,        'color' => '#f59e0b'];
+if ($contentBudget  > 0)  $allocItems[] = ['label' => 'Content Event',     'amount' => $contentBudget,   'color' => '#22d3ee'];
+if ($creativeBudget > 0)  $allocItems[] = ['label' => 'Creative & Design', 'amount' => $creativeBudget,  'color' => '#a855f7'];
 ?>
+<div class="page-evs">
 
-<!-- Page header -->
-<div class="d-flex align-items-center gap-2 mb-4">
-    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <div>
-        <h4 class="fw-bold mb-0">Budget Summary</h4>
-        <small class="text-muted"><?= esc($event['name']) ?></small>
+<!-- Header -->
+<div class="ev-head">
+    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="ev-iconbtn ev-back" title="Kembali ke Summary event" aria-label="Kembali ke Summary event"><i class="bi bi-arrow-left"></i></a>
+    <div class="min-w-0">
+        <h1 class="ev-title">Budget Summary</h1>
+        <div class="ev-subtitle"><?= esc($event['name']) ?></div>
+    </div>
+    <div class="ev-head-act">
+        <a href="<?= base_url('events/'.$event['id'].'/other-cost') ?>" class="ev-btn"><i class="bi bi-receipt"></i><span class="d-none d-sm-inline">Other Cost</span></a>
+    </div>
+</div>
+<?= view('partials/event_tabs', ['event' => $event]) ?>
+
+<!-- Strip KPI -->
+<div class="ev-kpis">
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Total Budget</div>
+        <div class="ev-kpi-v ev-bad"><?= $rp($totalBudget) ?></div>
+        <div class="ev-kpi-s"><?= $totalBudget > 0 ? 'seluruh modul' : 'belum ada budget' ?></div>
+        <?php if ($totalBudget > 0): ?>
+        <div class="ev-kpi-rows">
+            <?php if ($deptBudgetTotal > 0): ?><div><span><i class="bi bi-buildings me-1"></i>Departemen</span><span><?= $rp($deptBudgetTotal) ?></span></div><?php endif; ?>
+            <?php if ($loyaltyBudget > 0): ?><div><span><i class="bi bi-star me-1"></i>Loyalty</span><span><?= $rp($loyaltyBudget) ?></span></div><?php endif; ?>
+            <?php if ($vmBudget > 0): ?><div><span><i class="bi bi-palette me-1"></i>VM</span><span><?= $rp($vmBudget) ?></span></div><?php endif; ?>
+            <?php if ($contentBudget > 0): ?><div><span><i class="bi bi-collection-play me-1"></i>Content</span><span><?= $rp($contentBudget) ?></span></div><?php endif; ?>
+            <?php if ($creativeBudget > 0): ?><div><span><i class="bi bi-brush me-1"></i>Creative</span><span><?= $rp($creativeBudget) ?></span></div><?php endif; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Total Revenue</div>
+        <div class="ev-kpi-v ev-ok"><?= $rp($revenue) ?></div>
+        <div class="ev-kpi-s"><?= $revenue > 0 ? 'exhibition + sponsor cash' : 'belum ada pendapatan' ?></div>
+    </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Profit / Loss</div>
+        <div class="ev-kpi-v <?= $profit >= 0 ? 'ev-ok' : 'ev-bad' ?>"><?= ($profit >= 0 ? '+' : '−') ?><?= $rp(abs($profit)) ?></div>
+        <div class="ev-kpi-s">Revenue − Total Budget</div>
+    </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">ROI</div>
+        <div class="ev-kpi-v ev-<?= $roiCls ?>"><?= $roiPct ?>%</div>
+        <div class="ev-kpi-s">Revenue ÷ Budget</div>
+        <?php if ($totalBudget > 0): ?><div class="ev-bar <?= $roiBar ?>"><i style="width:<?= min(100, $roiPct) ?>%"></i></div><?php endif; ?>
     </div>
 </div>
 
-<!-- KPI Cards -->
-<div class="row g-3 mb-4 align-items-start">
-    <div class="col-md-3 col-6">
-        <div class="card border-danger-subtle">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="rounded-2 p-1 bg-danger-subtle"><i class="bi bi-wallet2 text-danger fs-5"></i></div>
-                    <span class="small text-muted">Total Budget</span>
-                </div>
-                <div class="fw-bold fs-5 text-danger">Rp <?= number_format($totalBudget,0,',','.') ?></div>
-                <?php if ($totalBudget > 0): ?>
-                <div class="mt-2 pt-2 border-top" style="font-size:.72rem">
-                    <?php if ($deptBudgetTotal > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-buildings me-1"></i>Departemen</span><span>Rp <?= number_format($deptBudgetTotal,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($loyaltyBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-star me-1"></i>Loyalty</span><span>Rp <?= number_format($loyaltyBudget,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($vmBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-palette me-1"></i>VM</span><span>Rp <?= number_format($vmBudget,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($contentBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-collection-play me-1"></i>Content</span><span>Rp <?= number_format($contentBudget,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($creativeBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-brush me-1"></i>Creative</span><span>Rp <?= number_format($creativeBudget,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card border-success-subtle">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="rounded-2 p-1 bg-success-subtle"><i class="bi bi-graph-up-arrow text-success fs-5"></i></div>
-                    <span class="small text-muted">Total Revenue</span>
-                </div>
-                <div class="fw-bold fs-5 text-success">Rp <?= number_format($revenue,0,',','.') ?></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card <?= $profit >= 0 ? 'border-success-subtle' : 'border-danger-subtle' ?>">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="rounded-2 p-1 <?= $profit >= 0 ? 'bg-success-subtle' : 'bg-danger-subtle' ?>">
-                        <i class="bi bi-<?= $profit >= 0 ? 'arrow-up-circle' : 'arrow-down-circle' ?> <?= $profit >= 0 ? 'text-success' : 'text-danger' ?> fs-5"></i>
-                    </div>
-                    <span class="small text-muted">Profit / Loss</span>
-                </div>
-                <div class="fw-bold fs-5 <?= $profit >= 0 ? 'text-success' : 'text-danger' ?>">
-                    <?= ($profit >= 0 ? '+' : '−') ?>Rp <?= number_format(abs($profit),0,',','.') ?>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card border-<?= $roiColor ?>-subtle">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="rounded-2 p-1 bg-<?= $roiColor ?>-subtle"><i class="bi bi-percent text-<?= $roiColor ?> fs-5"></i></div>
-                    <span class="small text-muted">ROI</span>
-                </div>
-                <div class="fw-bold fs-5 text-<?= $roiColor ?>"><?= $roiPct ?>%</div>
-                <?php if ($totalBudget > 0): ?>
-                <div class="mt-1">
-                    <div class="progress" style="height:4px">
-                        <div class="progress-bar bg-<?= $roiColor ?>" style="width:<?= min(100, $roiPct) ?>%"></div>
-                    </div>
-                    <div class="text-muted mt-1" style="font-size:.72rem">Revenue ÷ Budget</div>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
+<?php if ($totalBudget <= 0 && empty($allBudgets) && empty($loyaltyPrograms) && empty($vmItems) && empty($contentItems) && empty($creativeItems)): ?>
+<div class="ev-empty">
+    <i class="bi bi-wallet2"></i>
+    <h5>Belum ada budget untuk event ini</h5>
+    <p>Budget terisi dari modul Loyalty, VM, Content, Creative, dan Other Cost.</p>
+    <a href="<?= base_url('events/'.$event['id'].'/other-cost') ?>" class="ev-btn ev-btn-primary"><i class="bi bi-receipt"></i>Buka Other Cost</a>
 </div>
+<?php endif; ?>
 
-<!-- Budget Allocation Bar -->
+<!-- Alokasi Budget -->
 <?php if ($totalBudget > 0 && !empty($allocItems)): ?>
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-pie-chart me-2"></i>Alokasi Budget</h6></div>
-    <div class="card-body pb-3">
-        <div class="progress mb-3" style="height:20px;border-radius:6px;overflow:hidden">
+<div class="ev-panel">
+    <div class="ev-panel-h"><h2 class="ev-panel-t"><i class="bi bi-pie-chart"></i>Alokasi Budget</h2></div>
+    <div class="ev-panel-b">
+        <div class="ev-bar ev-bar-lg" role="img" aria-label="Alokasi budget per modul">
             <?php foreach ($allocItems as $ai):
                 $w = round($ai['amount'] / $totalBudget * 100);
                 if ($w <= 0) continue; ?>
-            <div class="progress-bar" role="progressbar" style="width:<?= $w ?>%;background:<?= $ai['color'] ?>"
-                 title="<?= esc($ai['label']) ?>: <?= $w ?>%"></div>
+            <i style="width:<?= $w ?>%;background:<?= $ai['color'] ?>" title="<?= esc($ai['label']) ?>: <?= $w ?>%"></i>
             <?php endforeach; ?>
         </div>
-        <div class="d-flex flex-wrap gap-3">
+        <div class="ev-alloc-legend">
             <?php foreach ($allocItems as $ai):
                 $pct = round($ai['amount'] / $totalBudget * 100); ?>
-            <div class="d-flex align-items-center gap-2 small">
-                <span class="rounded-1 flex-shrink-0" style="width:12px;height:12px;background:<?= $ai['color'] ?>"></span>
-                <span class="text-muted"><?= esc($ai['label']) ?></span>
-                <span class="fw-semibold">Rp <?= number_format($ai['amount'],0,',','.') ?></span>
-                <span class="badge rounded-pill" style="background:<?= $ai['color'] ?>20;color:<?= $ai['color'] ?>"><?= $pct ?>%</span>
+            <div>
+                <span class="sw" style="background:<?= $ai['color'] ?>"></span>
+                <span class="ev-mute"><?= esc($ai['label']) ?></span>
+                <b><?= $rp($ai['amount']) ?></b>
+                <span class="ev-chip ev-chip-line"><?= $pct ?>%</span>
             </div>
             <?php endforeach; ?>
         </div>
@@ -132,172 +105,145 @@ if ($creativeBudget > 0)  $allocItems[] = ['label' => 'Creative & Design', 'amou
 </div>
 <?php endif; ?>
 
-<div>
-
 <!-- Budget Departemen -->
 <?php if (! empty($allBudgets)): ?>
-<div class="card mb-3">
-<div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-buildings me-2"></i>Detail Budget Departemen</h6></div>
-<div class="card-body p-0">
-<div class="table-responsive">
-<table class="table table-sm table-hover mb-0">
-<thead><tr><th>Kategori</th><th>Keterangan</th><th class="text-end">Jumlah</th></tr></thead>
+<div class="ev-panel">
+<div class="ev-panel-h">
+    <h2 class="ev-panel-t"><i class="bi bi-buildings"></i>Detail Budget Departemen</h2>
+    <div class="ev-panel-end"><a href="<?= base_url('events/'.$event['id'].'/other-cost') ?>" class="ev-btn ev-btn-sm">Kelola<i class="bi bi-arrow-right"></i></a></div>
+</div>
+<div class="ev-tablewrap">
+<table class="ev-table">
+<thead><tr><th>Kategori</th><th>Keterangan</th><th class="r">Jumlah</th></tr></thead>
 <tbody>
 <?php
 $lastDept = null;
 foreach ($allBudgets as $b):
     if ($b['dept_name'] !== $lastDept): $lastDept = $b['dept_name']; ?>
-<tr class="table-light"><td colspan="3" class="small fw-semibold text-secondary py-1 ps-3"><?= esc($b['dept_name'] ?? '—') ?></td></tr>
+<tr class="ev-grp"><td colspan="3"><?= esc($b['dept_name'] ?? '—') ?></td></tr>
 <?php endif; ?>
 <tr>
-    <td class="small ps-4"><?= esc($b['kategori']) ?></td>
-    <td class="small text-muted"><?= esc($b['keterangan']) ?></td>
-    <td class="text-end small fw-medium">Rp <?= number_format($b['jumlah'],0,',','.') ?></td>
+    <td class="ev-wrap" style="padding-left:1.4rem"><?= esc($b['kategori']) ?></td>
+    <td class="ev-wrap ev-mute"><?= esc($b['keterangan']) ?></td>
+    <td class="r nw fw-semibold"><?= $rp($b['jumlah']) ?></td>
 </tr>
 <?php endforeach; ?>
 </tbody>
 </table>
 </div>
 </div>
-</div>
 <?php endif; ?>
 
-<!-- Loyalty Programs budget detail -->
+<!-- Loyalty -->
 <?php if (! empty($loyaltyPrograms)): ?>
-<div class="card mb-3">
-<div class="card-header d-flex justify-content-between align-items-center">
-    <h6 class="mb-0 fw-semibold"><i class="bi bi-star me-2 text-primary"></i>Budget Program Loyalty</h6>
-    <a href="<?= base_url('events/'.$event['id'].'/loyalty') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i>Kelola</a>
+<div class="ev-panel">
+<div class="ev-panel-h">
+    <h2 class="ev-panel-t"><i class="bi bi-star"></i>Budget Program Loyalty</h2>
+    <div class="ev-panel-end"><a href="<?= base_url('events/'.$event['id'].'/loyalty') ?>" class="ev-btn ev-btn-sm">Kelola<i class="bi bi-arrow-right"></i></a></div>
 </div>
-<div class="card-body p-0">
-<div class="table-responsive">
-<table class="table table-sm table-hover mb-0">
-<thead><tr><th>Program</th><th>Tipe</th><th class="text-end">Budget</th></tr></thead>
+<div class="ev-tablewrap">
+<table class="ev-table">
+<thead><tr><th>Program</th><th>Tipe</th><th class="r">Budget</th></tr></thead>
 <tbody>
 <?php foreach ($loyaltyPrograms as $lp): ?>
 <tr>
-    <td class="small fw-medium"><?= esc($lp['nama_program']) ?></td>
-    <td class="small">
-        <?php if ($lp['target_type'] === 'member'): ?>
-        <span class="badge bg-primary-subtle text-primary">Member</span>
-        <?php elseif ($lp['target_type'] === 'evoucher'): ?>
-        <span class="badge bg-warning-subtle text-warning-emphasis">e-Voucher</span>
-        <?php else: ?>
-        <span class="text-muted">—</span>
-        <?php endif; ?>
+    <td class="ev-wrap fw-semibold"><?= esc($lp['nama_program']) ?></td>
+    <td>
+        <?php if ($lp['target_type'] === 'member'): ?><span class="ev-chip ev-chip-blue">Member</span>
+        <?php elseif ($lp['target_type'] === 'evoucher'): ?><span class="ev-chip ev-chip-warn">e-Voucher</span>
+        <?php else: ?><span class="ev-mute">—</span><?php endif; ?>
     </td>
-    <td class="text-end small fw-medium">Rp <?= number_format($lp['budget'],0,',','.') ?></td>
+    <td class="r nw fw-semibold"><?= $rp($lp['budget']) ?></td>
 </tr>
 <?php endforeach; ?>
-<tr class="table-light">
-    <td colspan="2" class="small fw-bold">Total</td>
-    <td class="text-end small fw-bold text-primary">Rp <?= number_format($loyaltyBudget,0,',','.') ?></td>
-</tr>
 </tbody>
+<tfoot><tr><td colspan="2">Total</td><td class="r nw ev-cyan"><?= $rp($loyaltyBudget) ?></td></tr></tfoot>
 </table>
-</div>
 </div>
 </div>
 <?php endif; ?>
 
-<!-- VM Items budget detail -->
+<!-- VM -->
 <?php if (! empty($vmItems)): ?>
-<div class="card mb-3">
-<div class="card-header d-flex justify-content-between align-items-center">
-    <h6 class="mb-0 fw-semibold"><i class="bi bi-palette me-2 text-warning"></i>Budget Dekorasi & VM</h6>
-    <a href="<?= base_url('events/'.$event['id'].'/vm') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i>Kelola</a>
+<div class="ev-panel">
+<div class="ev-panel-h">
+    <h2 class="ev-panel-t"><i class="bi bi-palette"></i>Budget Dekorasi &amp; VM</h2>
+    <div class="ev-panel-end"><a href="<?= base_url('events/'.$event['id'].'/vm') ?>" class="ev-btn ev-btn-sm">Kelola<i class="bi bi-arrow-right"></i></a></div>
 </div>
-<div class="card-body p-0">
-<div class="table-responsive">
-<table class="table table-sm table-hover mb-0">
-<thead><tr><th>Item</th><th>Keterangan</th><th class="text-end">Budget</th></tr></thead>
+<div class="ev-tablewrap">
+<table class="ev-table">
+<thead><tr><th>Item</th><th>Keterangan</th><th class="r">Budget</th></tr></thead>
 <tbody>
 <?php foreach ($vmItems as $vi): ?>
 <tr>
-    <td class="small fw-medium"><?= esc($vi['nama_item']) ?></td>
-    <td class="small text-muted"><?= esc($vi['deskripsi_referensi']) ?></td>
-    <td class="text-end small fw-medium">Rp <?= number_format($vi['budget'],0,',','.') ?></td>
+    <td class="ev-wrap fw-semibold"><?= esc($vi['nama_item']) ?></td>
+    <td class="ev-wrap ev-mute"><?= esc($vi['deskripsi_referensi']) ?></td>
+    <td class="r nw fw-semibold"><?= $rp($vi['budget']) ?></td>
 </tr>
 <?php endforeach; ?>
-<tr class="table-light">
-    <td colspan="2" class="small fw-bold">Total</td>
-    <td class="text-end small fw-bold text-warning">Rp <?= number_format($vmBudget,0,',','.') ?></td>
-</tr>
 </tbody>
+<tfoot><tr><td colspan="2">Total</td><td class="r nw ev-warn"><?= $rp($vmBudget) ?></td></tr></tfoot>
 </table>
-</div>
 </div>
 </div>
 <?php endif; ?>
 
-<!-- Content Items budget detail -->
+<!-- Content -->
 <?php if (! empty($contentItems)): ?>
-<div class="card mb-3">
-<div class="card-header d-flex justify-content-between align-items-center">
-    <h6 class="mb-0 fw-semibold"><i class="bi bi-collection-play me-2 text-info"></i>Budget Content Event</h6>
-    <a href="<?= base_url('events/'.$event['id'].'/content') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i>Kelola</a>
+<div class="ev-panel">
+<div class="ev-panel-h">
+    <h2 class="ev-panel-t"><i class="bi bi-collection-play"></i>Budget Content Event</h2>
+    <div class="ev-panel-end"><a href="<?= base_url('events/'.$event['id'].'/content') ?>" class="ev-btn ev-btn-sm">Kelola<i class="bi bi-arrow-right"></i></a></div>
 </div>
-<div class="card-body p-0">
-<div class="table-responsive">
-<table class="table table-sm table-hover mb-0">
-<thead><tr><th>Nama</th><th>Tipe</th><th>PIC</th><th class="text-end">Budget</th></tr></thead>
+<div class="ev-tablewrap">
+<table class="ev-table">
+<thead><tr><th>Nama</th><th>Tipe</th><th>PIC</th><th class="r">Budget</th></tr></thead>
 <tbody>
 <?php foreach ($contentItems as $ci): ?>
 <tr>
-    <td class="small fw-medium"><?= esc($ci['nama']) ?></td>
-    <td class="small"><span class="badge bg-info-subtle text-info"><?= esc(ucfirst($ci['tipe'])) ?></span></td>
-    <td class="small text-muted"><?= esc($ci['pic'] ?? '—') ?></td>
-    <td class="text-end small fw-medium">Rp <?= number_format($ci['budget'],0,',','.') ?></td>
+    <td class="ev-wrap fw-semibold"><?= esc($ci['nama']) ?></td>
+    <td><span class="ev-chip <?= ($ci['tipe'] ?? '') === 'biaya' ? 'ev-chip-warn' : 'ev-chip-blue' ?>"><?= esc(ucfirst($ci['tipe'])) ?></span></td>
+    <td class="ev-wrap ev-mute"><?= esc($ci['pic'] ?? '—') ?></td>
+    <td class="r nw fw-semibold"><?= $rp($ci['budget']) ?></td>
 </tr>
 <?php endforeach; ?>
-<tr class="table-light">
-    <td colspan="3" class="small fw-bold">Total</td>
-    <td class="text-end small fw-bold text-info">Rp <?= number_format($contentBudget,0,',','.') ?></td>
-</tr>
 </tbody>
+<tfoot><tr><td colspan="3">Total</td><td class="r nw ev-cyan"><?= $rp($contentBudget) ?></td></tr></tfoot>
 </table>
-</div>
 </div>
 </div>
 <?php endif; ?>
 
-<!-- Creative Items budget detail -->
+<!-- Creative -->
 <?php if (! empty($creativeItems)): ?>
 <?php
 $creativeTipeLabel = ['master_design'=>'Master Design','digital'=>'Digital','cetak'=>'Cetak','influencer'=>'Influencer','media_prescon'=>'Media Prescon'];
 $lastTipe = null;
 ?>
-<div class="card mb-3">
-<div class="card-header d-flex justify-content-between align-items-center">
-    <h6 class="mb-0 fw-semibold"><i class="bi bi-brush me-2" style="color:var(--c-creative)"></i>Budget Creative & Design</h6>
-    <a href="<?= base_url('events/'.$event['id'].'/creative') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i>Kelola</a>
+<div class="ev-panel">
+<div class="ev-panel-h">
+    <h2 class="ev-panel-t"><i class="bi bi-brush"></i>Budget Creative &amp; Design</h2>
+    <div class="ev-panel-end"><a href="<?= base_url('events/'.$event['id'].'/creative') ?>" class="ev-btn ev-btn-sm">Kelola<i class="bi bi-arrow-right"></i></a></div>
 </div>
-<div class="card-body p-0">
-<div class="table-responsive">
-<table class="table table-sm table-hover mb-0">
-<thead><tr><th>Tipe</th><th>Nama</th><th class="text-end">Budget</th></tr></thead>
+<div class="ev-tablewrap">
+<table class="ev-table">
+<thead><tr><th>Nama</th><th class="r">Budget</th></tr></thead>
 <tbody>
 <?php foreach ($creativeItems as $ci): ?>
 <?php if ($ci['tipe'] !== $lastTipe): $lastTipe = $ci['tipe']; ?>
-<tr class="table-light"><td colspan="3" class="small fw-semibold text-secondary py-1 ps-3"><?= esc($creativeTipeLabel[$ci['tipe']] ?? ucfirst($ci['tipe'])) ?></td></tr>
+<tr class="ev-grp"><td colspan="2"><?= esc($creativeTipeLabel[$ci['tipe']] ?? ucfirst($ci['tipe'])) ?></td></tr>
 <?php endif; ?>
 <tr>
-    <td class="text-muted small ps-4">—</td>
-    <td class="small"><?= esc($ci['nama']) ?></td>
-    <td class="text-end small fw-medium">Rp <?= number_format($ci['budget'],0,',','.') ?></td>
+    <td class="ev-wrap" style="padding-left:1.4rem"><?= esc($ci['nama']) ?></td>
+    <td class="r nw fw-semibold"><?= $rp($ci['budget']) ?></td>
 </tr>
 <?php endforeach; ?>
-<tr class="table-light">
-    <td colspan="2" class="small fw-bold">Total</td>
-    <td class="text-end small fw-bold" style="color:var(--c-creative)">Rp <?= number_format($creativeBudget,0,',','.') ?></td>
-</tr>
 </tbody>
+<tfoot><tr><td>Total</td><td class="r nw" style="color:var(--c-creative)"><?= $rp($creativeBudget) ?></td></tr></tfoot>
 </table>
 </div>
 </div>
-</div>
 <?php endif; ?>
 
-</div>
-
+</div><!-- /page-evs -->
 <?= $this->endSection() ?>

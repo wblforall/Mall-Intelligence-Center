@@ -1,13 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
-<style>
-.fade-up {
-    opacity: 0;
-    transform: translateY(14px);
-    animation: fadeUpCr .5s cubic-bezier(.22,.68,0,1.2) forwards;
-}
-@keyframes fadeUpCr { to { opacity: 1; transform: translateY(0); } }
-</style>
+<link rel="stylesheet" href="<?= base_url('css/creative-main.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-main.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
@@ -17,254 +10,202 @@ $idBulan    = ['January'=>'Januari','February'=>'Februari','March'=>'Maret','Apr
                'September'=>'September','October'=>'Oktober','November'=>'November','December'=>'Desember'];
 $bulanDt    = \DateTime::createFromFormat('Y-m', $bulan);
 $bulanLabel = strtr($bulanDt->format('F Y'), $idBulan);
+$bulanS     = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+$fTgl = function ($d) use ($bulanS): string {
+    if (!$d || $d === '0000-00-00') return '';
+    $t = strtotime($d);
+    return date('d', $t) . ' ' . $bulanS[(int) date('n', $t) - 1] . ' ' . date('Y', $t);
+};
 
-$statusColors = ['draft' => 'secondary', 'review' => 'warning', 'approved' => 'success', 'revision' => 'danger'];
+$statusChip   = ['draft' => 'cr-chip-mute', 'review' => 'cr-chip-warn', 'approved' => 'cr-chip-ok', 'revision' => 'cr-chip-bad'];
 $statusLabels = ['draft' => 'Draft', 'review' => 'Review', 'approved' => 'Approved', 'revision' => 'Revision'];
-$tipeColors   = ['print' => 'primary', 'digital' => 'info'];
-$tipeLabels   = ['print' => 'Print', 'digital' => 'Digital'];
+$tipeLabels   = ['master_design' => 'Master Design', 'digital' => 'Content Digital', 'cetak' => 'Media Cetak', 'influencer' => 'Influencer',
+                 'media_prescon' => 'Media Prescon', 'print' => 'Print'];
+$tipeIcons    = ['master_design' => 'vector-pen', 'digital' => 'phone', 'cetak' => 'printer', 'influencer' => 'person-video3',
+                 'media_prescon' => 'newspaper', 'print' => 'printer'];
 
 $totalItems = count($rows);
 $hasChart   = !empty($chartItems);
 $hasInsight = !empty($insightLabels);
 $hasTrend   = array_sum($trendReach) + array_sum($trendImpr) + array_sum($trendReal) + array_sum($trendEng) > 0;
-
-// Badge delta vs bulan sebelumnya
-$deltaBadge = function (float $cur, float $prev): string {
-    if ($prev <= 0) return $cur > 0 ? '<span class="small text-success">baru</span>' : '';
-    $d = round(($cur - $prev) / $prev * 100);
-    if ($d == 0) return '<span class="small text-muted">±0%</span>';
-    $up = $d > 0;
-    return '<span class="small ' . ($up ? 'text-success' : 'text-danger') . '">'
-         . '<i class="bi bi-arrow-' . ($up ? 'up' : 'down') . '-short"></i>' . abs($d) . '% vs bln lalu</span>';
-};
+if (empty($rows)) { $hasChart = $hasInsight = $hasTrend = false; } // keadaan kosong tak menampilkan kanvas grafik
 $rp = fn($v) => 'Rp ' . number_format((int)$v, 0, ',', '.');
+
+// Selisih vs bulan sebelumnya
+$deltaBadge = function (float $cur, float $prev): string {
+    if ($prev <= 0) return $cur > 0 ? '<span class="cm-delta up">baru</span>' : '';
+    $d = round(($cur - $prev) / $prev * 100);
+    if ($d == 0) return '<span class="cm-delta flat">±0% <small>vs bln lalu</small></span>';
+    $up = $d > 0;
+    return '<span class="cm-delta ' . ($up ? 'up' : 'down') . '"><i class="bi bi-caret-' . ($up ? 'up' : 'down') . '-fill"></i>' . abs($d) . '% <small>vs bln lalu</small></span>';
+};
+$serapanCls = $serapanPct > 100 ? 'cr-c-bad' : ($serapanPct >= 80 ? 'cr-c-warn' : 'cr-c-ok');
 ?>
 
-<!-- Header & Navigator -->
-<div class="d-flex justify-content-between align-items-center mb-4 fade-up flex-wrap gap-2" style="animation-delay:.05s">
-    <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-vector-pen me-2 text-primary"></i>Summary Bulanan — Creative &amp; Design</h4>
-        <div class="text-muted small mt-1"><?= $bulanLabel ?> · <?= $totalItems ?> item · <?= $activeCount ?> aktif bulan ini</div>
-    </div>
-    <div class="d-flex align-items-center gap-2 flex-wrap">
-        <a href="?bulan=<?= $prevBulan ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-left"></i></a>
-        <form method="GET">
-            <input type="month" name="bulan" value="<?= $bulan ?>" class="form-control form-control-sm" style="width:150px" onchange="this.form.submit()">
-        </form>
-        <a href="?bulan=<?= $nextBulan ?>" class="btn btn-sm btn-outline-secondary <?= $nextBulan > date('Y-m') ? 'disabled' : '' ?>"><i class="bi bi-chevron-right"></i></a>
-        <a href="<?= base_url('creative/monthly-summary/print?bulan='.$bulan) ?>" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">
-            <i class="bi bi-printer me-1"></i>Cetak Laporan
-        </a>
+<div class="page-cre" id="creMon">
+
+<!-- Header -->
+<div class="cr-crumb">
+    <a href="<?= base_url('creative') ?>"><i class="bi bi-arrow-left"></i> Creative &amp; Design</a>
+    <span>/</span><span>Summary Bulanan</span>
+</div>
+<div class="cr-head">
+    <div class="cr-head-ico"><i class="bi bi-bar-chart-line-fill"></i></div>
+    <div class="min-w-0">
+        <h1 class="cr-title">Summary Bulanan — Creative &amp; Design</h1>
+        <div class="cr-subtitle"><?= $bulanLabel ?> · <?= $totalItems ?> item · <?= $activeCount ?> aktif bulan ini</div>
     </div>
 </div>
 
-<!-- KPI Cards -->
-<div class="row g-3 mb-3">
-    <div class="col-6 col-xl">
-        <div class="card h-100 border-primary-subtle fade-up" style="animation-delay:.14s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-primary-subtle"><i class="bi bi-layers text-primary fs-5"></i></div>
-                    <span class="small text-muted">Total Item</span>
-                </div>
-                <div class="fw-bold fs-4 text-primary" data-count="<?= $totalItems ?>"><?= $totalItems ?></div>
-                <div class="small text-muted"><?= $activeCount ?> aktif bulan ini</div>
-            </div>
-        </div>
+<!-- Navigator bulan -->
+<div class="cm-bar">
+    <div class="cm-nav">
+        <a href="?bulan=<?= $prevBulan ?>" class="cr-iconbtn" aria-label="Bulan sebelumnya"><i class="bi bi-chevron-left"></i></a>
+        <form method="GET" class="m-0">
+            <input type="month" name="bulan" value="<?= $bulan ?>" class="cr-month" aria-label="Pilih bulan" onchange="this.form.submit()">
+        </form>
+        <a href="?bulan=<?= $nextBulan ?>" class="cr-iconbtn <?= $nextBulan > date('Y-m') ? 'disabled' : '' ?>" aria-label="Bulan berikutnya"><i class="bi bi-chevron-right"></i></a>
+        <span class="cm-bar-title"><?= $bulanLabel ?></span>
     </div>
-    <div class="col-6 col-xl">
-        <div class="card h-100 border-danger-subtle fade-up" style="animation-delay:.20s"
-             title="Realisasi s/d bulan ini <?= $rp($realCumulative) ?> dari budget <?= $rp($totalBudget) ?>">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-danger-subtle"><i class="bi bi-wallet2 text-danger fs-5"></i></div>
-                    <span class="small text-muted">Budget &amp; Serapan</span>
-                </div>
-                <div class="fw-bold fs-6 text-danger"><?= $rp($totalBudget) ?></div>
-                <div class="small text-muted">
-                    <?php if ($totalBudget > 0): ?>
-                    serapan <span class="fw-semibold <?= $serapanPct > 100 ? 'text-danger' : ($serapanPct >= 80 ? 'text-warning' : 'text-success') ?>"><?= $serapanPct ?>%</span>
-                    <?php else: ?>budget belum di-set<?php endif; ?>
-                </div>
-            </div>
-        </div>
+    <div class="cm-bar-act">
+        <a href="<?= base_url('creative') ?>" class="cr-btn"><i class="bi bi-list-ul"></i>Semua Item</a>
+        <a href="<?= base_url('creative/monthly-summary/print?bulan=' . $bulan) ?>" target="_blank" class="cr-btn cr-btn-primary"><i class="bi bi-printer"></i>Cetak Laporan</a>
     </div>
-    <div class="col-6 col-xl">
-        <div class="card h-100 border-warning-subtle fade-up" style="animation-delay:.26s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-warning-subtle"><i class="bi bi-receipt text-warning fs-5"></i></div>
-                    <span class="small text-muted">Realisasi Bln Ini</span>
-                </div>
-                <div class="fw-bold fs-6 text-warning"><?= $rp($totalRealisasi) ?></div>
-                <div><?= $deltaBadge($totalRealisasi, $prev['real']) ?></div>
-            </div>
-        </div>
+</div>
+
+<!-- KPI -->
+<div class="cm-kpis">
+    <div class="cr-kpi">
+        <div class="cr-kpi-l">Total Item</div>
+        <div class="cr-kpi-v"><?= $totalItems ?></div>
+        <div class="cr-kpi-s"><?= $activeCount ?> aktif bulan ini</div>
     </div>
-    <div class="col-6 col-xl">
-        <div class="card h-100 border-info-subtle fade-up" style="animation-delay:.32s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-info-subtle"><i class="bi bi-eye text-info fs-5"></i></div>
-                    <span class="small text-muted">Reach</span>
-                </div>
-                <div class="fw-bold fs-5 text-info" data-count="<?= $totalReach ?>"><?= number_format($totalReach) ?></div>
-                <div><?= $deltaBadge($totalReach, $prev['reach']) ?: '<span class="small text-muted">bulan ini</span>' ?></div>
-            </div>
-        </div>
+    <div class="cr-kpi" title="Realisasi s/d bulan ini <?= $rp($realCumulative) ?> dari budget <?= $rp($totalBudget) ?>">
+        <div class="cr-kpi-l">Budget &amp; Serapan</div>
+        <div class="cr-kpi-v"><?= $rp($totalBudget) ?></div>
+        <div class="cr-kpi-s"><?php if ($totalBudget > 0): ?>serapan <b class="<?= $serapanCls ?>"><?= $serapanPct ?>%</b><?php else: ?>budget belum di-set<?php endif; ?></div>
+        <?php if ($totalBudget > 0): ?><div class="cr-bar <?= $serapanPct > 100 ? 'cr-bar-over' : 'cr-bar-ok' ?>"><i style="width:<?= min(100, $serapanPct) ?>%"></i></div><?php endif; ?>
     </div>
-    <div class="col-6 col-xl">
-        <div class="card h-100 border-info-subtle fade-up" style="animation-delay:.38s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-info-subtle"><i class="bi bi-broadcast text-info fs-5"></i></div>
-                    <span class="small text-muted">Impressions</span>
-                </div>
-                <div class="fw-bold fs-5 text-info" data-count="<?= $totalImpressions ?>"><?= number_format($totalImpressions) ?></div>
-                <div><?= $deltaBadge($totalImpressions, $prev['impr']) ?: '<span class="small text-muted">bulan ini</span>' ?></div>
-            </div>
-        </div>
+    <div class="cr-kpi">
+        <div class="cr-kpi-l">Realisasi Bln Ini</div>
+        <div class="cr-kpi-v cr-c-warn"><?= $rp($totalRealisasi) ?></div>
+        <div class="cr-kpi-s"><?= $deltaBadge($totalRealisasi, $prev['real']) ?: 'bulan ini' ?></div>
     </div>
-    <div class="col-6 col-xl">
-        <div class="card h-100 border-success-subtle fade-up" style="animation-delay:.44s"
-             title="Likes + Comments + Shares + Saves">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-success-subtle"><i class="bi bi-heart text-success fs-5"></i></div>
-                    <span class="small text-muted">Engagement</span>
-                </div>
-                <div class="fw-bold fs-5 text-success" data-count="<?= $totalEngagement ?>"><?= number_format($totalEngagement) ?></div>
-                <div class="small text-muted">rate <span class="fw-semibold"><?= $engagementRate ?>%</span> · +<?= number_format($totalFollowers) ?> flw</div>
-            </div>
-        </div>
+    <div class="cr-kpi" title="Biaya per 1.000 impresi · Cost per reach <?= $rp($costPerReach) ?>">
+        <div class="cr-kpi-l">CPM (Efisiensi)</div>
+        <div class="cr-kpi-v"><?= $cpm > 0 ? $rp($cpm) : '—' ?></div>
+        <div class="cr-kpi-s"><?= $costPerReach > 0 ? $rp($costPerReach) . ' / reach' : 'per 1.000 impresi' ?></div>
     </div>
-    <div class="col-6 col-xl">
-        <div class="card h-100 border-secondary-subtle fade-up" style="animation-delay:.50s"
-             title="Biaya per 1.000 impresi · Cost per reach <?= $rp($costPerReach) ?>">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-secondary-subtle"><i class="bi bi-cash-stack text-secondary fs-5"></i></div>
-                    <span class="small text-muted">CPM (Efisiensi)</span>
-                </div>
-                <div class="fw-bold fs-6"><?= $cpm > 0 ? $rp($cpm) : '—' ?></div>
-                <div class="small text-muted"><?= $costPerReach > 0 ? $rp($costPerReach) . ' / reach' : 'per 1.000 impresi' ?></div>
-            </div>
-        </div>
+    <div class="cr-kpi k3">
+        <div class="cr-kpi-l">Reach</div>
+        <div class="cr-kpi-v cr-c-cyan"><?= number_format($totalReach) ?></div>
+        <div class="cr-kpi-s"><?= $deltaBadge($totalReach, $prev['reach']) ?: 'bulan ini' ?></div>
+    </div>
+    <div class="cr-kpi k3">
+        <div class="cr-kpi-l">Impressions</div>
+        <div class="cr-kpi-v cr-c-cyan"><?= number_format($totalImpressions) ?></div>
+        <div class="cr-kpi-s"><?= $deltaBadge($totalImpressions, $prev['impr']) ?: 'bulan ini' ?></div>
+    </div>
+    <div class="cr-kpi k3" title="Likes + Comments + Shares + Saves">
+        <div class="cr-kpi-l">Engagement</div>
+        <div class="cr-kpi-v cr-c-ok"><?= number_format($totalEngagement) ?></div>
+        <div class="cr-kpi-s">rate <b><?= $engagementRate ?>%</b> · +<?= number_format($totalFollowers) ?> flw</div>
     </div>
 </div>
 
 <?php if ($topItemReach > 0): ?>
-<div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mb-4 fade-up" style="animation-delay:.55s">
-    <i class="bi bi-trophy-fill text-success"></i>
-    <div class="small">
-        <span class="fw-semibold">Konten terbaik bulan ini:</span> <?= esc($topItemName) ?>
-        — <span class="text-info fw-semibold"><?= number_format($topItemReach) ?></span> reach<?php if ($topItemEng > 0): ?>,
-        <span class="text-success fw-semibold"><?= number_format($topItemEng) ?></span> engagement<?php endif; ?>
-    </div>
+<div class="cm-banner">
+    <i class="bi bi-trophy-fill"></i>
+    <div><b>Konten terbaik bulan ini:</b> <?= esc($topItemName) ?>
+        — <b class="cr-c-cyan"><?= number_format($topItemReach) ?></b> reach<?php if ($topItemEng > 0): ?>,
+        <b class="cr-c-ok"><?= number_format($topItemEng) ?></b> engagement<?php endif; ?></div>
 </div>
 <?php endif; ?>
 
 <?php if (!empty($analysis)): ?>
-<div class="card mb-4 border-info-subtle fade-up" style="animation-delay:.6s">
-    <div class="card-header d-flex align-items-center justify-content-between">
-        <span class="fw-semibold small"><i class="bi bi-stars me-2 text-info"></i>Analisa Otomatis — <?= $bulanLabel ?></span>
-        <span class="badge bg-secondary-subtle text-secondary" style="font-size:.6rem">auto</span>
-    </div>
-    <div class="card-body py-2">
-        <ul class="mb-0 ps-3" style="font-size:.82rem;line-height:1.7">
-            <?php foreach ($analysis as $line): ?>
-            <li><?= esc($line) ?></li>
-            <?php endforeach; ?>
-        </ul>
-    </div>
+<div class="cm-card">
+    <div class="cm-card-h"><h2><i class="bi bi-stars"></i>Analisa Otomatis — <?= $bulanLabel ?></h2><span class="cr-chip cr-chip-mute">auto</span></div>
+    <div class="cm-card-b"><ul class="cm-analysis"><?php foreach ($analysis as $line): ?><li><?= esc($line) ?></li><?php endforeach; ?></ul></div>
 </div>
 <?php endif; ?>
 
-<!-- Status & Tipe distribution -->
 <?php if ($totalItems > 0): ?>
-<div class="row g-3 mb-4">
-    <div class="col-md-6">
-        <div class="card h-100">
-            <div class="card-body py-3">
-                <div class="small fw-semibold text-muted mb-2"><i class="bi bi-circle-half me-1"></i>Status Item</div>
-                <div class="d-flex flex-wrap gap-2">
-                    <?php foreach ($statusLabels as $key => $label): ?>
-                    <?php $cnt = $statusCounts[$key] ?? 0; if ($cnt === 0) continue; ?>
-                    <span class="badge bg-<?= $statusColors[$key] ?>-subtle text-<?= $statusColors[$key] ?> border border-<?= $statusColors[$key] ?>-subtle px-2 py-1" style="font-size:.78rem">
-                        <?= $label ?> <span class="fw-bold"><?= $cnt ?></span>
-                    </span>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
+<?php
+$tipeCounts = [];
+foreach ($rows as $r) { $t = $r['item']['tipe']; $tipeCounts[$t] = ($tipeCounts[$t] ?? 0) + 1; }
+?>
+<div class="cm-two">
+    <div class="cm-card">
+        <div class="cm-card-h"><h2><i class="bi bi-circle-half"></i>Status Item</h2></div>
+        <div class="cm-card-b"><div class="cm-chips">
+            <?php foreach ($statusLabels as $key => $label): $cnt = $statusCounts[$key] ?? 0; if ($cnt === 0) continue; ?>
+            <span class="cr-chip <?= $statusChip[$key] ?>"><?= $label ?> <b><?= $cnt ?></b></span>
+            <?php endforeach; ?>
+        </div></div>
     </div>
-    <div class="col-md-6">
-        <div class="card h-100">
-            <div class="card-body py-3">
-                <div class="small fw-semibold text-muted mb-2"><i class="bi bi-grid me-1"></i>Tipe Item</div>
-                <?php
-                $tipeCounts = [];
-                foreach ($rows as $r) { $t = $r['item']['tipe']; $tipeCounts[$t] = ($tipeCounts[$t] ?? 0) + 1; }
-                ?>
-                <div class="d-flex flex-wrap gap-2">
-                    <?php foreach ($tipeCounts as $tipe => $cnt): ?>
-                    <span class="badge bg-<?= $tipeColors[$tipe] ?? 'secondary' ?>-subtle text-<?= $tipeColors[$tipe] ?? 'secondary' ?> border border-<?= $tipeColors[$tipe] ?? 'secondary' ?>-subtle px-2 py-1" style="font-size:.78rem">
-                        <?= $tipeLabels[$tipe] ?? ucfirst($tipe) ?> <span class="fw-bold"><?= $cnt ?></span>
-                    </span>
-                    <?php endforeach; ?>
-                    <?php if ($totalFollowers > 0): ?>
-                    <span class="ms-auto small text-muted align-self-center"><i class="bi bi-person-plus me-1"></i>+<?= number_format($totalFollowers) ?> followers</span>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
+    <div class="cm-card">
+        <div class="cm-card-h"><h2><i class="bi bi-grid"></i>Tipe Item</h2></div>
+        <div class="cm-card-b"><div class="cm-chips">
+            <?php foreach ($tipeCounts as $tipe => $cnt): ?>
+            <span class="cr-chip cr-chip-blue"><?= $tipeLabels[$tipe] ?? ucfirst($tipe) ?> <b><?= $cnt ?></b></span>
+            <?php endforeach; ?>
+            <?php if ($totalFollowers > 0): ?><span class="cm-sub ms-auto"><i class="bi bi-person-plus"></i> +<?= number_format($totalFollowers) ?> followers</span><?php endif; ?>
+        </div></div>
     </div>
 </div>
 <?php endif; ?>
 
 <?php if (empty($rows)): ?>
-<div class="card">
-    <div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-vector-pen display-4 d-block mb-2 opacity-25"></i>
-        <p class="mb-0">Belum ada item Creative &amp; Design.</p>
-    </div>
+<div class="cr-empty">
+    <i class="bi bi-vector-pen"></i>
+    <h5>Belum ada item Creative &amp; Design bulan ini</h5>
+    <p>Item tampil di bulan sesuai tanggalnya, atau bila ada realisasi/insight pada bulan itu. Coba bulan lain.</p>
+    <a href="<?= base_url('creative') ?>" class="cr-btn"><i class="bi bi-list-ul"></i>Buka daftar Creative</a>
 </div>
 <?php else: ?>
 
-<!-- Tren 6 Bulan -->
 <?php if ($hasTrend): ?>
-<div class="card mb-4">
-    <div class="card-header"><span class="fw-semibold small"><i class="bi bi-graph-up-arrow me-2"></i>Tren 6 Bulan — Reach, Impressions, Engagement &amp; Realisasi</span></div>
-    <div class="card-body"><canvas id="trendChart" height="90"></canvas></div>
+<div class="cm-card">
+    <div class="cm-card-h"><h2><i class="bi bi-graph-up-arrow"></i>Tren 6 Bulan — Reach, Impressions, Engagement &amp; Realisasi</h2></div>
+    <div class="cm-card-b"><div class="cm-chart" style="height:300px"><canvas id="trendChart"></canvas></div></div>
 </div>
 <?php endif; ?>
 
-<!-- Budget vs Realisasi Chart -->
+<?php if ($hasChart || $hasInsight): ?>
+<div class="<?= ($hasChart && $hasInsight) ? 'cm-two' : '' ?>">
 <?php if ($hasChart): ?>
-<div class="card mb-4">
-    <div class="card-header"><span class="fw-semibold small"><i class="bi bi-bar-chart me-2"></i>Budget Item vs Realisasi Bulan Ini (per Item)</span></div>
-    <div class="card-body">
-        <canvas id="budgetRealChart" height="<?= max(60, count($chartItems) * 40) ?>"></canvas>
-    </div>
+<div class="cm-card">
+    <div class="cm-card-h"><h2><i class="bi bi-bar-chart"></i>Budget vs Realisasi Bulan Ini</h2><span class="cr-chip cr-chip-mute"><?= count($chartItems) ?> item</span></div>
+    <div class="cm-card-b"><div class="cm-chart" style="height:<?= max(200, count($chartItems) * 48 + 70) ?>px"><canvas id="budgetRealChart"></canvas></div></div>
 </div>
 <?php endif; ?>
-
-<!-- Insight Chart -->
 <?php if ($hasInsight): ?>
-<div class="card mb-4">
-    <div class="card-header"><span class="fw-semibold small"><i class="bi bi-graph-up me-2"></i>Reach &amp; Impressions — <?= $bulanLabel ?></span></div>
-    <div class="card-body">
-        <canvas id="insightChart" height="<?= max(60, count($insightLabels) * 40) ?>"></canvas>
-    </div>
+<div class="cm-card">
+    <div class="cm-card-h"><h2><i class="bi bi-graph-up"></i>Reach &amp; Impressions — <?= $bulanLabel ?></h2><span class="cr-chip cr-chip-mute"><?= count($insightLabels) ?> item</span></div>
+    <div class="cm-card-b"><div class="cm-chart" style="height:<?= max(200, count($insightLabels) * 48 + 70) ?>px"><canvas id="insightChart"></canvas></div></div>
+</div>
+<?php endif; ?>
 </div>
 <?php endif; ?>
 
-<!-- Detail Table — grouped by tipe -->
+<!-- Rincian per tipe -->
+<div class="cr-tools" id="cmTools">
+    <div class="cr-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="cmQ" placeholder="Cari nama item, PIC, event…" autocomplete="off" aria-label="Cari item">
+    </div>
+    <label class="cr-check"><input type="checkbox" id="cmActive">Hanya yang aktif bulan ini</label>
+    <div class="cr-tools-end">
+        <span class="cr-count" id="cmCount" aria-live="polite"><?= $totalItems ?> item</span>
+        <button type="button" class="cr-btn cr-btn-sm" id="cmReset"><i class="bi bi-x-circle"></i>Reset</button>
+    </div>
+</div>
+<div class="cr-empty" id="cmNoMatch" hidden><i class="bi bi-funnel"></i><h5>Tidak ada item yang cocok</h5><p>Ubah kata kunci atau matikan filter “aktif”.</p></div>
+
 <?php
 $rowsByTipe = [];
 foreach ($rows as $r) { $rowsByTipe[$r['item']['tipe']][] = $r; }
-$tipeOrder  = array_unique(array_merge(['print', 'digital'], array_keys($rowsByTipe)));
-$tipeIcons  = ['print' => 'printer', 'digital' => 'phone'];
+$tipeOrder  = array_unique(array_merge(['master_design', 'digital', 'cetak', 'influencer', 'media_prescon', 'print'], array_keys($rowsByTipe)));
 foreach ($tipeOrder as $tipe):
     if (empty($rowsByTipe[$tipe])) continue;
     $tipeRows  = $rowsByTipe[$tipe];
@@ -274,25 +215,22 @@ foreach ($tipeOrder as $tipe):
     $grpReach  = array_sum(array_map(fn($r) => (int)($r['insMonth']['max_reach'] ?? 0), $tipeRows));
     $grpEng    = array_sum(array_map(fn($r) => (int)(($r['insMonth']['max_likes'] ?? 0) + ($r['insMonth']['max_comments'] ?? 0) + ($r['insMonth']['max_shares'] ?? 0) + ($r['insMonth']['max_saves'] ?? 0)), $tipeRows));
 ?>
-<div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span class="fw-semibold small">
-            <i class="bi bi-<?= $tipeIcons[$tipe] ?? 'grid' ?> me-2 text-<?= $tipeColors[$tipe] ?? 'secondary' ?>"></i>
-            <?= $tipeLabels[$tipe] ?? ucfirst($tipe) ?>
-        </span>
-        <span class="badge bg-<?= $tipeColors[$tipe] ?? 'secondary' ?>-subtle text-<?= $tipeColors[$tipe] ?? 'secondary' ?>"><?= count($tipeRows) ?> item</span>
+<section class="cm-card cm-grp t-<?= esc($tipe, 'attr') ?>">
+    <div class="cm-card-h">
+        <h2><i class="bi bi-<?= $tipeIcons[$tipe] ?? 'grid' ?>"></i><?= $tipeLabels[$tipe] ?? ucfirst($tipe) ?></h2>
+        <span class="cr-chip cr-chip-blue"><?= count($tipeRows) ?> item</span>
     </div>
-    <div class="table-responsive">
-        <table class="table table-hover table-sm mb-0 align-middle">
-            <thead class="table-light">
+    <div class="cr-tbl-wrap">
+        <table class="cr-tbl">
+            <thead>
                 <tr>
-                    <th class="ps-3">Nama Item</th>
+                    <th>Nama Item</th>
                     <th>Status</th>
-                    <th class="text-end">Budget</th>
-                    <th class="text-end <?= $isDigital ? '' : 'pe-3' ?>">Realisasi Bulan Ini</th>
+                    <th class="r">Budget</th>
+                    <th class="r">Realisasi Bulan Ini</th>
                     <?php if ($isDigital): ?>
-                    <th class="text-end">Reach / Impr</th>
-                    <th class="text-end pe-3">Engagement</th>
+                    <th class="r">Reach / Impr</th>
+                    <th class="r">Engagement</th>
                     <?php endif; ?>
                 </tr>
             </thead>
@@ -311,107 +249,65 @@ foreach ($tipeOrder as $tipe):
                 $link    = $item['_source'] === 's'
                     ? base_url('creative#item-' . $item['id'] . '-s')
                     : base_url('events/' . $item['event_id'] . '/creative');
+                $itgl    = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? '');
+                $stKey   = $item['status'] ?? 'draft';
+                $srch    = mb_strtolower(($item['nama'] ?? '') . ' ' . ($item['pic'] ?? '') . ' ' . ($item['event_name'] ?? ''));
             ?>
-            <tr class="<?= $r['hasActivity'] ? '' : 'opacity-75' ?>">
-                <td class="ps-3">
-                    <a href="<?= $link ?>" class="fw-semibold text-decoration-none"><?= esc($item['nama']) ?></a>
-                    <?php if ($r['hasActivity']): ?>
-                    <span class="badge bg-success-subtle text-success ms-1" style="font-size:.6rem">aktif</span>
-                    <?php endif; ?>
-                    <?php if (!empty($item['is_closed'])): ?>
-                    <span class="badge bg-secondary ms-1" style="font-size:.6rem"><i class="bi bi-check2-circle me-1"></i>Selesai</span>
-                    <?php endif; ?>
-                    <?php $itgl = ($item['tanggal'] ?? '') ?: ($item['tanggal_take'] ?? ''); if ($itgl): ?>
-                    <div class="small text-muted"><i class="bi bi-calendar3 me-1"></i><?= date('d M Y', strtotime($itgl)) ?></div>
-                    <?php endif; ?>
-                    <?php if (!empty($item['event_name'])): ?>
-                    <div class="small text-muted"><?= esc($item['event_name']) ?></div>
-                    <?php endif; ?>
-                    <?php if ($item['pic']): ?>
-                    <div class="small text-muted"><i class="bi bi-person me-1"></i><?= esc($item['pic']) ?></div>
-                    <?php endif; ?>
-                </td>
+            <tr data-cm-row data-active="<?= $r['hasActivity'] ? '1' : '0' ?>" data-search="<?= esc($srch, 'attr') ?>" class="<?= $r['hasActivity'] ? '' : 'cm-quiet' ?>">
                 <td>
-                    <span class="badge bg-<?= $statusColors[$item['status']] ?? 'secondary' ?>-subtle text-<?= $statusColors[$item['status']] ?? 'secondary' ?>" style="font-size:.7rem">
-                        <?= $statusLabels[$item['status']] ?? ucfirst($item['status']) ?>
-                    </span>
+                    <a href="<?= $link ?>" class="cr-rowlink"><?= esc($item['nama']) ?></a>
+                    <?php if ($r['hasActivity']): ?><span class="cr-chip cr-chip-ok">aktif</span><?php endif; ?>
+                    <?php if (!empty($item['is_closed'])): ?><span class="cr-chip cr-chip-mute"><i class="bi bi-check2-circle"></i>Selesai</span><?php endif; ?>
+                    <?php if ($item['_source'] !== 's'): ?><span class="cr-chip cr-chip-gold">Event</span><?php endif; ?>
+                    <?php if ($itgl): ?><div class="cm-sub"><i class="bi bi-calendar3"></i> <?= $fTgl($itgl) ?></div><?php endif; ?>
+                    <?php if (!empty($item['event_name'])): ?><div class="cm-sub"><?= esc($item['event_name']) ?></div><?php endif; ?>
+                    <?php if (!empty($item['pic'])): ?><div class="cm-sub"><i class="bi bi-person"></i> <?= esc($item['pic']) ?></div><?php endif; ?>
                 </td>
-                <td class="text-end">
-                    <?php if ($budget > 0): ?>
-                    <span class="small fw-semibold text-danger">Rp <?= number_format($budget, 0, ',', '.') ?></span>
-                    <?php else: ?>
-                    <span class="small text-muted">—</span>
-                    <?php endif; ?>
-                </td>
-                <td class="text-end <?= $isDigital ? '' : 'pe-3' ?>">
-                    <?php if ($realMon > 0): ?>
-                    <span class="small fw-semibold text-warning">Rp <?= number_format($realMon, 0, ',', '.') ?></span>
-                    <?php else: ?>
-                    <span class="small text-muted">—</span>
-                    <?php endif; ?>
-                </td>
+                <td><span class="cr-chip <?= $statusChip[$stKey] ?? 'cr-chip-mute' ?>"><?= $statusLabels[$stKey] ?? ucfirst($stKey) ?></span></td>
+                <td class="r nw"><?= $budget > 0 ? '<b class="cr-c-bad">' . $rp($budget) . '</b>' : '<span class="cr-c-mute">—</span>' ?></td>
+                <td class="r nw"><?= $realMon > 0 ? '<b class="cr-c-warn">' . $rp($realMon) . '</b>' : '<span class="cr-c-mute">—</span>' ?></td>
                 <?php if ($isDigital): ?>
-                <td class="text-end">
+                <td class="r nw">
                     <?php if ($reach > 0 || $impr > 0): ?>
-                    <div class="small fw-semibold text-info"><?= number_format($reach) ?></div>
-                    <?php if ($impr > 0): ?>
-                    <div class="text-muted" style="font-size:.68rem">Impr <?= number_format($impr) ?></div>
-                    <?php endif; ?>
-                    <?php else: ?>
-                    <span class="small text-muted">—</span>
-                    <?php endif; ?>
+                    <b class="cr-c-cyan"><?= number_format($reach) ?></b>
+                    <?php if ($impr > 0): ?><div class="cm-eng-sub">Impr <?= number_format($impr) ?></div><?php endif; ?>
+                    <?php else: ?><span class="cr-c-mute">—</span><?php endif; ?>
                 </td>
-                <td class="text-end pe-3">
+                <td class="r nw">
                     <?php if ($engR > 0): ?>
-                    <div class="small fw-semibold text-success"><?= number_format($engR) ?></div>
-                    <div class="text-muted" style="font-size:.62rem"><?= number_format($likes) ?>L · <?= number_format($comments) ?>C · <?= number_format($shares) ?>S</div>
-                    <?php else: ?>
-                    <span class="small text-muted">—</span>
-                    <?php endif; ?>
+                    <b class="cr-c-ok"><?= number_format($engR) ?></b>
+                    <div class="cm-eng-sub"><?= number_format($likes) ?>L · <?= number_format($comments) ?>C · <?= number_format($shares) ?>S</div>
+                    <?php else: ?><span class="cr-c-mute">—</span><?php endif; ?>
                 </td>
                 <?php endif; ?>
             </tr>
             <?php endforeach; ?>
             </tbody>
             <?php if ($grpBudget > 0 || $grpReal > 0): ?>
-            <tfoot class="table-light fw-bold">
+            <tfoot>
                 <tr>
-                    <td class="ps-3 small" colspan="2">Subtotal</td>
-                    <td class="text-end small text-danger">Rp <?= number_format($grpBudget, 0, ',', '.') ?></td>
-                    <td class="text-end small text-warning <?= $isDigital ? '' : 'pe-3' ?>">Rp <?= number_format($grpReal, 0, ',', '.') ?></td>
+                    <td colspan="2">Subtotal</td>
+                    <td class="r nw cr-c-bad"><?= $rp($grpBudget) ?></td>
+                    <td class="r nw cr-c-warn"><?= $rp($grpReal) ?></td>
                     <?php if ($isDigital): ?>
-                    <td class="text-end small text-info"><?= $grpReach > 0 ? number_format($grpReach) : '—' ?></td>
-                    <td class="text-end pe-3 small text-success"><?= $grpEng > 0 ? number_format($grpEng) : '—' ?></td>
+                    <td class="r nw cr-c-cyan"><?= $grpReach > 0 ? number_format($grpReach) : '—' ?></td>
+                    <td class="r nw cr-c-ok"><?= $grpEng > 0 ? number_format($grpEng) : '—' ?></td>
                     <?php endif; ?>
                 </tr>
             </tfoot>
             <?php endif; ?>
         </table>
     </div>
-</div>
+</section>
 <?php endforeach; ?>
 
 <?php endif; ?>
 
+</div><!-- /.page-cre -->
+
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
-<script>
-(function() {
-    const dur = 900;
-    document.querySelectorAll('[data-count]').forEach(el => {
-        const target = parseInt(el.dataset.count) || 0;
-        if (!target) return;
-        const start = performance.now();
-        function step(now) {
-            const t = Math.min(1, (now - start) / dur);
-            const ease = 1 - Math.pow(1 - t, 3);
-            el.textContent = Math.round(ease * target).toLocaleString('id-ID');
-            if (t < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-    });
-})();
-</script>
+<script src="<?= base_url('js/creative-main.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-main.js') ?: 1 ?>"></script>
 <?php if ($hasTrend): ?>
 <script>
 new Chart(document.getElementById('trendChart'), {
@@ -427,6 +323,7 @@ new Chart(document.getElementById('trendChart'), {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
             legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
@@ -464,12 +361,13 @@ new Chart(document.getElementById('budgetRealChart'), {
     options: {
         indexAxis: 'y',
         responsive: true,
+        maintainAspectRatio: false,
         animation: {
             duration: 700,
             easing: 'easeOutQuart',
             delay: ctx => ctx.type === 'data' ? ctx.dataIndex * 40 : 0,
         },
-        scales: { x: { beginAtZero: true, ticks: { callback: v => 'Rp ' + v.toLocaleString('id-ID') } } },
+        scales: { x: { beginAtZero: true, ticks: { callback: v => 'Rp ' + v.toLocaleString('id-ID') } }, y: { ticks: { font: { size: 10 }, callback: function (v) { var l = this.getLabelForValue(v); return l.length > 20 ? l.slice(0, 19) + '…' : l; } } } },
         plugins: {
             legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
             tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': Rp ' + ctx.raw.toLocaleString('id-ID') } }
@@ -502,12 +400,13 @@ new Chart(document.getElementById('insightChart'), {
     options: {
         indexAxis: 'y',
         responsive: true,
+        maintainAspectRatio: false,
         animation: {
             duration: 700,
             easing: 'easeOutQuart',
             delay: ctx => ctx.type === 'data' ? ctx.dataIndex * 40 : 0,
         },
-        scales: { x: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('id-ID') } } },
+        scales: { x: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('id-ID') } }, y: { ticks: { font: { size: 10 }, callback: function (v) { var l = this.getLabelForValue(v); return l.length > 20 ? l.slice(0, 19) + '…' : l; } } } },
         plugins: {
             legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
             tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.raw.toLocaleString('id-ID') } }

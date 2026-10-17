@@ -1,27 +1,13 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/events-modul.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-modul.css') ?: 1 ?>">
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
-<?= view('partials/complete_data_bar', ['event' => $event, 'module' => 'exhibitors', 'completion' => $completion, 'canEdit' => $canEdit, 'user' => $user]) ?>
-
-<div class="d-flex align-items-center gap-2 mb-4">
-    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <div>
-        <h4 class="fw-bold mb-0">Exhibition by Casual Leasing</h4>
-        <small class="text-muted"><?= esc($event['name']) ?></small>
-    </div>
-    <?php if ($canEdit): ?>
-    <div class="ms-auto d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#targetModal">
-            <i class="bi bi-bullseye me-1"></i> Set Target
-        </button>
-        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
-            <i class="bi bi-plus-lg me-1"></i> Tambah Exhibition
-        </button>
-    </div>
-    <?php endif; ?>
-</div>
-
 <?php
+if (! function_exists('evRp')) {
+    function evRp($n): string { return 'Rp ' . number_format((float) $n, 0, ',', '.'); }
+}
 $totalDealing = array_sum(array_column($exhibitors, 'nilai_dealing'));
 $byKategori   = [];
 foreach ($exhibitors as $e) { $byKategori[$e['kategori']][] = $e; }
@@ -35,160 +21,196 @@ for ($i = 0; $i < (int)$event['event_days']; $i++) {
     $d->modify("+{$i} days");
     $eventDates[] = $d->format('Y-m-d');
 }
-?>
 
-<!-- Summary bar -->
-<?php
 $tgtJumlah = (int)($target['target_jumlah']        ?? 0);
 $tgtNilai  = (int)($target['target_nilai_dealing']  ?? 0);
 $hasTarget = $tgtJumlah > 0 || $tgtNilai > 0;
-
 $pctJumlah = ($tgtJumlah > 0) ? min(100, round(count($exhibitors) / $tgtJumlah * 100)) : null;
 $pctNilai  = ($tgtNilai  > 0) ? min(100, round($totalDealing       / $tgtNilai  * 100)) : null;
+$barOf = fn($p) => $p === null ? 'blue' : ($p >= 100 ? 'ok' : ($p >= 50 ? 'mid' : 'low'));
+$tOf   = fn($p) => $p === null ? '' : ($p >= 100 ? 't-ok' : ($p >= 50 ? 't-warn' : 't-bad'));
+$totalProg = 0;
+foreach ($exhibitors as $e) { $totalProg += count($programs[$e['id']] ?? []); }
+$nTanpaProg = count(array_filter($exhibitors, fn($e) => empty($programs[$e['id']])));
 
-$colorJumlah = $pctJumlah === null ? 'primary' : ($pctJumlah >= 100 ? 'success' : ($pctJumlah >= 60 ? 'primary' : ($pctJumlah >= 30 ? 'warning' : 'danger')));
-$colorNilai  = $pctNilai  === null ? 'success' : ($pctNilai  >= 100 ? 'success' : ($pctNilai  >= 60 ? 'primary' : ($pctNilai  >= 30 ? 'warning' : 'danger')));
+$actions = '';
+if ($canEdit) {
+    $actions = '<button class="ev-btn" data-bs-toggle="modal" data-bs-target="#targetModal"><i class="bi bi-bullseye"></i><span class="d-none d-sm-inline">Set Target</span></button>'
+             . '<button class="ev-btn ev-btn-primary" data-bs-toggle="modal" data-bs-target="#addModal"><i class="bi bi-plus-lg"></i>Tambah Exhibition</button>';
+}
 ?>
-<?php if (! empty($exhibitors) || $hasTarget): ?>
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card text-center"><div class="card-body py-3">
-            <div class="fw-bold fs-4"><?= count($exhibitors) ?></div>
-            <small class="text-muted">Total Exhibition</small>
-            <?php if ($tgtJumlah > 0): ?>
-            <div class="progress mt-2" style="height:5px">
-                <div class="progress-bar bg-<?= $colorJumlah ?>" style="width:<?= $pctJumlah ?>%"></div>
-            </div>
-            <small class="text-<?= $colorJumlah ?> fw-semibold"><?= $pctJumlah ?>%</small>
-            <small class="text-muted"> dari target <?= $tgtJumlah ?></small>
-            <?php endif; ?>
-        </div></div>
+
+<div class="page-evm evm-exhibitors" id="evmRoot" data-key="exh-<?= $event['id'] ?>" data-unit="exhibition">
+
+<?= view('partials/evm_head', ['event' => $event, 'module' => 'exhibitors', 'completion' => $completion, 'canEdit' => $canEdit,
+    'title' => 'Exhibition by Casual Leasing', 'icon' => 'bi-shop', 'actions' => $actions]) ?>
+
+<!-- Strip KPI -->
+<div class="ev-kpis">
+    <div class="ev-kpi <?= $tOf($pctJumlah) ?>">
+        <div class="ev-kpi-l">Total Exhibition</div>
+        <div class="ev-kpi-v"><?= count($exhibitors) ?></div>
+        <div class="ev-kpi-s"><?= $tgtJumlah > 0 ? $pctJumlah . '% dari target ' . $tgtJumlah : 'belum ada target jumlah' ?></div>
+        <?php if ($tgtJumlah > 0): ?><div class="ev-bar ev-bar-<?= $barOf($pctJumlah) ?>"><i style="width:<?= $pctJumlah ?>%"></i></div><?php endif; ?>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center"><div class="card-body py-3">
-            <div class="fw-bold fs-4"><?= count($byKategori) ?></div>
-            <small class="text-muted">Kategori</small>
-        </div></div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Kategori</div>
+        <div class="ev-kpi-v"><?= count($byKategori) ?></div>
+        <div class="ev-kpi-s"><?= $nTanpaProg ?> exhibition belum punya program</div>
     </div>
-    <div class="col-md-6">
-        <div class="card"><div class="card-body py-3">
-            <div class="small text-muted">Total Nilai Dealing</div>
-            <div class="fw-bold fs-5 text-<?= $colorNilai ?>">Rp <?= number_format($totalDealing,0,',','.') ?></div>
-            <?php if ($tgtNilai > 0): ?>
-            <div class="progress mt-2" style="height:5px">
-                <div class="progress-bar bg-<?= $colorNilai ?>" style="width:<?= $pctNilai ?>%"></div>
-            </div>
-            <small class="text-<?= $colorNilai ?> fw-semibold"><?= $pctNilai ?>%</small>
-            <small class="text-muted"> dari target Rp <?= number_format($tgtNilai,0,',','.') ?></small>
-            <?php endif; ?>
-        </div></div>
+    <div class="ev-kpi t-cyan">
+        <div class="ev-kpi-l">Program Booth</div>
+        <div class="ev-kpi-v ev-c-cyan"><?= $totalProg ?></div>
+        <div class="ev-kpi-s">jadwal program semua exhibitor</div>
+    </div>
+    <div class="ev-kpi <?= $tOf($pctNilai) ?: 't-ok' ?>">
+        <div class="ev-kpi-l">Nilai Dealing</div>
+        <div class="ev-kpi-v ev-c-ok"><?= evRp($totalDealing) ?></div>
+        <div class="ev-kpi-s"><?= $tgtNilai > 0 ? $pctNilai . '% dari target ' . evRp($tgtNilai) : 'belum ada target nilai' ?></div>
+        <?php if ($tgtNilai > 0): ?><div class="ev-bar ev-bar-<?= $barOf($pctNilai) ?>"><i style="width:<?= $pctNilai ?>%"></i></div><?php endif; ?>
     </div>
 </div>
-<?php endif; ?>
-
-<div class="row g-3">
-<div class="col-12">
 
 <?php if (empty($exhibitors)): ?>
-<div class="card"><div class="card-body text-center py-5 text-muted">
-    <i class="bi bi-shop display-4 d-block mb-2 opacity-25"></i>
-    <p>Belum ada exhibition untuk event ini.</p>
-</div></div>
+<div class="ev-empty">
+    <i class="bi bi-shop"></i>
+    <h5>Belum ada exhibition untuk event ini</h5>
+    <p>Catat exhibitor casual leasing beserta lokasi booth, nilai dealing, dan program boothnya.</p>
+    <?php if ($canEdit): ?>
+    <button class="ev-btn ev-btn-primary" data-bs-toggle="modal" data-bs-target="#addModal"><i class="bi bi-plus-lg"></i>Tambah Exhibition Pertama</button>
+    <?php endif; ?>
+</div>
 <?php else: ?>
-<div class="card">
-<div class="card-body p-0">
-<div class="table-responsive">
-<table class="table table-hover mb-0">
-<thead><tr>
-    <th>Nama Exhibition</th>
-    <th>Lokasi Booth</th>
-    <th>Program</th>
-    <th class="text-end">Nilai Dealing</th>
-    <?php if ($canEdit): ?><th class="text-end" style="width:100px"></th><?php endif; ?>
-</tr></thead>
-<tbody>
-<?php foreach ($byKategori as $kat => $items): ?>
-<tr class="table-secondary">
-    <td colspan="<?= $canEdit ? 5 : 4 ?>" class="small fw-semibold text-uppercase text-muted py-1 ps-3">
-        <i class="bi bi-tag me-1"></i><?= esc($kat) ?>
-        <span class="badge bg-secondary ms-1"><?= count($items) ?></span>
-        <span class="float-end me-2 text-body fw-bold">Rp <?= number_format(array_sum(array_column($items,'nilai_dealing')),0,',','.') ?></span>
-    </td>
-</tr>
-<?php foreach ($items as $ex): ?>
-<?php $exPrograms = $programs[$ex['id']] ?? []; ?>
-<tr id="ex-<?= $ex['id'] ?>">
-    <td class="fw-medium">
-        <?= esc($ex['nama_exhibitor']) ?>
-        <?php if ($ex['catatan']): ?><br><small class="text-muted"><?= esc($ex['catatan']) ?></small><?php endif; ?>
-    </td>
-    <td class="small"><?= esc($ex['lokasi_booth']) ?: '—' ?></td>
-    <td>
-        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#programsModal-<?= $ex['id'] ?>">
-            <i class="bi bi-calendar-event me-1"></i>
-            <?php if (count($exPrograms) > 0): ?>
-                <span class="badge bg-primary rounded-pill"><?= count($exPrograms) ?></span>
-            <?php else: ?>
-                <span class="text-muted small">Tambah</span>
+
+<div class="ev-tools">
+    <div class="ev-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="evQ" placeholder="Cari exhibition atau booth…" autocomplete="off" aria-label="Cari exhibition">
+    </div>
+    <select class="ev-select" data-ev-filter="kat" aria-label="Filter kategori">
+        <option value="">Semua kategori</option>
+        <?php foreach (array_keys($byKategori) as $k): ?><option value="<?= esc($k, 'attr') ?>"><?= esc($k) ?></option><?php endforeach; ?>
+    </select>
+    <select class="ev-select" data-ev-filter="prog" aria-label="Filter program">
+        <option value="">Semua program</option>
+        <option value="ada">Sudah ada program</option>
+        <option value="kosong">Belum ada program</option>
+    </select>
+    <select class="ev-select" id="evSort" aria-label="Urutkan">
+        <option value="" data-dir="asc">Urutan: input</option>
+        <option value="name" data-type="str" data-dir="asc">Nama A–Z</option>
+        <option value="nilai" data-dir="desc">Nilai dealing terbesar</option>
+        <option value="nprog" data-dir="desc">Program terbanyak</option>
+    </select>
+    <div class="ev-tools-end">
+        <span class="ev-count" id="evCount" aria-live="polite"></span>
+        <button type="button" class="ev-btn ev-btn-sm" id="evExpand" title="Buka semua"><i class="bi bi-arrows-expand"></i><span class="d-none d-md-inline">Buka semua</span></button>
+        <button type="button" class="ev-btn ev-btn-sm" id="evCollapse" title="Tutup semua"><i class="bi bi-arrows-collapse"></i><span class="d-none d-md-inline">Tutup semua</span></button>
+    </div>
+</div>
+
+<div class="ev-empty ev-empty-filter" id="evNoMatch" hidden>
+    <i class="bi bi-search"></i>
+    <h5>Tidak ada exhibition yang cocok</h5>
+    <p>Ubah kata kunci atau filter.</p>
+    <button type="button" class="ev-btn" id="evReset"><i class="bi bi-x-circle"></i>Reset filter</button>
+</div>
+
+<?php $ord = 0; foreach ($byKategori as $kat => $items): ?>
+<section class="ev-group">
+<div class="ev-group-h">
+    <span class="ev-group-t"><i class="bi bi-tag"></i><?= esc($kat) ?></span>
+    <span class="ev-group-n"><?= count($items) ?> exhibition</span>
+    <span class="ev-group-sum"><?= evRp(array_sum(array_column($items, 'nilai_dealing'))) ?></span>
+</div>
+<div class="ev-list">
+<?php foreach ($items as $ex):
+    $exPrograms = $programs[$ex['id']] ?? [];
+    $nP = count($exPrograms);
+    $search = mb_strtolower($ex['nama_exhibitor'] . ' ' . ($ex['lokasi_booth'] ?? '') . ' ' . ($ex['catatan'] ?? '') . ' ' . implode(' ', array_column($exPrograms, 'nama_program')));
+?>
+<article class="ev-card" id="ex-<?= $ex['id'] ?>"
+         data-name="<?= esc($ex['nama_exhibitor'], 'attr') ?>" data-search="<?= esc($search, 'attr') ?>"
+         data-kat="<?= esc($kat, 'attr') ?>" data-prog="<?= $nP ? 'ada' : 'kosong' ?>"
+         data-nilai="<?= (int) $ex['nilai_dealing'] ?>" data-nprog="<?= $nP ?>" data-order="<?= $ord++ ?>">
+    <div class="ev-card-head is-slim" data-ev-toggle>
+        <button type="button" class="ev-chev" aria-expanded="false" aria-controls="body-ex<?= $ex['id'] ?>" aria-label="Buka atau tutup program exhibition"><i class="bi bi-chevron-right"></i></button>
+        <div class="min-w-0">
+            <div class="ev-card-name">
+                <span class="ev-card-t"><?= esc($ex['nama_exhibitor']) ?></span>
+                <?php if ($ex['lokasi_booth']): ?><span class="ev-chip ev-chip-blue"><i class="bi bi-geo-alt"></i><?= esc($ex['lokasi_booth']) ?></span><?php endif; ?>
+                <span class="ev-chip <?= $nP ? 'ev-chip-ok' : 'ev-chip-mute' ?>"><i class="bi bi-calendar-event"></i><?= $nP ? $nP . ' program' : 'Belum ada program' ?></span>
+            </div>
+            <?php if ($ex['catatan']): ?><div class="ev-card-meta"><span><i class="bi bi-sticky"></i><?= esc($ex['catatan']) ?></span></div><?php endif; ?>
+        </div>
+        <div class="ev-fig">
+            <div><span class="ev-fig-l">Nilai dealing</span><b class="ev-c-ok"><?= evRp($ex['nilai_dealing']) ?></b></div>
+        </div>
+        <div class="ev-card-act" data-ev-notoggle>
+            <button type="button" class="ev-btn ev-btn-sm ev-btn-soft" data-bs-toggle="modal" data-bs-target="#programsModal-<?= $ex['id'] ?>" title="<?= $canEdit ? 'Kelola program booth' : 'Lihat program booth' ?>">
+                <i class="bi bi-calendar-event"></i><span class="d-none d-sm-inline"><?= $canEdit ? 'Program' : 'Lihat program' ?></span>
+            </button>
+            <?php if ($canEdit): ?>
+            <div class="dropdown">
+                <button class="ev-iconbtn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi exhibition"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end ev-menu">
+                    <li>
+                        <button type="button" class="dropdown-item edit-btn"
+                            data-id="<?= $ex['id'] ?>"
+                            data-nama="<?= esc($ex['nama_exhibitor'], 'attr') ?>"
+                            data-kategori="<?= esc($ex['kategori'], 'attr') ?>"
+                            data-nilai="<?= number_format($ex['nilai_dealing'], 0, ',', '.') ?>"
+                            data-lokasi="<?= esc($ex['lokasi_booth'], 'attr') ?>"
+                            data-catatan="<?= esc($ex['catatan'], 'attr') ?>"><i class="bi bi-pencil"></i>Edit exhibition</button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="POST" action="<?= base_url('events/' . $event['id'] . '/exhibitors/' . $ex['id'] . '/delete') ?>" onsubmit="return confirm('Hapus exhibitor ini?')">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i>Hapus exhibition</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
             <?php endif; ?>
-        </button>
-        <?php if (!empty($exPrograms)): ?>
-        <div class="mt-1">
-        <?php foreach ($exPrograms as $ep): ?>
-        <?php
+        </div>
+    </div>
+    <div class="ev-card-body" id="body-ex<?= $ex['id'] ?>" hidden>
+        <?php if (empty($exPrograms)): ?>
+        <div class="ev-empty-sm">Belum ada program booth.<?php if ($canEdit): ?> Klik "Program" untuk menambah.<?php endif; ?></div>
+        <?php else: ?>
+        <div class="ev-progs">
+        <?php foreach ($exPrograms as $ep):
             $jam = '';
             if ($ep['jam_mulai'])   $jam  = substr($ep['jam_mulai'], 0, 5);
-            if ($ep['jam_selesai']) $jam .= '–' . substr($ep['jam_selesai'], 0, 5);
+            if ($ep['jam_selesai']) $jam .= ' – ' . substr($ep['jam_selesai'], 0, 5);
+            if ($ep['tanggal_mulai'] && $ep['tanggal_selesai'] && $ep['tanggal_mulai'] !== $ep['tanggal_selesai']) {
+                $per = date('d M', strtotime($ep['tanggal_mulai'])) . ' – ' . date('d M Y', strtotime($ep['tanggal_selesai']));
+            } elseif ($ep['tanggal_mulai']) { $per = date('d M Y', strtotime($ep['tanggal_mulai'])); } else { $per = '—'; }
         ?>
-        <div class="text-muted" style="font-size:.72rem; line-height:1.4">
-            <i class="bi bi-dot"></i><?= esc($ep['nama_program']) ?>
-            <?php if ($ep['tanggal_mulai']): ?>
-            <span class="text-primary"><?= date('d/m', strtotime($ep['tanggal_mulai'])) ?><?= ($ep['tanggal_selesai'] && $ep['tanggal_selesai'] !== $ep['tanggal_mulai']) ? '–'.date('d/m', strtotime($ep['tanggal_selesai'])) : '' ?></span>
-            <?php endif; ?>
-            <?php if ($jam): ?><span class="text-secondary"><?= $jam ?></span><?php endif; ?>
-        </div>
+            <div class="ev-prog-item">
+                <b><?= esc($ep['nama_program']) ?></b>
+                <span class="ev-c-cyan ev-nowrap"><i class="bi bi-calendar3 me-1"></i><?= $per ?></span>
+                <span class="ev-c-mute ev-nowrap"><?php if ($jam): ?><i class="bi bi-clock me-1"></i><?= $jam ?><?php endif; ?></span>
+                <?php if (! empty($ep['deskripsi'])): ?><span class="ev-who"><?= esc($ep['deskripsi']) ?></span><?php endif; ?>
+            </div>
         <?php endforeach; ?>
         </div>
         <?php endif; ?>
-    </td>
-    <td class="text-end fw-medium">Rp <?= number_format($ex['nilai_dealing'],0,',','.') ?></td>
-    <?php if ($canEdit): ?>
-    <td class="text-end">
-        <button class="btn btn-sm btn-outline-secondary edit-btn me-1"
-            data-id="<?= $ex['id'] ?>"
-            data-nama="<?= esc($ex['nama_exhibitor'], 'attr') ?>"
-            data-kategori="<?= esc($ex['kategori'], 'attr') ?>"
-            data-nilai="<?= number_format($ex['nilai_dealing'],0,',','.') ?>"
-            data-lokasi="<?= esc($ex['lokasi_booth'], 'attr') ?>"
-            data-catatan="<?= esc($ex['catatan'], 'attr') ?>">
-            <i class="bi bi-pencil"></i>
-        </button>
-        <form method="POST" action="<?= base_url('events/'.$event['id'].'/exhibitors/'.$ex['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus exhibitor ini?')">
-            <?= csrf_field() ?>
-            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-        </form>
-    </td>
-    <?php endif; ?>
-</tr>
+    </div>
+</article>
 <?php endforeach; ?>
+</div>
+</section>
 <?php endforeach; ?>
-</tbody>
-<tfoot>
-<tr class="table-light fw-bold">
-    <td colspan="3">Total</td>
-    <td class="text-end text-success">Rp <?= number_format($totalDealing,0,',','.') ?></td>
-    <?php if ($canEdit): ?><td></td><?php endif; ?>
-</tr>
-</tfoot>
-</table>
-</div>
-</div>
+
+<div class="ev-foot">
+    <span class="ev-foot-l"><?= count($exhibitors) ?> exhibition · <?= count($byKategori) ?> kategori</span>
+    <span class="ev-foot-v ev-c-ok"><?= evRp($totalDealing) ?><small>total nilai dealing</small></span>
 </div>
 <?php endif; ?>
-</div>
 
-</div>
-</div>
+</div><!-- /page-evm -->
 
 <?php if ($canEdit): ?>
 <div class="modal fade" id="addModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
@@ -459,4 +481,5 @@ document.addEventListener('change', function(e) {
     if (selesai && !selesai.value) selesai.value = e.target.value;
 });
 </script>
+<script src="<?= base_url('js/events-modul.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-modul.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

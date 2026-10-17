@@ -1,0 +1,45 @@
+/* Bar tab navigasi event (pengganti grup sidebar "Event Ini").
+   Memakai variabel --ev-* dari .page-evs / .page-evm / .page-evc (fallback disediakan). */
+.ev-tabs {
+    --et-top: var(--ev-tabs-top, 56px);
+    position: sticky; top: var(--et-top); z-index: 40;
+    margin: 0 0 1rem; padding: .4rem 0;
+    background: color-mix(in srgb, var(--bs-body-bg, #0b1220) 88%, transparent);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.ev-tabs::before, .ev-tabs::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 26px; z-index: 2; pointer-events: none;
+    opacity: 0; transition: opacity .16s;
+}
+.ev-tabs::before { left: 0;  background: linear-gradient(90deg,  var(--bs-body-bg, #0b1220), transparent); }
+.ev-tabs::after  { right: 0; background: linear-gradient(270deg, var(--bs-body-bg, #0b1220), transparent); }
+.ev-tabs.can-l::before, .ev-tabs.can-r::after { opacity: 1; }
+.ev-tabs-in {
+    display: flex; flex-wrap: nowrap; gap: .3rem; padding: .25rem; border-radius: 999px;
+    overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+    background: var(--ev-inner, rgba(59,130,246,.07)); border: 1px solid var(--ev-border, rgba(148,170,220,.18));
+}
+.ev-tabs-in::-webkit-scrollbar { display: none; }
+.ev-tab {
+    flex: 0 0 auto; display: inline-flex; align-items: center; gap: .4rem; position: relative;
+    padding: .38rem .8rem; border-radius: 999px; white-space: nowrap; text-decoration: none;
+    font-size: .82rem; font-weight: 600; line-height: 1.2;
+    color: var(--ev-muted, rgba(190,208,245,.64));
+    transition: background .16s, color .16s;
+}
+.ev-tab i { font-size: .92rem; }
+.ev-tab:hover { background: var(--ev-hover, rgba(96,165,250,.09)); color: var(--ev-txt, #e3ecfb); text-decoration: none; }
+.ev-tab.is-active {
+    background: var(--ev-accent, var(--bs-primary, #e8415a)); color: #fff;
+    box-shadow: 0 6px 16px -8px var(--ev-accent, var(--bs-primary, #e8415a));
+}
+.ev-tab:focus-visible { outline: 2px solid var(--ev-blue, #3b82f6); outline-offset: 1px; }
+.ev-tab-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ev-warn, #fbbf24); flex: none;
+    box-shadow: 0 0 0 2px var(--bs-body-bg, #0b1220);
+}
+.ev-tab.is-active .ev-tab-dot { background: #fff; box-shadow: none; }
+@media (max-width: 575.98px) {
+    .ev-tab { padding: .4rem .7rem; font-size: .8rem; }
+}
+@media print { .ev-tabs { display: none !important; } }

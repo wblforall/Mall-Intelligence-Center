@@ -1,216 +1,239 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
-<style>
-.spot-card { transition: box-shadow .15s; }
-.spot-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-.spot-actions { opacity: 0; transition: opacity .15s; }
-.spot-card:hover .spot-actions { opacity: 1; }
-</style>
+<link rel="stylesheet" href="<?= base_url('css/media-promo.css') ?>?v=<?= @filemtime(FCPATH . 'css/media-promo.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
+<?php include_once __DIR__ . '/_helpers.php'; ?>
+<?php
+// ── Ringkasan angka (dihitung dari data yang sama dengan kartu) ──
+$cTotal = count($cetak); $cBusy = $cPend = $cFree = $cEnding = 0;
+foreach ($cetak as $s) {
+    $au = $s['active_usage'] ?? null;
+    if (! $au) { $cFree++; continue; }
+    if ($au['status'] === 'pending') $cPend++; else $cBusy++;
+    if (mpDays($au['tanggal_selesai'], $today) <= 7) $cEnding++;
+}
+$dTotal = count($digital); $slotAll = $slotUsed = 0;
+foreach ($digital as $s) { $slotAll += (int) $s['total_slots']; $slotUsed += count($s['used_slots'] ?? []); }
+$slotFree = $slotAll - $slotUsed;
+$slotPct  = $slotAll > 0 ? round($slotUsed / $slotAll * 100) : 0;
+$tipeBadgeMap = ['t_banner' => 'blue', 'hanging' => 'blue', 'sticker_lift' => 'warn', 'totem_stainless' => 'mute', 'digital' => 'line'];
 
-<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-    <h4 class="fw-bold mb-0"><i class="bi bi-megaphone me-2"></i>Media Promo</h4>
-    <div class="d-flex gap-2">
-        <a href="<?= base_url('creative/media-promo/print?bulan='.date('Y-m')) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-printer me-1"></i>Print
-        </a>
-        <a href="<?= base_url('creative/media-promo/my') ?>" class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-list-check me-1"></i>Request Saya
-        </a>
-        <?php if ($canApprove): ?>
-        <a href="<?= base_url('creative/media-promo/pending') ?>" class="btn btn-sm btn-warning">
-            <i class="bi bi-hourglass-split me-1"></i>Pending Approval
-        </a>
-        <?php endif; ?>
-        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalBuatRequest">
-            <i class="bi bi-plus-lg me-1"></i>Buat Request
-        </button>
+ob_start(); ?>
+    <a href="<?= base_url('creative/media-promo/print?bulan=' . date('Y-m')) ?>" target="_blank" class="mp-btn"><i class="bi bi-printer"></i><span class="d-none d-sm-inline">Print</span></a>
+    <button class="mp-btn mp-btn-primary" data-bs-toggle="modal" data-bs-target="#modalBuatRequest"><i class="bi bi-plus-lg"></i>Buat Request</button>
+<?php $mpActions = ob_get_clean();
+$mpTitle = 'Media Promo'; $mpIcon = 'bi-megaphone-fill';
+$mpSub = 'Ketersediaan titik media cetak & digital per ' . date('d M Y') . ' — booking, pantau tenggat, kelola titik';
+?>
+
+<div class="page-mp" id="mpRoot" data-mp="index" data-base="<?= base_url() ?>">
+<?php include __DIR__ . '/_nav.php'; ?>
+
+<!-- Strip KPI -->
+<div class="mp-kpis">
+    <div class="mp-kpi">
+        <div class="mp-kpi-l">Titik Media</div>
+        <div class="mp-kpi-v"><?= $cTotal + $dTotal ?></div>
+        <div class="mp-kpi-s"><?= $cTotal ?> cetak · <?= $dTotal ?> digital</div>
+    </div>
+    <div class="mp-kpi">
+        <div class="mp-kpi-l">Cetak Tersedia</div>
+        <div class="mp-kpi-v mp-c-ok"><?= $cFree ?></div>
+        <div class="mp-kpi-s">dari <?= $cTotal ?> titik cetak</div>
+    </div>
+    <div class="mp-kpi">
+        <div class="mp-kpi-l">Cetak Terpakai</div>
+        <div class="mp-kpi-v mp-c-bad"><?= $cBusy ?></div>
+        <div class="mp-kpi-s"><?= $cEnding > 0 ? '<span class="mp-c-warn">' . $cEnding . ' berakhir ≤ 7 hari</span>' : 'tidak ada yang segera berakhir' ?></div>
+    </div>
+    <div class="mp-kpi">
+        <div class="mp-kpi-l">Cetak Pending</div>
+        <div class="mp-kpi-v mp-c-warn"><?= $cPend ?></div>
+        <div class="mp-kpi-s">menunggu approval</div>
+    </div>
+    <div class="mp-kpi">
+        <div class="mp-kpi-l">Slot Digital Bebas</div>
+        <div class="mp-kpi-v mp-c-cyan"><?= $slotFree ?><span class="mp-muted" style="font-size:.9rem;font-weight:600"> / <?= $slotAll ?></span></div>
+        <div class="mp-kpi-s"><?= $slotPct ?>% terisi hari ini</div>
+        <div class="mp-bar <?= $slotPct >= 90 ? 'mp-bar-hi' : ($slotPct >= 70 ? 'mp-bar-mid' : '') ?>"><i style="width:<?= $slotPct ?>%"></i></div>
     </div>
 </div>
 
-<?php
-$tipeBadgeMap = ['t_banner'=>'primary','hanging'=>'info','sticker_lift'=>'warning','totem_stainless'=>'secondary'];
-$tipeLabelMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'Sticker Lift','totem_stainless'=>'Totem Stainless'];
-?>
+<!-- Pencarian & filter -->
+<div class="mp-tools" id="mpTools">
+    <div class="mp-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="mpQ" placeholder="Cari kode, nama, area, atau materi…" autocomplete="off" aria-label="Cari titik media">
+    </div>
+    <select class="mp-select" id="mpFKind" aria-label="Filter jenis media">
+        <option value="">Cetak & digital</option>
+        <option value="cetak">Media cetak</option>
+        <option value="digital">Media digital</option>
+    </select>
+    <select class="mp-select" id="mpFTipe" aria-label="Filter tipe">
+        <option value="">Semua tipe</option>
+        <option value="t_banner">T-Banner</option>
+        <option value="hanging">Hanging Banner</option>
+        <option value="sticker_lift">Sticker Lift</option>
+        <option value="totem_stainless">Totem Stainless</option>
+    </select>
+    <select class="mp-select" id="mpFStatus" aria-label="Filter status">
+        <option value="">Semua status</option>
+        <option value="avail">Bisa dibooking</option>
+        <option value="busy">Terpakai</option>
+        <option value="pending">Pending</option>
+        <option value="full">Digital penuh</option>
+    </select>
+    <select class="mp-select" id="mpSort" aria-label="Urutkan">
+        <option value="">Urutan: kode</option>
+        <option value="nama">Nama A–Z</option>
+        <option value="end">Segera berakhir</option>
+    </select>
+    <div class="mp-tools-end">
+        <span class="mp-count" id="mpCount" aria-live="polite"></span>
+        <button type="button" class="mp-btn mp-btn-sm" id="mpReset"><i class="bi bi-x-circle"></i><span class="d-none d-md-inline">Reset</span></button>
+    </div>
+</div>
+
+<div class="mp-legend">
+    <span><i class="mp-dot" style="background:var(--mp-ok)"></i>Tersedia</span>
+    <span><i class="mp-dot" style="background:var(--mp-warn)"></i>Pending / sebagian terisi</span>
+    <span><i class="mp-dot" style="background:var(--mp-bad)"></i>Terpakai / penuh</span>
+    <span class="ms-1">Tenggat: <span class="mp-chip mp-chip-warn">≤ 7 hari</span></span>
+</div>
 
 <!-- Media Cetak -->
-<h6 class="fw-semibold text-muted mb-2"><i class="bi bi-file-earmark-image me-1"></i>Media Cetak</h6>
-<?php if (empty($cetak)): ?>
-<div class="card mb-4"><div class="card-body text-center text-muted py-3 small">Belum ada titik media cetak.</div></div>
-<?php else: ?>
-<div class="row g-2 mb-4">
-<?php foreach ($cetak as $spot):
-    $occupied  = !empty($spot['active_usage']);
-    $isPending = $occupied && $spot['active_usage']['status'] === 'pending';
-    $borderCol = $occupied ? ($isPending ? 'warning' : 'danger') : 'success';
-?>
-<div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
-<div class="card h-100 spot-card border-<?= $borderCol ?>">
-<div class="card-body p-2">
-
-    <!-- Kode + tipe -->
-    <div class="d-flex justify-content-between align-items-center mb-1">
-        <span class="badge bg-secondary font-monospace" style="font-size:.6rem"><?= esc($spot['kode']) ?></span>
-        <span class="badge bg-<?= $tipeBadgeMap[$spot['tipe']] ?? 'secondary' ?>" style="font-size:.6rem">
-            <?= $tipeLabelMap[$spot['tipe']] ?? esc($spot['tipe']) ?>
-        </span>
-    </div>
-
-    <!-- Nama + area + ukuran -->
-    <div class="fw-semibold" style="font-size:.78rem;line-height:1.3"><?= esc($spot['nama']) ?></div>
-    <div class="text-muted" style="font-size:.68rem;line-height:1.3">
-        <?= esc($spot['area']) ?><?= ($spot['area'] && $spot['ukuran']) ? ' · ' : '' ?><?= esc($spot['ukuran']) ?>
-    </div>
-
-    <!-- Status -->
-    <div class="mt-1">
-    <?php if ($occupied): ?>
-        <span class="badge bg-<?= $isPending ? 'warning text-dark' : 'danger' ?>" style="font-size:.6rem">
-            <?= $isPending ? 'Pending' : 'Terpakai' ?>
-        </span>
-        <div class="fw-semibold text-truncate" style="font-size:.72rem"><?= esc($spot['active_usage']['nama_materi']) ?></div>
-        <div class="text-muted" style="font-size:.65rem">
-            <?= esc($spot['active_usage']['dept']) ?> ·
-            <?= date('d M', strtotime($spot['active_usage']['tanggal_mulai'])) ?>–<?= date('d M', strtotime($spot['active_usage']['tanggal_selesai'])) ?>
-        </div>
+<section class="mp-group" data-group="cetak">
+    <div class="mp-group-h"><h2 class="mp-group-t"><i class="bi bi-file-earmark-image me-1"></i>Media Cetak</h2><span class="mp-group-n" id="mpNCetak"><?= $cTotal ?> titik</span></div>
+    <?php if (empty($cetak)): ?>
+    <div class="mp-empty mp-empty-filter"><i class="bi bi-file-earmark-image"></i><p class="mb-0">Belum ada titik media cetak.</p></div>
     <?php else: ?>
-        <span class="text-success" style="font-size:.72rem"><i class="bi bi-check-circle me-1"></i>Tersedia</span>
-    <?php endif; ?>
+    <div class="mp-grid" data-list="cetak">
+    <?php foreach ($cetak as $idx => $spot):
+        $au   = $spot['active_usage'] ?? null;
+        $st   = ! $au ? 'free' : ($au['status'] === 'pending' ? 'pending' : 'busy');
+        $due  = $au ? mpDue($au, $today) : null;
+        $srch = mb_strtolower($spot['kode'] . ' ' . $spot['nama'] . ' ' . ($spot['area'] ?? '') . ' ' . ($au['nama_materi'] ?? '') . ' ' . ($au['dept'] ?? ''));
+    ?>
+    <article class="mp-spot st-<?= $st ?><?= empty($spot['is_active']) ? ' is-off' : '' ?>"
+             data-kind="cetak" data-tipe="<?= esc($spot['tipe'], 'attr') ?>" data-status="<?= $st ?>" data-avail="<?= $st === 'free' ? 1 : 0 ?>"
+             data-search="<?= esc($srch, 'attr') ?>" data-nama="<?= esc(mb_strtolower($spot['nama']), 'attr') ?>"
+             data-end="<?= $au ? esc($au['tanggal_selesai'], 'attr') : '' ?>" data-order="<?= $idx ?>">
+        <div class="mp-spot-top">
+            <span class="mp-code"><?= esc($spot['kode']) ?></span>
+            <span class="mp-chip mp-chip-<?= $tipeBadgeMap[$spot['tipe']] ?? 'mute' ?>"><?= esc(mpTipeLabel($spot['tipe'])) ?></span>
+            <?php if (! empty($canEdit)): ?>
+            <div class="dropdown mp-menu-wrap">
+                <button class="mp-iconbtn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi titik <?= esc($spot['kode'], 'attr') ?>"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end mp-menu">
+                    <li><button type="button" class="dropdown-item" data-mp-edit="<?= esc(json_encode($spot), 'attr') ?>"><i class="bi bi-pencil"></i>Edit titik</button></li>
+                    <li>
+                        <form method="POST" action="<?= base_url('creative/media-promo/spots/' . $spot['id'] . '/delete') ?>" data-mp-confirm="Hapus titik ini?">
+                            <?= csrf_field() ?>
+                            <button class="dropdown-item text-danger"><i class="bi bi-trash"></i>Hapus titik</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+            <?php endif; ?>
+        </div>
+        <div>
+            <div class="mp-spot-n"><?= esc($spot['nama']) ?></div>
+            <div class="mp-spot-d"><?= esc($spot['area']) ?><?= ($spot['area'] && $spot['ukuran']) ? ' · ' : '' ?><?= esc($spot['ukuran']) ?></div>
+        </div>
+        <div class="mp-spot-line">
+            <?php if ($st === 'free'): ?><span class="mp-chip mp-chip-ok"><i class="bi bi-check-circle-fill"></i>Tersedia</span>
+            <?php elseif ($st === 'pending'): ?><span class="mp-chip mp-chip-warn"><i class="bi bi-hourglass-split"></i>Pending</span>
+            <?php else: ?><span class="mp-chip mp-chip-bad"><i class="bi bi-x-circle-fill"></i>Terpakai</span><?php endif; ?>
+            <?php if (empty($spot['is_active'])): ?><span class="mp-chip mp-chip-mute">Nonaktif</span><?php endif; ?>
+            <?php if ($due): ?><span class="mp-chip mp-chip-<?= $due[1] ?>"><i class="bi bi-clock"></i><?= esc($due[0]) ?></span><?php endif; ?>
+        </div>
+        <?php if ($au): ?>
+        <div class="mp-spot-use">
+            <b><?= esc($au['nama_materi']) ?></b>
+            <span><?= esc($au['dept']) ?> · <?= esc(mpRange($au['tanggal_mulai'], $au['tanggal_selesai'])) ?></span>
+        </div>
+        <?php endif; ?>
+        <?php if ($st === 'free'): ?>
+        <div class="mp-spot-foot">
+            <button type="button" class="mp-btn mp-btn-xs mp-btn-ok" data-mp-book="cetak" data-spot="<?= $spot['id'] ?>"><i class="bi bi-plus-lg"></i>Booking titik ini</button>
+        </div>
+        <?php endif; ?>
+    </article>
+    <?php endforeach; ?>
     </div>
-
-    <?php if ($canEdit): ?>
-    <div class="spot-actions d-flex gap-1 mt-1">
-        <button class="btn btn-xs btn-outline-secondary py-0 px-1"
-            onclick="openEditSpot(<?= htmlspecialchars(json_encode($spot)) ?>)" title="Edit">
-            <i class="bi bi-pencil" style="font-size:.65rem"></i>
-        </button>
-        <form method="POST" action="<?= base_url('creative/media-promo/spots/'.$spot['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus titik ini?')">
-            <?= csrf_field() ?>
-            <button class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus"><i class="bi bi-trash" style="font-size:.65rem"></i></button>
-        </form>
-    </div>
     <?php endif; ?>
-
-</div>
-</div>
-</div>
-<?php endforeach; ?>
-</div>
-<?php endif; ?>
+</section>
 
 <!-- Media Digital -->
-<h6 class="fw-semibold text-muted mb-2"><i class="bi bi-display me-1"></i>Media Digital</h6>
-<?php if (empty($digital)): ?>
-<div class="card"><div class="card-body text-center text-muted py-3 small">Belum ada titik media digital.</div></div>
-<?php else: ?>
-<div class="row g-2">
-<?php foreach ($digital as $spot):
-    $usedCount  = count($spot['used_slots'] ?? []);
-    $totalSlots = (int)$spot['total_slots'];
-    $pct        = $totalSlots > 0 ? round($usedCount / $totalSlots * 100) : 0;
-    $barClass   = $pct >= 100 ? 'danger' : ($pct >= 75 ? 'warning' : 'success');
-?>
-<div class="col-xl-3 col-lg-4 col-md-6">
-<div class="card h-100 spot-card">
-<div class="card-body p-2">
-
-    <!-- Kode + badge -->
-    <div class="d-flex justify-content-between align-items-center mb-1">
-        <span class="badge bg-secondary font-monospace" style="font-size:.6rem"><?= esc($spot['kode']) ?></span>
-        <span class="badge bg-dark" style="font-size:.6rem">Digital</span>
+<section class="mp-group" data-group="digital">
+    <div class="mp-group-h"><h2 class="mp-group-t"><i class="bi bi-display me-1"></i>Media Digital</h2><span class="mp-group-n" id="mpNDigital"><?= $dTotal ?> titik</span></div>
+    <?php if (empty($digital)): ?>
+    <div class="mp-empty mp-empty-filter"><i class="bi bi-display"></i><p class="mb-0">Belum ada titik media digital.</p></div>
+    <?php else: ?>
+    <div class="mp-grid is-dig" data-list="digital">
+    <?php foreach ($digital as $idx => $spot):
+        $usedCount  = count($spot['used_slots'] ?? []);
+        $totalSlots = (int) $spot['total_slots'];
+        $pct        = $totalSlots > 0 ? round($usedCount / $totalSlots * 100) : 0;
+        $st         = $usedCount === 0 ? 'free' : ($usedCount >= $totalSlots ? 'full' : 'part');
+        $barClass   = $pct >= 100 ? 'mp-bar-hi' : ($pct >= 75 ? 'mp-bar-mid' : '');
+        $srch       = mb_strtolower($spot['kode'] . ' ' . $spot['nama'] . ' ' . ($spot['area'] ?? ''));
+    ?>
+    <article class="mp-spot st-<?= $st ?><?= empty($spot['is_active']) ? ' is-off' : '' ?>"
+             data-kind="digital" data-tipe="digital" data-status="<?= $st ?>" data-avail="<?= $spot['sisa_slots'] > 0 ? 1 : 0 ?>"
+             data-search="<?= esc($srch, 'attr') ?>" data-nama="<?= esc(mb_strtolower($spot['nama']), 'attr') ?>" data-end="" data-order="<?= $idx ?>">
+        <div class="mp-spot-top">
+            <span class="mp-code"><?= esc($spot['kode']) ?></span>
+            <span class="mp-chip mp-chip-line">Digital</span>
+            <?php if (empty($spot['is_active'])): ?><span class="mp-chip mp-chip-mute">Nonaktif</span><?php endif; ?>
+            <?php if (! empty($canEdit)): ?>
+            <div class="dropdown mp-menu-wrap">
+                <button class="mp-iconbtn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi titik <?= esc($spot['kode'], 'attr') ?>"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end mp-menu">
+                    <li><button type="button" class="dropdown-item" data-mp-edit="<?= esc(json_encode($spot), 'attr') ?>"><i class="bi bi-pencil"></i>Edit titik</button></li>
+                    <li>
+                        <form method="POST" action="<?= base_url('creative/media-promo/spots/' . $spot['id'] . '/delete') ?>" data-mp-confirm="Hapus titik ini?">
+                            <?= csrf_field() ?>
+                            <button class="dropdown-item text-danger"><i class="bi bi-trash"></i>Hapus titik</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+            <?php endif; ?>
+        </div>
+        <div>
+            <div class="mp-spot-n"><?= esc($spot['nama']) ?></div>
+            <?php if ($spot['area']): ?><div class="mp-spot-d"><?= esc($spot['area']) ?></div><?php endif; ?>
+        </div>
+        <div class="mp-slot-sum">
+            <span><?= $usedCount ?>/<?= $totalSlots ?> slot terisi</span>
+            <b class="<?= $spot['sisa_slots'] > 0 ? 'mp-c-ok' : 'mp-c-bad' ?>"><?= $spot['sisa_slots'] ?> bebas</b>
+        </div>
+        <div class="mp-bar <?= $barClass ?>" style="margin-top:0"><i style="width:<?= $pct ?>%"></i></div>
+        <div class="mp-slots">
+        <?php for ($s = 1; $s <= $totalSlots; $s++): ?>
+            <span class="mp-slot <?= in_array($s, $spot['used_slots']) ? 'u' : 'f' ?>" title="Slot <?= $s ?>: <?= in_array($s, $spot['used_slots']) ? 'terisi' : 'bebas' ?>"><?= $s ?></span>
+        <?php endfor; ?>
+        </div>
+        <?php if ($spot['sisa_slots'] > 0): ?>
+        <div class="mp-spot-foot">
+            <button type="button" class="mp-btn mp-btn-xs mp-btn-ok" data-mp-book="digital" data-spot="<?= $spot['id'] ?>"><i class="bi bi-plus-lg"></i>Pilih slot</button>
+        </div>
+        <?php endif; ?>
+    </article>
+    <?php endforeach; ?>
     </div>
-
-    <!-- Nama + area -->
-    <div class="fw-semibold" style="font-size:.78rem;line-height:1.3"><?= esc($spot['nama']) ?></div>
-    <?php if ($spot['area']): ?>
-    <div class="text-muted" style="font-size:.68rem"><?= esc($spot['area']) ?></div>
     <?php endif; ?>
+</section>
 
-    <!-- Progress -->
-    <div class="d-flex justify-content-between mt-1 mb-1" style="font-size:.68rem">
-        <span class="text-muted"><?= $usedCount ?>/<?= $totalSlots ?> slot</span>
-        <span class="text-<?= $spot['sisa_slots'] > 0 ? 'success' : 'danger' ?>"><?= $spot['sisa_slots'] ?> bebas</span>
-    </div>
-    <div class="progress mb-1" style="height:4px">
-        <div class="progress-bar bg-<?= $barClass ?>" style="width:<?= $pct ?>%"></div>
-    </div>
-
-    <!-- Slot badges -->
-    <div class="d-flex flex-wrap gap-1">
-    <?php for ($s = 1; $s <= $totalSlots; $s++): ?>
-        <span class="badge bg-<?= in_array($s, $spot['used_slots']) ? 'danger' : 'success' ?>"
-              style="font-size:.6rem;min-width:20px"><?= $s ?></span>
-    <?php endfor; ?>
-    </div>
-
-    <?php if ($canEdit): ?>
-    <div class="spot-actions d-flex gap-1 mt-1">
-        <button class="btn btn-xs btn-outline-secondary py-0 px-1"
-            onclick="openEditSpot(<?= htmlspecialchars(json_encode($spot)) ?>)" title="Edit">
-            <i class="bi bi-pencil" style="font-size:.65rem"></i>
-        </button>
-        <form method="POST" action="<?= base_url('creative/media-promo/spots/'.$spot['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus titik ini?')">
-            <?= csrf_field() ?>
-            <button class="btn btn-xs btn-outline-danger py-0 px-1" title="Hapus"><i class="bi bi-trash" style="font-size:.65rem"></i></button>
-        </form>
-    </div>
-    <?php endif; ?>
-
+<div class="mp-empty mp-empty-filter" id="mpNoMatch" hidden>
+    <i class="bi bi-search"></i>
+    <h5>Tidak ada titik yang cocok</h5>
+    <p>Ubah kata kunci atau filter.</p>
+    <button type="button" class="mp-btn" id="mpReset2"><i class="bi bi-x-circle"></i>Reset filter</button>
 </div>
-</div>
-</div>
-<?php endforeach; ?>
-</div>
-<?php endif; ?>
-
-<!-- Modal Tambah Titik -->
-<div class="modal fade" id="modalTambahTitik" tabindex="-1">
-<div class="modal-dialog"><div class="modal-content">
-<form method="POST" action="<?= base_url('creative/media-promo/spots/store') ?>"><?= csrf_field() ?>
-<div class="modal-header"><h5 class="modal-title">Tambah Titik Media</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-<div class="modal-body">
-    <div class="row g-2 mb-3">
-        <div class="col-4">
-            <label class="form-label small fw-semibold">Kode <span class="text-danger">*</span></label>
-            <input type="text" name="kode" class="form-control text-uppercase" required maxlength="20">
-        </div>
-        <div class="col-8">
-            <label class="form-label small fw-semibold">Nama <span class="text-danger">*</span></label>
-            <input type="text" name="nama" class="form-control" required>
-        </div>
-    </div>
-    <div class="row g-2 mb-3">
-        <div class="col-6">
-            <label class="form-label small fw-semibold">Tipe <span class="text-danger">*</span></label>
-            <select name="tipe" class="form-select" required>
-                <option value="">-- Pilih --</option>
-                <option value="t_banner">T-Banner</option>
-                <option value="hanging">Hanging Banner</option>
-                <option value="sticker_lift">Sticker Lift</option>
-                <option value="totem_stainless">Totem Stainless</option>
-                <option value="digital">Digital</option>
-            </select>
-        </div>
-        <div class="col-6">
-            <label class="form-label small fw-semibold">Area/Lokasi</label>
-            <input type="text" name="area" class="form-control" placeholder="Lantai 1 - Area A">
-        </div>
-    </div>
-    <div class="mb-3">
-        <label class="form-label small fw-semibold">Ukuran</label>
-        <input type="text" name="ukuran" class="form-control" placeholder="60x160cm">
-    </div>
-    <div class="mb-2">
-        <label class="form-label small fw-semibold">Catatan</label>
-        <textarea name="catatan" class="form-control" rows="2"></textarea>
-    </div>
-</div>
-<div class="modal-footer">
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-    <button type="submit" class="btn btn-primary">Simpan</button>
-</div>
-</form></div></div></div>
 
 <!-- Modal Edit Titik -->
 <div class="modal fade" id="modalEditTitik" tabindex="-1">
@@ -238,9 +261,15 @@ $tipeLabelMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'St
             <input type="text" name="area" id="edit_spot_area" class="form-control">
         </div>
     </div>
-    <div class="mb-3">
-        <label class="form-label small fw-semibold">Ukuran</label>
-        <input type="text" name="ukuran" id="edit_spot_ukuran" class="form-control">
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <label class="form-label small fw-semibold">Ukuran / Resolusi</label>
+            <input type="text" name="ukuran" id="edit_spot_ukuran" class="form-control">
+        </div>
+        <div class="col-6" id="editSpotSlotRow" style="display:none">
+            <label class="form-label small fw-semibold">Jumlah Slot</label>
+            <input type="number" name="total_slots" id="edit_spot_slots" class="form-control" min="1" max="50">
+        </div>
     </div>
     <div class="mb-2">
         <label class="form-label small fw-semibold">Catatan</label>
@@ -263,11 +292,11 @@ $tipeLabelMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'St
     <!-- Mode toggle -->
     <div class="d-flex gap-4 mb-3 pb-3 border-bottom">
         <div class="form-check">
-            <input class="form-check-input" type="radio" name="req_mode_ui" id="modeCetak" value="cetak" checked onchange="switchReqMode('cetak')">
+            <input class="form-check-input" type="radio" name="req_mode_ui" id="modeCetak" value="cetak" checked>
             <label class="form-check-label fw-semibold" for="modeCetak"><i class="bi bi-file-earmark-image me-1"></i>Media Cetak</label>
         </div>
         <div class="form-check">
-            <input class="form-check-input" type="radio" name="req_mode_ui" id="modeDigital" value="digital" onchange="switchReqMode('digital')">
+            <input class="form-check-input" type="radio" name="req_mode_ui" id="modeDigital" value="digital">
             <label class="form-check-label fw-semibold" for="modeDigital"><i class="bi bi-display me-1"></i>Media Digital</label>
         </div>
     </div>
@@ -399,111 +428,9 @@ $tipeLabelMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'St
 </div>
 </form></div></div></div>
 
-<script>
-const BASE_URL = '<?= base_url() ?>';
 
-function openEditSpot(spot) {
-    const tipeLabel = {t_banner: 'T-Banner', hanging: 'Hanging Banner', sticker_lift: 'Sticker Lift', totem_stainless: 'Totem Stainless', digital: 'Digital'};
-    document.getElementById('edit_spot_kode').value        = spot.kode;
-    document.getElementById('edit_spot_nama').value        = spot.nama;
-    document.getElementById('edit_spot_tipe_label').value  = tipeLabel[spot.tipe] || spot.tipe;
-    document.getElementById('edit_spot_area').value        = spot.area || '';
-    document.getElementById('edit_spot_ukuran').value      = spot.ukuran || '';
-    document.getElementById('edit_spot_catatan').value     = spot.catatan || '';
-    document.getElementById('formEditTitik').action        = BASE_URL + 'creative/media-promo/spots/' + spot.id + '/update';
-    new bootstrap.Modal(document.getElementById('modalEditTitik')).show();
-}
-
-function switchReqMode(mode) {
-    document.getElementById('reqMode').value = mode;
-    document.getElementById('cetakSection').style.display   = mode === 'cetak' ? '' : 'none';
-    document.getElementById('digitalSection').style.display = mode === 'digital' ? '' : 'none';
-    if (mode === 'digital') checkDigitalDates();
-}
-
-function checkDigitalDates() {
-    const tglMulai   = document.getElementById('reqTglMulai').value;
-    const tglSelesai = document.getElementById('reqTglSelesai').value;
-    if (!tglMulai || !tglSelesai || tglMulai > tglSelesai) return;
-
-    fetch(BASE_URL + 'creative/media-promo/spots/check-digital?tgl_mulai=' + tglMulai + '&tgl_selesai=' + tglSelesai)
-        .then(r => r.json())
-        .then(data => {
-            document.querySelectorAll('.digital-spot-row').forEach(row => {
-                const spotId   = row.dataset.spotId;
-                const info     = data[spotId];
-                if (!info) return;
-                const avail    = new Set(info.available);
-                const sisal    = row.querySelector('.spot-sisa-label');
-                if (sisal) sisal.textContent = info.available.length + '/' + info.total + ' bebas';
-                row.querySelectorAll('.digital-slot-check').forEach(cb => {
-                    const slot = parseInt(cb.value);
-                    const ok   = avail.has(slot);
-                    cb.disabled = !ok;
-                    if (!ok) cb.checked = false;
-                    const lbl = cb.nextElementSibling;
-                    if (lbl) {
-                        lbl.classList.remove('btn-outline-success', 'btn-outline-danger', 'btn-outline-secondary', 'disabled');
-                        lbl.classList.add(ok ? 'btn-outline-success' : 'btn-outline-danger');
-                        if (!ok) lbl.classList.add('disabled');
-                    }
-                });
-            });
-        });
-}
-
-function checkCetakDates() {
-    const tglMulai   = document.getElementById('reqTglMulai').value;
-    const tglSelesai = document.getElementById('reqTglSelesai').value;
-    if (!tglMulai || !tglSelesai || tglMulai > tglSelesai) return;
-
-    fetch(BASE_URL + 'creative/media-promo/spots/check-cetak?tgl_mulai=' + tglMulai + '&tgl_selesai=' + tglSelesai)
-        .then(r => r.json())
-        .then(data => {
-            const occupied = new Set(data.occupied.map(String));
-            document.querySelectorAll('.cetak-check').forEach(chk => {
-                const isOccupied = occupied.has(String(chk.value));
-                const badge = chk.closest('.form-check').querySelector('.avail-badge');
-                chk.disabled = isOccupied;
-                if (isOccupied) {
-                    chk.checked = false;
-                    if (badge) { badge.className = 'badge bg-danger ms-auto avail-badge'; badge.textContent = 'Terpakai'; }
-                } else {
-                    if (badge) { badge.className = 'badge bg-success ms-auto avail-badge'; badge.textContent = 'Tersedia'; }
-                }
-            });
-        });
-}
-
-['reqTglMulai', 'reqTglSelesai'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => {
-        const mode = document.getElementById('reqMode').value;
-        if (mode === 'cetak')   checkCetakDates();
-        if (mode === 'digital') checkDigitalDates();
-    });
-});
-
-document.getElementById('formBuatRequest').addEventListener('submit', function(e) {
-    const mode = document.getElementById('reqMode').value;
-    if (mode === 'cetak') {
-        const checked    = document.querySelectorAll('.cetak-check:checked');
-        const noCheckDiv = document.getElementById('cetakNoCheck');
-        if (checked.length === 0) {
-            e.preventDefault();
-            noCheckDiv.style.display = '';
-            return;
-        }
-        noCheckDiv.style.display = 'none';
-    } else {
-        const noSlot = document.querySelectorAll('.digital-slot-check:checked').length === 0;
-        if (noSlot) {
-            e.preventDefault();
-            document.getElementById('digitalNoSlot').style.display = '';
-            return;
-        }
-        document.getElementById('digitalNoSlot').style.display = 'none';
-    }
-});
-</script>
-
+</div><!-- /.page-mp -->
+<?= $this->endSection() ?>
+<?= $this->section('scripts') ?>
+<script src="<?= base_url('js/media-promo.js') ?>?v=<?= @filemtime(FCPATH . 'js/media-promo.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

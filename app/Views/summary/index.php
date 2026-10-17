@@ -1,94 +1,97 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
-<style>
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.anim-fade-up { opacity: 0; animation: fadeUp .48s cubic-bezier(.22,.68,0,1.15) forwards; }
-.anim-fade-in { opacity: 0; animation: fadeIn .35s ease forwards; }
-</style>
+<link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
 $mallLabels   = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Shopping Venue', 'keduanya' => 'eWalk Simply FUNtastic & Pentacity Shopping Venue'];
-$statusColors = ['draft' => 'secondary', 'active' => 'success', 'waiting_data' => 'warning', 'completed' => 'primary'];
+$statusChip   = ['draft' => 'mute', 'active' => 'ok', 'waiting_data' => 'warn', 'completed' => 'blue'];
 $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Waiting Data', 'completed' => 'Completed'];
-?>
+$rp = static fn($n) => 'Rp ' . number_format((int) $n, 0, ',', '.');
+$deptBudgetTotal = array_sum(array_column($budgetByDept, 'total'));
+$missing = array_diff(array_keys($requiredModules), array_keys($completions));
+$brClass = ['success' => 'ok', 'warning' => 'warn', 'danger' => 'bad'][$budgetRealColor] ?? 'ok';
+$barCls  = ['ok' => 'ev-bar-ok', 'warn' => 'ev-bar-mid', 'bad' => 'ev-bar-low'][$brClass];
 
-<!-- Incomplete data alert -->
+// Anggaran vs realisasi per modul (angka dari variabel yang sudah ada)
+$avr = [
+    ['Departemen', 'bi-buildings', $deptBudgetTotal, null, null],
+    ['Program Loyalty', 'bi-star', $loyaltyBudget, $loyaltyBudgetReal, 'loyalty'],
+    ['Dekorasi & VM', 'bi-palette', $vmBudget, $vmRealTotal, 'vm'],
+    ['Content Event', 'bi-collection-play', $contentBudget, $contentRealisasi, 'content'],
+    ['Creative & Design', 'bi-vector-pen', $creativeBudget, $creativeRealisasiTotal, 'creative'],
+];
+?>
+<div class="page-evs">
+
+<!-- Header -->
+<div class="ev-head">
+    <a href="<?= base_url('events') ?>" class="ev-iconbtn ev-back" title="Kembali ke daftar event" aria-label="Kembali ke daftar event"><i class="bi bi-arrow-left"></i></a>
+    <div class="min-w-0">
+        <h1 class="ev-title"><?= esc($event['name']) ?></h1>
+        <div class="ev-meta">
+            <?php if ($event['tema']): ?><span><i class="bi bi-tag"></i><?= esc($event['tema']) ?></span><?php endif; ?>
+            <span><i class="bi bi-building"></i><?= $mallLabels[$event['mall']] ?? esc($event['mall']) ?></span>
+            <span><i class="bi bi-calendar-range"></i><?= date('d M Y', strtotime($startDate)) ?> – <?= date('d M Y', strtotime($endDate)) ?></span>
+            <span><i class="bi bi-clock"></i><?= $event['event_days'] ?> hari</span>
+            <?php if (!empty($eventLocations)): ?>
+            <span><i class="bi bi-geo-alt"></i><?= esc(implode(', ', array_column($eventLocations, 'nama'))) ?></span>
+            <?php endif; ?>
+        </div>
+    </div>
+    <div class="ev-head-act">
+        <span class="ev-chip ev-chip-<?= $statusChip[$event['status']] ?? 'mute' ?>"><?= $statusLabels[$event['status']] ?? ucfirst($event['status']) ?></span>
+        <a href="<?= base_url('events/'.$event['id'].'/summary/post-event') ?>" target="_blank" class="ev-btn ev-btn-primary">
+            <i class="bi bi-file-earmark-text"></i>Laporan Post Event
+        </a>
+        <div class="ev-menuwrap">
+            <button type="button" class="ev-btn" data-ev-menu aria-haspopup="true" aria-expanded="false"><i class="bi bi-three-dots"></i><span class="d-none d-sm-inline">Lainnya</span></button>
+            <div class="ev-menu" hidden>
+                <a href="<?= base_url('events/'.$event['id'].'/summary/technical-meeting') ?>" target="_blank"><i class="bi bi-printer"></i>Print Technical Meeting</a>
+                <a href="<?= base_url('events/'.$event['id'].'/gallery') ?>"><i class="bi bi-images"></i>Gallery Foto</a>
+                <a href="<?= base_url('events/'.$event['id'].'/rundown') ?>"><i class="bi bi-clock-history"></i>Rundown</a>
+                <a href="<?= base_url('events/'.$event['id'].'/budget') ?>"><i class="bi bi-wallet2"></i>Budget Summary</a>
+                <a href="<?= base_url('events/'.$event['id'].'/other-cost') ?>"><i class="bi bi-receipt"></i>Other Cost</a>
+            </div>
+        </div>
+    </div>
+</div>
+<?= view('partials/event_tabs', ['event' => $event]) ?>
+
+<!-- Data belum lengkap -->
 <?php if ($isAfterEvent && ! $allDone): ?>
-<div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-3 alert-dismissible fade show anim-fade-in" style="animation-delay:.05s" role="alert">
-    <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0"></i>
-    <div>
+<div class="ev-note ev-note-warn" role="alert">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <div class="min-w-0">
         <strong>Data belum lengkap.</strong>
         Event ini sudah selesai tapi ada modul yang belum ditandai selesai:
-        <?php
-        $missing = array_diff(array_keys($requiredModules), array_keys($completions));
-        echo implode(', ', array_map(fn($m) => '<span class="badge bg-warning text-dark">' . esc($requiredModules[$m]) . '</span>', $missing));
-        ?>
+        <?= implode(' ', array_map(fn($m) => '<span class="ev-chip ev-chip-warn">' . esc($requiredModules[$m]) . '</span>', $missing)) ?>
     </div>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 <?php endif; ?>
 
-<!-- Event Header -->
-<div class="d-flex justify-content-between align-items-start mb-3 anim-fade-up" style="animation-delay:.08s">
-    <div>
-        <h4 class="fw-bold mb-1"><?= esc($event['name']) ?></h4>
-        <a href="<?= base_url('events/'.$event['id'].'/summary/technical-meeting') ?>" target="_blank"
-           class="btn btn-sm btn-outline-secondary mt-1">
-            <i class="bi bi-printer me-1"></i>Print Technical Meeting
-        </a>
-        <a href="<?= base_url('events/'.$event['id'].'/summary/post-event') ?>" target="_blank"
-           class="btn btn-sm btn-outline-primary mt-1">
-            <i class="bi bi-file-earmark-text me-1"></i>Print Laporan Post Event
-        </a>
-        <a href="<?= base_url('events/'.$event['id'].'/gallery') ?>"
-           class="btn btn-sm btn-outline-info mt-1">
-            <i class="bi bi-images me-1"></i>Gallery Foto
-        </a>
-        <div class="text-muted small d-flex flex-wrap gap-3">
-            <?php if ($event['tema']): ?><span><i class="bi bi-tag me-1"></i><?= esc($event['tema']) ?></span><?php endif; ?>
-            <span><i class="bi bi-building me-1"></i><?= $mallLabels[$event['mall']] ?? esc($event['mall']) ?></span>
-            <span><i class="bi bi-calendar-range me-1"></i><?= date('d M Y', strtotime($startDate)) ?> – <?= date('d M Y', strtotime($endDate)) ?></span>
-            <span><i class="bi bi-clock me-1"></i><?= $event['event_days'] ?> hari</span>
-            <?php if (!empty($eventLocations)): ?>
-            <span><i class="bi bi-geo-alt me-1"></i><?= implode(', ', array_column($eventLocations, 'nama')) ?></span>
-            <?php endif; ?>
-        </div>
-    </div>
-    <span class="badge bg-<?= $statusColors[$event['status']] ?? 'secondary' ?> fs-6 ms-3">
-        <?= $statusLabels[$event['status']] ?? ucfirst($event['status']) ?>
-    </span>
-</div>
-
 <?php if (($canApprove ?? false) && ($event['approval_status'] ?? 'approved') !== 'approved'): ?>
 <?php $isPendingEvt = ($event['approval_status'] ?? '') === 'pending' ?>
-<div class="alert <?= $isPendingEvt ? 'alert-warning' : 'alert-danger' ?> d-flex align-items-center justify-content-between gap-3 py-2 mb-3 anim-fade-in" style="animation-delay:.10s">
-    <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-<?= $isPendingEvt ? 'hourglass-split' : 'x-circle-fill' ?> fs-5"></i>
-        <div>
-            <?php if ($isPendingEvt): ?>
-            <strong>Menunggu Persetujuan</strong> — Event ini belum disetujui dan tidak terlihat oleh pengguna lain.
-            <?php else: ?>
-            <strong>Ditolak</strong><?php if ($event['rejection_reason']): ?> — <?= esc($event['rejection_reason']) ?><?php endif; ?>
-            <?php endif; ?>
-        </div>
+<div class="ev-note <?= $isPendingEvt ? 'ev-note-warn' : 'ev-note-bad' ?>">
+    <i class="bi bi-<?= $isPendingEvt ? 'hourglass-split' : 'x-circle-fill' ?>"></i>
+    <div class="min-w-0">
+        <?php if ($isPendingEvt): ?>
+        <strong>Menunggu Persetujuan</strong> — Event ini belum disetujui dan tidak terlihat oleh pengguna lain.
+        <?php else: ?>
+        <strong>Ditolak</strong><?php if ($event['rejection_reason']): ?> — <?= esc($event['rejection_reason']) ?><?php endif; ?>
+        <?php endif; ?>
     </div>
-    <div class="d-flex gap-2 flex-shrink-0">
+    <div class="ev-note-act">
         <form method="POST" action="<?= base_url('events/'.$event['id'].'/approve') ?>">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-success btn-sm"
-                onclick="return confirm('Setujui event ini?')">
-                <i class="bi bi-check-lg me-1"></i>Setujui
+            <button type="submit" class="ev-btn ev-btn-ok ev-btn-sm" onclick="return confirm('Setujui event ini?')">
+                <i class="bi bi-check-lg"></i>Setujui
             </button>
         </form>
         <?php if ($isPendingEvt): ?>
-        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal">
-            <i class="bi bi-x-lg me-1"></i>Tolak
+        <button type="button" class="ev-btn ev-btn-bad ev-btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal">
+            <i class="bi bi-x-lg"></i>Tolak
         </button>
         <?php endif; ?>
     </div>
@@ -118,150 +121,138 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
 </div></div></div>
 <?php endif; ?>
 
-<!-- KPI Cards -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3 col-6 anim-fade-up" style="animation-delay:.14s">
-        <div class="card h-100 border-danger-subtle">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="rounded-2 p-1 bg-danger-subtle"><i class="bi bi-wallet2 text-danger fs-5"></i></div>
-                    <span class="small text-muted">Total Budget</span>
-                </div>
-                <div class="fw-bold fs-5 text-danger" data-count-rp="<?= $totalBudget ?>">Rp <?= number_format($totalBudget,0,',','.') ?></div>
-                <?php $deptBudgetTotal = array_sum(array_column($budgetByDept, 'total')); ?>
-                <?php if ($totalBudget > 0): ?>
-                <div class="mt-2 pt-2 border-top" style="font-size:.72rem">
-                    <?php if ($deptBudgetTotal > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-buildings me-1"></i>Departemen</span><span>Rp <?= number_format($deptBudgetTotal,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($loyaltyBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-star me-1"></i>Loyalty</span><span>Rp <?= number_format($loyaltyBudget,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($vmBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-palette me-1"></i>VM</span><span>Rp <?= number_format($vmBudget,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($contentBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-collection-play me-1"></i>Content</span><span>Rp <?= number_format($contentBudget,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($creativeBudget > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-vector-pen me-1"></i>Creative</span><span>Rp <?= number_format($creativeBudget,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
+<!-- Strip KPI -->
+<div class="ev-kpis">
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Total Budget</div>
+        <div class="ev-kpi-v"><?= $rp($totalBudget) ?></div>
+        <div class="ev-kpi-s"><?= $totalBudget > 0 ? 'rencana biaya seluruh modul' : 'belum ada budget' ?></div>
+        <?php if ($totalBudget > 0): ?>
+        <div class="ev-kpi-rows">
+            <?php if ($deptBudgetTotal > 0): ?><div><span><i class="bi bi-buildings me-1"></i>Departemen</span><span><?= $rp($deptBudgetTotal) ?></span></div><?php endif; ?>
+            <?php if ($loyaltyBudget > 0): ?><div><span><i class="bi bi-star me-1"></i>Loyalty</span><span><?= $rp($loyaltyBudget) ?></span></div><?php endif; ?>
+            <?php if ($vmBudget > 0): ?><div><span><i class="bi bi-palette me-1"></i>VM</span><span><?= $rp($vmBudget) ?></span></div><?php endif; ?>
+            <?php if ($contentBudget > 0): ?><div><span><i class="bi bi-collection-play me-1"></i>Content</span><span><?= $rp($contentBudget) ?></span></div><?php endif; ?>
+            <?php if ($creativeBudget > 0): ?><div><span><i class="bi bi-vector-pen me-1"></i>Creative</span><span><?= $rp($creativeBudget) ?></span></div><?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
-    <div class="col-md-3 col-6 anim-fade-up" style="animation-delay:.20s">
-        <div class="card h-100 border-<?= $budgetRealColor ?>-subtle">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="rounded-2 p-1 bg-<?= $budgetRealColor ?>-subtle">
-                        <i class="bi bi-receipt text-<?= $budgetRealColor ?> fs-5"></i>
-                    </div>
-                    <span class="small text-muted">Budget Realisasi</span>
-                </div>
-                <div class="fw-bold fs-5 text-<?= $budgetRealColor ?>" data-count-rp="<?= $totalBudgetReal ?>">Rp <?= number_format($totalBudgetReal,0,',','.') ?></div>
-                <?php if ($totalBudget > 0): ?>
-                <div class="mt-1">
-                    <div class="progress" style="height:4px">
-                        <div class="progress-bar bg-<?= $budgetRealColor ?>" style="width:<?= $budgetRealPct ?>%"></div>
-                    </div>
-                    <div class="small text-muted mt-1"><?= $budgetRealPct ?>% dari total budget</div>
-                </div>
-                <?php endif; ?>
-                <?php if ($loyaltyBudgetReal > 0 || $contentRealisasi > 0 || $creativeRealisasiTotal > 0 || $vmRealTotal > 0): ?>
-                <div class="mt-2 pt-2 border-top" style="font-size:.72rem">
-                    <?php if ($loyaltyBudgetReal > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-star me-1"></i>Loyalty</span><span>Rp <?= number_format($loyaltyBudgetReal,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($vmRealTotal > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-palette me-1"></i>VM</span><span>Rp <?= number_format($vmRealTotal,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($contentRealisasi > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-collection-play me-1"></i>Content</span><span>Rp <?= number_format($contentRealisasi,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($creativeRealisasiTotal > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-vector-pen me-1"></i>Creative</span><span>Rp <?= number_format($creativeRealisasiTotal,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Budget Realisasi</div>
+        <div class="ev-kpi-v ev-<?= $brClass ?>"><?= $rp($totalBudgetReal) ?></div>
+        <div class="ev-kpi-s"><?= $totalBudget > 0 ? $budgetRealPct . '% dari total budget' : 'belum ada realisasi' ?></div>
+        <?php if ($totalBudget > 0): ?><div class="ev-bar <?= $barCls ?>"><i style="width:<?= $budgetRealPct ?>%"></i></div><?php endif; ?>
+        <?php if ($loyaltyBudgetReal > 0 || $contentRealisasi > 0 || $creativeRealisasiTotal > 0 || $vmRealTotal > 0): ?>
+        <div class="ev-kpi-rows">
+            <?php if ($loyaltyBudgetReal > 0): ?><div><span><i class="bi bi-star me-1"></i>Loyalty</span><span><?= $rp($loyaltyBudgetReal) ?></span></div><?php endif; ?>
+            <?php if ($vmRealTotal > 0): ?><div><span><i class="bi bi-palette me-1"></i>VM</span><span><?= $rp($vmRealTotal) ?></span></div><?php endif; ?>
+            <?php if ($contentRealisasi > 0): ?><div><span><i class="bi bi-collection-play me-1"></i>Content</span><span><?= $rp($contentRealisasi) ?></span></div><?php endif; ?>
+            <?php if ($creativeRealisasiTotal > 0): ?><div><span><i class="bi bi-vector-pen me-1"></i>Creative</span><span><?= $rp($creativeRealisasiTotal) ?></span></div><?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
-    <div class="col-md-3 col-6 anim-fade-up" style="animation-delay:.26s">
-        <div class="card h-100 border-success-subtle">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="rounded-2 p-1 bg-success-subtle"><i class="bi bi-graph-up-arrow text-success fs-5"></i></div>
-                    <span class="small text-muted">Total Revenue</span>
-                </div>
-                <div class="fw-bold fs-5 text-success" data-count-rp="<?= $totalRevenue ?>">Rp <?= number_format($totalRevenue,0,',','.') ?></div>
-                <?php if ($totalRevenue > 0): ?>
-                <div class="mt-2 pt-2 border-top" style="font-size:.72rem">
-                    <?php if ($totalDealing > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-shop me-1"></i>Exhibition</span><span>Rp <?= number_format($totalDealing,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                    <?php if ($totalSponsorCash > 0): ?>
-                    <div class="d-flex justify-content-between text-muted gap-2 flex-wrap"><span><i class="bi bi-award me-1"></i>Sponsor Cash</span><span>Rp <?= number_format($totalSponsorCash,0,',','.') ?></span></div>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Total Revenue</div>
+        <div class="ev-kpi-v ev-ok"><?= $rp($totalRevenue) ?></div>
+        <div class="ev-kpi-s"><?= $totalRevenue > 0 ? 'exhibition + sponsor cash' : 'belum ada pendapatan' ?></div>
+        <?php if ($totalRevenue > 0): ?>
+        <div class="ev-kpi-rows">
+            <?php if ($totalDealing > 0): ?><div><span><i class="bi bi-shop me-1"></i>Exhibition</span><span><?= $rp($totalDealing) ?></span></div><?php endif; ?>
+            <?php if ($totalSponsorCash > 0): ?><div><span><i class="bi bi-award me-1"></i>Sponsor Cash</span><span><?= $rp($totalSponsorCash) ?></span></div><?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
-    <div class="col-md-3 col-6 anim-fade-up" style="animation-delay:.32s">
-        <div class="card h-100 border-<?= $profitPositive ? 'primary' : 'danger' ?>-subtle">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="rounded-2 p-1 bg-<?= $profitPositive ? 'primary' : 'danger' ?>-subtle">
-                        <i class="bi bi-<?= $profitPositive ? 'trending-up' : 'trending-down' ?> text-<?= $profitPositive ? 'primary' : 'danger' ?> fs-5"></i>
-                    </div>
-                    <span class="small text-muted">Margin Profit</span>
-                </div>
-                <div class="fw-bold fs-5 text-<?= $profitPositive ? 'primary' : 'danger' ?>"
-                     data-count-rp="<?= abs($profit) ?>" data-count-rp-prefix="<?= $profitPositive ? '' : '-' ?>">
-                    <?= $profitPositive ? '' : '-' ?>Rp <?= number_format(abs($profit),0,',','.') ?>
-                </div>
-                <div class="small text-<?= $profitPositive ? 'primary' : 'danger' ?> mt-1">
-                    <?= ($marginPct >= 0 ? '+' : '') ?><?= $marginPct ?>% margin · Revenue − Realisasi
-                </div>
-            </div>
-        </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Margin Profit</div>
+        <div class="ev-kpi-v <?= $profitPositive ? 'ev-cyan' : 'ev-bad' ?>"><?= $profitPositive ? '' : '-' ?><?= $rp(abs($profit)) ?></div>
+        <div class="ev-kpi-s <?= $profitPositive ? '' : 'ev-bad' ?>"><?= ($marginPct >= 0 ? '+' : '') ?><?= $marginPct ?>% margin · Revenue − Realisasi</div>
     </div>
 </div>
 
-<!-- Status Penyelesaian (hanya setelah event) -->
-<?php if ($isAfterEvent): ?>
-<div class="card mb-4 border-<?= $allDone ? 'success' : 'warning' ?>-subtle anim-fade-up" style="animation-delay:.38s">
-    <div class="card-header d-flex justify-content-between align-items-center bg-<?= $allDone ? 'success' : 'warning' ?>-subtle">
-        <h6 class="mb-0 fw-semibold text-<?= $allDone ? 'success' : 'warning' ?>">
-            <i class="bi bi-<?= $allDone ? 'check-circle-fill' : 'hourglass-split' ?> me-2"></i>Status Penyelesaian Data
-        </h6>
-        <span class="badge bg-<?= $allDone ? 'success' : 'warning text-dark' ?>"><?= count($completions) ?>/<?= count($requiredModules) ?> modul</span>
+<!-- Status modul -->
+<div class="ev-panel">
+    <div class="ev-panel-h">
+        <h2 class="ev-panel-t"><i class="bi bi-<?= $allDone ? 'check-circle-fill' : 'list-check' ?>"></i>Status Penyelesaian Data</h2>
+        <div class="ev-panel-end"><span class="ev-chip ev-chip-<?= $allDone ? 'ok' : ($isAfterEvent ? 'warn' : 'mute') ?>"><?= count($completions) ?>/<?= count($requiredModules) ?> modul selesai</span></div>
     </div>
-    <div class="card-body p-0">
-        <div class="list-group list-group-flush">
-        <?php foreach ($requiredModules as $key => $label):
-            $done = isset($completions[$key]); ?>
-        <div class="list-group-item d-flex justify-content-between align-items-center py-2">
-            <span class="small fw-medium">
-                <i class="bi bi-<?= $done ? 'check-circle-fill text-success' : 'circle text-muted' ?> me-2"></i><?= $label ?>
-            </span>
-            <?php if ($done): ?>
-            <span class="small text-muted"><?= esc($completions[$key]['completed_by_name']) ?> · <?= date('d M', strtotime($completions[$key]['completed_at'])) ?></span>
-            <?php else: ?>
-            <span class="badge bg-warning-subtle text-warning">Belum selesai</span>
-            <?php endif; ?>
+    <div class="ev-mods">
+    <?php foreach ($requiredModules as $key => $label):
+        $done = isset($completions[$key]);
+        $late = ! $done && $isAfterEvent;
+        $modUrl = ['content' => 'content', 'loyalty' => 'loyalty', 'vm' => 'vm', 'creative' => 'creative', 'exhibitors' => 'exhibitors', 'sponsors' => 'sponsors'][$key] ?? null; ?>
+        <a class="ev-mod <?= $done ? 'is-done' : ($late ? 'is-late' : 'is-open') ?>" <?= $modUrl ? 'href="' . base_url('events/' . $event['id'] . '/' . $modUrl) . '"' : '' ?> style="color:inherit">
+            <i class="bi bi-<?= $done ? 'check-circle-fill' : ($late ? 'exclamation-circle-fill' : 'circle') ?>"></i>
+            <div class="min-w-0">
+                <div class="ev-mod-n"><?= esc($label) ?></div>
+                <div class="ev-mod-s"><?= $done ? esc($completions[$key]['completed_by_name']) . ' · ' . date('d M', strtotime($completions[$key]['completed_at'])) : ($late ? 'Belum selesai — perlu dilengkapi' : 'Belum ditandai selesai') ?></div>
+            </div>
+        </a>
+    <?php endforeach; ?>
+    </div>
+</div>
+
+<!-- Anggaran vs Realisasi & Hasil vs Target -->
+<div class="ev-grid2" style="margin-bottom:1rem">
+    <div class="ev-panel">
+        <div class="ev-panel-h"><h2 class="ev-panel-t"><i class="bi bi-wallet2"></i>Anggaran vs Realisasi</h2>
+            <div class="ev-panel-end"><a href="<?= base_url('events/'.$event['id'].'/budget') ?>" class="ev-btn ev-btn-sm">Detail budget<i class="bi bi-arrow-right"></i></a></div></div>
+        <div class="ev-tablewrap">
+        <table class="ev-table">
+            <thead><tr><th>Modul</th><th class="r">Budget</th><th class="r">Realisasi</th><th class="r">Sisa / Lebih</th></tr></thead>
+            <tbody>
+            <?php foreach ($avr as [$nm, $ic, $bud, $real, $k]):
+                if ($bud <= 0 && ($real ?? 0) <= 0) continue;
+                $sel = $real === null ? null : $bud - $real;
+                $pc  = ($real !== null && $bud > 0) ? min(100, round($real / $bud * 100)) : null; ?>
+            <tr>
+                <td><i class="bi <?= $ic ?> me-1 ev-mute"></i><?= $nm ?></td>
+                <td class="r ev-nw"><?= $bud > 0 ? $rp($bud) : '—' ?></td>
+                <td class="r ev-nw"><?= $real === null ? '<span class="ev-mute">—</span>' : ($real > 0 ? $rp($real) : '<span class="ev-mute">belum ada</span>') ?>
+                    <?php if ($pc !== null && $real > 0): ?><span class="ev-sub"><?= $pc ?>% dari budget</span><?php endif; ?></td>
+                <td class="r ev-nw <?= $sel === null ? '' : ($sel < 0 ? 'ev-bad' : ($real > 0 ? 'ev-ok' : 'ev-mute')) ?>">
+                    <?= $sel === null ? '—' : ($sel < 0 ? '+' . $rp(-$sel) . ' lebih' : $rp($sel) . ' sisa') ?></td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+            <tfoot><tr>
+                <td>Total</td><td class="r ev-nw"><?= $rp($totalBudget) ?></td>
+                <td class="r ev-nw <?= 'ev-' . $brClass ?>"><?= $rp($totalBudgetReal) ?></td>
+                <td class="r ev-nw"><?= $totalBudget > 0 ? $budgetRealPct . '%' : '—' ?></td>
+            </tr></tfoot>
+        </table>
         </div>
-        <?php endforeach; ?>
+    </div>
+    <div class="ev-panel">
+        <div class="ev-panel-h"><h2 class="ev-panel-t"><i class="bi bi-bullseye"></i>Hasil vs Target</h2>
+            <div class="ev-panel-end"><a href="<?= base_url('events/'.$event['id'].'/exhibitors') ?>" class="ev-btn ev-btn-sm">Exhibition<i class="bi bi-arrow-right"></i></a></div></div>
+        <div class="ev-panel-b">
+            <?php if ($tgtExNilai > 0 || $tgtExJumlah > 0): ?>
+                <?php if ($tgtExNilai > 0): ?>
+                <div class="d-flex justify-content-between gap-2 flex-wrap"><b>Nilai dealing exhibition</b><span class="ev-<?= ['success'=>'ok','warning'=>'warn','danger'=>'bad','primary'=>'cyan'][$colorExNilai] ?? 'cyan' ?> fw-bold"><?= $pctExNilai ?>%</span></div>
+                <div class="ev-bar ev-bar-ok" style="margin:.4rem 0"><i style="width:<?= $pctExNilai ?>%"></i></div>
+                <div class="ev-sub"><?= $rp($totalDealing) ?> dari target <?= $rp($tgtExNilai) ?></div>
+                <?php endif; ?>
+                <?php if ($tgtExJumlah > 0): ?>
+                <div class="d-flex justify-content-between gap-2 flex-wrap <?= $tgtExNilai > 0 ? 'mt-3' : '' ?>"><b>Jumlah exhibitor</b><span class="fw-bold"><?= $pctExJumlah ?>%</span></div>
+                <div class="ev-bar ev-bar-blue" style="margin:.4rem 0"><i style="width:<?= $pctExJumlah ?>%"></i></div>
+                <div class="ev-sub"><?= count($exhibitors) ?> dari target <?= $tgtExJumlah ?> exhibitor</div>
+                <?php endif; ?>
+            <?php else: ?>
+                <div class="ev-empty-sm">Belum ada target exhibition.<br>Hasil: <?= count($exhibitors) ?> exhibitor · <?= $rp($totalDealing) ?></div>
+            <?php endif; ?>
+            <div class="d-flex justify-content-between gap-2 flex-wrap mt-3 pt-3" style="border-top:1px solid var(--ev-border)">
+                <span class="ev-mute"><i class="bi bi-person-walking me-1"></i>Traffic pengunjung</span><b><?= number_format($totalTraffic) ?></b>
+            </div>
+            <div class="d-flex justify-content-between gap-2 flex-wrap mt-1">
+                <span class="ev-mute"><i class="bi bi-car-front me-1"></i>Kendaraan</span><b><?= number_format($totalKendaraan) ?></b>
+            </div>
         </div>
     </div>
 </div>
-<?php endif; ?>
 
 <!-- Charts -->
-<div class="row g-3 mb-3">
-<div class="col-lg-6 anim-fade-up" style="animation-delay:.42s">
+<div class="ev-grid2 mb-3">
+<div>
     <div class="card h-100">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-person-walking me-2"></i>Traffic Pengunjung Harian</h6>
@@ -284,7 +275,7 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
         </div>
     </div>
 </div>
-<div class="col-lg-6 anim-fade-up" style="animation-delay:.48s">
+<div>
     <div class="card h-100">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-car-front me-2"></i>Kendaraan Harian</h6>
@@ -311,8 +302,8 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
 
 <!-- Tabel kendaraan harian per jenis -->
 <?php if ($vehicleGrandTotal > 0): ?>
-<div class="row g-3 mb-3">
-<div class="col-12 anim-fade-up" style="animation-delay:.5s">
+<div class="mb-3">
+<div>
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>Kendaraan Harian per Jenis</h6>
@@ -359,23 +350,23 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
 <?php endif; ?>
 
 <!-- Cards -->
-<div class="row g-3">
-<div class="col-lg-6 anim-fade-up" style="animation-delay:.52s">
+<div class="ev-grid2">
+<div class="ev-stack">
 
     <!-- Content -->
     <?php if (!empty($contentItems)): ?>
-    <div class="card mb-3">
+    <div class="card ev-pm">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-collection-play me-2"></i>Content Event</h6>
             <div class="d-flex align-items-center gap-2">
                 <?php if ($contentBudget > 0): ?>
                 <span class="small fw-semibold text-muted">Rp <?= number_format($contentBudget,0,',','.') ?></span>
                 <?php endif; ?>
-                <a href="<?= base_url('events/'.$event['id'].'/content') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+                <a href="<?= base_url('events/'.$event['id'].'/content') ?>" class="ev-btn ev-btn-sm" title="Buka modul"><i class="bi bi-box-arrow-up-right"></i><span class="d-none d-sm-inline">Buka</span></a>
             </div>
         </div>
         <div class="card-body p-0">
-        <div class="list-group list-group-flush">
+        <div class="list-group list-group-flush" data-ev-limit="8">
             <?php foreach ($contentItems as $ci):
                 $ciRealisasi = $contentRealisasiByItem[$ci['id']] ?? [];
                 $ciTotal     = array_sum(array_column($ciRealisasi, 'nilai'));
@@ -447,10 +438,10 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
     <?php endif; ?>
 
     <!-- Exhibition by Casual Leasing -->
-    <div class="card mb-3">
+    <div class="card ev-pm">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-shop me-2"></i>Exhibition by Casual Leasing</h6>
-            <a href="<?= base_url('events/'.$event['id'].'/exhibitors') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+            <a href="<?= base_url('events/'.$event['id'].'/exhibitors') ?>" class="ev-btn ev-btn-sm" title="Buka modul"><i class="bi bi-box-arrow-up-right"></i><span class="d-none d-sm-inline">Buka</span></a>
         </div>
         <div class="card-body p-0">
         <?php if (empty($exhibitors)): ?>
@@ -529,16 +520,16 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
     </div>
 
     <!-- Sponsorship -->
-    <div class="card mb-3">
+    <div class="card ev-pm">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-award me-2"></i>Sponsorship</h6>
-            <a href="<?= base_url('events/'.$event['id'].'/sponsors') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+            <a href="<?= base_url('events/'.$event['id'].'/sponsors') ?>" class="ev-btn ev-btn-sm" title="Buka modul"><i class="bi bi-box-arrow-up-right"></i><span class="d-none d-sm-inline">Buka</span></a>
         </div>
         <div class="card-body p-0">
         <?php if (empty($sponsors)): ?>
         <p class="text-muted text-center py-3 small mb-0">Belum ada sponsor.</p>
         <?php else: ?>
-        <div class="list-group list-group-flush">
+        <div class="list-group list-group-flush" data-ev-limit="8">
             <?php foreach ($sponsors as $sp): ?>
             <div class="list-group-item py-2">
                 <div class="d-flex justify-content-between align-items-start">
@@ -579,13 +570,13 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
     </div>
 
 </div><!-- /col left -->
-<div class="col-lg-6 anim-fade-up" style="animation-delay:.58s">
+<div class="ev-stack">
 
     <!-- Loyalty Programs -->
-    <div class="card mb-3">
+    <div class="card ev-pm">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-star me-2"></i>Program Loyalty</h6>
-            <a href="<?= base_url('events/'.$event['id'].'/loyalty') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+            <a href="<?= base_url('events/'.$event['id'].'/loyalty') ?>" class="ev-btn ev-btn-sm" title="Buka modul"><i class="bi bi-box-arrow-up-right"></i><span class="d-none d-sm-inline">Buka</span></a>
         </div>
         <div class="card-body p-0">
         <?php if (empty($programs)): ?>
@@ -742,14 +733,14 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
 
     <!-- VM -->
     <?php if (!empty($vmItems)): ?>
-    <div class="card mb-3">
+    <div class="card ev-pm">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-palette me-2"></i>Visual Merchandising</h6>
             <div class="d-flex align-items-center gap-2">
                 <?php if ($vmBudget > 0): ?>
                 <span class="small fw-semibold text-muted">Rp <?= number_format($vmBudget,0,',','.') ?></span>
                 <?php endif; ?>
-                <a href="<?= base_url('events/'.$event['id'].'/vm') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+                <a href="<?= base_url('events/'.$event['id'].'/vm') ?>" class="ev-btn ev-btn-sm" title="Buka modul"><i class="bi bi-box-arrow-up-right"></i><span class="d-none d-sm-inline">Buka</span></a>
             </div>
         </div>
         <div class="card-body p-0">
@@ -813,14 +804,14 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
     $statusLabel = ['draft' => 'Draft', 'review' => 'Review', 'approved' => 'Approved', 'revision' => 'Revisi'];
     $platformLbl = ['ig' => 'IG', 'tiktok' => 'TikTok', 'keduanya' => 'IG+TikTok'];
     ?>
-    <div class="card mb-3">
+    <div class="card ev-pm">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-vector-pen me-2"></i>Creative &amp; Design</h6>
             <div class="d-flex align-items-center gap-2">
                 <?php if ($creativeBudget > 0): ?>
                 <span class="small fw-semibold text-muted">Rp <?= number_format($creativeBudget,0,',','.') ?></span>
                 <?php endif; ?>
-                <a href="<?= base_url('events/'.$event['id'].'/creative') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+                <a href="<?= base_url('events/'.$event['id'].'/creative') ?>" class="ev-btn ev-btn-sm" title="Buka modul"><i class="bi bi-box-arrow-up-right"></i><span class="d-none d-sm-inline">Buka</span></a>
             </div>
         </div>
         <div class="card-body p-0">
@@ -928,7 +919,7 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
 </div><!-- /cards row -->
 
 <!-- ── Kesimpulan & Evaluasi Post Event ── -->
-<div class="card mb-4 anim-fade-up" id="evaluasi" style="animation-delay:.3s">
+<div class="card mb-4" id="evaluasi">
 <div class="card-header d-flex align-items-center justify-content-between">
     <h6 class="mb-0 fw-semibold"><i class="bi bi-journal-text me-2"></i>Kesimpulan &amp; Evaluasi Post Event</h6>
     <?php if (! empty($event['eval_updated_at'])): ?>
@@ -945,11 +936,11 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
     <?php if (! empty($canEditSummary)): ?>
     <form method="POST" action="<?= base_url('events/' . $event['id'] . '/summary/evaluation') ?>">
         <?= csrf_field() ?>
-        <div class="row g-3">
+        <div class="ev-eval-grid">
         <?php foreach ($evalFields as $key => [$label, $ph]): ?>
-            <div class="col-md-6">
-                <label class="form-label small fw-semibold"><?= $label ?></label>
-                <textarea name="<?= $key ?>" class="form-control" rows="4" placeholder="<?= $ph ?>"><?= esc($event[$key] ?? '') ?></textarea>
+            <div>
+                <label for="f_<?= $key ?>"><?= $label ?></label>
+                <textarea id="f_<?= $key ?>" name="<?= $key ?>" class="form-control" rows="4" placeholder="<?= $ph ?>"><?= esc($event[$key] ?? '') ?></textarea>
             </div>
         <?php endforeach; ?>
         </div>
@@ -962,9 +953,9 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
         <?php if (! $adaEval): ?>
         <p class="text-muted small mb-0">Belum ada evaluasi.</p>
         <?php else: ?>
-        <div class="row g-3">
+        <div class="ev-eval-grid">
         <?php foreach ($evalFields as $key => [$label, $ph]): if (empty($event[$key])) continue; ?>
-            <div class="col-md-6">
+            <div>
                 <div class="small fw-semibold text-muted mb-1"><?= $label ?></div>
                 <div style="white-space:pre-line;font-size:.9rem"><?= esc($event[$key]) ?></div>
             </div>
@@ -975,8 +966,10 @@ $statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Wa
 </div>
 </div>
 
+</div><!-- /page-evs -->
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<script src="<?= base_url('js/events-summary.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-summary.js') ?: 1 ?>"></script>
 <script>
 <?php if (array_sum($chartEwalk) + array_sum($chartPenta) > 0): ?>
 new Chart(document.getElementById('trafficChart'), {
@@ -1005,17 +998,5 @@ new Chart(document.getElementById('vehicleChart'), {
 });
 <?php endif; ?>
 
-document.querySelectorAll('[data-count-rp]').forEach(el => {
-    const target = parseInt(el.dataset.countRp) || 0;
-    const prefix = el.dataset.countRpPrefix || '';
-    if (!target) return;
-    const dur = 900, start = performance.now();
-    (function step(now) {
-        const t = Math.min(1, (now - start) / dur);
-        const val = Math.round((1 - Math.pow(1 - t, 3)) * target);
-        el.textContent = prefix + 'Rp ' + val.toLocaleString('id-ID');
-        if (t < 1) requestAnimationFrame(step);
-    })(start);
-});
 </script>
 <?= $this->endSection() ?>

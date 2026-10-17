@@ -16,6 +16,19 @@ class PromoMediaUsageCtrl extends BaseController
         return null;
     }
 
+    private function mpNav(string $active): array
+    {
+        $canApprove = $this->canApprovePromoMedia();
+        return [
+            'active' => $active,
+            'canEdit' => $this->canEditMenu('creative_main'),
+            'canApprove' => $canApprove,
+            'pending' => $canApprove
+                ? db_connect()->table('promo_media_usage')->where('status', 'pending')->countAllResults()
+                : 0,
+        ];
+    }
+
     public function myUsage()
     {
         if ($r = $this->checkView()) return $r;
@@ -26,6 +39,7 @@ class PromoMediaUsageCtrl extends BaseController
         $depts = db_connect()->table('departments')->select('id, name')->orderBy('name')->get()->getResultArray();
 
         return view('creative/media_promo/my_usage', [
+            'mp' => $this->mpNav('my'),
             'user'   => $this->currentUser(),
             'usages' => $usageModel->getByCreator($this->currentUser()['id']),
             'depts'  => array_column($depts, 'name'),

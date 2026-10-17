@@ -1,51 +1,47 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
-<style>
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-.anim-fade-up {
-    opacity: 0;
-    animation: fadeUp .48s cubic-bezier(.22,.68,0,1.15) forwards;
-}
-</style>
+<link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
+<?php $rp = static fn($n) => 'Rp ' . number_format((int) $n, 0, ',', '.'); ?>
+<div class="page-evs">
 
 <?= view('partials/complete_data_bar', ['event' => $event, 'module' => 'content', 'completion' => $completion, 'canEdit' => $canEdit, 'user' => $user]) ?>
 
-<div class="d-flex align-items-center gap-2 mb-4 anim-fade-up" style="animation-delay:.05s">
-    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <div>
-        <h4 class="fw-bold mb-0">Content Event</h4>
-        <small class="text-muted"><?= esc($event['name']) ?></small>
+<!-- Header -->
+<div class="ev-head">
+    <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="ev-iconbtn ev-back" title="Kembali ke Summary event" aria-label="Kembali ke Summary event"><i class="bi bi-arrow-left"></i></a>
+    <div class="min-w-0">
+        <h1 class="ev-title">Content Event</h1>
+        <div class="ev-subtitle"><?= esc($event['name']) ?></div>
     </div>
-    <?php if ($canEdit): ?>
-    <div class="ms-auto d-flex gap-2">
-        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="setAddTipe('program')">
-            <i class="bi bi-plus-lg me-1"></i> Tambah Program
+    <div class="ev-head-act">
+        <a href="<?= base_url('events/'.$event['id'].'/rundown') ?>" class="ev-btn"><i class="bi bi-clock-history"></i><span class="d-none d-sm-inline">Rundown</span></a>
+        <?php if ($canEdit): ?>
+        <button class="ev-btn ev-btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="setAddTipe('program')">
+            <i class="bi bi-plus-lg"></i>Tambah Program
         </button>
-        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="setAddTipe('biaya')">
-            <i class="bi bi-plus-lg me-1"></i> Tambah Biaya
+        <button class="ev-btn" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="setAddTipe('biaya')">
+            <i class="bi bi-plus-lg"></i>Tambah Biaya
         </button>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 </div>
+<?= view('partials/event_tabs', ['event' => $event]) ?>
 
 <!-- Deskripsi -->
-<div class="card mb-4 anim-fade-up" style="animation-delay:.1s">
-<div class="card-header"><h6 class="mb-0 fw-semibold"><i class="bi bi-file-text me-2"></i>Deskripsi & Konsep Event</h6></div>
-<div class="card-body">
+<div class="ev-panel">
+<div class="ev-panel-h"><h2 class="ev-panel-t"><i class="bi bi-file-text"></i>Deskripsi &amp; Konsep Event</h2></div>
+<div class="ev-panel-b">
 <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/save-content') ?>">
 <?= csrf_field() ?>
 <div class="mb-3">
-    <textarea name="content" class="form-control" rows="4"
+    <textarea name="content" class="form-control" rows="4" aria-label="Deskripsi dan konsep event"
               placeholder="Deskripsikan program dan konsep event secara umum..."
               <?= ! $canEdit ? 'readonly' : '' ?>><?= esc($event['content']) ?></textarea>
 </div>
 <?php if ($canEdit): ?>
-<button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg me-1"></i> Simpan Deskripsi</button>
+<button type="submit" class="ev-btn ev-btn-sm ev-btn-primary"><i class="bi bi-check-lg"></i>Simpan Deskripsi</button>
 <?php endif; ?>
 </form>
 </div>
@@ -58,52 +54,73 @@ $rabCtx = ['terkunci' => $terkunci, 'periodeKunci' => $periodeKunci, 'disahkan' 
 $nomorKunci = array_values(array_unique(array_filter(array_map(fn ($i) => $terkunci[(int) $i['id']] ?? null, $items))));
 ?>
 <?php if ($nomorKunci): ?>
-<div class="alert alert-info small py-2 anim-fade-up" style="animation-delay:.12s">
-    <i class="bi bi-lock me-1"></i>
-    Biaya event ini tercantum di <strong><?= esc(implode(', ', $nomorKunci)) ?></strong>. Angka, pos, mal, dan bulan item yang sudah tercantum
-    hanya bisa diubah lewat revisi RAB. Item baru tetap boleh ditambah — ditandai <em>di luar RAB</em> sampai masuk revisi.
+<div class="ev-note">
+    <i class="bi bi-lock"></i>
+    <div class="min-w-0">Biaya event ini tercantum di <strong><?= esc(implode(', ', $nomorKunci)) ?></strong>. Angka, pos, mal, dan bulan item yang sudah tercantum
+    hanya bisa diubah lewat revisi RAB. Item baru tetap boleh ditambah — ditandai <em>di luar RAB</em> sampai masuk revisi.</div>
 </div>
 <?php endif; ?>
 <?php if (empty($event['pos_id']) && $posPilihan): ?>
-<div class="alert alert-warning small py-2 anim-fade-up" style="animation-delay:.12s">
-    <i class="bi bi-exclamation-triangle me-1"></i>
-    Event ini belum punya <strong>pos budget</strong>. Tentukan di <a href="<?= base_url('events/' . $event['id'] . '/edit') ?>">Edit Event</a>
-    (atau per item) — biaya tanpa pos tidak bisa diajukan di RAB dan realisasinya tidak masuk Budget Departemen.
+<div class="ev-note ev-note-warn">
+    <i class="bi bi-exclamation-triangle"></i>
+    <div class="min-w-0">Event ini belum punya <strong>pos budget</strong>. Tentukan di <a href="<?= base_url('events/' . $event['id'] . '/edit') ?>">Edit Event</a>
+    (atau per item) — biaya tanpa pos tidak bisa diajukan di RAB dan realisasinya tidak masuk Budget Departemen.</div>
 </div>
 <?php endif; ?>
 
 <!-- KPI -->
-<?php if (! empty($items)): ?>
-<div class="row g-3 mb-4 anim-fade-up" style="animation-delay:.15s">
-    <div class="col-md-2"><div class="card text-center h-100"><div class="card-body py-3">
-        <div class="fw-bold fs-4"><?= count($items) ?></div>
-        <small class="text-muted">Total Item</small>
-    </div></div></div>
-    <div class="col-md-3"><div class="card h-100"><div class="card-body py-3">
-        <div class="small text-muted">Total Budget</div>
-        <div class="fw-bold text-danger fs-5">Rp <?= number_format($totalBudget,0,',','.') ?></div>
+<?php if (! empty($items)):
+    $sisaAll = $totalBudget - $totalRealisasi;
+    $barCls  = ['success'=>'ev-bar-ok','warning'=>'ev-bar-mid','danger'=>'ev-bar-low'][$barGlobal] ?? 'ev-bar-ok';
+    $clsG    = ['success'=>'ev-ok','warning'=>'ev-warn','danger'=>'ev-bad'][$barGlobal] ?? 'ev-ok'; ?>
+<div class="ev-kpis">
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Total Item</div>
+        <div class="ev-kpi-v"><?= count($items) ?></div>
+        <div class="ev-kpi-s"><?= count($programs) ?> program · <?= count($biayaItems) ?> biaya</div>
+    </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Total Budget</div>
+        <div class="ev-kpi-v ev-bad"><?= $rp($totalBudget) ?></div>
         <?php if ($budgetProgram > 0 && $budgetBiaya > 0): ?>
-        <div class="mt-1 pt-1 border-top" style="font-size:.72rem">
-            <div class="d-flex justify-content-between text-muted"><span><i class="bi bi-collection-play me-1"></i>Program</span><span>Rp <?= number_format($budgetProgram,0,',','.') ?></span></div>
-            <div class="d-flex justify-content-between text-muted"><span><i class="bi bi-receipt me-1"></i>Biaya</span><span>Rp <?= number_format($budgetBiaya,0,',','.') ?></span></div>
+        <div class="ev-kpi-rows">
+            <div><span><i class="bi bi-collection-play me-1"></i>Program</span><span><?= $rp($budgetProgram) ?></span></div>
+            <div><span><i class="bi bi-receipt me-1"></i>Biaya</span><span><?= $rp($budgetBiaya) ?></span></div>
         </div>
-        <?php endif; ?>
-    </div></div></div>
-    <div class="col-md-4"><div class="card h-100"><div class="card-body py-3">
-        <div class="d-flex justify-content-between align-items-start mb-1">
-            <div class="small text-muted">Total Realisasi</div>
-            <span class="badge bg-<?= $barGlobal ?>-subtle text-<?= $barGlobal ?> small"><?= $pctGlobal ?>%</span>
-        </div>
-        <div class="fw-bold text-<?= $barGlobal ?> fs-5">Rp <?= number_format($totalRealisasi,0,',','.') ?></div>
-        <div class="progress mt-2" style="height:5px">
-            <div class="progress-bar bg-<?= $barGlobal ?>" style="width:<?= $pctGlobal ?>%"></div>
-        </div>
-    </div></div></div>
+        <?php else: ?><div class="ev-kpi-s">rencana biaya</div><?php endif; ?>
+    </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l">Total Realisasi</div>
+        <div class="ev-kpi-v <?= $clsG ?>"><?= $rp($totalRealisasi) ?></div>
+        <div class="ev-kpi-s"><?= $pctGlobal ?>% dari budget</div>
+        <div class="ev-bar <?= $barCls ?>"><i style="width:<?= $pctGlobal ?>%"></i></div>
+    </div>
+    <div class="ev-kpi">
+        <div class="ev-kpi-l"><?= $sisaAll < 0 ? 'Melebihi Budget' : 'Sisa Budget' ?></div>
+        <div class="ev-kpi-v <?= $sisaAll < 0 ? 'ev-bad' : 'ev-ok' ?>"><?= $rp(abs($sisaAll)) ?></div>
+        <div class="ev-kpi-s">budget dikurangi realisasi</div>
+    </div>
 </div>
+
+<!-- Pencarian & filter -->
+<div class="ev-tools">
+    <div class="ev-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="evQ" placeholder="Cari nama, jenis, PIC, lokasi, atau kelompok…" autocomplete="off" aria-label="Cari item content">
+    </div>
+    <select class="ev-select" id="evFTipe" aria-label="Filter tipe">
+        <option value="">Semua tipe</option>
+        <option value="program">Program &amp; Aktivitas</option>
+        <option value="biaya">Biaya Penunjang</option>
+    </select>
+    <button type="button" class="ev-btn ev-btn-sm" data-ev-allopen><i class="bi bi-arrows-expand"></i><span>Buka semua</span></button>
+    <span class="ev-count" id="evCount" style="margin-left:0"></span>
+</div>
+<div class="ev-empty-sm" id="evNoMatch" hidden>Tidak ada item yang cocok.</div>
 <?php endif; ?>
 
 <?php
-// Reusable macro: render one item card
+// Satu baris item: kepala ringkas (nama, status, budget, realisasi, aksi) + isi yang bisa dibuka.
 function renderItemCard(array $item, array $rList, array $realisasi, array $locations, array $event, bool $canEdit, array $rab = []): void {
     $bulanItem  = \App\Libraries\RabSusun::bulanItem($item, $event);
     $nomorKunci = $rab['terkunci'][(int) $item['id']] ?? null;
@@ -118,6 +135,8 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
     $rTotal   = array_sum(array_column($rList, 'nilai'));
     $pct      = $item['budget'] > 0 ? min(100, round($rTotal / $item['budget'] * 100)) : 0;
     $barColor = $pct >= 100 ? 'danger' : ($pct >= 75 ? 'warning' : 'success');
+    $barCls   = ['danger' => 'ev-bar-low', 'warning' => 'ev-bar-mid', 'success' => 'ev-bar-ok'][$barColor];
+    $txtCls   = ['danger' => 'ev-bad', 'warning' => 'ev-warn', 'success' => 'ev-ok'][$barColor];
     $waktu    = '';
     if (! empty($item['waktu_mulai'])) {
         $waktu = date('H:i', strtotime($item['waktu_mulai']));
@@ -125,41 +144,42 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
     }
     $isBiaya = ($item['tipe'] ?? 'program') === 'biaya';
     $uploadBase = base_url('uploads/content-realisasi/' . $item['event_id'] . '/');
+    $searchStr = strtolower(implode(' ', [$item['nama'], $item['jenis'] ?? '', $item['pic'] ?? '', $item['lokasi'] ?? '', $item['kelompok'] ?? '']));
 ?>
-<div class="card mb-3 anim-fade-up item-card" id="item-<?= $item['id'] ?>">
-<div class="card-header d-flex align-items-start gap-2">
-    <div class="flex-grow-1">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <?php if (! empty($item['kelompok'])): ?><span class="badge bg-dark-subtle text-body-secondary"><?= esc($item['kelompok']) ?></span><?php endif; ?>
-            <span class="fw-semibold"><?= esc($item['nama']) ?></span>
-            <?php if ($item['jenis']): ?><span class="badge bg-secondary-subtle text-secondary"><?= esc($item['jenis']) ?></span><?php endif; ?>
-            <?php if ($posItem): ?><span class="badge bg-primary-subtle text-primary-emphasis" title="Pos budget<?= empty($item['pos_id']) ? ' (ikut event)' : '' ?>"><i class="bi bi-wallet2 me-1"></i><?= esc($rab['posNama'][$posItem] ?? 'Pos #' . $posItem) ?></span>
-            <?php else: ?><span class="badge bg-warning-subtle text-warning-emphasis"><i class="bi bi-wallet2 me-1"></i>tanpa pos</span><?php endif; ?>
-            <?php if (! empty($item['mall'])): ?><span class="badge bg-info-subtle text-info-emphasis"><?= $item['mall'] === 'ewalk' ? 'eWalk' : 'Pentacity' ?></span><?php endif; ?>
-            <?php if ($nomorKunci): ?><span class="badge bg-success-subtle text-success-emphasis" title="Tercantum di <?= esc($nomorKunci, 'attr') ?> — ubah angka lewat revisi RAB"><i class="bi bi-lock-fill me-1"></i>RAB</span>
-            <?php elseif ($luarRab): ?><span class="badge bg-danger-subtle text-danger-emphasis" title="Ditambah/berubah setelah RAB diajukan — wajib masuk revisi RAB berikutnya"><i class="bi bi-exclamation-circle me-1"></i>Di luar RAB</span><?php endif; ?>
+<div class="ev-item <?= $isBiaya ? 'is-biaya' : '' ?>" id="item-<?= $item['id'] ?>" data-search="<?= esc($searchStr, 'attr') ?>" data-tipe="<?= $isBiaya ? 'biaya' : 'program' ?>">
+<div class="ev-item-head" data-ev-toggle>
+    <button type="button" class="ev-chev" aria-expanded="false" aria-label="Buka rincian <?= esc($item['nama'], 'attr') ?>"><i class="bi bi-chevron-right"></i></button>
+    <div class="min-w-0">
+        <div class="ev-item-t">
+            <?php if (! empty($item['kelompok'])): ?><span class="ev-chip ev-chip-mute"><?= esc($item['kelompok']) ?></span><?php endif; ?>
+            <span><?= esc($item['nama']) ?></span>
+            <?php if ($item['jenis']): ?><span class="ev-chip ev-chip-line"><?= esc($item['jenis']) ?></span><?php endif; ?>
+            <?php if ($posItem): ?><span class="ev-chip ev-chip-blue" title="Pos budget<?= empty($item['pos_id']) ? ' (ikut event)' : '' ?>"><i class="bi bi-wallet2"></i><?= esc($rab['posNama'][$posItem] ?? 'Pos #' . $posItem) ?></span>
+            <?php else: ?><span class="ev-chip <?= empty($event['pos_id']) ? 'ev-chip-mute' : 'ev-chip-warn' ?>" title="Item ini belum punya pos budget"><i class="bi bi-wallet2"></i>tanpa pos</span><?php endif; ?>
+            <?php if (! empty($item['mall'])): ?><span class="ev-chip ev-chip-line"><?= $item['mall'] === 'ewalk' ? 'eWalk' : 'Pentacity' ?></span><?php endif; ?>
+            <?php if ($nomorKunci): ?><span class="ev-chip ev-chip-ok" title="Tercantum di <?= esc($nomorKunci, 'attr') ?> — ubah angka lewat revisi RAB"><i class="bi bi-lock-fill"></i>RAB</span>
+            <?php elseif ($luarRab): ?><span class="ev-chip ev-chip-bad" title="Ditambah/berubah setelah RAB diajukan — wajib masuk revisi RAB berikutnya"><i class="bi bi-exclamation-circle"></i>Di luar RAB</span><?php endif; ?>
         </div>
-        <?php if ($rincian): ?><div class="small text-muted mt-1"><i class="bi bi-calculator me-1"></i><?= $rincian ?></div><?php endif; ?>
-        <?php if (! $isBiaya): ?>
-        <div class="small text-muted mt-1 d-flex flex-wrap gap-3">
-            <?php if ($item['tanggal']): ?><span><i class="bi bi-calendar3 me-1"></i><?= date('d M Y', strtotime($item['tanggal'])) ?><?= $waktu ? ' · ' . $waktu : '' ?></span><?php endif; ?>
-            <?php if ($item['lokasi']): ?><span><i class="bi bi-geo-alt me-1"></i><?= esc($item['lokasi']) ?></span><?php endif; ?>
-            <?php if ($item['pic']): ?><span><i class="bi bi-person me-1"></i><?= esc($item['pic']) ?></span><?php endif; ?>
+        <div class="ev-row-m">
+            <?php if ($item['tanggal']): ?><span><i class="bi bi-calendar3"></i><?= date('d M Y', strtotime($item['tanggal'])) ?><?= (! $isBiaya && $waktu) ? ' · ' . $waktu : '' ?></span><?php endif; ?>
+            <?php if (! $isBiaya && $item['lokasi']): ?><span><i class="bi bi-geo-alt"></i><?= esc($item['lokasi']) ?></span><?php endif; ?>
+            <?php if ($item['pic']): ?><span><i class="bi bi-person"></i><?= esc($item['pic']) ?></span><?php endif; ?>
+            <?php if ($rincian): ?><span><i class="bi bi-calculator"></i><?= $rincian ?></span><?php endif; ?>
         </div>
-        <?php else: ?>
-        <div class="small text-muted mt-1 d-flex flex-wrap gap-3">
-            <?php if ($item['tanggal']): ?><span><i class="bi bi-calendar3 me-1"></i><?= date('d M Y', strtotime($item['tanggal'])) ?></span><?php endif; ?>
-            <?php if ($item['pic']): ?><span><i class="bi bi-person me-1"></i><?= esc($item['pic']) ?></span><?php endif; ?>
+    </div>
+    <div class="ev-item-fig">
+        <div class="nums">
+            <span class="ev-mute">Budget <b class="ev-bad"><?= $item['budget'] ? 'Rp ' . number_format($item['budget'],0,',','.') : '—' ?></b></span>
+            <span class="ev-mute">Realisasi <b class="<?= $rTotal > 0 ? $txtCls : 'ev-mute' ?>"><?= $rTotal > 0 ? 'Rp ' . number_format($rTotal,0,',','.') : 'belum ada' ?></b></span>
         </div>
+        <?php if ($item['budget'] > 0): ?>
+        <div class="ev-bar <?= $barCls ?>"><i style="width:<?= $pct ?>%"></i></div>
+        <div class="ev-sub"><?= $pct ?>% terealisasi</div>
         <?php endif; ?>
     </div>
-    <div class="text-end ms-2 flex-shrink-0">
-        <div class="small text-muted">Budget</div>
-        <div class="fw-bold text-danger"><?= $item['budget'] ? 'Rp ' . number_format($item['budget'],0,',','.') : '—' ?></div>
-    </div>
     <?php if ($canEdit): ?>
-    <div class="flex-shrink-0 d-flex gap-1">
-        <button class="btn btn-sm btn-outline-secondary edit-item-btn"
+    <div class="ev-item-act" data-ev-notoggle>
+        <button class="ev-iconbtn ev-iconbtn-sm edit-item-btn" title="Edit" aria-label="Edit <?= esc($item['nama'], 'attr') ?>"
             data-id="<?= $item['id'] ?>"
             data-tipe="<?= $item['tipe'] ?? 'program' ?>"
             data-nama="<?= esc($item['nama'], 'attr') ?>"
@@ -185,57 +205,47 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
         <?php if (! $nomorKunci): ?>
         <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/delete-item') ?>" class="d-inline" onsubmit="return confirm('Hapus item ini?')">
             <?= csrf_field() ?>
-            <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+            <button class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad" title="Hapus" aria-label="Hapus <?= esc($item['nama'], 'attr') ?>"><i class="bi bi-trash"></i></button>
         </form>
         <?php endif; ?>
     </div>
     <?php endif; ?>
 </div>
-<div class="card-body">
+<div class="ev-item-body" hidden>
     <?php if ($item['keterangan']): ?>
-    <p class="small text-muted mb-3"><?= esc($item['keterangan']) ?></p>
-    <?php endif; ?>
-
-    <?php if ($item['budget'] > 0): ?>
-    <div class="d-flex justify-content-between small mb-1">
-        <span class="text-muted">Realisasi</span>
-        <span class="fw-semibold text-<?= $barColor ?>">Rp <?= number_format($rTotal,0,',','.') ?> / Rp <?= number_format($item['budget'],0,',','.') ?> (<?= $pct ?>%)</span>
-    </div>
-    <div class="progress mb-3" style="height:6px">
-        <div class="progress-bar bg-<?= $barColor ?>" style="width:<?= $pct ?>%"></div>
-    </div>
+    <p class="small text-muted my-3" style="white-space:pre-line"><?= esc($item['keterangan']) ?></p>
     <?php endif; ?>
 
     <?php if (! empty($rList)): ?>
-    <div class="table-responsive mb-3">
-    <table class="table table-sm table-bordered mb-0" style="font-size:.82rem">
-    <thead class="table-light"><tr>
-        <th>Tanggal</th><th class="text-end">Nilai Realisasi</th><th>Catatan</th>
-        <th class="text-center">Foto Dokumentasi</th><th class="text-center">Bukti Tanda Terima</th>
+    <div class="ev-tablewrap mt-3">
+    <table class="ev-table">
+    <thead><tr>
+        <th>Tanggal</th><th class="r">Nilai Realisasi</th><th>Catatan</th>
+        <th>Foto Dokumentasi</th><th>Bukti Tanda Terima</th>
         <?php if ($canEdit): ?><th></th><?php endif; ?>
     </tr></thead>
     <tbody>
     <?php foreach ($rList as $r): ?>
     <tr>
-        <td class="text-nowrap"><?= $r['tanggal'] ? date('d M Y', strtotime($r['tanggal'])) : '—' ?></td>
-        <td class="text-end fw-medium"><?= $r['nilai'] ? 'Rp ' . number_format($r['nilai'],0,',','.') : '—' ?></td>
+        <td class="nw"><?= $r['tanggal'] ? date('d M Y', strtotime($r['tanggal'])) : '—' ?></td>
+        <td class="r nw fw-semibold"><?= $r['nilai'] ? 'Rp ' . number_format($r['nilai'],0,',','.') : '—' ?></td>
         <td><?= esc($r['catatan'] ?: '—') ?></td>
-        <td class="text-center">
+        <td>
             <?php if ($r['file_foto']): $ext = strtolower(pathinfo($r['file_foto'], PATHINFO_EXTENSION)); ?>
             <?php if (in_array($ext, ['jpg','jpeg','png','webp'])): ?>
             <a href="<?= $uploadBase.$r['file_foto'] ?>" target="_blank">
-                <img src="<?= $uploadBase.$r['file_foto'] ?>" style="height:40px;width:60px;object-fit:cover;border-radius:4px" alt="foto">
+                <img src="<?= $uploadBase.$r['file_foto'] ?>" class="ev-thumb" alt="foto" onerror="this.outerHTML='&lt;span class=&quot;ev-mute small&quot;&gt;berkas tidak ditemukan&lt;/span&gt;'">
             </a>
             <?php else: ?>
             <a href="<?= $uploadBase.$r['file_foto'] ?>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark"></i></a>
             <?php endif; ?>
             <?php else: ?>—<?php endif; ?>
         </td>
-        <td class="text-center">
+        <td>
             <?php if ($r['file_terima']): $ext = strtolower(pathinfo($r['file_terima'], PATHINFO_EXTENSION)); ?>
             <?php if (in_array($ext, ['jpg','jpeg','png','webp'])): ?>
             <a href="<?= $uploadBase.$r['file_terima'] ?>" target="_blank">
-                <img src="<?= $uploadBase.$r['file_terima'] ?>" style="height:40px;width:60px;object-fit:cover;border-radius:4px" alt="terima">
+                <img src="<?= $uploadBase.$r['file_terima'] ?>" class="ev-thumb" alt="terima" onerror="this.outerHTML='&lt;span class=&quot;ev-mute small&quot;&gt;berkas tidak ditemukan&lt;/span&gt;'">
             </a>
             <?php else: ?>
             <a href="<?= $uploadBase.$r['file_terima'] ?>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-pdf"></i></a>
@@ -247,7 +257,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
             <?php if (! $realKunci): ?>
             <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/realisasi/'.$r['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus realisasi ini?')">
                 <?= csrf_field() ?>
-                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                <button class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad" title="Hapus realisasi" aria-label="Hapus realisasi"><i class="bi bi-trash"></i></button>
             </form>
             <?php endif; ?>
         </td>
@@ -260,15 +270,15 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
     <?php endif; ?>
 
     <?php if ($canEdit && $realKunci): ?>
-    <div class="small text-muted"><i class="bi bi-patch-check me-1"></i>Laporan realisasi <?= \App\Libraries\RabSusun::labelBulan($bulanItem) ?> sudah disahkan — realisasi terkunci.</div>
+    <div class="small text-muted mt-3"><i class="bi bi-patch-check me-1"></i>Laporan realisasi <?= \App\Libraries\RabSusun::labelBulan($bulanItem) ?> sudah disahkan — realisasi terkunci.</div>
     <?php elseif ($canEdit): ?>
-    <button class="btn btn-sm btn-outline-primary" type="button"
+    <button class="ev-btn ev-btn-sm" type="button"
             data-bs-toggle="collapse" data-bs-target="#formReal<?= $item['id'] ?>">
         <i class="bi bi-plus-lg me-1"></i> Input Realisasi
     </button>
-    <div class="collapse mt-3" id="formReal<?= $item['id'] ?>">
+    <div class="collapse mt-2" id="formReal<?= $item['id'] ?>">
     <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/realisasi/add') ?>"
-          enctype="multipart/form-data" class="border rounded p-3 bg-light">
+          enctype="multipart/form-data" class="ev-formreal">
     <?= csrf_field() ?>
     <div class="row g-2 mb-2">
         <div class="col-md-3">
@@ -299,7 +309,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
             <div class="form-text">JPG, PNG, PDF maks 5MB</div>
         </div>
     </div>
-    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg me-1"></i> Simpan Realisasi</button>
+    <button type="submit" class="ev-btn ev-btn-sm ev-btn-primary"><i class="bi bi-check-lg"></i>Simpan Realisasi</button>
     </form>
     </div>
     <?php endif; ?>
@@ -308,38 +318,28 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
 <?php } ?>
 
 <!-- ===== SECTION: PROGRAM & AKTIVITAS ===== -->
-<div class="d-flex align-items-center mb-3 anim-fade-up" style="animation-delay:.2s">
-    <h6 class="fw-bold mb-0"><i class="bi bi-collection-play me-2 text-primary"></i>Program & Aktivitas</h6>
-    <span class="badge bg-primary-subtle text-primary ms-2"><?= count($programs) ?></span>
-</div>
-
+<div data-ev-section>
+<div class="ev-secn"><i class="bi bi-collection-play"></i>Program &amp; Aktivitas <span class="ev-chip ev-chip-blue"><?= count($programs) ?></span></div>
 <?php if (empty($programs)): ?>
-<div class="card mb-4 anim-fade-up" style="animation-delay:.24s"><div class="card-body text-center py-4 text-muted">
-    <i class="bi bi-collection opacity-25 display-5 d-block mb-2"></i>
-    <p class="mb-0 small">Belum ada program atau aktivitas.</p>
-</div></div>
+<div class="ev-empty-sm" style="border:1px dashed var(--ev-border);border-radius:14px">Belum ada program atau aktivitas.<?php if ($canEdit): ?> Pakai tombol <strong>Tambah Program</strong> di atas.<?php endif; ?></div>
 <?php else: ?>
 <?php foreach ($programs as $item): ?>
 <?php renderItemCard($item, $realisasi[$item['id']] ?? [], $realisasi, $locations, $event, $canEdit, $rabCtx); ?>
 <?php endforeach; ?>
 <?php endif; ?>
-
-<!-- ===== SECTION: BIAYA PENUNJANG ===== -->
-<div class="d-flex align-items-center mb-3 mt-2 anim-fade-up" id="biayaHeader">
-    <h6 class="fw-bold mb-0"><i class="bi bi-receipt me-2 text-warning"></i>Biaya Penunjang</h6>
-    <span class="badge bg-warning-subtle text-warning ms-2"><?= count($biayaItems) ?></span>
 </div>
 
+<!-- ===== SECTION: BIAYA PENUNJANG ===== -->
+<div data-ev-section>
+<div class="ev-secn"><i class="bi bi-receipt"></i>Biaya Penunjang <span class="ev-chip ev-chip-warn"><?= count($biayaItems) ?></span></div>
 <?php if (empty($biayaItems)): ?>
-<div class="card mb-4 anim-fade-up" id="biayaEmptyCard"><div class="card-body text-center py-4 text-muted">
-    <i class="bi bi-receipt opacity-25 display-5 d-block mb-2"></i>
-    <p class="mb-0 small">Belum ada biaya penunjang.</p>
-</div></div>
+<div class="ev-empty-sm" style="border:1px dashed var(--ev-border);border-radius:14px">Belum ada biaya penunjang.<?php if ($canEdit): ?> Pakai tombol <strong>Tambah Biaya</strong> di atas.<?php endif; ?></div>
 <?php else: ?>
 <?php foreach ($biayaItems as $item): ?>
 <?php renderItemCard($item, $realisasi[$item['id']] ?? [], $realisasi, $locations, $event, $canEdit, $rabCtx); ?>
 <?php endforeach; ?>
 <?php endif; ?>
+</div>
 
 <?php if ($canEdit): ?>
 <?php $posEventNama = ! empty($event['pos_id']) ? ($posNama[(int) $event['pos_id']] ?? '') : ''; ?>
@@ -591,8 +591,10 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
 </div></div></div>
 <?php endif; ?>
 
+</div><!-- /page-evs -->
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<script src="<?= base_url('js/events-summary.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-summary.js') ?: 1 ?>"></script>
 <script>
 document.querySelectorAll('.currency-input').forEach(inp => {
     inp.addEventListener('input', function() {
@@ -672,14 +674,5 @@ document.querySelectorAll('.edit-item-btn').forEach(btn => {
     });
 });
 
-// Stagger item cards
-document.querySelectorAll('.item-card').forEach((card, i) => {
-    card.style.animationDelay = (.24 + Math.min(i, 8) * .07) + 's';
-});
-const afterProg = .24 + Math.min(<?= count($programs) ?>, 8) * .07 + .06;
-const biayaHeader = document.getElementById('biayaHeader');
-if (biayaHeader) biayaHeader.style.animationDelay = afterProg + 's';
-const biayaEmptyCard = document.getElementById('biayaEmptyCard');
-if (biayaEmptyCard) biayaEmptyCard.style.animationDelay = (afterProg + .07) + 's';
 </script>
 <?= $this->endSection() ?>

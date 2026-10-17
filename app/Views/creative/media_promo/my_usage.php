@@ -1,140 +1,156 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/media-promo.css') ?>?v=<?= @filemtime(FCPATH . 'css/media-promo.css') ?: 1 ?>">
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
+<?php include_once __DIR__ . '/_helpers.php'; ?>
+<?php
+$today = date('Y-m-d');
+$cnt = ['draft' => 0, 'pending' => 0, 'approved' => 0, 'rejected' => 0, 'done' => 0];
+foreach ($usages as $u) { $cnt[$u['status']] = ($cnt[$u['status']] ?? 0) + 1; }
+$total = count($usages);
+$perluTindakan = $cnt['draft'] + $cnt['rejected'];
+$tipeChip = ['t_banner' => 'blue', 'hanging' => 'blue', 'sticker_lift' => 'warn', 'totem_stainless' => 'mute', 'digital' => 'line'];
+$mpTitle = 'Request Saya'; $mpIcon = 'bi-list-check';
+$mpSub = 'Request media promo yang kamu buat — edit draft, kirim untuk approval, pantau statusnya';
+ob_start(); ?>
+    <a href="<?= base_url('creative/media-promo') ?>" class="mp-btn mp-btn-primary"><i class="bi bi-plus-lg"></i>Buat Request</a>
+<?php $mpActions = ob_get_clean();
+?>
+<div class="page-mp" id="mpRoot" data-mp="my" data-base="<?= base_url() ?>">
+<?php include __DIR__ . '/_nav.php'; ?>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
-    <h4 class="fw-bold mb-0"><i class="bi bi-list-check me-2"></i>Request Saya — Media Promo</h4>
-    <a href="<?= base_url('creative/media-promo') ?>" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>Kembali
-    </a>
+<div class="mp-kpis">
+    <div class="mp-kpi"><div class="mp-kpi-l">Total Request</div><div class="mp-kpi-v"><?= $total ?></div><div class="mp-kpi-s">semua status</div></div>
+    <div class="mp-kpi"><div class="mp-kpi-l">Perlu Tindakan</div><div class="mp-kpi-v <?= $perluTindakan ? 'mp-c-warn' : '' ?>"><?= $perluTindakan ?></div><div class="mp-kpi-s"><?= $cnt['draft'] ?> draft · <?= $cnt['rejected'] ?> ditolak</div></div>
+    <div class="mp-kpi"><div class="mp-kpi-l">Menunggu Approval</div><div class="mp-kpi-v mp-c-warn"><?= $cnt['pending'] ?></div><div class="mp-kpi-s">sudah dikirim</div></div>
+    <div class="mp-kpi"><div class="mp-kpi-l">Disetujui</div><div class="mp-kpi-v mp-c-ok"><?= $cnt['approved'] ?></div><div class="mp-kpi-s">aktif / akan tayang</div></div>
+    <div class="mp-kpi"><div class="mp-kpi-l">Selesai</div><div class="mp-kpi-v"><?= $cnt['done'] ?></div><div class="mp-kpi-s">periode sudah lewat</div></div>
 </div>
 
 <?php if (empty($usages)): ?>
-<div class="card"><div class="card-body text-center text-muted py-5">Belum ada request.</div></div>
+<div class="mp-empty">
+    <i class="bi bi-inbox"></i>
+    <h5>Belum ada request</h5>
+    <p>Buat request pertama dari halaman Ketersediaan: pilih titik media, isi materi dan periode.</p>
+    <a href="<?= base_url('creative/media-promo') ?>" class="mp-btn mp-btn-primary"><i class="bi bi-plus-lg"></i>Buat Request</a>
+</div>
 <?php else: ?>
-<form method="POST" action="<?= base_url('creative/media-promo/usage/submit-selected') ?>" id="formBulkSubmit">
-<?= csrf_field() ?>
-<div class="card">
-<div class="card-body p-0">
-<table class="table table-hover mb-0 align-middle small">
-<thead class="table-light">
-    <tr>
-        <th style="width:36px">
-            <input type="checkbox" class="form-check-input" id="checkAll" title="Pilih semua draft">
-        </th>
-        <th>Titik</th>
-        <th>Slot</th>
-        <th>Dept / Pemohon</th>
-        <th>Materi</th>
-        <th>Sumber</th>
-        <th>Periode</th>
-        <th>Status</th>
-        <th></th>
-    </tr>
-</thead>
-<tbody>
-<?php
-$statusBadge = [
-    'draft'    => 'secondary',
-    'pending'  => 'warning text-dark',
-    'approved' => 'success',
-    'rejected' => 'danger',
-    'done'     => 'dark',
-];
-$sumberLabel = ['internal'=>'Internal','tenant'=>'Tenant','external'=>'External'];
-$sumberBadge = ['internal'=>'secondary','tenant'=>'info text-dark','external'=>'warning text-dark'];
-foreach ($usages as $u):
-    $isSubmittable = in_array($u['status'], ['draft', 'rejected']);
-?>
-<tr>
-    <td>
-        <?php if ($isSubmittable): ?>
-        <input type="checkbox" class="form-check-input row-check" name="ids[]" value="<?= $u['id'] ?>">
-        <?php endif; ?>
-    </td>
-    <td>
-        <div class="fw-semibold"><?= esc($u['spot_kode']) ?></div>
-        <div class="text-muted" style="font-size:.72rem"><?= esc($u['spot_nama']) ?></div>
-        <?php
-        $tbMap = ['t_banner'=>'primary','hanging'=>'info text-dark','sticker_lift'=>'warning text-dark','totem_stainless'=>'secondary','digital'=>'dark'];
-        $tlMap = ['t_banner'=>'T-Banner','hanging'=>'Hanging','sticker_lift'=>'Sticker Lift','totem_stainless'=>'Totem Stainless','digital'=>'Digital'];
-        ?>
-        <span class="badge bg-<?= $tbMap[$u['spot_tipe']] ?? 'secondary' ?>" style="font-size:.65rem">
-            <?= $tlMap[$u['spot_tipe']] ?? esc($u['spot_tipe']) ?>
-        </span>
-    </td>
-    <td><?= $u['slot_number'] ? 'Slot '.$u['slot_number'] : '—' ?></td>
-    <td>
-        <div><?= esc($u['dept']) ?></div>
-        <?php if ($u['requested_by']): ?><div class="text-muted" style="font-size:.72rem"><?= esc($u['requested_by']) ?></div><?php endif; ?>
-    </td>
-    <td>
-        <div class="fw-semibold"><?= esc($u['nama_materi']) ?></div>
-        <?php if ($u['rejection_reason']): ?>
-        <div class="text-danger mt-1" style="font-size:.72rem">
-            <i class="bi bi-exclamation-circle me-1"></i><?= esc($u['rejection_reason']) ?>
-        </div>
-        <?php endif; ?>
-        <?php if ($u['catatan_approver']): ?>
-        <div class="text-muted mt-1" style="font-size:.72rem">
-            <i class="bi bi-chat-left-dots me-1"></i><?= esc($u['catatan_approver']) ?>
-        </div>
-        <?php endif; ?>
-    </td>
-    <td>
-        <span class="badge bg-<?= $sumberBadge[$u['sumber']] ?? 'secondary' ?>" style="font-size:.65rem">
-            <?= $sumberLabel[$u['sumber']] ?? $u['sumber'] ?>
-        </span>
-        <?php if ($u['is_berbayar']): ?>
-        <span class="badge bg-success" style="font-size:.65rem">Berbayar</span>
-        <?php else: ?>
-        <span class="badge border text-muted" style="font-size:.65rem">Gratis</span>
-        <?php endif; ?>
-    </td>
-    <td class="text-nowrap">
-        <?= date('d M Y', strtotime($u['tanggal_mulai'])) ?><br>
-        <span class="text-muted">s/d</span> <?= date('d M Y', strtotime($u['tanggal_selesai'])) ?>
-    </td>
-    <td><span class="badge bg-<?= $statusBadge[$u['status']] ?? 'secondary' ?>"><?= $u['status'] ?></span></td>
-    <td>
-        <div class="d-flex gap-1">
-        <?php if (in_array($u['status'], ['draft', 'rejected'])): ?>
-            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
-                onclick="openEdit(<?= htmlspecialchars(json_encode($u)) ?>)" title="Edit">
-                <i class="bi bi-pencil"></i>
-            </button>
-            <form method="POST" action="<?= base_url('creative/media-promo/usage/'.$u['id'].'/submit') ?>" class="d-inline">
-                <?= csrf_field() ?>
-                <button type="submit" class="btn btn-xs btn-outline-success py-0 px-1" title="Submit">
-                    <i class="bi bi-send"></i>
-                </button>
-            </form>
-        <?php endif; ?>
-        <?php if (! in_array($u['status'], ['approved', 'done'])): ?>
-            <form method="POST" action="<?= base_url('creative/media-promo/usage/'.$u['id'].'/cancel') ?>" class="d-inline"
-                onsubmit="return confirm('Batalkan request ini?')">
-                <?= csrf_field() ?>
-                <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1" title="Batalkan">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </form>
-        <?php endif; ?>
-        </div>
-    </td>
-</tr>
-<?php endforeach; ?>
-</tbody>
-</table>
-</div>
-</div>
-</form>
 
-<!-- Sticky bulk-submit bar -->
-<div id="bulkBar" class="position-fixed bottom-0 start-0 end-0 bg-dark text-white px-4 py-2 d-flex align-items-center gap-3" style="display:none!important;z-index:1050">
+<div class="mp-tools" id="mpTools">
+    <div class="mp-search"><i class="bi bi-search"></i>
+        <input type="search" id="mpQ" placeholder="Cari materi, titik, departemen…" autocomplete="off" aria-label="Cari request">
+    </div>
+    <div class="mp-chips" id="mpStatusChips" role="group" aria-label="Filter status">
+        <button type="button" class="mp-fchip is-on" data-st="">Semua<b><?= $total ?></b></button>
+        <?php foreach (['draft' => 'Draft', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Ditolak', 'done' => 'Selesai'] as $k => $l): ?>
+        <button type="button" class="mp-fchip" data-st="<?= $k ?>"><?= $l ?><b><?= $cnt[$k] ?></b></button>
+        <?php endforeach; ?>
+    </div>
+    <select class="mp-select" id="mpSort" aria-label="Urutkan">
+        <option value="">Urutan: terbaru dibuat</option>
+        <option value="mulai">Periode mulai terdekat</option>
+        <option value="end">Segera berakhir</option>
+        <option value="nama">Materi A–Z</option>
+    </select>
+    <div class="mp-tools-end">
+        <span class="mp-count" id="mpCount" aria-live="polite"></span>
+        <button type="button" class="mp-btn mp-btn-sm" id="mpReset"><i class="bi bi-x-circle"></i><span class="d-none d-md-inline">Reset</span></button>
+    </div>
+</div>
+
+<!-- Form massal (kotak centang memakai atribut form=) -->
+<form method="POST" action="<?= base_url('creative/media-promo/usage/submit-selected') ?>" id="formBulkSubmit"><?= csrf_field() ?></form>
+
+<div class="mp-list" id="mpList">
+<?php foreach ($usages as $n => $u):
+    $isSubmittable = in_array($u['status'], ['draft', 'rejected']);
+    [$stLbl, $stCls] = mpStatusMeta($u['status']);
+    $due = in_array($u['status'], ['pending', 'approved']) ? mpDue($u, $today) : null;
+    $srch = mb_strtolower($u['nama_materi'] . ' ' . $u['spot_kode'] . ' ' . $u['spot_nama'] . ' ' . $u['dept'] . ' ' . ($u['requested_by'] ?? ''));
+?>
+<article class="mp-req s-<?= esc($u['status'], 'attr') ?>" data-status="<?= esc($u['status'], 'attr') ?>" data-search="<?= esc($srch, 'attr') ?>"
+         data-nama="<?= esc(mb_strtolower($u['nama_materi']), 'attr') ?>" data-mulai="<?= esc($u['tanggal_mulai'], 'attr') ?>" data-end="<?= esc($u['tanggal_selesai'], 'attr') ?>" data-order="<?= $n ?>">
+    <div class="mp-req-head" data-mp-toggle>
+        <div data-mp-stop>
+            <?php if ($isSubmittable): ?><input type="checkbox" class="mp-chk row-check" name="ids[]" value="<?= $u['id'] ?>" form="formBulkSubmit" aria-label="Pilih request <?= esc($u['nama_materi'], 'attr') ?>">
+            <?php else: ?><span class="mp-chk-ph"></span><?php endif; ?>
+        </div>
+        <div class="min-w-0">
+            <div class="mp-req-t"><?= esc($u['nama_materi']) ?></div>
+            <div class="mp-req-s"><span class="mp-code"><?= esc($u['spot_kode']) ?></span> <?= esc($u['spot_nama']) ?><?= $u['slot_number'] ? ' · Slot ' . (int) $u['slot_number'] : '' ?>
+                <span class="mp-chip mp-chip-<?= $tipeChip[$u['spot_tipe']] ?? 'mute' ?>" style="margin-left:.3rem"><?= esc(mpTipeLabel($u['spot_tipe'])) ?></span></div>
+            <?php if ($u['rejection_reason']): ?>
+            <div class="mp-req-s mp-note-bad"><i class="bi bi-exclamation-circle me-1"></i>Ditolak: <?= esc($u['rejection_reason']) ?></div>
+            <?php endif; ?>
+        </div>
+        <div class="mp-req-c">
+            <span class="mp-req-l">Periode</span>
+            <span class="mp-req-v"><?= esc(mpRange($u['tanggal_mulai'], $u['tanggal_selesai'])) ?></span>
+            <?php if ($due): ?><div><span class="mp-chip mp-chip-<?= $due[1] ?>" style="margin-top:.2rem"><i class="bi bi-clock"></i><?= esc($due[0]) ?></span></div><?php endif; ?>
+        </div>
+        <div class="mp-req-c">
+            <span class="mp-req-l">Departemen</span>
+            <span class="mp-req-v"><?= esc($u['dept']) ?></span>
+            <div class="mp-req-s"><?= esc(mpSumberLabel($u['sumber'])) ?> · <?= $u['is_berbayar'] ? 'Berbayar' : 'Gratis' ?></div>
+        </div>
+        <div class="mp-req-act" data-mp-stop>
+            <span class="mp-chip mp-chip-<?= $stCls ?>"><?= $stLbl ?></span>
+            <?php if ($isSubmittable): ?>
+            <form method="POST" action="<?= base_url('creative/media-promo/usage/' . $u['id'] . '/submit') ?>" class="mp-form-inline">
+                <?= csrf_field() ?>
+                <button type="submit" class="mp-btn mp-btn-xs mp-btn-primary" title="Kirim untuk approval"><i class="bi bi-send"></i>Kirim</button>
+            </form>
+            <?php endif; ?>
+            <?php if ($isSubmittable || ! in_array($u['status'], ['approved', 'done'])): ?>
+            <div class="dropdown">
+                <button class="mp-iconbtn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi request"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end mp-menu">
+                    <?php if ($isSubmittable): ?>
+                    <li><button type="button" class="dropdown-item" data-mp-edit-req="<?= esc(json_encode($u), 'attr') ?>"><i class="bi bi-pencil"></i>Edit request</button></li>
+                    <?php endif; ?>
+                    <?php if (! in_array($u['status'], ['approved', 'done'])): ?>
+                    <li>
+                        <form method="POST" action="<?= base_url('creative/media-promo/usage/' . $u['id'] . '/cancel') ?>" data-mp-confirm="Batalkan request ini?">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i>Batalkan request</button>
+                        </form>
+                    </li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <div class="mp-req-body" hidden>
+        <dl class="mp-kv">
+            <dt>Titik</dt><dd><?= esc($u['spot_kode']) ?> — <?= esc($u['spot_nama']) ?><?= $u['spot_area'] ? ' · ' . esc($u['spot_area']) : '' ?></dd>
+            <dt>Pemohon</dt><dd><?= esc($u['requested_by'] ?: '—') ?></dd>
+            <dt>Deskripsi</dt><dd><?= esc($u['deskripsi_materi'] ?: '—') ?></dd>
+            <dt>Catatan</dt><dd><?= esc($u['catatan_pemohon'] ?: '—') ?></dd>
+            <?php if ($u['catatan_approver']): ?><dt>Catatan approver</dt><dd><?= esc($u['catatan_approver']) ?></dd><?php endif; ?>
+            <?php if ($u['rejection_reason']): ?><dt>Alasan ditolak</dt><dd class="mp-note-bad"><?= esc($u['rejection_reason']) ?></dd><?php endif; ?>
+            <dt>Dibuat</dt><dd><?= esc($u['created_at'] ?? '—') ?></dd>
+            <?php if (! empty($u['submitted_at'])): ?><dt>Disubmit</dt><dd><?= esc($u['submitted_at']) ?></dd><?php endif; ?>
+            <?php if (! empty($u['approved_at'])): ?><dt>Diputuskan</dt><dd><?= esc($u['approved_at']) ?></dd><?php endif; ?>
+        </dl>
+    </div>
+</article>
+<?php endforeach; ?>
+</div>
+
+<div class="mp-empty mp-empty-filter" id="mpNoMatch" hidden>
+    <i class="bi bi-search"></i><h5>Tidak ada request yang cocok</h5><p>Ubah kata kunci atau filter status.</p>
+    <button type="button" class="mp-btn" id="mpReset2"><i class="bi bi-x-circle"></i>Reset filter</button>
+</div>
+
+<!-- Bar aksi massal -->
+<div id="bulkBar" class="mp-bulk" hidden>
     <span id="bulkCount" class="small"></span>
-    <button type="submit" form="formBulkSubmit" class="btn btn-sm btn-success ms-auto">
-        <i class="bi bi-send me-1"></i>Submit Terpilih
-    </button>
-    <button type="button" class="btn btn-sm btn-outline-light" onclick="uncheckAll()">Batal</button>
+    <div class="mp-bulk-end">
+        <button type="button" class="mp-btn mp-btn-sm mp-btn-ghost" id="bulkClear">Batal</button>
+        <button type="submit" form="formBulkSubmit" class="mp-btn mp-btn-sm mp-btn-solid-ok"><i class="bi bi-send"></i>Submit Terpilih</button>
+    </div>
 </div>
 <?php endif; ?>
 
@@ -209,66 +225,9 @@ foreach ($usages as $u):
 </div>
 </form></div></div></div>
 
-<script>
-const BASE = '<?= base_url() ?>';
 
-// Select-all draft checkboxes
-document.getElementById('checkAll').addEventListener('change', function() {
-    document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
-    updateBulkBar();
-});
-
-document.querySelectorAll('.row-check').forEach(c => {
-    c.addEventListener('change', updateBulkBar);
-});
-
-function updateBulkBar() {
-    const checked = document.querySelectorAll('.row-check:checked');
-    const bar     = document.getElementById('bulkBar');
-    if (checked.length > 0) {
-        bar.style.removeProperty('display');
-        document.getElementById('bulkCount').textContent = checked.length + ' request dipilih';
-    } else {
-        bar.style.display = 'none';
-    }
-    const all = document.querySelectorAll('.row-check');
-    document.getElementById('checkAll').checked = all.length > 0 && checked.length === all.length;
-}
-
-function uncheckAll() {
-    document.querySelectorAll('.row-check').forEach(c => c.checked = false);
-    document.getElementById('checkAll').checked = false;
-    updateBulkBar();
-}
-
-function openEdit(u) {
-    document.getElementById('editSpotLabel').value    = '[' + u.spot_kode + '] ' + u.spot_nama;
-    document.getElementById('editSpotId').value       = u.spot_id;
-    const deptSel = document.getElementById('editDept');
-    deptSel.value = u.dept;
-    if (!deptSel.value) { // fallback jika nama lama tidak cocok
-        const opt = document.createElement('option');
-        opt.value = u.dept; opt.textContent = u.dept; opt.selected = true;
-        deptSel.appendChild(opt);
-    }
-    document.getElementById('editRequestedBy').value  = u.requested_by || '';
-    document.getElementById('editTglMulai').value     = u.tanggal_mulai;
-    document.getElementById('editTglSelesai').value   = u.tanggal_selesai;
-    document.getElementById('editNamaMateri').value   = u.nama_materi;
-    document.getElementById('editDeskripsi').value    = u.deskripsi_materi || '';
-    document.getElementById('editCatatan').value      = u.catatan_pemohon || '';
-    document.getElementById('editSumber').value       = u.sumber || 'internal';
-    document.getElementById('editIsBerbayar').checked = u.is_berbayar == 1;
-    const slotRow = document.getElementById('editSlotRow');
-    if (u.spot_tipe === 'digital') {
-        slotRow.style.display = '';
-        document.getElementById('editSlotNumber').value = u.slot_number || '';
-    } else {
-        slotRow.style.display = 'none';
-    }
-    document.getElementById('formEditRequest').action = BASE + 'creative/media-promo/usage/' + u.id + '/update';
-    new bootstrap.Modal(document.getElementById('modalEditRequest')).show();
-}
-</script>
-
+</div><!-- /.page-mp -->
+<?= $this->endSection() ?>
+<?= $this->section('scripts') ?>
+<script src="<?= base_url('js/media-promo.js') ?>?v=<?= @filemtime(FCPATH . 'js/media-promo.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>
