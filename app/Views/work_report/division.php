@@ -1,4 +1,7 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/work-report.css') ?>?v=<?= @filemtime(FCPATH . 'css/work-report.css') ?: 1 ?>">
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
@@ -11,27 +14,31 @@ $statusLabel = [
 ];
 ?>
 
-<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-4">
-    <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report — Divisi</h4>
-        <small class="text-muted"><?= esc($divisi['nama'] ?? '') ?></small>
+<div class="page-wr" id="wrRoot" data-mode="division">
+
+<div class="wr-head">
+    <div class="wr-head-ico"><i class="bi bi-kanban"></i></div>
+    <div class="min-w-0">
+        <nav class="wr-crumb" aria-label="Navigasi"><a href="<?= base_url('work-report') ?>">Progress Report</a><i class="bi bi-chevron-right"></i><span>Divisi</span></nav>
+        <h1 class="wr-title">Progress Report Divisi</h1>
+        <div class="wr-subtitle"><?= esc($divisi['nama'] ?? '') ?> &middot; <?= (int) (($scopeCounts ?? [])[$scope ?? 'active'] ?? count($items)) ?> program kerja</div>
     </div>
-    <div class="d-flex gap-2 flex-shrink-0 flex-wrap">
-        <a href="<?= base_url('work-report/dashboard') ?>" class="btn btn-outline-primary btn-sm text-nowrap">
-            <i class="bi bi-speedometer2 me-1"></i>Dashboard
-        </a>
-        <button class="btn btn-primary btn-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#modalAdd">
-            <i class="bi bi-plus-lg me-1"></i>Tambah Program Kerja
+    <div class="wr-head-act">
+        <a href="<?= base_url('work-report/dashboard') ?>" class="wr-btn"><i class="bi bi-speedometer2"></i><span class="d-none d-sm-inline">Dashboard</span></a>
+        <button class="wr-btn wr-btn-primary" data-bs-toggle="modal" data-bs-target="#modalAdd">
+            <i class="bi bi-plus-lg"></i>Tambah Program Kerja
         </button>
     </div>
 </div>
 
+<div class="wr-scopebar">
 <?= view('work_report/_scope_tabs', [
     'scope'       => $scope ?? 'active',
     'scopeCounts' => $scopeCounts ?? [],
     'tabBase'     => base_url('work-report/division'),
     'tabAlerts'   => $tabAlerts ?? [],
 ]) ?>
+</div>
 
 <?php if (($scope ?? 'active') !== 'active'): ?>
 <?= view('work_report/_scope_list', [
@@ -44,136 +51,21 @@ $statusLabel = [
     'detailBase'   => base_url('work-report/division'),
     'unread'       => $scopeUnread ?? [],
 ]) ?>
-<?php else: ?>
-
-<?php $pld = \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL; // grouping dilakukan di controller ?>
-<?php foreach ($grouped as $deptName => $deptItems): ?>
-<div class="card mb-3">
-<div class="card-header d-flex align-items-center justify-content-between py-2">
-    <h6 class="mb-0 fw-semibold"><i class="bi <?= $deptName === $pld ? 'bi-layers' : 'bi-building' ?> me-2 text-muted"></i><?= esc($deptName) ?></h6>
-    <small class="text-muted"><?= count($deptItems) ?> program kerja</small>
-</div>
-<div class="list-group list-group-flush">
-<?php foreach ($deptItems as $item):
-    $st   = $item['latest_status'] ?? null;
-    $info = $st ? ($statusLabel[$st] ?? $statusLabel['on_track']) : null;
-    $isFlagged = (int)($item['is_flagged'] ?? 0) > 0;
-    $overdue = ! empty($item['target_selesai']) && $item['target_selesai'] < date('Y-m-d') && $st !== 'done' && $st !== 'cancelled';
+<?php else:
+    $pld = \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL; // grouping dilakukan di controller
+    $groups = [];
+    foreach ($grouped as $deptName => $deptItems) {
+        $groups[] = ['title' => $deptName, 'icon' => $deptName === $pld ? 'bi-layers' : 'bi-building', 'items' => $deptItems];
+    }
 ?>
-<div class="list-group-item py-2" id="initiative-<?= $item['id'] ?>">
-    <div class="d-flex flex-column flex-md-row align-items-start gap-2">
-        <div class="flex-grow-1 w-100">
-            <div class="d-flex align-items-center gap-1 flex-wrap mb-1">
-                <span class="fw-semibold small"><?= esc($item['judul']) ?></span>
-                <?php if ($info): ?>
-                <span class="badge <?= $info['badge'] ?>" style="font-size:.63rem"><?= $info['label'] ?></span>
-                <?php endif; ?>
-                <?php if ($isFlagged): ?>
-                <span class="badge bg-warning text-dark" style="font-size:.63rem"><i class="bi bi-flag-fill me-1"></i>Tampil di GM</span>
-                <?php endif; ?>
-                <?php if ($overdue): ?>
-                <span class="badge bg-danger" style="font-size:.63rem"><i class="bi bi-exclamation-triangle me-1"></i>Terlambat</span>
-                <?php endif; ?>
-                <?php if (! empty($gmUnread[$item['id']])): ?>
-                <span class="badge rounded-pill bg-danger" style="font-size:.65rem;min-width:1.4em">
-                    <?= $gmUnread[$item['id']] ?>
-                </span>
-                <?php endif; ?>
-                <?php if (! empty($deptReplyUnread[$item['id']])): ?>
-                <span class="badge rounded-pill bg-primary" style="font-size:.63rem"><i class="bi bi-reply-fill me-1"></i><?= $deptReplyUnread[$item['id']] ?> balasan Dept</span>
-                <?php endif; ?>
-                <?php if (! empty($item['assigned_to_dept_id'])): ?>
-                <span class="badge bg-info-subtle text-info" style="font-size:.63rem"><i class="bi bi-person-badge me-1"></i>Dari Deputy</span>
-                <?php endif; ?>
-            </div>
-            <?php if ($item['latest_progress'] !== null): ?>
-            <div class="mt-2 d-flex align-items-center gap-2">
-                <div class="progress flex-grow-1" style="height:5px">
-                    <div class="progress-bar <?= (int)$item['latest_progress'] >= 100 ? 'bg-success' : ((int)$item['latest_progress'] >= 60 ? 'bg-primary' : 'bg-warning') ?>"
-                        style="width:<?= $item['latest_progress'] ?>%"></div>
-                </div>
-                <small class="text-muted flex-shrink-0" style="font-size:.7rem"><?= $item['latest_progress'] ?>%</small>
-            </div>
-            <?php endif; ?>
-            <?php if (! empty($item['latest_catatan']) || ! empty($item['latest_hambatan'])): ?>
-            <div class="mt-1 d-flex flex-column gap-1">
-                <?php if (! empty($item['latest_catatan'])): ?>
-                <div class="px-2 py-1 rounded" style="background:var(--bs-secondary-bg);font-size:.8rem;border-left:3px solid var(--bs-primary)">
-                    <?= nl2br(esc(mb_substr($item['latest_catatan'], 0, 150))) ?><?= mb_strlen($item['latest_catatan']) > 150 ? '…' : '' ?>
-                </div>
-                <?php endif; ?>
-                <?php if (! empty($item['latest_hambatan'])): ?>
-                <div class="px-2 py-1 rounded" style="background:var(--bs-secondary-bg);font-size:.8rem;border-left:3px solid var(--bs-warning)">
-                    <i class="bi bi-cone-striped text-warning me-1"></i><?= nl2br(esc(mb_substr($item['latest_hambatan'], 0, 120))) ?>
-                </div>
-                <?php endif; ?>
-            </div>
-            <?php endif; ?>
-            <div class="d-flex gap-2 mt-1 flex-wrap" style="font-size:.68rem;color:var(--bs-secondary-color)">
-                <?php if (! empty($item['created_by_name'])): ?><span class="text-muted"><i class="bi bi-pencil me-1"></i><?= esc($item['created_by_name']) ?></span><?php endif; ?>
-                <?php if (! empty($item['pic_name'])): ?><span><i class="bi bi-person-check me-1"></i>PIC: <?= esc($item['pic_name']) ?></span><?php endif; ?>
-                <?php if (! empty($item['target_selesai'])): ?><span><i class="bi bi-calendar-check me-1"></i><?= date('d M Y', strtotime($item['target_selesai'])) ?></span><?php endif; ?>
-                <?php if (! empty($item['latest_updated_at'])): ?><span><i class="bi bi-arrow-repeat me-1"></i><?= date('d M Y', strtotime($item['latest_updated_at'])) ?></span><?php endif; ?>
-            </div>
-        </div>
-
-        <div class="d-flex flex-row flex-md-column gap-1 align-items-start align-items-md-end flex-shrink-0 flex-wrap">
-            <!-- Flag/Unflag (hanya Deputy GM asli; manajer divisi lihat status saja) -->
-            <?php if ($canFlag ?? true): ?>
-            <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/flag') ?>">
-                <?= csrf_field() ?>
-                <button type="submit" class="btn btn-sm <?= $isFlagged ? 'btn-warning' : 'btn-outline-secondary' ?>" style="font-size:.68rem">
-                    <i class="bi bi-flag<?= $isFlagged ? '-fill' : '' ?> me-1"></i><?= $isFlagged ? 'Batalkan Flag' : 'Flag ke GM' ?>
-                </button>
-            </form>
-            <?php elseif ($isFlagged): ?>
-            <span class="badge bg-warning text-dark" style="font-size:.62rem"><i class="bi bi-flag-fill me-1"></i>Tampil di GM</span>
-            <?php endif; ?>
-            <!-- Komentar ke Dept -->
-            <button class="btn btn-sm btn-outline-primary" style="font-size:.68rem"
-                data-bs-toggle="collapse" data-bs-target="#commentForm<?= $item['id'] ?>">
-                <i class="bi bi-chat-left-dots me-1"></i>Komentar
-            </button>
-            <!-- Detail -->
-            <a href="<?= base_url('work-report/division/' . $item['id'] . '/detail') ?>" class="btn btn-sm btn-outline-info" style="font-size:.68rem">
-                <i class="bi bi-eye me-1"></i>Detail
-            </a>
-            <!-- Arsipkan -->
-            <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/archive') ?>"
-                  onsubmit="return confirm('Arsipkan program kerja ini? Program pindah ke tab Arsip.')">
-                <?= csrf_field() ?>
-                <button type="submit" class="btn btn-sm btn-outline-warning" style="font-size:.68rem">
-                    <i class="bi bi-archive me-1"></i>Arsipkan
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Form Komentar ke Dept -->
-    <div class="collapse mt-2" id="commentForm<?= $item['id'] ?>">
-        <form method="POST" action="<?= base_url('work-report/division/' . $item['id'] . '/comment') ?>">
-            <?= csrf_field() ?>
-            <div class="d-flex gap-2">
-                <input type="text" name="body" class="form-control form-control-sm" placeholder="Komentar ke Dept Head…" required>
-                <button type="submit" class="btn btn-primary btn-sm flex-shrink-0">Kirim</button>
-            </div>
-            <div class="form-text" style="font-size:.65rem">Hanya terlihat oleh Dept Head dan Deputy.</div>
-        </form>
-    </div>
-</div>
-<?php endforeach; ?>
-</div>
-</div>
-<?php endforeach; ?>
-
-<?php if (empty($items)): ?>
-<div class="text-center text-muted py-5">
-    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-    Belum ada program kerja di divisi ini.
-</div>
-<?php endif; ?>
-
+<?= view('work_report/_wr_board', [
+    'mode' => 'division', 'groups' => $groups, 'statusLabel' => $statusLabel,
+    'gmUnread' => $gmUnread ?? [], 'deptReplyUnread' => $deptReplyUnread ?? [],
+    'canFlag' => (bool) ($canFlag ?? true), 'detailBase' => base_url('work-report/division'),
+]) ?>
 <?php endif; // scope active ?>
+
+</div>
 
 <!-- Modal Tambah -->
 <div class="modal fade" id="modalAdd" tabindex="-1">
@@ -221,4 +113,7 @@ $statusLabel = [
 </div>
 </div>
 
+<?= $this->endSection() ?>
+<?= $this->section('scripts') ?>
+<script src="<?= base_url('js/work-report.js') ?>?v=<?= @filemtime(FCPATH . 'js/work-report.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

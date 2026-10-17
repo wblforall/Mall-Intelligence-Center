@@ -1,4 +1,7 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/work-report.css') ?>?v=<?= @filemtime(FCPATH . 'css/work-report.css') ?: 1 ?>">
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
@@ -32,15 +35,15 @@ $statusLabel = [
 </div>
 
 
-<?= view('work_report/_scope_tabs', [
+<div class="page-wr"><?= view('work_report/_scope_tabs', [
     'scope'       => $scope ?? 'active',
     'scopeCounts' => $scopeCounts ?? [],
     'tabBase'     => base_url('work-report/gm'),
     'tabKeys'     => ['active', 'archived'],
-]) ?>
+]) ?></div>
 
 <?php if (($scope ?? 'active') === 'archived'): ?>
-<?= view('work_report/_scope_list', [
+<div class="page-wr"><?= view('work_report/_scope_list', [
     'items'        => $items ?? [],
     'scope'        => 'archived',
     'statusLabel'  => $statusLabel,
@@ -48,7 +51,7 @@ $statusLabel = [
     'canRestore'   => false,
     'canUnarchive' => false,
     'detailBase'   => '',
-]) ?>
+]) ?></div>
 <?php elseif (empty($byDivisi)): ?>
 <div class="text-center text-muted py-5">
     <i class="bi bi-flag fs-1 d-block mb-2"></i>

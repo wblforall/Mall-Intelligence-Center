@@ -1,4 +1,7 @@
 <?= $this->extend('layouts/main') ?>
+<?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/work-report.css') ?>?v=<?= @filemtime(FCPATH . 'css/work-report.css') ?: 1 ?>">
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
 <?php
@@ -9,64 +12,55 @@ $statusLabel = [
     'done'      => ['label' => 'Selesai',   'badge' => 'bg-primary'],
     'cancelled' => ['label' => 'Dibatalkan','badge' => 'bg-secondary'],
 ];
-?>
-
-<?php
+$scope     = $scope ?? 'active';
 $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dihapus'];
+$pld       = \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL;
+$groups    = [];
+foreach (($grouped ?? []) as $divName => $deptGroups) {
+    foreach ($deptGroups as $deptName => $its) {
+        $groups[] = ['title' => $divName . ' › ' . $deptName, 'icon' => $deptName === $pld ? 'bi-layers' : 'bi-building', 'items' => $its];
+    }
+}
 ?>
-<div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-kanban me-2"></i>Progress Report — Admin</h4>
-        <small class="text-muted"><?= $total ?> program kerja <?= $scopeNoun[$scope ?? 'active'] ?? 'aktif' ?></small>
+<div class="page-wr" id="wrRoot" data-mode="admin">
+
+<div class="wr-head">
+    <div class="wr-head-ico"><i class="bi bi-kanban"></i></div>
+    <div class="min-w-0">
+        <nav class="wr-crumb" aria-label="Navigasi"><a href="<?= base_url('work-report') ?>">Progress Report</a><i class="bi bi-chevron-right"></i><span>Admin</span></nav>
+        <h1 class="wr-title">Progress Report</h1>
+        <div class="wr-subtitle"><?= (int) $total ?> program kerja <?= $scopeNoun[$scope] ?? 'aktif' ?> &middot; pantau semua divisi dan departemen</div>
     </div>
-    <a href="<?= base_url('work-report/dashboard') ?>" class="btn btn-outline-primary btn-sm text-nowrap">
-        <i class="bi bi-speedometer2 me-1"></i>Dashboard
-    </a>
+    <div class="wr-head-act">
+        <a href="<?= base_url('work-report/dashboard') ?>" class="wr-btn"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    </div>
 </div>
 
+<div class="wr-scopebar">
 <?= view('work_report/_scope_tabs', [
-    'scope'       => $scope ?? 'active',
+    'scope'       => $scope,
     'scopeCounts' => $scopeCounts ?? [],
     'tabBase'     => base_url('work-report/admin'),
     'tabQuery'    => array_filter(['divisi_id' => $filterDiv, 'dept_id' => $filterDept]),
 ]) ?>
-
-<!-- Filter -->
-<form method="GET" action="<?= base_url('work-report/admin') ?>" class="card mb-4">
-<div class="card-body py-2">
-<div class="row g-2 align-items-end">
-    <div class="col-12 col-sm-4">
-        <label class="form-label small fw-semibold mb-1">Divisi</label>
-        <select name="divisi_id" class="form-select form-select-sm">
-            <option value="">Semua Divisi</option>
-            <?php foreach ($divisis as $dv): ?>
-            <option value="<?= $dv['id'] ?>" <?= (int)$filterDiv === (int)$dv['id'] ? 'selected' : '' ?>><?= esc($dv['nama']) ?></option>
-            <?php endforeach; ?>
-        </select>
-    </div>
-    <div class="col-12 col-sm-4">
-        <label class="form-label small fw-semibold mb-1">Departemen</label>
-        <select name="dept_id" class="form-select form-select-sm">
-            <option value="">Semua Departemen</option>
-            <?php foreach ($depts as $d): ?>
-            <option value="<?= $d['id'] ?>" <?= (int)$filterDept === (int)$d['id'] ? 'selected' : '' ?>><?= esc($d['name']) ?></option>
-            <?php endforeach; ?>
-        </select>
-    </div>
-    <div class="col-12 col-sm-auto">
-        <?php if (($scope ?? 'active') !== 'active'): ?>
-        <input type="hidden" name="tab" value="<?= esc($scope) ?>">
-        <?php endif; ?>
-        <button type="submit" class="btn btn-primary btn-sm">Filter</button>
-        <?php if ($filterDiv || $filterDept): ?>
-        <a href="<?= base_url('work-report/admin' . (($scope ?? 'active') !== 'active' ? '?tab=' . $scope : '')) ?>" class="btn btn-outline-secondary btn-sm ms-1">Reset</a>
-        <?php endif; ?>
-    </div>
-</div>
-</div>
+<form method="GET" action="<?= base_url('work-report/admin') ?>" class="wr-scopefilter" id="wrOrgForm">
+    <?php if ($scope !== 'active'): ?><input type="hidden" name="tab" value="<?= esc($scope) ?>"><?php endif; ?>
+    <select name="divisi_id" class="wr-select" aria-label="Divisi" onchange="this.form.submit()">
+        <option value="">Semua Divisi</option>
+        <?php foreach ($divisis as $dv): ?><option value="<?= $dv['id'] ?>" <?= (int) $filterDiv === (int) $dv['id'] ? 'selected' : '' ?>><?= esc($dv['nama']) ?></option><?php endforeach; ?>
+    </select>
+    <select name="dept_id" class="wr-select" aria-label="Departemen" onchange="this.form.submit()">
+        <option value="">Semua Departemen</option>
+        <?php foreach ($depts as $d): ?><option value="<?= $d['id'] ?>" <?= (int) $filterDept === (int) $d['id'] ? 'selected' : '' ?>><?= esc($d['name']) ?></option><?php endforeach; ?>
+    </select>
+    <noscript><button type="submit" class="wr-btn wr-btn-sm">Filter</button></noscript>
+    <?php if ($filterDiv || $filterDept): ?>
+    <a href="<?= base_url('work-report/admin' . ($scope !== 'active' ? '?tab=' . $scope : '')) ?>" class="wr-btn wr-btn-sm"><i class="bi bi-x-lg"></i>Reset</a>
+    <?php endif; ?>
 </form>
+</div>
 
-<?php if (($scope ?? 'active') !== 'active'): ?>
+<?php if ($scope !== 'active'): ?>
 <?= view('work_report/_scope_list', [
     'items'        => $items,
     'scope'        => $scope,
@@ -76,110 +70,16 @@ $scopeNoun = ['active' => 'aktif', 'archived' => 'diarsipkan', 'deleted' => 'dih
     'canUnarchive' => true,
     'detailBase'   => base_url('work-report'),
 ]) ?>
-<?php elseif (empty($grouped)): ?>
-<div class="text-center text-muted py-5">
-    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-    Tidak ada program kerja ditemukan.
-</div>
 <?php else: ?>
-
-<?php foreach ($grouped as $divName => $deptGroups): ?>
-<div class="mb-4">
-<div class="fw-bold mb-2 px-1" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--bs-primary)">
-    <i class="bi bi-layers me-1"></i><?= esc($divName) ?>
-</div>
-
-<?php foreach ($deptGroups as $deptName => $items): ?>
-<div class="card mb-3">
-<div class="card-header py-2 d-flex align-items-center justify-content-between">
-    <span class="fw-semibold small"><i class="bi <?= $deptName === \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL ? 'bi-layers' : 'bi-building' ?> me-2 text-muted"></i><?= esc($deptName) ?></span>
-    <small class="text-muted"><?= count($items) ?> program kerja</small>
-</div>
-<div class="table-responsive">
-<table class="table table-sm align-middle mb-0 table-cardify" style="font-size:.78rem">
-<thead>
-<tr>
-    <th style="width:30%">Program Kerja</th>
-    <th style="width:10%">Status</th>
-    <th style="width:10%">Progress</th>
-    <th style="width:15%">PIC</th>
-    <th style="width:10%">Target Selesai</th>
-    <th style="width:15%">Update Terakhir</th>
-    <th style="width:10%">Flag GM</th>
-</tr>
-</thead>
-<tbody>
-<?php foreach ($items as $item):
-    $st     = $item['latest_status'] ?? null;
-    $info   = $st ? ($statusLabel[$st] ?? null) : null;
-    $overdue = ! empty($item['target_selesai']) && $item['target_selesai'] < date('Y-m-d') && $st !== 'done' && $st !== 'cancelled';
-    $noUpdate = empty($item['latest_updated_at']);
-    $staleWeeks = $item['latest_updated_at']
-        ? floor((time() - strtotime($item['latest_updated_at'])) / (7 * 86400))
-        : null;
-?>
-<tr class="<?= $overdue ? 'table-danger' : ($noUpdate ? 'table-warning' : '') ?>">
-    <td class="cardify-title">
-        <div class="fw-semibold"><?= esc($item['judul']) ?></div>
-        <?php if (! empty($item['latest_hambatan'])): ?>
-        <div class="text-warning-emphasis" style="font-size:.7rem"><i class="bi bi-cone-striped me-1"></i><?= esc(mb_substr($item['latest_hambatan'], 0, 60)) ?></div>
-        <?php endif; ?>
-        <?php if (! empty($item['assigned_to_dept_id'])): ?>
-        <span class="badge bg-info-subtle text-info" style="font-size:.6rem">Dari Deputy</span>
-        <?php endif; ?>
-    </td>
-    <td data-label="Status">
-        <?php if ($info): ?>
-        <span class="badge <?= $info['badge'] ?>" style="font-size:.65rem"><?= $info['label'] ?></span>
-        <?php elseif ($noUpdate): ?>
-        <span class="badge bg-secondary" style="font-size:.65rem">Belum ada</span>
-        <?php endif; ?>
-        <?php if ($overdue): ?><br><span class="badge bg-danger" style="font-size:.6rem">Terlambat</span><?php endif; ?>
-    </td>
-    <td data-label="Progress">
-        <?php if ($item['latest_progress'] !== null): ?>
-        <div class="progress" style="height:6px;min-width:70px">
-            <div class="progress-bar <?= (int)$item['latest_progress'] >= 100 ? 'bg-success' : ((int)$item['latest_progress'] >= 60 ? 'bg-primary' : 'bg-warning') ?>"
-                style="width:<?= $item['latest_progress'] ?>%"></div>
-        </div>
-        <div class="text-muted" style="font-size:.65rem"><?= $item['latest_progress'] ?>%</div>
-        <?php else: ?>
-        <span class="text-muted">—</span>
-        <?php endif; ?>
-    </td>
-    <td data-label="PIC"><?= esc($item['pic_name'] ?? '—') ?></td>
-    <td data-label="Target Selesai">
-        <?php if (! empty($item['target_selesai'])): ?>
-        <span <?= $overdue ? 'class="text-danger fw-semibold"' : '' ?>><?= date('d M Y', strtotime($item['target_selesai'])) ?></span>
-        <?php else: ?>—<?php endif; ?>
-    </td>
-    <td data-label="Update Terakhir">
-        <?php if (! empty($item['latest_updated_at'])): ?>
-        <?= date('d M Y', strtotime($item['latest_updated_at'])) ?>
-        <?php if ($staleWeeks >= 2): ?>
-        <br><span class="badge bg-warning text-dark" style="font-size:.6rem"><?= $staleWeeks ?> minggu lalu</span>
-        <?php endif; ?>
-        <?php else: ?>
-        <span class="text-danger">Belum pernah</span>
-        <?php endif; ?>
-    </td>
-    <td class="text-center" data-label="Flag GM">
-        <?php if ((int)($item['is_flagged'] ?? 0)): ?>
-        <i class="bi bi-flag-fill text-warning"></i>
-        <?php else: ?>
-        <i class="bi bi-flag text-muted"></i>
-        <?php endif; ?>
-    </td>
-</tr>
-<?php endforeach; ?>
-</tbody>
-</table>
-</div>
-</div>
-<?php endforeach; ?>
-</div>
-<?php endforeach; ?>
-
+<?= view('work_report/_wr_board', [
+    'mode' => 'admin', 'groups' => $groups, 'statusLabel' => $statusLabel,
+    'detailBase' => base_url('work-report'), 'canFlag' => false,
+]) ?>
 <?php endif; ?>
 
+</div>
+
+<?= $this->endSection() ?>
+<?= $this->section('scripts') ?>
+<script src="<?= base_url('js/work-report.js') ?>?v=<?= @filemtime(FCPATH . 'js/work-report.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

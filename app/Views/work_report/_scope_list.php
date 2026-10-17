@@ -11,17 +11,18 @@ $isDeleted = $scope === 'deleted';
 $unread    = $unread ?? [];
 ?>
 <?php if (empty($items)): ?>
-<div class="text-center text-muted py-5">
-    <i class="bi <?= $isDeleted ? 'bi-trash3' : 'bi-archive' ?> fs-1 d-block mb-2"></i>
-    <?= $isDeleted ? 'Tidak ada program kerja yang dihapus.' : 'Arsip kosong. Program berstatus Selesai/Dibatalkan otomatis masuk ke sini setelah 30 hari.' ?>
+<div class="wr-empty">
+    <i class="bi <?= $isDeleted ? 'bi-trash3' : 'bi-archive' ?>"></i>
+    <h5><?= $isDeleted ? 'Tidak ada program kerja yang dihapus' : 'Arsip kosong' ?></h5>
+    <p><?= $isDeleted ? 'Program yang dihapus akan muncul di sini dan bisa dipulihkan.' : 'Program berstatus Selesai/Dibatalkan otomatis masuk ke sini setelah 30 hari.' ?></p>
 </div>
 <?php else: ?>
 <?php if (! $isDeleted): ?>
-<p class="text-muted mb-2" style="font-size:.72rem"><i class="bi bi-info-circle me-1"></i>Program berstatus Selesai/Dibatalkan otomatis diarsipkan setelah 30 hari sejak update terakhir, selain yang diarsipkan manual.</p>
+<p class="wr-hint wr-hint-info"><i class="bi bi-info-circle"></i>Program berstatus Selesai/Dibatalkan otomatis diarsipkan setelah 30 hari sejak update terakhir, selain yang diarsipkan manual.</p>
 <?php endif; ?>
-<div class="card">
+<div class="wr-card">
 <div class="table-responsive">
-<table class="table table-sm align-middle mb-0 table-cardify" style="font-size:.78rem">
+<table class="table table-sm align-middle mb-0 table-cardify wr-table">
 <thead>
 <tr>
     <th>Program Kerja</th>
@@ -29,7 +30,7 @@ $unread    = $unread ?? [];
     <th style="width:10%">Status Terakhir</th>
     <th style="width:13%">PIC</th>
     <th style="width:18%"><?= $isDeleted ? 'Dihapus' : 'Diarsipkan' ?></th>
-    <th style="width:14%" class="text-end">Aksi</th>
+    <th style="width:16%" class="text-end">Aksi</th>
 </tr>
 </thead>
 <tbody>
@@ -42,42 +43,40 @@ $unread    = $unread ?? [];
         <div class="fw-semibold">
             <?= esc($item['judul']) ?>
             <?php if (! empty($unread[$item['id']])): ?>
-            <span class="badge rounded-pill bg-danger ms-1" style="font-size:.62rem" title="Pesan belum dibaca"><?= $unread[$item['id']] ?> pesan baru</span>
+            <span class="wr-chip wr-chip-bad ms-1" title="Pesan belum dibaca"><?= $unread[$item['id']] ?> pesan baru</span>
             <?php endif; ?>
         </div>
         <?php if (! empty($item['created_by_name'])): ?>
-        <div class="text-muted" style="font-size:.68rem">Dibuat: <?= esc($item['created_by_name']) ?></div>
+        <div class="wr-mute small">Dibuat: <?= esc($item['created_by_name']) ?></div>
         <?php endif; ?>
     </td>
     <?php if (! empty($showOrg)): ?>
-    <td style="font-size:.72rem" data-label="Divisi / Dept">
+    <td class="small" data-label="Divisi / Dept">
         <?= esc($item['divisi_name'] ?? '—') ?><br>
-        <span class="text-muted"><?= esc($item['dept_name'] ?? \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL) ?></span>
+        <span class="wr-mute"><?= esc($item['dept_name'] ?? \App\Models\WorkInitiativeModel::DIVISION_LEVEL_LABEL) ?></span>
     </td>
     <?php endif; ?>
     <td data-label="Status">
-        <?php if ($info): ?>
-        <span class="badge <?= $info['badge'] ?>" style="font-size:.65rem"><?= $info['label'] ?></span>
-        <?php else: ?>
-        <span class="badge bg-secondary" style="font-size:.65rem">Belum ada</span>
-        <?php endif; ?>
+        <?php if ($info): ?><span class="wr-chip wr-st-<?= $st ?>"><?= $info['label'] ?></span>
+        <?php else: ?><span class="wr-chip wr-chip-mute">Belum ada</span><?php endif; ?>
     </td>
     <td data-label="PIC"><?= esc($item['pic_name'] ?? '—') ?></td>
-    <td style="font-size:.72rem" data-label="<?= $isDeleted ? 'Dihapus' : 'Diarsipkan' ?>">
+    <td class="small" data-label="<?= $isDeleted ? 'Dihapus' : 'Diarsipkan' ?>">
         <?php if ($isDeleted): ?>
             <?= ! empty($item['deleted_at']) ? date('d M Y H:i', strtotime($item['deleted_at'])) : '—' ?><br>
-            <span class="text-muted">oleh <?= esc($item['deleted_by_name'] ?? '—') ?></span>
+            <span class="wr-mute">oleh <?= esc($item['deleted_by_name'] ?? '—') ?></span>
         <?php elseif (! empty($item['archived_at'])): ?>
             <?= date('d M Y H:i', strtotime($item['archived_at'])) ?><br>
-            <span class="text-muted">oleh <?= esc($item['archived_by_name'] ?? '—') ?></span>
+            <span class="wr-mute">oleh <?= esc($item['archived_by_name'] ?? '—') ?></span>
         <?php else: ?>
-            <span class="badge bg-secondary-subtle text-secondary" style="font-size:.65rem"><i class="bi bi-magic me-1"></i>Otomatis (&gt;<?= \App\Models\WorkInitiativeModel::AUTO_ARCHIVE_DAYS ?> hari selesai)</span>
+            <span class="wr-chip wr-chip-mute"><i class="bi bi-magic"></i>Otomatis (&gt;<?= \App\Models\WorkInitiativeModel::AUTO_ARCHIVE_DAYS ?> hari selesai)</span>
         <?php endif; ?>
     </td>
     <td class="text-end cardify-actions">
+        <div class="wr-rowact">
         <?php if (! empty($detailBase)): ?>
-        <a href="<?= $detailBase . '/' . $item['id'] . '/detail' ?>" class="btn btn-outline-info btn-sm py-0 px-1" style="font-size:.7rem" title="Riwayat">
-            <i class="bi bi-clock-history"></i>
+        <a href="<?= $detailBase . '/' . $item['id'] . '/detail' ?>" class="wr-btn wr-btn-xs wr-btn-soft" title="Riwayat">
+            <i class="bi bi-clock-history"></i>Riwayat
         </a>
         <?php endif; ?>
         <?php /* Tampil juga untuk item auto-arsip (archived_at kosong) — jalur pemulihan satu-satunya */ ?>
@@ -85,20 +84,17 @@ $unread    = $unread ?? [];
         <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/unarchive') ?>" class="d-inline"
               onsubmit="return confirm('Kembalikan program ini ke daftar aktif?')">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:.7rem" title="Batal arsip">
-                <i class="bi bi-arrow-counterclockwise"></i> Batal Arsip
-            </button>
+            <button type="submit" class="wr-btn wr-btn-xs" title="Batal arsip"><i class="bi bi-arrow-counterclockwise"></i>Batal Arsip</button>
         </form>
         <?php endif; ?>
         <?php if ($isDeleted && ! empty($canRestore)): ?>
         <form method="POST" action="<?= base_url('work-report/' . $item['id'] . '/restore') ?>" class="d-inline"
               onsubmit="return confirm('Pulihkan program kerja ini ke daftar aktif?')">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-outline-success btn-sm py-0 px-1" style="font-size:.7rem" title="Pulihkan">
-                <i class="bi bi-arrow-counterclockwise"></i> Pulihkan
-            </button>
+            <button type="submit" class="wr-btn wr-btn-xs wr-btn-ok" title="Pulihkan"><i class="bi bi-arrow-counterclockwise"></i>Pulihkan</button>
         </form>
         <?php endif; ?>
+        </div>
     </td>
 </tr>
 <?php endforeach; ?>
