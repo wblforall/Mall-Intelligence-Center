@@ -55,6 +55,10 @@
 /* Panel grafik tanpa kotak analisa */
 .chart-panel .chart-box + .chart-box { padding-left: 14px; border-left: 1px solid var(--garis-halus); }
 
+.mulai-halaman { break-before: page; page-break-before: always; }
+.ringkasan-temuan { margin-bottom: 14px; padding: 8px 12px; }
+.ringkasan-temuan .insight-box { flex: 1 1 100%; padding: 8px 12px 3px 13px; }
+.ringkasan-temuan .insight-list li { margin-bottom: 4px; }
 /* Tautan kembali (layar saja) */
 .tautan-kembali {
     position: fixed; top: 16px; left: 16px; z-index: 50;
@@ -82,7 +86,7 @@ if (! function_exists('diffCell')) {
         if ($pct === null) return '<span class="diff-nil">—</span>';
         $cls = $pct > 0 ? 'diff-up' : ($pct < 0 ? 'diff-down' : 'diff-nil');
         $pre = $pct > 0 ? '+' : '';
-        return '<span class="' . $cls . '">' . $pre . $pct . '%</span><span class="diff-sub">' . $n . '</span>';
+        return '<span class="' . $cls . '">' . $pre . str_replace('.', ',', (string) $pct) . '%</span><span class="diff-sub">' . $n . '</span>';
     }
 }
 
@@ -126,7 +130,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
         <div class="org">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.4</div>
     </div>
     <div class="meta">
-        Generate: <?= date('d M Y H:i') ?><br>
+        Dicetak: <?= date('d/m/Y H:i') ?><br>
         P1: <?= $p1Label ?><br>
         P2: <?= $p2Label ?>
         <?php if ($hasP3): ?><br>P3: <?= $p3Label ?><?php endif; ?>
@@ -142,8 +146,73 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
     <?php endif; ?>
 </div>
 
+<!-- Ringkasan temuan: kalimat DITURUNKAN dari angka kedua/ketiga periode (bukan karangan). -->
+<?php
+$dec = fn($v) => str_replace('.', ',', (string) $v);
+$arah = function (?float $pct): string {
+    if ($pct === null) return '';
+    return $pct > 0 ? 'naik ' . str_replace('.', ',', (string) abs($pct)) . '%' : ($pct < 0 ? 'turun ' . str_replace('.', ',', (string) abs($pct)) . '%' : 'tidak berubah');
+};
+$pTot = [1 => $p1Total, 2 => $p2Total] + ($hasP3 ? [3 => $p3Total] : []);
+$hariAntara = fn(string $a, string $b) => (int) round((strtotime($b) - strtotime($a)) / 86400) + 1;
+$pHari = [1 => $hariAntara($from1, $to1), 2 => $hariAntara($from2, $to2)] + ($hasP3 ? [3 => $hariAntara($from3, $to3)] : []);
+$pEw = [1 => $p1Ewalk, 2 => $p2Ewalk] + ($hasP3 ? [3 => $p3Ewalk] : []);
+$pPt = [1 => $p1Penta, 2 => $p2Penta] + ($hasP3 ? [3 => $p3Penta] : []);
+$pJam = [1 => $p1HourData, 2 => $p2HourData] + ($hasP3 ? [3 => $p3HourData] : []);
+$ringkas = [];
+if (array_sum($pTot) > 0) {
+    foreach ($pTot as $i => $t) {
+        $rata = $pHari[$i] > 0 ? (int) round($t / $pHari[$i]) : 0;
+        $k = 'P' . $i . ': ' . $n($t) . ' pengunjung dalam ' . $pHari[$i] . ' hari (rata-rata ' . $n($rata) . '/hari)';
+        if ($i > 1 && $pTot[1] > 0) $k .= ' — ' . $arah(pctDiffPrint($pTot[1], $t)) . ' dibanding P1';
+        $ringkas[] = $k . '.';
+    }
+    foreach ([2, 3] as $i) {
+        if (! isset($pTot[$i])) continue;
+        $a = pctDiffPrint($p1Ewalk, $pEw[$i]); $b = pctDiffPrint($p1Penta, $pPt[$i]);
+        if ($a !== null && $b !== null) $ringkas[] = 'P' . $i . ' vs P1 per mall: eWalk ' . $arah($a) . ' (' . $n($p1Ewalk) . ' → ' . $n($pEw[$i]) . '), Pentacity ' . $arah($b) . ' (' . $n($p1Penta) . ' → ' . $n($pPt[$i]) . ').';
+    }
+    // Pintu dengan selisih absolut terbesar P2 vs P1 (kedua mall).
+    $geser = null;
+    foreach (['eWalk' => $allDoorsEwalk, 'Pentacity' => $allDoorsPenta] as $mall => $doors) {
+        foreach ($doors as $nama => $v) {
+            $sel = $v['p2'] - $v['p1'];
+            if ($sel !== 0 && (! $geser || abs($sel) > abs($geser['sel']))) $geser = ['mall' => $mall, 'pintu' => $nama, 'sel' => $sel, 'a' => $v['p1'], 'b' => $v['p2']];
+        }
+    }
+    if ($geser) $ringkas[] = 'Pintu dengan perubahan terbesar P2 vs P1: ' . $geser['mall'] . ' ' . $geser['pintu'] . ' ' . ($geser['sel'] > 0 ? 'bertambah ' : 'berkurang ') . $n(abs($geser['sel'])) . ' (' . $n($geser['a']) . ' → ' . $n($geser['b']) . ').';
+    $we = [];
+    foreach ([1 => $p1WdWe ?? null, 2 => $p2WdWe ?? null, 3 => $hasP3 ? ($p3WdWe ?? null) : null] as $i => $w) {
+        if ($w && ($w['wd']['avg'] ?? 0) > 0 && ($w['we']['avg'] ?? 0) > 0) $we[] = 'P' . $i . ' ' . $n((int) $w['we']['avg']) . ' vs ' . $n((int) $w['wd']['avg']);
+    }
+    if ($we) $ringkas[] = 'Rata-rata per hari weekend (Jum–Min) vs weekday (Sen–Kam): ' . implode('; ', $we) . '.';
+    $puncak = [];
+    foreach ($pJam as $i => $d) { if (array_sum($d) > 0) $puncak[] = 'P' . $i . ' ' . $chartHours[array_search(max($d), $d)]; }
+    if ($puncak) $ringkas[] = 'Jam puncak: ' . implode(', ', $puncak) . '.';
+    if ($hasVehicleData) {
+        $kend = [];
+        foreach ([2, 3] as $i) {
+            if (! isset($pTot[$i])) continue;
+            $vv = ${'p' . $i . 'Vehicles'};
+            $m = pctDiffPrint((int) $p1Vehicles['mobil'], (int) $vv['mobil']); $o = pctDiffPrint((int) $p1Vehicles['motor'], (int) $vv['motor']);
+            if ($m !== null && $o !== null) $kend[] = 'P' . $i . ' mobil ' . $arah($m) . ', motor ' . $arah($o);
+        }
+        if ($kend) $ringkas[] = 'Kendaraan vs P1: ' . implode('; ', $kend) . '.';
+    }
+    if (count(array_unique($pHari)) > 1) $ringkas[] = 'Perhatian: panjang periode berbeda (' . implode(' / ', $pHari) . ' hari) — bandingkan terutama rata-rata per hari.';
+}
+?>
+<div class="sec-title"><span>Ringkasan Temuan</span><span class="sec-sub">diturunkan otomatis dari data periode</span></div>
+<?php if ($ringkas): ?>
+<div class="chart-panel ringkasan-temuan"><div class="insight-box">
+    <ul class="insight-list"><?php foreach ($ringkas as $r): ?><li><?= esc($r) ?></li><?php endforeach; ?></ul>
+</div></div>
+<?php else: ?>
+<div class="catatan">Belum ada data pengunjung pada periode yang dibandingkan, sehingga ringkasan temuan belum dapat disusun.</div>
+<?php endif; ?>
+
 <!-- Tabel KPI + Weekday/Weekend berdampingan -->
-<div class="duo">
+<div class="duo<?= $ringkas ? ' mulai-halaman' : '' ?>">
 
     <div style="flex:3">
         <div class="sec-title rapat"><span>Perbandingan Pengunjung</span></div>
@@ -286,23 +355,26 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
 
 </div>
 
+<div class="sec-title"><span>Grafik Perbandingan</span><span class="sec-sub">harian menurut hari ke-N dan distribusi per jam</span></div>
 <!-- Grafik: harian (bar) + per jam (garis) -->
 <div class="chart-panel" style="margin-bottom:0">
     <div class="chart-box" style="flex:3">
         <div class="chart-title">Traffic Harian per Periode (Hari ke-N)</div>
-        <div class="chart-wrap" style="height:36mm"><canvas id="dailyChart"></canvas></div>
+        <div class="chart-wrap" style="height:62mm"><canvas id="dailyChart"></canvas></div>
     </div>
     <div class="chart-box" style="flex:2">
         <div class="chart-title">Distribusi per Jam</div>
-        <div class="chart-wrap" style="height:36mm"><canvas id="hourChart"></canvas></div>
+        <div class="chart-wrap" style="height:62mm"><canvas id="hourChart"></canvas></div>
     </div>
 </div>
 
 
 <!-- ══════════════════ HALAMAN 2 — DETAIL PINTU ══════════════════════ -->
-<div class="putus-halaman"></div>
-
-<div class="sec-title rapat"><span>Detail per Pintu — Perbandingan Periode</span>
+<?php if (empty($allDoorsEwalk) && empty($allDoorsPenta)): ?>
+<div class="sec-title rapat mulai-halaman"><span>Detail per Pintu — Perbandingan Periode</span></div>
+<div class="catatan">Belum ada data pintu pada periode yang dibandingkan.</div>
+<?php else: ?>
+<div class="sec-title rapat mulai-halaman"><span>Detail per Pintu — Perbandingan Periode</span>
     <span class="sec-sub"><?= $p1Label ?> vs <?= $p2Label ?><?= $hasP3 ? ' vs ' . $p3Label : '' ?></span></div>
 
 <div class="duo">
@@ -382,6 +454,7 @@ uasort($allDoorsPenta, fn($a,$b) => ($b['p1']+$b['p2']+$b['p3']) <=> ($a['p1']+$
     <?php endif; ?>
 
 </div>
+<?php endif; ?>
 
 <div class="doc-footer rapat">
     <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>

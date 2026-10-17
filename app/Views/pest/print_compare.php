@@ -57,6 +57,10 @@ if (count(array_unique($hari)) > 1) {
 <style>
 @page { @top-right { content: "Compare Periode Pest Control"; } }
 .main-table th.num { text-align: right; }
+.main-table.rapat th { padding: 4px 8px; }
+.main-table.rapat td { padding: 3px 8px; font-size: 10px; }
+.main-table.rapat { margin-bottom: 8px; }
+.blok-utuh { break-inside: avoid; page-break-inside: avoid; }
 .main-table tr.grup td { background: #eef2f8 !important; font-size: 8.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--redup); }
 .main-table tr.total td { font-weight: 700; color: var(--tinta); }
 .p-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 0; }
@@ -136,9 +140,10 @@ foreach ($kpi as [$judul, $b, $kelas, $netral]): ?>
     </div>
 </div>
 
+<div class="blok-utuh">
 <div class="sec-title">Perbandingan Rinci<span class="sec-sub">merah = temuan naik (memburuk), hijau = turun</span></div>
 <div class="tabel-gulir">
-<table class="main-table">
+<table class="main-table rapat">
 <thead><tr>
     <th>Uraian</th>
     <?php foreach ($p as $i => $_): ?><th class="num"><span class="p-dot" style="background:<?= $warna[$i] ?>"></span>P<?= $i ?> · <?= $label[$i] ?></th><?php endforeach; ?>
@@ -169,6 +174,7 @@ foreach ($kpi as [$judul, $b, $kelas, $netral]): ?>
     </tr>
 </tbody>
 </table>
+</div>
 </div>
 
 <?= view('_laporan/_ttd', ['signatories' => $signatories]) ?>

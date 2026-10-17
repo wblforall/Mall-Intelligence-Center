@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Laporan Bulanan Traffic Kendaraan Parkir — <?= $bulan ?></title>
+<title>Laporan Bulanan Traffic Kendaraan Parkir — <?= strtr(date("F Y", strtotime($bulan . "-01")), ["January"=>"Januari","February"=>"Februari","March"=>"Maret","May"=>"Mei","June"=>"Juni","July"=>"Juli","August"=>"Agustus","October"=>"Oktober","December"=>"Desember"]) ?></title>
 <?= view('_laporan/_style') ?>
 <style>
 /* Lokal laporan parkir — kandidat naik ke gaya bersama: th.num, .bilah, .penutup. */

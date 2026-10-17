@@ -28,6 +28,17 @@
 .sorotan-item .s-val { font-size: 12px; font-weight: 700; color: var(--tinta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sorotan-item .s-sub { font-size: 8.5px; color: var(--redup2); }
 
+.mulai-halaman { break-before: page; page-break-before: always; }
+/* Ringkasan temuan: satu kotak penuh, daftar dua kolom. */
+.ringkasan-temuan { margin-bottom: 14px; padding: 8px 12px; }
+.ringkasan-temuan .insight-box { flex: 1 1 100%; padding: 8px 12px 3px 13px; }
+.ringkasan-temuan .insight-list { columns: 2; column-gap: 26px; }
+.ringkasan-temuan .insight-list li { break-inside: avoid; margin-bottom: 4px; }
+.grafik-kosong {
+    position: absolute; inset: 0 0 20px 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    font-size: 10px; font-style: italic; color: var(--redup2); pointer-events: none;
+}
+.grafik-kosong span { padding: 5px 12px; border-radius: 6px; background: rgba(251,252,254,.94); border: 1px dashed var(--garis); }
 /* Panel grafik tanpa kotak analisa */
 .chart-panel .chart-box + .chart-box { padding-left: 14px; border-left: 1px solid var(--garis-halus); }
 
@@ -68,6 +79,8 @@
 <?php
 $n    = fn(int $v) => number_format($v, 0, ',', '.');
 $fmt  = fn(int $v) => $v > 0 ? number_format($v, 0, ',', '.') : '—';
+$dec  = fn($v) => str_replace('.', ',', (string) $v);                         // 11.3 → 11,3
+$persen = fn(float $v) => $dec(round(abs($v), 1)) . '%';
 
 $totalVehicle   = $vehicles['mobil'] + $vehicles['motor'] + $vehicles['mobil_box'] + $vehicles['truck'] + $vehicles['bus'] + $vehicles['mobil_free'] + $vehicles['motor_free'];
 $hasExtraVehicle = ($vehicles['mobil_box'] + $vehicles['truck'] + $vehicles['bus'] + $vehicles['mobil_free'] + $vehicles['motor_free']) > 0;
@@ -120,7 +133,7 @@ $doorPentaVals   = array_map('intval', array_column($doorPenta, 'total'));
         <div class="org">PT. Wulandari Bangun Laksana Tbk. &nbsp;·&nbsp; Mall Intelligence Center v1.4</div>
     </div>
     <div class="meta">
-        Generate: <?= date('d M Y H:i') ?><br>
+        Dicetak: <?= date('d/m/Y H:i') ?><br>
         <?= count($days) ?> hari data<br>
         Pembanding: <?= $prevFmt ?>
     </div>
@@ -172,7 +185,7 @@ $doorPentaVals   = array_map('intval', array_column($doorPenta, 'total'));
     <div class="kpi-box" style="--aksen:<?= $vsAksen ?>">
         <div class="kpi-label">vs Periode Sebelumnya</div>
         <div class="kpi-num" style="color:<?= $changePct === null ? '#64748b' : ($changePct >= 0 ? '#15803d' : '#b91c1c') ?>">
-            <?= $changePct === null ? '—' : ($changePct >= 0 ? '+' : '') . $changePct . '%' ?>
+            <?= $changePct === null ? '—' : ($changePct >= 0 ? '+' : '−') . $persen($changePct) ?>
         </div>
         <div class="kpi-sub"><?= $prevTotal > 0 ? $n($prevTotal) . ' org' : 'belum ada data' ?></div>
     </div>
@@ -189,7 +202,7 @@ $insights = array_filter([
         'icon' => $changePct >= 0 ? '📈' : '📉',
         'bg'   => $changePct >= 0 ? '#dcfce7' : '#fee2e2',
         'lbl'  => 'vs ' . $prevFmt,
-        'val'  => ($changePct >= 0 ? '+' : '') . $changePct . '%',
+        'val'  => ($changePct >= 0 ? '+' : '−') . $persen($changePct),
         'sub'  => 'sebelumnya ' . $n($prevTotal) . ' org',
     ] : null,
 ]);
@@ -209,32 +222,42 @@ if (! empty($insights)):
 </div>
 <?php endif; ?>
 
-<!-- Grafik: Traffic Harian (lebar) + per Jam (lebih sempit) -->
-<div class="sec-title"><span>Grafik Traffic Pengunjung</span>
-    <span class="sec-sub">harian &amp; distribusi per jam · <?= $fromFmt ?> — <?= $toFmt ?></span></div>
-<div class="chart-panel">
-    <div class="chart-box" style="flex:3">
-        <div class="chart-title">Traffic Pengunjung Harian</div>
-        <div class="chart-wrap" style="height:<?= count($days) > 30 ? '50mm' : '54mm' ?>">
-            <canvas id="dailyChart"></canvas>
-        </div>
-    </div>
-    <div class="chart-box" style="flex:2">
-        <div class="chart-title">Distribusi per Jam</div>
-        <div class="chart-wrap" style="height:<?= count($days) > 30 ? '50mm' : '54mm' ?>">
-            <canvas id="hourChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<div class="doc-footer">
-    <span>Mall Intelligence Center v1.4 · PT. Wulandari Bangun Laksana Tbk.</span>
-    <span>KONFIDENSIAL — Hanya untuk internal perusahaan</span>
-</div>
-
-
-<!-- ════════════════════ HALAMAN 2 — DATA HARIAN ═══════════════════════ -->
-<div class="putus-halaman"></div>
+<!-- Ringkasan temuan: kalimat DITURUNKAN dari angka periode (bukan karangan). -->
+<?php
+$ringkas = [];
+$hariAdaData = count(array_filter(array_column($days, 'total'), fn($v) => $v > 0));
+if ($totalVisitor > 0) {
+    $k = 'Total ' . $n($totalVisitor) . ' pengunjung selama ' . count($days) . ' hari (' . $hariAdaData . ' hari berdata), rata-rata ' . $n($avgDaily) . ' per hari aktif';
+    if ($changePct !== null && $prevTotal > 0) {
+        $k .= '; ' . ($changePct > 0 ? 'naik ' : ($changePct < 0 ? 'turun ' : 'setara ')) . ($changePct == 0 ? '' : $persen($changePct) . ' ') . 'dibanding periode sebelumnya (' . $prevFmt . ': ' . $n($prevTotal) . ')';
+    }
+    $ringkas[] = $k . '.';
+    $ringkas[] = 'Komposisi: eWalk ' . $n($totalEwalk) . ' (' . round($totalEwalk / $totalVisitor * 100) . '%) dan Pentacity ' . $n($totalPenta) . ' (' . round($totalPenta / $totalVisitor * 100) . '%); ' . ($totalEwalk >= $totalPenta ? 'eWalk' : 'Pentacity') . ' lebih ramai.';
+    if ($bestDay) $ringkas[] = 'Hari teramai ' . $bestDay . ' dengan ' . $n($bestDayVal) . ' pengunjung' . ($avgDaily > 0 ? ' (' . $dec(round($bestDayVal / $avgDaily, 1)) . '× rata-rata harian)' : '') . '.';
+    if ($peakHour) $ringkas[] = 'Jam tersibuk ' . $peakHour . ' (' . $n($peakHourVal) . ' pengunjung, ' . round($peakHourVal / $totalVisitor * 100) . '% dari total).';
+    if ($wdAvg > 0 && $weAvg > 0) {
+        $selisihWe = round(($weAvg - $wdAvg) / $wdAvg * 100);
+        $ringkas[] = 'Rata-rata weekend (Jum–Min) ' . $n($weAvg) . ' per hari, ' . ($selisihWe >= 0 ? abs($selisihWe) . '% lebih tinggi' : abs($selisihWe) . '% lebih rendah') . ' dari weekday (Sen–Kam) ' . $n($wdAvg) . ' per hari.';
+    }
+    if (! empty($doorEwalk) || ! empty($doorPenta)) {
+        $bagian = [];
+        if (! empty($doorEwalk)) $bagian[] = 'eWalk ' . $doorEwalk[0]['pintu'] . ' (' . $n((int) $doorEwalk[0]['total']) . ')';
+        if (! empty($doorPenta)) $bagian[] = 'Pentacity ' . $doorPenta[0]['pintu'] . ' (' . $n((int) $doorPenta[0]['total']) . ')';
+        $ringkas[] = 'Pintu terpadat: ' . implode('; ', $bagian) . '.';
+    }
+    if ($totalVehicle > 0) $ringkas[] = 'Kendaraan masuk tercatat ' . $n($totalVehicle) . ' (' . $n($vehicles['mobil']) . ' mobil, ' . $n($vehicles['motor']) . ' motor).';
+    if (! empty($periodEvents)) $ringkas[] = count($periodEvents) . ' event berlangsung dalam periode ini (daftar di halaman terakhir).';
+    if ($hariAdaData < count($days)) $ringkas[] = 'Perhatian: ' . (count($days) - $hariAdaData) . ' dari ' . count($days) . ' hari tidak memiliki data pengunjung.';
+}
+?>
+<div class="sec-title"><span>Ringkasan Temuan</span><span class="sec-sub">diturunkan otomatis dari data periode ini</span></div>
+<?php if ($ringkas): ?>
+<div class="chart-panel ringkasan-temuan"><div class="insight-box">
+    <ul class="insight-list"><?php foreach ($ringkas as $r): ?><li><?= esc($r) ?></li><?php endforeach; ?></ul>
+</div></div>
+<?php else: ?>
+<div class="catatan">Belum ada data pengunjung pada periode ini, sehingga ringkasan temuan belum dapat disusun.</div>
+<?php endif; ?>
 
 <?php if ($wdTotal + $weTotal > 0): ?>
 <div class="sec-title rapat"><span>Weekdays vs Weekend</span>
@@ -259,7 +282,41 @@ if (! empty($insights)):
 </div>
 <?php endif; ?>
 
-<div class="sec-title rapat"><span>Traffic Harian — Detail per Tanggal</span>
+<!-- Grafik: Traffic Harian (lebar) + per Jam (lebih sempit) -->
+<div class="sec-title mulai-halaman"><span>Grafik Traffic Pengunjung</span>
+    <span class="sec-sub">harian &amp; distribusi per jam · <?= $fromFmt ?> — <?= $toFmt ?></span></div>
+<div class="chart-panel">
+    <div class="chart-box" style="flex:3">
+        <div class="chart-title">Traffic Pengunjung Harian</div>
+        <div class="chart-wrap" style="height:<?= count($days) > 30 ? '50mm' : '54mm' ?>">
+            <canvas id="dailyChart"></canvas><?php if ($totalVisitor <= 0): ?><div class="grafik-kosong"><span>Belum ada data pengunjung pada periode ini.</span></div><?php endif; ?>
+        </div>
+    </div>
+    <div class="chart-box" style="flex:2">
+        <div class="chart-title">Distribusi per Jam</div>
+        <div class="chart-wrap" style="height:<?= count($days) > 30 ? '50mm' : '54mm' ?>">
+            <canvas id="hourChart"></canvas><?php if ($totalVisitor <= 0): ?><div class="grafik-kosong"><span>Belum ada data per jam pada periode ini.</span></div><?php endif; ?>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="sec-title rapat"><span>Kendaraan Harian — Semua Tipe</span>
+    <span class="sec-sub"><?= $fromFmt ?> — <?= $toFmt ?></span></div>
+<div class="chart-panel" style="margin-bottom:12px">
+    <div class="chart-box">
+        <div class="chart-wrap" style="height:33mm">
+            <canvas id="vehicleChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="sec-title rapat mulai-halaman"><span>Traffic Harian — Detail per Tanggal</span>
     <span class="sec-sub">★ = hari dengan traffic tertinggi (baris kuning)</span></div>
 <table class="main-table rapat">
     <thead>
@@ -329,18 +386,7 @@ if (! empty($insights)):
 
 
 
-<!-- ════════════════════ HALAMAN 3 — JAM, KENDARAAN & PINTU ═══════════ -->
 <div class="putus-halaman"></div>
-
-<div class="sec-title rapat"><span>Kendaraan Harian — Semua Tipe</span>
-    <span class="sec-sub"><?= $fromFmt ?> — <?= $toFmt ?></span></div>
-<div class="chart-panel" style="margin-bottom:12px">
-    <div class="chart-box">
-        <div class="chart-wrap" style="height:33mm">
-            <canvas id="vehicleChart"></canvas>
-        </div>
-    </div>
-</div>
 
 <!-- Tabel per jam + per pintu (3 kolom) -->
 <div class="duo">

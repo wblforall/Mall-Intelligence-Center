@@ -32,26 +32,61 @@
 .prog-head .ph-meta b { color: var(--tinta); }
 .prog-head .ph-kanan { flex: 0 0 auto; display: flex; gap: 5px; align-items: center; padding-top: 1px; }
 .detail-table { margin-bottom: 0; }
+.detail-table tbody tr:last-child { break-after: avoid; }
 .detail-table th { background: var(--navy-3); font-size: 8.5px; padding: 4px 8px; }
 .detail-table td { font-size: 10px; padding: 4px 8px; }
 .detail-table th:first-child, .detail-table td:first-child { padding-left: 14px; }
 .detail-table tfoot td { background: #eef2f8; border-top: 1.5px solid var(--navy-3); }
 .detail-table tfoot .bln-ini { font-size: 8.5px; font-weight: 600; color: var(--redup); white-space: nowrap; }
 
-/* Analisa per program: label sebagai lencana, isi di sebelahnya. */
-.prog-analisa {
-    display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: baseline;
-    padding: 6px 12px 7px 14px; background: #fbf8ef; border-top: 1px solid #efe4c4;
-    font-size: 9.5px; color: var(--teks);
+/* Analisa per program: tiga kolom (Highlight / Kendala / Tindak Lanjut), teks utuh. */
+.prog-analisa3 {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0;
+    background: #fbf8ef; border-top: 1px solid #efe4c4;
 }
-.prog-analisa .lencana { justify-self: start; }
+.prog-analisa3 .an-kol { padding: 6px 12px 7px 14px; min-width: 0; }
+.prog-analisa3 .an-kol + .an-kol { border-left: 1px solid #efe4c4; }
+.prog-analisa3 .an-isi {
+    margin-top: 3px; font-size: 9.5px; line-height: 1.5; color: var(--teks);
+    overflow-wrap: anywhere; word-break: break-word;
+}
+.prog-analisa3 .an-isi.kosong { color: var(--redup2); font-style: italic; }
+.prog-belum {
+    padding: 6px 14px; background: #fbf8ef; border-top: 1px solid #efe4c4;
+    font-size: 9.5px; color: var(--redup); font-style: italic;
+}
+.prog-lalu {
+    padding: 5px 14px 6px; border-top: 1px dashed var(--garis); background: var(--latar);
+    font-size: 9px; line-height: 1.5; color: var(--redup); overflow-wrap: anywhere;
+}
+.prog-lalu b { color: var(--teks); font-weight: 600; }
+.prog-detail.panjang { break-inside: auto; page-break-inside: auto; overflow: visible; }
+.detail-table tfoot { break-inside: avoid; }
+.prog-head { break-after: avoid; page-break-after: avoid; }
+.prog-analisa3, .prog-belum, .prog-lalu { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+.prog-analisa3 { border-bottom: 1px solid #efe4c4; } .prog-belum, .prog-lalu { border-bottom: 1px solid var(--garis); }
 
+/* Rekap & ringkasan tindak lanjut */
+.rekap-wrap { break-inside: avoid; page-break-inside: avoid; }
+.rekap-table tr.grup { break-after: avoid; }
+.prog-detail.panjang .detail-table td { padding-top: 3px; padding-bottom: 3px; }
+.rekap-table td, .rekap-table th { padding-top: 4px; padding-bottom: 4px; }
+.rekap-table td.nama { white-space: normal; overflow-wrap: anywhere; font-weight: 600; color: var(--tinta); }
+.rekap-table tr.grup td {
+    background: #eef2f8 !important; color: var(--navy-2); font-size: 8.5px; font-weight: 700;
+    letter-spacing: .6px; text-transform: uppercase; padding: 3px 8px;
+}
+.tl-table td { vertical-align: top; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.tl-table td.nama { font-weight: 600; color: var(--tinta); }
+.tl-table td.kosong { color: var(--redup2); font-style: italic; }
+.keterangan { line-height: 1.55; }
+.sumber { margin-top: 4px; font-size: 8.5px; color: var(--redup2); }
+.blok-akhir { break-inside: avoid; page-break-inside: avoid; }
 .keterangan { font-size: 9px; color: var(--redup2); margin: 2px 0 0; }
 .keterangan em { color: var(--redup); }
-/* Blok penutup (kartu terakhir + keterangan + tanda tangan) tidak dipisah halaman. */
-.penutup { break-inside: avoid; page-break-inside: avoid; }
-.penutup .sign-row { margin-top: 16px; }
-.penutup .doc-footer { margin-top: 16px; }
+/* Blok akhir (keterangan + tanda tangan) tidak dipisah halaman. */
+.blok-akhir .sign-row { margin-top: 16px; }
+.blok-akhir .doc-footer { margin-top: 16px; }
 /* Bulan tanpa rincian: rapatkan halaman 1 supaya tanda tangan ikut di halaman yang sama. */
 body.ringkas .doc-header { margin-bottom: 10px; }
 body.ringkas .sec-title { margin-bottom: 7px; }
@@ -62,8 +97,8 @@ body.ringkas .chart-panel { margin-bottom: 8px; padding: 10px 12px; }
 body.ringkas .chart-wrap { height: 118px; }
 body.ringkas .sign-box .sign-space { height: 40px; }
 body.ringkas .catatan { margin-bottom: 0; }
-body.ringkas .penutup .sign-row { margin-top: 10px; }
-body.ringkas .penutup .doc-footer { margin-top: 10px; }
+body.ringkas .blok-akhir .sign-row { margin-top: 10px; }
+body.ringkas .blok-akhir .doc-footer { margin-top: 10px; }
 </style>
 </head>
 <?php
@@ -109,14 +144,22 @@ $eventAggs = array_values(array_filter($eventAggs, function ($e) use ($bulan, $e
     return (int)($evMonthly[$e['event_id']] ?? 0) > 0;
 }));
 
-// Kartu rincian terakhir dibungkus bersama keterangan + tanda tangan (.penutup)
-// supaya tanda tangan tak pernah terdorong sendirian ke halaman baru.
 $nProg  = count($programs);
 $nEvent = count($eventAggs);
-$penutupDibuka = false;
+$prevAnalisaMap = $prevAnalisaMap ?? [];
+$teksAnalisa = fn($t): string => nl2br(esc(trim((string)$t)));
+$adaAnalisa  = function (array $a): bool {
+    return trim(($a['highlight'] ?? '') . ($a['kendala'] ?? '') . ($a['tindak_lanjut'] ?? '')) !== '';
+};
+// Program yang punya analisa bulan ini tetapi tidak masuk daftar relevan (mis. periode di luar bulan).
+$progLain = array_values(array_filter($programAnalisaLain ?? [], fn($p) => $adaAnalisa($analisaMap[(int)$p['id']] ?? [])));
+$progBelumAnalisa = [];
+foreach ($programs as $p) { if (! $adaAnalisa($analisaMap[(int)$p['id']] ?? [])) $progBelumAnalisa[] = $p['nama_program']; }
+$progBeranalisa = array_values(array_filter($programs, fn($p) => $adaAnalisa($analisaMap[(int)$p['id']] ?? [])));
+$progBeranalisa = array_merge($progBeranalisa, $progLain);
 ?>
 
-<body class="<?= $nProg === 0 && $nEvent === 0 ? 'ringkas' : '' ?>">
+<body class="<?= $nProg === 0 && $nEvent === 0 && ! $progLain ? 'ringkas' : '' ?>">
 
 <button class="btn-print no-print" onclick="window.print()">&#128438; Cetak</button>
 
@@ -191,11 +234,11 @@ $deltaPct = function (int $now, int $prev) use ($nf): string {
 </div>
 
 <!-- ══ ANALISA & GRAFIK ══ -->
-<div class="sec-title"><span>Analisa &amp; Tren</span>
-    <span class="sec-sub">tren penerimaan 6 bulan terakhir &middot; harian <?= $bulanLabel ?></span></div>
+<div class="sec-title"><span>Ringkasan Eksekutif &amp; Tren</span>
+    <span class="sec-sub">temuan utama &middot; tren penerimaan 6 bulan terakhir &middot; harian <?= $bulanLabel ?></span></div>
 <div class="chart-panel">
     <div class="insight-box">
-        <div class="insight-title">Ringkasan Analisa</div>
+        <div class="insight-title">Temuan Utama</div>
         <ul class="insight-list">
             <?php foreach (($insights ?? []) as $ins): ?>
             <li><?= esc($ins) ?></li>
@@ -223,6 +266,76 @@ $stMap = [
 ];
 ?>
 
+<!-- ══ REKAP PROGRAM & EVENT ══ -->
+<?php if ($nProg > 0 || $nEvent > 0):
+    $rkSp = 0; $rkKom = 0; $rkNow = 0; $rkCum = 0; $rkTgt = 0; ?>
+<div class="rekap-wrap">
+<div class="sec-title"><span>Rekap Program &amp; Event &middot; <?= $bulanLabel ?></span>
+    <span class="sec-sub">komitmen, penerimaan bulan ini, kumulatif s/d <?= $bulanLabel ?> dan capaian terhadap target</span></div>
+<table class="main-table rekap-table">
+<thead><tr>
+    <th>Program / Event</th>
+    <th class="num">Sponsor Deal</th>
+    <th class="num">Komitmen</th>
+    <th class="num">Penerimaan Bulan Ini</th>
+    <th class="num">Kumulatif</th>
+    <th class="num">Target</th>
+    <th class="text-center">Capaian</th>
+    <th class="text-center">Analisa</th>
+</tr></thead>
+<tbody>
+<?php if ($nProg > 0): ?><tr class="grup"><td colspan="8">Program standalone</td></tr><?php endif; ?>
+<?php foreach ($programs as $p):
+    $pid = (int)$p['id']; $com = $committedMap[$pid] ?? [];
+    $n = (int)($monthlyReal[$pid] ?? 0); $c = (int)($cumReal[$pid] ?? 0); $t = (int)($p['target_nilai'] ?? 0);
+    $k = (int)($com['total_nilai'] ?? 0); $ns = (int)($com['total_sponsor'] ?? 0);
+    $rkSp += $ns; $rkKom += $k; $rkNow += $n; $rkCum += $c; $rkTgt += $t;
+    $cp = $t ? round($c / $t * 100) : null;
+    $ok = $adaAnalisa($analisaMap[$pid] ?? []);
+?>
+<tr>
+    <td class="nama"><?= esc($p['nama_program']) ?></td>
+    <td class="num"><?= $nf($ns) ?></td>
+    <td class="<?= $k ? 'num' : 'zero' ?>"><?= $k ? $rp($k) : '—' ?></td>
+    <td class="<?= $n ? 'num' : 'zero' ?>"><?= $n ? $rp($n) : '—' ?></td>
+    <td class="<?= $c ? 'num' : 'zero' ?>"><?= $c ? $rp($c) : '—' ?></td>
+    <td class="<?= $t ? 'num' : 'zero' ?>"><?= $t ? $rp($t) : '—' ?></td>
+    <td class="text-center"><?php if ($cp !== null): ?><span class="lencana <?= $cp >= 100 ? 'baik' : ($cp >= 50 ? 'info' : 'waspada') ?>"><?= $nf($cp) ?>%</span><?php else: ?>—<?php endif; ?></td>
+    <td class="text-center"><span class="lencana <?= $ok ? 'baik' : 'netral' ?>"><?= $ok ? 'Terisi' : 'Belum diisi' ?></span></td>
+</tr>
+<?php endforeach; ?>
+<?php if ($nEvent > 0): ?><tr class="grup"><td colspan="8">Support event</td></tr><?php endif; ?>
+<?php foreach ($eventAggs as $e):
+    $eid = (int)$e['event_id']; $n = (int)($evMonthly[$eid] ?? 0); $c = (int)($evCum[$eid] ?? 0);
+    $k = (int)$e['total_cash'] + (int)$e['total_barang']; $ns = (int)$e['jumlah_sponsor'];
+    $rkSp += $ns; $rkKom += $k; $rkNow += $n; $rkCum += $c;
+?>
+<tr>
+    <td class="nama"><?= esc($e['event_name']) ?> <span class="lencana ungu">Event</span></td>
+    <td class="num"><?= $nf($ns) ?></td>
+    <td class="<?= $k ? 'num' : 'zero' ?>"><?= $k ? $rp($k) : '—' ?></td>
+    <td class="<?= $n ? 'num' : 'zero' ?>"><?= $n ? $rp($n) : '—' ?></td>
+    <td class="<?= $c ? 'num' : 'zero' ?>"><?= $c ? $rp($c) : '—' ?></td>
+    <td class="zero">—</td>
+    <td class="text-center">—</td>
+    <td class="text-center">—</td>
+</tr>
+<?php endforeach; ?>
+</tbody>
+<tfoot><tr>
+    <td>Total</td>
+    <td class="num"><?= $nf($rkSp) ?></td>
+    <td class="num"><?= $rp($rkKom) ?></td>
+    <td class="num"><?= $rp($rkNow) ?></td>
+    <td class="num"><?= $rp($rkCum) ?></td>
+    <td class="num"><?= $rkTgt ? $rp($rkTgt) : '—' ?></td>
+    <td class="text-center"><?= $rkTgt ? $pctF(array_sum(array_map(fn($p) => (int)($cumReal[(int)$p['id']] ?? 0), $programs)) / $rkTgt * 100) . '%' : '—' ?></td>
+    <td></td>
+</tr></tfoot>
+</table>
+</div>
+<?php endif; ?>
+
 <!-- ══ DETAIL PROGRAM STANDALONE ══ -->
 <?php if (! empty($programs)): ?>
 <div class="sec-title"><span>Detail Program Sponsorship &middot; <?= $nProg ?> program</span>
@@ -240,9 +353,10 @@ $stMap = [
     $statusCls   = ! empty($p['locked']) ? 'buruk' : ($p['status'] === 'active' ? 'baik' : 'netral');
     $a  = $analisaMap[$pid] ?? [];
     $hl = $a['highlight'] ?? ''; $kd = $a['kendala'] ?? ''; $tl = $a['tindak_lanjut'] ?? '';
-    if ($nEvent === 0 && $pi === $nProg - 1) { echo '<div class="penutup">'; $penutupDibuka = true; }
+    $pAn = $adaAnalisa($a);
+    $lalu = trim((string)(($prevAnalisaMap[$pid] ?? [])['tindak_lanjut'] ?? ''));
 ?>
-<div class="prog-detail">
+<div class="prog-detail<?= count($spList) > 12 ? ' panjang' : '' ?>">
     <div class="prog-head">
         <div>
             <div class="ph-title"><?= esc($p['nama_program']) ?><span class="lencana <?= $statusCls ?>"><?= esc($statusLabel) ?></span></div>
@@ -261,6 +375,20 @@ $stMap = [
             <?php if (! ($hl || $kd || $tl)): ?><span class="lencana netral">Analisa belum diisi</span><?php endif; ?>
         </div>
     </div>
+    <?php if ($pAn): ?>
+    <div class="prog-analisa3">
+        <?php foreach ([['Highlight', 'baik', $hl], ['Kendala', 'waspada', $kd], ['Tindak Lanjut', 'info', $tl]] as [$lab, $kls, $isi]): ?>
+        <div class="an-kol"><span class="lencana <?= $kls ?>"><?= $lab ?></span>
+            <?php if (trim((string)$isi) !== ''): ?><div class="an-isi"><?= $teksAnalisa($isi) ?></div>
+            <?php else: ?><div class="an-isi kosong">Tidak diisi.</div><?php endif; ?></div>
+        <?php endforeach; ?>
+    </div>
+    <?php else: ?>
+    <div class="prog-belum">Analisa <?= $bulanLabel ?> untuk program ini belum diisi.</div>
+    <?php endif; ?>
+    <?php if ($lalu !== ''): ?>
+    <div class="prog-lalu"><b>Tindak lanjut bulan lalu (<?= $prevLabel ?>):</b> <?= $teksAnalisa($lalu) ?></div>
+    <?php endif; ?>
     <table class="main-table detail-table">
     <thead><tr>
         <th style="width:5%">#</th>
@@ -298,13 +426,6 @@ $stMap = [
         <td class="num"><?= $cum ? $rp($cum) : '—' ?></td>
     </tr></tfoot>
     </table>
-    <?php if ($hl || $kd || $tl): ?>
-    <div class="prog-analisa">
-        <?php if ($hl): ?><span class="lencana baik">Highlight</span><div><?= esc($hl) ?></div><?php endif; ?>
-        <?php if ($kd): ?><span class="lencana waspada">Kendala</span><div><?= esc($kd) ?></div><?php endif; ?>
-        <?php if ($tl): ?><span class="lencana info">Tindak Lanjut</span><div><?= esc($tl) ?></div><?php endif; ?>
-    </div>
-    <?php endif; ?>
 </div>
 <?php endforeach; ?>
 <?php endif; ?>
@@ -319,9 +440,8 @@ $stMap = [
     $cum   = (int)($evCum[$eid] ?? 0);
     $deal  = (int)$e['total_cash'] + (int)$e['total_barang'];
     $spList = $eventSponsors[$eid] ?? [];
-    if ($ei === $nEvent - 1) { echo '<div class="penutup">'; $penutupDibuka = true; }
 ?>
-<div class="prog-detail event">
+<div class="prog-detail event<?= count($spList) > 12 ? ' panjang' : '' ?>">
     <div class="prog-head">
         <div>
             <div class="ph-title"><?= esc($e['event_name']) ?><span class="lencana ungu">Event</span></div>
@@ -370,14 +490,45 @@ $stMap = [
 <?php endforeach; ?>
 <?php endif; ?>
 
-<?php if (! $penutupDibuka): ?><div class="penutup"><?php endif; ?>
+<!-- ══ KENDALA & TINDAK LANJUT ══ -->
+<?php if ($nProg > 0 || $progLain): ?>
+<div class="sec-title"><span>Kendala &amp; Tindak Lanjut</span>
+    <span class="sec-sub">dari analisa tiap program &middot; <?= $bulanLabel ?></span></div>
+<?php if ($progBeranalisa): ?>
+<table class="main-table tl-table">
+<thead><tr>
+    <th style="width:20%">Program</th>
+    <th style="width:40%">Kendala</th>
+    <th style="width:40%">Tindak Lanjut</th>
+</tr></thead>
+<tbody>
+<?php foreach ($progBeranalisa as $p): $a = $analisaMap[(int)$p['id']] ?? []; ?>
+<tr>
+    <td class="nama"><?= esc($p['nama_program']) ?></td>
+    <?php foreach (['kendala', 'tindak_lanjut'] as $f): $v = trim((string)($a[$f] ?? '')); ?>
+    <td class="<?= $v === '' ? 'kosong' : '' ?>"><?= $v === '' ? 'Tidak diisi.' : $teksAnalisa($v) ?></td>
+    <?php endforeach; ?>
+</tr>
+<?php endforeach; ?>
+</tbody>
+</table>
+<?php else: ?>
+<div class="catatan waspada">Belum ada analisa (highlight, kendala, tindak lanjut) yang diisi untuk program pada <?= $bulanLabel ?>.</div>
+<?php endif; ?>
+<?php if ($progBelumAnalisa && $progBeranalisa): ?>
+<div class="catatan waspada"><b>Analisa belum diisi (<?= count($progBelumAnalisa) ?> program):</b> <?= esc(implode('; ', $progBelumAnalisa)) ?>.</div>
+<?php endif; ?>
+<?php endif; ?>
+
+<div class="blok-akhir">
 <?php if ($nProg === 0 && $nEvent === 0): ?>
 <div class="catatan info">Tidak ada program sponsorship maupun event bersponsor yang berjalan atau menerima pembayaran pada <?= $bulanLabel ?>.</div>
 <?php else: ?>
 <div class="keterangan">
-    Keterangan: <em>Nilai Deal</em> = komitmen sponsor (nilai kontrak) · <em>Realisasi</em> = pembayaran yang sudah masuk (kumulatif).
-    Status: Prospek → Negosiasi → Terkonfirmasi → Lunas (Batal = gagal).
+    Keterangan: <em>Nilai Deal / Komitmen</em> = nilai kontrak sponsor (cash + barang) · <em>Realisasi / Penerimaan</em> = pembayaran yang sudah masuk · <em>Capaian</em> = kumulatif terhadap target program.
+    Status deal: Prospek → Negosiasi → Terkonfirmasi → Lunas (Batal = gagal).
 </div>
+<div class="sumber">Sumber: modul Sponsorship &amp; Event Sponsor, Mall Intelligence Center. Periode laporan: <?= $bulanLabel ?>; pembanding: <?= $prevLabel ?>. Program ditampilkan bila periodenya beririsan dengan bulan laporan atau menerima pembayaran pada bulan itu.</div>
 <?php endif; ?>
 
 <!-- ══ TANDA TANGAN ══ -->

@@ -21,6 +21,7 @@ $BLN = RabSusun::BLN;
 <style>
 @page { @top-right { content: "<?= esc($d['nomor'] ?: 'DRAF — belum diajukan') ?>"; } }
 .main-table.rab th, .main-table.rab td { padding: 3px 6px; font-size: 9px; }
+.main-table.rab tr.ev { break-after: avoid; page-break-after: avoid; }
 .main-table.rab tr.ev td { background: #eef2f8 !important; font-weight: 700; color: var(--tinta); }
 .main-table.rab tr.kel td { font-style: italic; color: var(--redup); background: #fff !important; }
 .main-table.rab tr.sub td { font-weight: 700; background: #fdf6e3 !important; }
@@ -55,6 +56,29 @@ $BLN = RabSusun::BLN;
 </div>
 
 <?php if ($d['catatan']): ?><div class="catatan info"><b>Alasan revisi:</b> <?= esc($d['catatan']) ?></div><?php endif; ?>
+
+<?php
+$tot = $ringkas['total']; $selisih = $tot['budget'] - $tot['rab'];
+$pakai = $tot['budget'] > 0 ? number_format($tot['rab'] / $tot['budget'] * 100, 1, ',', '.') . '%' : '–';
+$nEv = count(array_unique(array_column($snap['items'], 'event_id'))); $nIt = count($snap['items']);
+$periksa = RabSusun::periksa($snap);
+$tanpaPos = $ringkas['tanpaPos'] ?? 0;
+$temuan = [];
+if ($tot['budget'] > 0) $temuan[] = 'Total RAB Rp ' . $rp($tot['rab']) . ' = ' . $pakai . ' dari budget Rp ' . $rp($tot['budget']) . ($selisih < 0 ? ' — MELEBIHI budget Rp ' . $rp(-$selisih) . '.' : '; variant (sisa) Rp ' . $rp($selisih) . '.');
+else $temuan[] = 'Total RAB Rp ' . $rp($tot['rab']) . '; budget periode ini belum ditetapkan.';
+foreach ($bulanP as $b) foreach (['ewalk', 'pentacity'] as $m) { $v = $ringkas['perBulanMal'][$b][$m] ?? null; if ($v && $v['rab'] > $v['budget'] + 0.5) $temuan[] = RabSusun::labelBulan($b) . ' ' . RabSusun::MAL[$m] . ': RAB Rp ' . $rp($v['rab']) . ' melebihi budget Rp ' . $rp($v['budget']) . '.'; }
+if ($tanpaPos > 0) $temuan[] = 'Rincian senilai Rp ' . $rp($tanpaPos) . ' belum dipetakan ke pos budget.';
+?>
+<div class="kpi-row">
+    <div class="kpi-box kpi-blue"><div class="kpi-label">Total Budget</div><div class="kpi-num"><?= $rp($tot['budget']) ?></div><div class="kpi-sub"><?= $periode ?></div></div>
+    <div class="kpi-box kpi-green"><div class="kpi-label">Total RAB</div><div class="kpi-num"><?= $rp($tot['rab']) ?></div><div class="kpi-sub"><?= $pakai ?> dari budget</div></div>
+    <div class="kpi-box kpi-amber"><div class="kpi-label">Variant</div><div class="kpi-num <?= $selisih < 0 ? 'lewat' : '' ?>"><?= $rp($selisih) ?></div><div class="kpi-sub"><?= $selisih < 0 ? 'melebihi budget' : 'sisa budget' ?></div></div>
+    <div class="kpi-box kpi-purple"><div class="kpi-label">Cakupan</div><div class="kpi-num"><?= $nEv ?> event</div><div class="kpi-sub"><?= $nIt ?> rincian biaya</div></div>
+</div>
+<div class="insight-box" style="margin-bottom:16px"><div class="insight-title">Ringkasan &amp; Catatan Utama</div>
+<ul class="insight-list"><?php foreach ($temuan as $t): ?><li><?= esc($t) ?></li><?php endforeach; ?>
+<?php $hal = $periksa['halang']; foreach (array_slice($hal, 0, 4) as $h): ?><li><b>Perlu dilengkapi:</b> <?= esc($h) ?></li><?php endforeach; ?>
+<?php if (count($hal) > 4): ?><li><b>Perlu dilengkapi:</b> dan <?= count($hal) - 4 ?> catatan serupa lainnya.</li><?php endif; ?></ul></div>
 
 <div class="sec-title">Budget &amp; RAB per Pos</div>
 <table class="main-table rab">
@@ -99,7 +123,7 @@ $BLN = RabSusun::BLN;
         <td class="num"><?= $num($it['freq']) ?></td><td><?= esc($it['satuan_freq']) ?></td>
         <td class="num"><?= $it['harga_satuan'] !== null ? $rp($it['harga_satuan']) : '' ?></td>
         <td class="num"><?= $rp($it['total']) ?></td>
-        <td><?= esc($posNama[$it['pos_id']] ?? '') ?></td>
+        <td><?= esc($posNama[$it['pos_id']] ?? '(tanpa pos)') ?></td>
         <td><?= esc(implode(' — ', array_filter([$it['tanggal'] ? date('j/n', strtotime($it['tanggal'])) : '', $it['keterangan']]))) ?></td></tr>
     <?php endforeach; endforeach;
     $bud = $m === 'both' ? null : ($ringkas['perBulanMal'][$b][$m]['budget'] ?? 0); ?>

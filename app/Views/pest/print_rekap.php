@@ -30,6 +30,8 @@ $adaRincian = array_sum(array_column($rc['ember'], 'total')) > 0;
 <title>Rekap Pest Control — <?= $rentangLabel ?></title>
 <?= view('_laporan/_style') ?>
 <style>
+.nowrap { white-space: nowrap; }
+.penutup { break-inside: avoid; page-break-inside: avoid; }
 @page { @top-right { content: "Rekap Periode Pest Control"; } }
 .main-table th.num { text-align: right; }
 .kpi-num.kpi-teks { font-size: 15px; padding-top: 3px; }
@@ -113,6 +115,24 @@ $adaRincian = array_sum(array_column($rc['ember'], 'total')) > 0;
 <div class="catatan <?= str_starts_with($c, 'TIDAK') ? 'waspada' : 'info' ?>"><?= esc($c) ?></div>
 <?php endforeach; ?>
 
+<div class="sec-title">Ringkasan Analisa<span class="sec-sub">disusun otomatis dari data periode ini</span></div>
+<div class="chart-panel">
+    <div class="insight-box">
+        <div class="insight-title">Catatan</div>
+        <ul class="insight-list"><?php foreach ($analisa as $a): ?><li><?= esc($a) ?></li><?php endforeach; ?></ul>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title">Temuan <?= $modeLabel ?></div>
+        <div class="chart-wrap"><canvas id="cEmber"></canvas><?php if (! $adaRincian): ?>
+            <div class="grafik-kosong">Tidak ada temuan kunjungan untuk dirinci<?= $rc['legacy']['total'] > 0 ? ' — angka periode ini berasal dari rekap impor bulanan' : '' ?>.</div><?php endif; ?></div>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title">Temuan per Item</div>
+        <div class="chart-wrap"><canvas id="cItem"></canvas><?php if (! $itemGrafik): ?>
+            <div class="grafik-kosong">Tidak ada temuan pada periode ini.</div><?php endif; ?></div>
+    </div>
+</div>
+
 <div class="sec-title">Rekap per Item &amp; Mall<span class="sec-sub"><?= $rentangLabel ?> vs <?= $prevLabel ?></span></div>
 <div class="tabel-gulir">
 <table class="main-table">
@@ -149,24 +169,6 @@ $adaRincian = array_sum(array_column($rc['ember'], 'total')) > 0;
 <?php if ($catatanPrev): ?>
 <div class="catatan">Periode pembanding (<?= $prevLabel ?>): <?= esc(implode(' ', $catatanPrev)) ?></div>
 <?php endif; ?>
-
-<div class="sec-title">Ringkasan Analisa<span class="sec-sub">disusun otomatis dari data periode ini</span></div>
-<div class="chart-panel">
-    <div class="insight-box">
-        <div class="insight-title">Catatan</div>
-        <ul class="insight-list"><?php foreach ($analisa as $a): ?><li><?= esc($a) ?></li><?php endforeach; ?></ul>
-    </div>
-    <div class="chart-box">
-        <div class="chart-title">Temuan <?= $modeLabel ?></div>
-        <div class="chart-wrap"><canvas id="cEmber"></canvas><?php if (! $adaRincian): ?>
-            <div class="grafik-kosong">Tidak ada temuan kunjungan untuk dirinci<?= $rc['legacy']['total'] > 0 ? ' — angka periode ini berasal dari rekap impor bulanan' : '' ?>.</div><?php endif; ?></div>
-    </div>
-    <div class="chart-box">
-        <div class="chart-title">Temuan per Item</div>
-        <div class="chart-wrap"><canvas id="cItem"></canvas><?php if (! $itemGrafik): ?>
-            <div class="grafik-kosong">Tidak ada temuan pada periode ini.</div><?php endif; ?></div>
-    </div>
-</div>
 
 <div class="sec-title">Rincian <?= $modeLabel ?>
     <span class="sec-sub"><?= $rc['mode'] === 'mingguan' ? 'minggu ISO, dipotong di batas rentang' : ($rc['mode'] === 'bulanan' ? 'bulan terpotong ditandai tanggalnya' : 'baris pudar = belum ada catatan kunjungan') ?></span></div>
@@ -209,11 +211,15 @@ $adaRincian = array_sum(array_column($rc['ember'], 'total')) > 0;
 </div>
 <p class="catatan">Angka 0 berarti "bersih" hanya bila ada kunjungan tercatat; tanda · berarti belum ada catatan sama sekali pada periode itu.</p>
 
+<div class="penutup">
+<?= view('pest/_catatan_kunjungan', ['catatanKunjungan' => $catatanKunjungan ?? [], 'periodeLabel' => $rentangLabel]) ?>
+
 <?= view('_laporan/_ttd', ['signatories' => $signatories]) ?>
 
 <div class="doc-footer">
     <span>Mall Intelligence Center &mdash; Rekap Periode Pest Control</span>
     <span><?= $rentangLabel ?> &middot; <?= $mallLabel ?></span>
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

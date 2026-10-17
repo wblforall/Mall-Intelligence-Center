@@ -541,6 +541,22 @@ class PestCtrl extends BaseController
         return isset(PestVisitModel::MALLS[$mall]) ? $mall : null;
     }
 
+    /**
+     * Catatan tertulis petugas pada kunjungan di rentang tanggal (untuk cetakan).
+     * Catatan otomatis impor rekap bulanan ("Impor rekap bulanan Excel …") bukan catatan petugas → dilewati.
+     */
+    private function catatanKunjungan(string $dari, string $sampai, ?string $mall): array
+    {
+        $q = db_connect()->table('pest_visits')
+            ->select('tanggal, mall, vendor, petugas, catatan')
+            ->where('tanggal >=', $dari)->where('tanggal <=', $sampai)
+            ->where("TRIM(COALESCE(catatan, '')) <>", '')
+            ->where('catatan NOT LIKE', 'Impor rekap bulanan%')
+            ->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC');
+        if ($mall) $q->where('mall', $mall);
+        return $q->get()->getResultArray();
+    }
+
     /** Satu kumpulan data untuk rekap(), printRekap() dan exportRekap() — dihitung sekali, di satu tempat. */
     private function dataRekap(): array
     {
@@ -582,7 +598,9 @@ class PestCtrl extends BaseController
         if (! $this->canViewMenu(self::MENU)) {
             return redirect()->to('/events')->with('error', 'Akses ditolak.');
         }
-        return view('pest/print_rekap', $this->dataRekap() + [
+        $d = $this->dataRekap();
+        return view('pest/print_rekap', $d + [
+            'catatanKunjungan' => $this->catatanKunjungan($d['r']['dari'], $d['r']['sampai'], $d['mall']),
             'signatories' => \App\Libraries\ReportSignatories::resolve(self::MENU),
             'printedBy'   => $this->currentUser()['name'] ?? '',
             'printedAt'   => date('d/m/Y H:i'),
@@ -777,6 +795,7 @@ class PestCtrl extends BaseController
             'bulanYoY'    => $bulanYoY,
             'yoyLegacy'   => $yoyLegacy,
             'yoyAda'      => $yoyAda,
+            'catatanKunjungan' => $this->catatanKunjungan($awal, $akhir, $mall),
             'signatories' => \App\Libraries\ReportSignatories::resolve(self::MENU),
             'printedBy'   => $this->currentUser()['name'],
             'printedAt'   => date('d/m/Y H:i'),

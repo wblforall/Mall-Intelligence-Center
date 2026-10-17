@@ -18,6 +18,9 @@ tbody.prog-block { break-inside: avoid; page-break-inside: avoid; }
 /* Grafik halaman 1 sedikit lebih tinggi — ruangnya tersedia. */
 .chart-wrap { height: 205px; }
 .nowrap { white-space: nowrap; }
+.penutup { break-inside: avoid; page-break-inside: avoid; }
+.main-table.harian { table-layout: fixed; }
+.main-table.bersambung { margin-bottom: 0; }
 /* Pesan pengganti grafik saat tidak ada data. */
 .grafik-kosong {
     position: absolute; inset: 0 0 26px 0; display: flex; align-items: center; justify-content: center; text-align: center;
@@ -221,14 +224,18 @@ $jamRows = array_filter($hours, fn($h) => $h['total'] !== 0);
 <!-- ══ REKAP HARIAN ══ -->
 <div class="sec-title"><span>Rekap Harian — <?= $bulanLabel ?></span>
     <span class="sec-sub">baris kuning = weekend (Jum–Min)</span></div>
-<table class="main-table">
-<thead><tr>
-    <th style="width:14%">Tanggal</th>
-    <th class="num" style="width:17%">eWalk</th><th class="num" style="width:17%">Pentacity</th><th class="num" style="width:18%">Total Pengunjung</th>
-    <th class="num" style="width:17%">Mobil</th><th class="num" style="width:17%">Motor</th>
-</tr></thead>
-<tbody>
-<?php $adaHari = false; foreach ($days as $d): if ($d['total'] === 0 && $d['mobil'] === 0 && $d['motor'] === 0) continue; $adaHari = true; ?>
+<?php
+// Baris harian berdata; 3 baris terakhir + sambungan tabel masuk blok penutup bersama tanda tangan
+// supaya tanda tangan tak pernah terdampar sendirian di halaman baru.
+$barisHari = array_values(array_filter($days, fn($d) => ! ($d['total'] === 0 && $d['mobil'] === 0 && $d['motor'] === 0)));
+$nHari  = count($barisHari);
+$nEkor  = $nHari <= 3 ? $nHari : (($nHari - 3) % 2 === 0 ? 3 : 2);
+$hariA  = array_slice($barisHari, 0, $nHari - $nEkor);
+$hariB  = array_slice($barisHari, $nHari - $nEkor);
+$thHarian = '<colgroup><col style="width:14%"><col style="width:17%"><col style="width:17%"><col style="width:18%"><col style="width:17%"><col style="width:17%"></colgroup>'
+    . '<thead><tr><th>Tanggal</th><th class="num">eWalk</th><th class="num">Pentacity</th><th class="num">Total Pengunjung</th><th class="num">Mobil</th><th class="num">Motor</th></tr></thead>';
+$cetakHari = function (array $rows) use ($n, $dowShort) {
+    foreach ($rows as $d) { ?>
     <tr class="<?= $d['dow'] >= 5 ? 'we-row' : '' ?>">
         <td><?= $d['date_fmt'] ?> <span class="subnote"><?= $dowShort[$d['dow']] ?></span></td>
         <td class="<?= $d['ewalk'] ? 'num' : 'zero' ?>"><?= $n($d['ewalk']) ?></td>
@@ -237,10 +244,18 @@ $jamRows = array_filter($hours, fn($h) => $h['total'] !== 0);
         <td class="<?= $d['mobil'] ? 'num' : 'zero' ?>"><?= $n($d['mobil']) ?></td>
         <td class="<?= $d['motor'] ? 'num' : 'zero' ?>"><?= $n($d['motor']) ?></td>
     </tr>
-<?php endforeach; ?>
-<?php if (! $adaHari): ?><tr class="empty-row"><td colspan="6">Belum ada data harian pada <?= $bulanLabel ?>.</td></tr><?php endif; ?>
-</tbody>
-</table>
+<?php } };
+?>
+<?php if (! $barisHari): ?>
+<table class="main-table harian"><?= $thHarian ?><tbody><tr class="empty-row"><td colspan="6">Belum ada data harian pada <?= $bulanLabel ?>.</td></tr></tbody></table>
+<?php elseif ($hariA): ?>
+<table class="main-table harian bersambung"><?= $thHarian ?><tbody><?php $cetakHari($hariA); ?></tbody></table>
+<?php endif; ?>
+
+<div class="penutup">
+<?php if ($barisHari): ?>
+<table class="main-table harian"><?= $thHarian ?><tbody><?php $cetakHari($hariB); ?></tbody></table>
+<?php endif; ?>
 
 <!-- ══ TANDA TANGAN ══ -->
 <?= $this->include('_laporan/_ttd') ?>
@@ -250,6 +265,8 @@ $jamRows = array_filter($hours, fn($h) => $h['total'] !== 0);
     <span>Mall Intelligence Center &mdash; IT Department PT. Wulandari Bangun Laksana Tbk.</span>
     <span>Digenerate otomatis &mdash; <?= $printedAt ?></span>
 </div>
+</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>

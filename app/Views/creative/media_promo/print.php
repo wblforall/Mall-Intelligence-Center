@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Booking Sheet Media Promo — <?= $bulan ?></title>
+<title>Booking Sheet Media Promo — <?= strtr(date("F Y", strtotime($bulan . "-01")), ["January"=>"Januari","February"=>"Februari","March"=>"Maret","May"=>"Mei","June"=>"Juni","July"=>"Juli","August"=>"Agustus","October"=>"Oktober","December"=>"Desember"]) ?></title>
 <?= view('_laporan/_dokumen', ['orientasi' => 'landscape', 'labelHalaman' => 'Booking Sheet Media Promo · ' . $bulan]) ?>
 <style>
 /* Judul kelompok per tipe titik: bilah navy tipis di atas tabel. */

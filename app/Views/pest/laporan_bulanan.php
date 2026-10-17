@@ -5,6 +5,9 @@
 <title>Laporan Bulanan Pest Control — <?= $bulan ?></title>
 <?= view('_laporan/_style') ?>
 <style>
+/* Blok yang tak boleh terbelah antarhalaman. */
+.nowrap { white-space: nowrap; }
+.penutup { break-inside: avoid; page-break-inside: avoid; }
 /* Kepala kolom angka rata kanan, sejajar dengan isinya. */
 .main-table th.num { text-align: right; }
 /* KPI berisi nama item (teks), bukan angka besar. */
@@ -211,6 +214,27 @@ if ($jmlTergeser > 0) {
     </div>
 </div>
 
+<!-- ══ ANALISA + GRAFIK ══ -->
+<div class="sec-title">Ringkasan Analisa<span class="sec-sub">disusun otomatis dari data bulan ini</span></div>
+<div class="chart-panel">
+    <div class="insight-box">
+        <div class="insight-title">Catatan</div>
+        <ul class="insight-list">
+            <?php foreach ($insight as $i): ?><li><?= esc($i) ?></li><?php endforeach; ?>
+        </ul>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title">Temuan per Minggu</div>
+        <div class="chart-wrap"><canvas id="cWeek"></canvas><?php if (! $mingguan): ?>
+            <div class="grafik-kosong">Tidak ada temuan per minggu yang tercatat pada <?= $bulanLabel ?>.</div><?php endif; ?></div>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title">Komposisi per Item</div>
+        <div class="chart-wrap"><canvas id="cItem"></canvas><?php if (! array_filter($ini)): ?>
+            <div class="grafik-kosong">Belum ada temuan untuk disusun komposisinya.</div><?php endif; ?></div>
+    </div>
+</div>
+
 <!-- ══ REKAP PER MALL ══ -->
 <div class="sec-title">Rekap per Item &amp; Mall<span class="sec-sub"><?= $bulanLabel ?></span></div>
 <table class="main-table">
@@ -261,27 +285,6 @@ if ($jmlTergeser > 0) {
 </tfoot>
 </table>
 
-<!-- ══ ANALISA + GRAFIK ══ -->
-<div class="sec-title">Ringkasan Analisa<span class="sec-sub">disusun otomatis dari data bulan ini</span></div>
-<div class="chart-panel">
-    <div class="insight-box">
-        <div class="insight-title">Catatan</div>
-        <ul class="insight-list">
-            <?php foreach ($insight as $i): ?><li><?= esc($i) ?></li><?php endforeach; ?>
-        </ul>
-    </div>
-    <div class="chart-box">
-        <div class="chart-title">Temuan per Minggu</div>
-        <div class="chart-wrap"><canvas id="cWeek"></canvas><?php if (! $mingguan): ?>
-            <div class="grafik-kosong">Tidak ada temuan per minggu yang tercatat pada <?= $bulanLabel ?>.</div><?php endif; ?></div>
-    </div>
-    <div class="chart-box">
-        <div class="chart-title">Komposisi per Item</div>
-        <div class="chart-wrap"><canvas id="cItem"></canvas><?php if (! array_filter($ini)): ?>
-            <div class="grafik-kosong">Belum ada temuan untuk disusun komposisinya.</div><?php endif; ?></div>
-    </div>
-</div>
-
 <!-- ══ TREN 6 BULAN ══ -->
 <?php $blnSingkat = fn($m) => substr(bulan_indo((int) substr($m, 5, 2)), 0, 3) . ' ' . substr($m, 2, 2); ?>
 <div class="sec-title">Tren 6 Bulan<span class="sec-sub"><?= $fmtBulan($tren[0]['bulan']) ?> &ndash; <?= $bulanLabel ?></span></div>
@@ -319,7 +322,8 @@ if ($jmlTergeser > 0) {
     </div>
 </div>
 
-<!-- ══ RINCIAN MINGGUAN ══ -->
+<!-- ══ RINCIAN MINGGUAN ══ (satu blok penutup: tanda tangan tak terdampar sendirian) -->
+<div class="penutup">
 <div class="sec-title">
     Rincian Mingguan
     <span class="sec-sub"><?= $jmlLegacy > 0
@@ -368,11 +372,14 @@ if ($jmlTergeser > 0) {
 </p>
 <?php endif; ?>
 
+<?= view('pest/_catatan_kunjungan', ['catatanKunjungan' => $catatanKunjungan ?? [], 'periodeLabel' => $bulanLabel]) ?>
+
 <?= view('_laporan/_ttd', ['signatories' => $signatories]) ?>
 
 <div class="doc-footer">
     <span>Mall Intelligence Center &mdash; Laporan Bulanan Pest Control</span>
     <span><?= $bulanLabel ?> &middot; <?= $mallLabel ?></span>
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

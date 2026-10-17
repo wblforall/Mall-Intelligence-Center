@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Laporan Bulanan Media Promo — <?= $bulan ?></title>
+<?php $__bd = \DateTime::createFromFormat('Y-m', $bulan); $__id = ['January'=>'Januari','February'=>'Februari','March'=>'Maret','April'=>'April','May'=>'Mei','June'=>'Juni','July'=>'Juli','August'=>'Agustus','September'=>'September','October'=>'Oktober','November'=>'November','December'=>'Desember']; ?>
+<title>Laporan Bulanan Media Promo — <?= strtr($__bd->format('F Y'), $__id) ?></title>
 <?= $this->include('_laporan/_style') ?>
 <style>
 /* Khusus laporan Media Promo */
@@ -93,7 +94,45 @@ $totalActive = ($statusCounts['approved'] ?? 0) + ($statusCounts['done'] ?? 0);
     </div>
 </div>
 
+<?php
+// ── Turunan data untuk ringkasan & analisa (tanpa karangan) ──
+$usages   = $usages ?? [];
+$aktifOcc = array_filter($spotOccupancy, fn($o) => $o['occupied'] > 0);
+$idleOcc  = array_filter($spotOccupancy, fn($o) => $o['occupied'] <= 0);
+$totalTitik = count($spotOccupancy);
+$sumOcc = array_sum(array_column($spotOccupancy, 'occupied'));
+$sumCap = array_sum(array_column($spotOccupancy, 'capacity'));
+$occRata = $sumCap > 0 ? $sumOcc / $sumCap * 100 : 0;
+$fmtPct = fn($v) => number_format($v, 1, ',', '.') . '%';
+$perTipe = [];
+foreach ($spotOccupancy as $o) {
+    $t = $o['spot']['tipe'];
+    $perTipe[$t]['titik'] = ($perTipe[$t]['titik'] ?? 0) + 1;
+    $perTipe[$t]['aktif'] = ($perTipe[$t]['aktif'] ?? 0) + ($o['occupied'] > 0 ? 1 : 0);
+    $perTipe[$t]['occ']   = ($perTipe[$t]['occ'] ?? 0) + $o['occupied'];
+    $perTipe[$t]['cap']   = ($perTipe[$t]['cap'] ?? 0) + $o['capacity'];
+}
+$temuan = [];
+if ($totalRequest > 0) {
+    $temuan[] = "Terdapat {$totalRequest} request media pada {$bulanLabel}: " . ($statusCounts['approved'] ?? 0) . ' disetujui, ' . ($statusCounts['done'] ?? 0) . ' selesai, ' . ($statusCounts['pending'] ?? 0) . ' menunggu approval, ' . ($statusCounts['rejected'] ?? 0) . ' ditolak.';
+    if (! empty($sumberCounts)) { $sm = array_keys($sumberCounts, max($sumberCounts))[0]; if ($sumberCounts[$sm] > 0) $temuan[] = 'Sumber materi terbanyak: ' . $sumberLabel[$sm] . ' (' . $sumberCounts[$sm] . ' request, ' . round($sumberCounts[$sm] / $totalRequest * 100) . '%). Request berbayar ' . $berbayarCount . ' dari ' . $totalRequest . '.'; }
+    if ($deptCounts) { $dm = array_key_first($deptCounts); $temuan[] = 'Departemen pemohon terbanyak: ' . $dm . ' (' . $deptCounts[$dm] . ' request).'; }
+    if ($aktifOcc) { $teratas = reset($aktifOcc); $temuan[] = "Rata-rata okupansi seluruh titik {$fmtPct($occRata)}; " . count($aktifOcc) . " dari {$totalTitik} titik terpakai bulan ini. Tertinggi: " . $teratas['spot']['kode'] . ' (' . $teratas['pct'] . '%).'; }
+    $penuh = array_filter($spotOccupancy, fn($o) => $o['pct'] >= 80);
+    if ($penuh) $temuan[] = count($penuh) . ' titik berokupansi ≥ 80% (' . implode(', ', array_map(fn($o) => $o['spot']['kode'], array_slice(array_values($penuh), 0, 6))) . ') — pertimbangkan titik alternatif untuk request berikutnya.';
+    if ($idleOcc) $temuan[] = count($idleOcc) . ' titik belum terpakai sama sekali; peluang penawaran ke tenant/sponsor.';
+}
+?>
+<div class="sec-title tanpa-nomor"><span>Ringkasan &amp; Temuan Utama</span><span class="sec-sub">diturunkan dari data request &amp; okupansi bulan ini</span></div>
+<?php if ($temuan): ?>
+<div class="insight-box analisa" style="margin-bottom:18px"><div class="insight-title">Analisa Otomatis</div>
+<ul class="insight-list"><?php foreach ($temuan as $t): ?><li><?= esc($t) ?></li><?php endforeach; ?></ul></div>
+<?php else: ?>
+<div class="catatan waspada">Tidak ada request media pada <?= $bulanLabel ?>. Seluruh <?= $totalTitik ?> titik media tercatat kosong pada periode ini.</div>
+<?php endif; ?>
+
 <!-- ══ DISTRIBUSI ══ -->
+<?php if ($totalRequest > 0): ?>
 <div class="sec-title"><span>Distribusi Request</span>
     <span class="sec-sub"><?= $totalRequest ?> request &middot; <?= $bulanLabel ?></span></div>
 <div class="duo dist">
@@ -149,10 +188,26 @@ $totalActive = ($statusCounts['approved'] ?? 0) + ($statusCounts['done'] ?? 0);
     </div>
 </div>
 
+<?php endif; ?>
 <!-- ══ OCCUPANCY ══ -->
 <?php if (! empty($spotOccupancy)): ?>
-<div class="sec-title"><span>Occupancy Titik Media — <?= $bulanLabel ?></span>
-    <span class="sec-sub"><?= count($spotOccupancy) ?> titik &middot; merah &ge; 80% &middot; kuning &ge; 50%</span></div>
+<div class="sec-title"><span>Okupansi per Tipe Media</span><span class="sec-sub">hari terpakai ÷ kapasitas (hari × slot)</span></div>
+<table class="main-table">
+<thead><tr><th>Tipe</th><th class="num">Titik</th><th class="num">Titik terpakai</th><th class="num">Hari terpakai</th><th class="num">Kapasitas</th><th class="num">Okupansi</th><th style="width:24%">&nbsp;</th></tr></thead>
+<tbody>
+<?php foreach ($tipeOrder as $t): if (empty($perTipe[$t])) continue; $x = $perTipe[$t]; $pp = $x['cap'] > 0 ? $x['occ'] / $x['cap'] * 100 : 0; ?>
+<tr><td><span class="tipe-pill tipe-<?= $t ?>"><?= $tipeLabel[$t] ?></span></td>
+<td class="num"><?= $x['titik'] ?></td><td class="num"><?= $x['aktif'] ?></td><td class="num"><?= number_format($x['occ'], 0, ',', '.') ?></td><td class="num"><?= number_format($x['cap'], 0, ',', '.') ?></td>
+<td class="num"><strong><?= $fmtPct($pp) ?></strong></td>
+<td><div style="height:7px;border-radius:4px;background:#e2e8f0"><div style="height:7px;border-radius:4px;background:#1e3a6e;width:<?= min(100, max($pp > 0 ? 1 : 0, round($pp))) ?>%"></div></div></td></tr>
+<?php endforeach; ?>
+</tbody>
+<tfoot><tr><td>Semua titik</td><td class="num"><?= $totalTitik ?></td><td class="num"><?= count($aktifOcc) ?></td><td class="num"><?= number_format($sumOcc, 0, ',', '.') ?></td><td class="num"><?= number_format($sumCap, 0, ',', '.') ?></td><td class="num"><?= $fmtPct($occRata) ?></td><td></td></tr></tfoot>
+</table>
+
+<div class="sec-title"><span>Okupansi Titik Terpakai — <?= $bulanLabel ?></span>
+    <span class="sec-sub"><?= count($aktifOcc) ?> dari <?= $totalTitik ?> titik &middot; merah &ge; 80% &middot; kuning &ge; 50%</span></div>
+<?php if ($aktifOcc): ?>
 <table class="main-table occ-table">
     <thead>
         <tr>
@@ -160,13 +215,13 @@ $totalActive = ($statusCounts['approved'] ?? 0) + ($statusCounts['done'] ?? 0);
             <th>Nama Titik</th>
             <th style="width:11%">Tipe</th>
             <th style="width:20%">Area</th>
-            <th class="text-center" style="width:10%">Hari Terpakai</th>
-            <th class="text-center" style="width:10%">Kapasitas</th>
-            <th class="text-center" style="width:10%">Occupancy</th>
+            <th class="num" style="width:11%">Hari Terpakai</th>
+            <th class="num" style="width:11%">Kapasitas</th>
+            <th class="text-center" style="width:10%">Okupansi</th>
         </tr>
     </thead>
     <tbody>
-    <?php foreach ($spotOccupancy as $o):
+    <?php foreach ($aktifOcc as $o):
         $s   = $o['spot'];
         $pct = $o['pct'];
         $cls = $pct >= 80 ? 'buruk' : ($pct >= 50 ? 'waspada' : 'baik');
@@ -177,20 +232,50 @@ $totalActive = ($statusCounts['approved'] ?? 0) + ($statusCounts['done'] ?? 0);
         <td><?= esc($s['nama']) ?></td>
         <td><span class="tipe-pill tipe-<?= $s['tipe'] ?>"><?= $tipeLabel[$s['tipe']] ?? esc($s['tipe']) ?></span></td>
         <td class="area"><?= esc($s['area'] ?? '—') ?></td>
-        <td class="text-center">
-            <?= $o['occupied'] ?>
-            <?php if ($isDigital): ?><span class="satuan"> slot-hr</span><?php endif; ?>
-        </td>
-        <td class="text-center" style="color:#94a3b8">
-            <?= $o['capacity'] ?>
-            <?php if ($isDigital): ?><span class="satuan"> (<?= $s['total_slots'] ?> slot)</span><?php endif; ?>
-        </td>
+        <td class="num"><?= $o['occupied'] ?><?php if ($isDigital): ?><span class="satuan"> slot-hari</span><?php endif; ?></td>
+        <td class="num" style="color:#94a3b8"><?= $o['capacity'] ?><?php if ($isDigital): ?><span class="satuan"> (<?= $s['total_slots'] ?> slot)</span><?php endif; ?></td>
         <td class="text-center"><span class="lencana <?= $cls ?>"><?= $pct ?>%</span></td>
     </tr>
     <?php endforeach; ?>
     </tbody>
 </table>
+<?php else: ?>
+<div class="catatan waspada">Tidak ada titik media yang terpakai pada <?= $bulanLabel ?>.</div>
 <?php endif; ?>
+<?php if ($idleOcc): ?>
+<div class="catatan"><b>Titik belum terpakai (<?= count($idleOcc) ?>):</b>
+    <?= esc(implode(', ', array_map(fn($o) => $o['spot']['kode'], $idleOcc))) ?>.</div>
+<?php endif; ?>
+<?php endif; ?>
+
+<?php
+// ── Catatan request: catatan pemohon & approver / alasan penolakan (apa adanya) ──
+$bercatatan = array_filter($usages, fn($u) => trim(($u['catatan_pemohon'] ?? '') . ($u['catatan_approver'] ?? '') . ($u['rejection_reason'] ?? '')) !== '');
+// gabungkan baris identik (satu materi tayang di banyak titik)
+$grupCat = [];
+foreach ($bercatatan as $u) {
+    $k = md5($u['nama_materi'] . '|' . $u['dept'] . '|' . $u['catatan_pemohon'] . '|' . $u['catatan_approver'] . '|' . $u['rejection_reason'] . '|' . $u['tanggal_mulai'] . '|' . $u['tanggal_selesai']);
+    $grupCat[$k]['u'] = $u; $grupCat[$k]['titik'][] = $u['spot_kode'];
+}
+?>
+<div class="sec-title"><span>Catatan &amp; Tindak Lanjut</span><span class="sec-sub">dari catatan pemohon, approver, dan alasan penolakan</span></div>
+<?php if ($grupCat): ?>
+<table class="main-table">
+<thead><tr><th style="width:20%">Materi</th><th style="width:12%">Dept</th><th style="width:15%">Titik</th><th style="width:11%">Periode</th><th>Catatan</th></tr></thead>
+<tbody>
+<?php foreach ($grupCat as $g): $u = $g['u']; $tt = array_values(array_unique($g['titik'])); ?>
+<tr><td><strong><?= esc($u['nama_materi']) ?></strong></td><td><?= esc($u['dept']) ?></td>
+<td><?= esc(implode(', ', array_slice($tt, 0, 4))) ?><?= count($tt) > 4 ? ' +' . (count($tt) - 4) : '' ?></td>
+<td style="white-space:nowrap"><?= date('d/m/y', strtotime($u['tanggal_mulai'])) ?> – <?= date('d/m/y', strtotime($u['tanggal_selesai'])) ?></td>
+<td><?php if (trim((string)$u['catatan_pemohon']) !== ''): ?><?= esc($u['catatan_pemohon']) ?><?php endif; ?>
+<?php if (trim((string)$u['catatan_approver']) !== ''): ?><br><b>Approver:</b> <?= esc($u['catatan_approver']) ?><?php endif; ?>
+<?php if (trim((string)$u['rejection_reason']) !== ''): ?><br><span class="lencana buruk">Ditolak</span> <?= esc($u['rejection_reason']) ?><?php endif; ?></td></tr>
+<?php endforeach; ?>
+</tbody></table>
+<?php else: ?>
+<div class="catatan">Tidak ada catatan pemohon/approver pada request bulan ini.</div>
+<?php endif; ?>
+<div class="catatan"><b>Catatan sumber:</b> data dari modul Media Promo MIC (booking titik media). Okupansi dihitung dari request berstatus approved/done: titik fisik = hari terpakai ÷ hari dalam bulan; titik digital = slot-hari ÷ (hari × jumlah slot). Rincian per booking ada di Booking Sheet Media Promo.</div>
 
 <!-- ══ TANDA TANGAN ══ -->
 <div class="penutup">

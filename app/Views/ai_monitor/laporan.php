@@ -11,12 +11,14 @@
 }
 
 /* Halaman 1 = dasbor: rapatkan jarak antarblok supaya muat satu halaman. */
-.doc-header { margin-bottom: 14px; }
-.kpi-row { margin-bottom: 14px; }
-.catatan { margin-bottom: 12px; }
+.doc-header { margin-bottom: 10px; min-height: 92px; padding-top: 12px; padding-bottom: 12px; }
+.kpi-row { margin-bottom: 10px; }
+.kpi-sub { margin-top: 2px; }
+.catatan { margin-bottom: 9px; padding-top: 5px; padding-bottom: 5px; }
 .panel-ringkas { margin-bottom: 14px; padding: 10px; }
 .duo .main-table { margin-bottom: 0; }
-.duo { margin-bottom: 18px; }
+.duo { margin-bottom: 0; }
+.sec-mulai-halaman { break-before: page; page-break-before: always; }
 .sec-title { margin-bottom: 8px; }
 
 /* Panel ringkasan: narasi lebar di kiri, komposisi di kanan. */
@@ -48,12 +50,14 @@
 
 /* Bilah porsi kecil di sel tabel sebaran. */
 .porsi { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
-.porsi .jalur { flex: 0 0 64px; height: 6px; border-radius: 3px; background: var(--garis-halus); overflow: hidden; }
+.porsi .jalur { flex: 0 0 38px; height: 6px; border-radius: 3px; background: var(--garis-halus); overflow: hidden; }
 .porsi .jalur > i { display: block; height: 100%; border-radius: 3px; background: var(--navy-3); }
 .porsi span { min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 .tbl-sebaran th { padding-top: 5px; padding-bottom: 5px; }
 .tbl-sebaran td { font-size: 9.5px; padding-top: 2.5px; padding-bottom: 2.5px; }
-.tbl-sebaran td:first-child { white-space: nowrap; }
+.tbl-sebaran { table-layout: fixed; }
+.tbl-sebaran th:first-child { white-space: normal; }
+.tbl-sebaran td:first-child { overflow-wrap: anywhere; line-height: 1.3; }
 
 /* KPI % kantor. */
 .kpi-sub .lencana { margin-right: 4px; }
@@ -156,7 +160,7 @@ if ($rpDariAi) {
 $tabelSebaran = function (string $kepala, array $baris, int $total, string $kosong) use ($n, $porsi) {
     ?>
     <table class="main-table tbl-sebaran">
-    <thead><tr><th><?= esc($kepala) ?></th><th class="num" style="width:44px">Sesi</th><th class="num" style="width:112px">Porsi</th></tr></thead>
+    <thead><tr><th><?= esc($kepala) ?></th><th class="num" style="width:36px">Sesi</th><th class="num" style="width:88px">Porsi</th></tr></thead>
     <tbody>
     <?php if ($total === 0 || $baris === []): ?>
         <tr class="empty-row"><td colspan="3"><?= esc($kosong) ?></td></tr>
@@ -299,8 +303,7 @@ foreach ($analisa['tema'] as $t) $barisTema[] = ['label' => esc($t['tema']), 'v'
 </div>
 
 <!-- ══ DAFTAR SESI ══ -->
-<?php if ($sesiList !== []): ?><div class="putus-halaman"></div><?php endif; ?>
-<div class="sec-title"><span>Daftar Sesi</span>
+<div class="sec-title<?= $sesiList !== [] ? ' sec-mulai-halaman' : '' ?>"><span>Daftar Sesi</span>
     <span class="sec-sub"><?= count($sesiList) ?> sesi pada <?= esc($bulanLabel) ?> &middot; terbaru di atas</span></div>
 <table class="main-table tbl-sesi">
 <thead><tr>
