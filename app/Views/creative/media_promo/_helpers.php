@@ -46,6 +46,6 @@ if (! function_exists('mpSumberLabel')) {
 if (! function_exists('mpDariCreative')) {
     function mpDariCreative(array $u): string {
         if (empty($u['creative_ref'])) return '';
-        return '<span class="mp-chip mp-chip-blue" title="Pemesanan dibuat dari item Media Cetak di Creative (' . esc((string) $u['creative_ref'], 'attr') . ')"><i class="bi bi-palette"></i>dari Creative</span>';
+        return '<span class="mp-chip mp-chip-blue" title="Pemesanan dibuat dari item Creative: Media Cetak atau Konten Digital (' . esc((string) $u['creative_ref'], 'attr') . ')"><i class="bi bi-palette"></i>dari Creative</span>';
     }
 }

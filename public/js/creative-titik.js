@@ -119,11 +119,12 @@
         var spots = d.spots || [], nBebas = spots.filter(function (s) { return s.state === 'bebas'; }).length, nBentrok = spots.filter(function (s) { return s.state === 'bentrok'; }).length;
         var p = el('div', 'tp-meta');
         p.appendChild(el('span', 'tp-chip', d.tipeLabel));
-        if (d.periodeOk) p.appendChild(el('span', 'tp-chip', 'Periode pasang ' + fmt(d.mulai) + ' – ' + fmt(d.selesai)));
+        if (d.periodeOk) p.appendChild(el('span', 'tp-chip', (d.periodeNama || 'Periode pasang') + ' ' + fmt(d.mulai) + ' – ' + fmt(d.selesai)));
         if (d.ukuranItem) p.appendChild(el('span', 'tp-chip', 'Ukuran item ' + d.ukuranItem));
         p.appendChild(el('span', 'tp-chip tp-chip-ok', nBebas + ' tersedia'));
-        if (nBentrok) p.appendChild(el('span', 'tp-chip tp-chip-bad', nBentrok + ' dipakai pemesanan lain'));
+        if (nBentrok) p.appendChild(el('span', 'tp-chip tp-chip-bad', nBentrok + (d.tipe === 'digital' ? ' layar penuh' : ' dipakai pemesanan lain')));
         info.appendChild(p);
+        if (d.catatanSlot) info.appendChild(el('div', 'tp-slotnote', d.catatanSlot));
         if (!spots.length) { list.appendChild(el('div', 'tp-empty', 'Belum ada titik ' + d.tipeLabel + ' di master Media Promo. Tambahkan dulu di Media Promo > Master Titik.')); hitung(); return; }
 
         var per = {}, urut = [];
@@ -149,6 +150,7 @@
                 t.appendChild(el('b', null, s.kode));
                 t.appendChild(el('em', null, s.nama + (s.ukuran ? ' · ' + s.ukuran : '')));
                 l.appendChild(t);
+                if (s.slotInfo && s.state !== 'bentrok') t.appendChild(el('span', 'tp-slot', s.slotInfo));
                 if (s.state === 'terpilih') l.appendChild(el('span', 'tp-flag', 'terpilih'));
                 if (s.state === 'bentrok') { l.appendChild(el('span', 'tp-flag tp-flag-bad', 'dipakai')); l.title = 'Dipakai: ' + s.pemakai; l.appendChild(el('span', 'tp-who', s.pemakai)); }
                 if (s.ukuranBeda && s.state === 'bebas') { var w = el('i', 'bi bi-exclamation-triangle tp-warn'); w.title = 'Ukuran titik (' + s.ukuran + ') berbeda dengan ukuran item'; l.appendChild(w); }

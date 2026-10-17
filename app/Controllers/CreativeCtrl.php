@@ -17,6 +17,7 @@ use App\Services\CreativeTemaService;
 use App\Services\CreativeTurunanService;
 use App\Services\CreativeTitikService;
 use App\Services\CreativeTurunanOtomatis;
+use App\Services\CreativeKontenService;
 use App\Models\CreativeTemaModel;
 
 class CreativeCtrl extends BaseController
@@ -121,7 +122,7 @@ class CreativeCtrl extends BaseController
             foreach ($grupEv as $eid => $ids) $turunanE += CreativeTurunanService::forEvent($eid)->untukItems($ids);
         }
         // Titik Media Cetak (standalone dan event) + Design induk per Tema untuk formulir
-        $isCetak = fn($it) => $it['tipe'] === 'cetak';
+        $isCetak = fn($it) => in_array($it['tipe'], CreativeTitikService::TIPE_ITEM, true);   // cetak + digital (titik layar)
         $titikS = CreativeTitikService::standalone()->untukItems(array_column(array_filter($standaloneItems, $isCetak), 'id'));
         $titikE = [];
         $grupTe = [];
@@ -155,6 +156,11 @@ class CreativeCtrl extends BaseController
             'jenisMaster'    => CreativeTitikService::jenisBerMaster(),
             'katalog'        => CreativeTurunanService::katalog(true),
             'cetakKatalog'   => CreativeTurunanService::cetakKatalog(),
+            'digitalKatalog' => CreativeTurunanService::digitalKatalog(),
+            'insightN'       => ['s' => CreativeKontenService::jumlahInsight('standalone', array_column(array_filter($standaloneItems, fn($i) => $i['tipe'] === 'digital'), 'id')),
+                                 'e' => CreativeKontenService::jumlahInsight('event', array_column(array_filter($eventItems, fn($i) => $i['tipe'] === 'digital'), 'id'))],
+            'picDaftar'      => $this->daftarPic(),
+            'nStatusBelum'   => $canEdit ? CreativeKontenService::jumlahBelum($this->scopeStatusBoleh()) : 0,
             'canKatalog'     => $canKatalog,
             'files'          => $files,
             'reviews'        => $reviews,
@@ -199,9 +205,24 @@ class CreativeCtrl extends BaseController
     }
 
     /** Sinkron turunan otomatis untuk satu atau dua Tema (mis. sebelum dan sesudah item dipindah). */
-    private function sinkronTurunan(array $keys, string $alasan = ''): void
+    private function sinkronTurunan(array $keys, string $alasan = '', string $sumber = CreativeTurunanOtomatis::SUMBER_CETAK): void
     {
-        foreach (array_unique(array_filter($keys)) as $k) CreativeTurunanOtomatis::sinkron($k, CreativeTurunanOtomatis::SUMBER_CETAK, $alasan);
+        foreach (array_unique(array_filter($keys)) as $k) CreativeTurunanOtomatis::sinkron($k, $sumber, $alasan);
+    }
+
+    /** Nama PIC yang sudah dipakai (item standalone + event) untuk daftar pilihan; teks bebas tetap boleh. */
+    private function daftarPic(): array
+    {
+        $db = db_connect();
+        $out = [];
+        foreach (['creative_items', 'event_creative_items'] as $t) {
+            foreach ($db->table($t)->select('pic, COUNT(*) n')->where('tipe', 'digital')->where('pic IS NOT NULL')->where("pic <> ''")->groupBy('pic')->get()->getResultArray() as $r) {
+                $k = trim($r['pic']);
+                if ($k !== '') $out[$k] = ($out[$k] ?? 0) + (int) $r['n'];
+            }
+        }
+        arsort($out);
+        return array_keys($out);
     }
 
     /** Pilihan Tema untuk formulir item: Tema Bulanan & Event yang belum ditutup. */
@@ -606,7 +627,7 @@ class CreativeCtrl extends BaseController
         if ($tm === null) {
             return redirect()->to('/creative')->with('error', 'Tema yang dipilih tidak valid atau sudah ditutup.');
         }
-        if ($err = CreativeTitikService::validasiCetak($post)) {
+        if ($err = CreativeTitikService::validasiCetak($post) ?? CreativeTitikService::validasiDigital($post)) {
             return redirect()->to('/creative')->with('error', $err);
         }
 
@@ -627,11 +648,13 @@ class CreativeCtrl extends BaseController
             'target_reach'       => (($post['target_reach'] ?? '') !== '') ? max(0, (int) $post['target_reach']) : null,
             'target_impressions' => (($post['target_impressions'] ?? '') !== '') ? max(0, (int) $post['target_impressions']) : null,
             'deadline'           => ($post['deadline'] ?? '') ?: null,
+            'status_konten'      => $isDigital ? 'rencana' : null,
             'created_by'   => $this->currentUser()['id'],
         ] + $this->cetakFields($post) + $tm);
 
         ActivityLog::write('create', 'creative_standalone', (string)$newId, $post['nama'], ['tipe' => $post['tipe']] + $tm);
         if ($post['tipe'] === 'cetak') $this->sinkronTurunan([$this->temaKeyItem((new CreativeItemModel())->find($newId))]);
+        if ($post['tipe'] === 'digital') $this->sinkronTurunan([$this->temaKeyItem((new CreativeItemModel())->find($newId))], '', CreativeTurunanOtomatis::SUMBER_DIGITAL);
 
         return redirect()->to('/creative#item-' . $newId . '-s')->with('success', 'Item berhasil ditambahkan.');
     }
@@ -659,12 +682,13 @@ class CreativeCtrl extends BaseController
             return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'Tema yang dipilih tidak valid atau sudah ditutup.');
         }
 
-        if ($existing && $existing['tipe'] === 'cetak') $post['tipe'] = 'cetak';
-        if ($err = CreativeTitikService::validasiCetak($post)) {
+        if ($existing && in_array($existing['tipe'], CreativeTitikService::TIPE_ITEM, true)) $post['tipe'] = $existing['tipe'];
+        $isDigital = ($post['tipe'] === 'digital');
+        if ($err = CreativeTitikService::validasiCetak($post) ?? CreativeTitikService::validasiDigital($post)) {
             return redirect()->to('/creative#item-' . $id . '-s')->with('error', $err);
         }
         $cetakBaru = $this->cetakFields($post);
-        if ($existing && $existing['tipe'] === 'cetak' && ($err = CreativeTitikService::standalone()->selaraskan($existing, $cetakBaru))) {
+        if ($existing && in_array($existing['tipe'], CreativeTitikService::TIPE_ITEM, true) && ($err = CreativeTitikService::standalone()->selaraskan($existing, $cetakBaru))) {
             return redirect()->to('/creative#item-' . $id . '-s')->with('error', $err);
         }
 
@@ -687,17 +711,59 @@ class CreativeCtrl extends BaseController
             'target_impressions' => (($post['target_impressions'] ?? '') !== '') ? max(0, (int) $post['target_impressions']) : null,
             'deadline'           => ($post['deadline'] ?? '') ?: null,
         ] + $this->cetakFields($post);
+        // Konten Digital dari paket (Rencana) yang diisi: status konten mulai di 'rencana'; item lama (NULL) tetap NULL sampai diatur
+        if ($isDigital && $existing && ! empty($existing['dari_paket']) && empty($existing['status_konten'])) $creativeData['status_konten'] = 'rencana';
         $creativeModel->update($id, $creativeData);
         ActivityLog::captureAfter($creativeData);
 
         ActivityLog::write('update', 'creative_standalone', (string)$id, $post['nama'], []);
-        if ($existing && $existing['tipe'] === 'cetak') {
+        if ($existing && in_array($existing['tipe'], CreativeTitikService::TIPE_ITEM, true)) {
             CreativeTitikService::standalone()->segarkan($id);
             $berubah = ($existing['jenis_media'] ?? '') !== ($cetakBaru['jenis_media'] ?? '') || ($existing['ukuran'] ?? '') !== ($cetakBaru['ukuran'] ?? '');
-            $this->sinkronTurunan([$this->temaKeyItem($existing), $this->temaKeyItem($creativeModel->find($id))], $berubah ? 'ukuran atau jenis berubah' : '');
+            $this->sinkronTurunan([$this->temaKeyItem($existing), $this->temaKeyItem($creativeModel->find($id))], $berubah ? ($isDigital ? 'format berubah' : 'ukuran atau jenis berubah') : '',
+                $isDigital ? CreativeTurunanOtomatis::SUMBER_DIGITAL : CreativeTurunanOtomatis::SUMBER_CETAK);
         }
 
         return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Item berhasil diperbarui.');
+    }
+
+    /** Ubah status konten (Rencana -> Produksi -> Tayang -> Dilaporkan) satu item Konten Digital. */
+    public function ubahStatus(int $id)
+    {
+        $balik = '/creative#item-' . $id . '-s';
+        if (! $this->canEditMenu('creative_main')) return redirect()->to($balik)->with('error', 'Akses ditolak.');
+        $h = (new CreativeKontenService())->ubah('standalone', $id, (string) $this->request->getPost('status'), (string) $this->request->getPost('alasan'), $this->currentUser());
+        return redirect()->to($balik)->with($h['ok'] ? 'success' : 'error', $h['message']);
+    }
+
+    /** Daftar usulan "Atur status" untuk item digital lama (JSON). */
+    public function statusUsulan()
+    {
+        if (! $this->canEditMenu('creative_main')) return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'message' => 'Akses ditolak.']);
+        return $this->response->setJSON(['ok' => true, 'items' => (new CreativeKontenService())->kandidat($this->scopeStatusBoleh())]);
+    }
+
+    /** Terapkan pilihan "Atur status" massal. Hanya yang dipilih pengguna; tidak ada penulisan otomatis. */
+    public function statusTerapkan()
+    {
+        if (! $this->canEditMenu('creative_main')) return redirect()->to('/creative')->with('error', 'Akses ditolak.');
+        $pilih = (array) ($this->request->getPost('status') ?? []);
+        $centang = (array) ($this->request->getPost('pilih') ?? []);
+        $pakai = [];
+        foreach ($centang as $key) if (isset($pilih[$key])) $pakai[$key] = (string) $pilih[$key];
+        if (! $pakai) return redirect()->to('/creative')->with('error', 'Tidak ada item yang dipilih.');
+        $h = (new CreativeKontenService())->terapkan($pakai, $this->scopeStatusBoleh());
+        $msg = $h['diterapkan'] . ' konten digital diatur statusnya.';
+        if ($h['dilewati']) $msg .= ' ' . count($h['dilewati']) . ' dilewati: ' . implode('; ', array_slice($h['dilewati'], 0, 3)) . (count($h['dilewati']) > 3 ? ', dst.' : '.');
+        return redirect()->to('/creative')->with($h['diterapkan'] > 0 ? 'success' : 'error', $msg);
+    }
+
+    /** Lingkup yang boleh diatur statusnya oleh pengguna ini (halaman /creative: standalone; item event bila punya hak Creative event). */
+    private function scopeStatusBoleh(): array
+    {
+        $s = ['standalone'];
+        if ($this->canEditMenu('creative')) $s[] = 'event';
+        return $s;
     }
 
     /** Memindahkan item ke Tema lain (hanya penautan; boleh juga untuk materi yang sudah disetujui). */
@@ -718,9 +784,10 @@ class CreativeCtrl extends BaseController
         }
         $model->update($id, $tm);
         ActivityLog::write('update', 'creative_standalone', (string) $id, $item['nama'], ['aksi' => 'pindah_tema'] + $tm);
-        if ($item['tipe'] === 'cetak') {
+        if (in_array($item['tipe'], CreativeTitikService::TIPE_ITEM, true)) {
             CreativeTitikService::standalone()->segarkan($id);
-            $this->sinkronTurunan([$this->temaKeyItem($item), $this->temaKeyItem($model->find($id))], 'item dipindah ke Tema lain');
+            $this->sinkronTurunan([$this->temaKeyItem($item), $this->temaKeyItem($model->find($id))], 'item dipindah ke Tema lain',
+                $item['tipe'] === 'digital' ? CreativeTurunanOtomatis::SUMBER_DIGITAL : CreativeTurunanOtomatis::SUMBER_CETAK);
         }
 
         return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Item dipindahkan.');
@@ -747,7 +814,7 @@ class CreativeCtrl extends BaseController
         }
 
         $temaKeyLama = $this->temaKeyItem($item);
-        $lepas = ($item && $item['tipe'] === 'cetak') ? CreativeTitikService::standalone()->lepasUntukItem($id) : null;
+        $lepas = ($item && in_array($item['tipe'], CreativeTitikService::TIPE_ITEM, true)) ? CreativeTitikService::standalone()->lepasUntukItem($id) : null;
         $realisasiRows= (new CreativeRealisasiModel())->where('creative_item_id', $id)->findAll();
         $fileRows     = (new CreativeFileModel())->where('creative_item_id', $id)->findAll();
         $insightRows  = (new CreativeInsightModel())->where('creative_item_id', $id)->findAll();
@@ -785,7 +852,7 @@ class CreativeCtrl extends BaseController
         }
 
         ActivityLog::write('delete', 'creative_standalone', (string)$id, $item['nama'] ?? '', []);
-        if ($lepas !== null) $this->sinkronTurunan([$temaKeyLama], 'item dihapus');
+        if ($lepas !== null) $this->sinkronTurunan([$temaKeyLama], 'item dihapus', $item['tipe'] === 'digital' ? CreativeTurunanOtomatis::SUMBER_DIGITAL : CreativeTurunanOtomatis::SUMBER_CETAK);
 
         $msg = 'Item berhasil dihapus.';
         if ($lepas && ($lepas['dilepas'] + $lepas['riwayat']) > 0) {

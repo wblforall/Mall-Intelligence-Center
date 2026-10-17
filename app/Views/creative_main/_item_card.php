@@ -35,8 +35,10 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
         $rencana     = !empty($item['dari_paket']);   // item "Rencana" dari paket awal, belum dikerjakan
         $tur         = $isMD ? (($isS ? ($turunanS[$iid] ?? null) : ($turunanE[$iid] ?? null)) ?: ['rows' => [], 'total' => 0, 'selesai' => 0]) : ['rows' => [], 'total' => 0, 'selesai' => 0];
         $ttkKosong   = ['rows' => [], 'total' => 0, 'terpasang' => 0];
-        $ttk         = $tipe === 'cetak' ? (($isS ? ($titikS[$iid] ?? null) : ($titikE[$iid] ?? null)) ?: $ttkKosong) : $ttkKosong;
-        $tipeSpot    = $tipe === 'cetak' ? \App\Services\CreativeTitikService::tipeSpot($item['jenis_media'] ?? '') : null;
+        $isDig       = $tipe === 'digital';
+        $punyaTitik  = in_array($tipe, ['cetak', 'digital'], true);   // Media Cetak: titik cetak; Konten Digital: titik layar digital (opsional)
+        $ttk         = $punyaTitik ? (($isS ? ($titikS[$iid] ?? null) : ($titikE[$iid] ?? null)) ?: $ttkKosong) : $ttkKosong;
+        $tipeSpot    = $punyaTitik ? \App\Services\CreativeTitikService::tipeItem($item) : null;
         $pasangM     = (string) ($item['pasang_mulai'] ?? ''); $pasangS = (string) ($item['pasang_selesai'] ?? '');
         $canEditI    = $canEdit && !$temaTutup;
         $canApproveI = $canApprove && !$temaTutup;
@@ -52,13 +54,20 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
         $tgtReach = (int) ($item['target_reach'] ?? 0);
         $tgtImpr  = (int) ($item['target_impressions'] ?? 0);
         $actImpr  = (int) ($iInsight['max_impressions'] ?? 0);
+        // Konten Digital: status konten (tampilan; NULL + ada insight tampil 'Dilaporkan' tanpa menulis DB) dan format
+        $nInsK    = $isS ? $nIns : (int) (($insightN['e'] ?? [])[$iid] ?? 0);
+        $kn       = $isDig ? \App\Services\CreativeKontenService::tampil($item, $nInsK) : null;
+        $fmtJ     = $isDig ? trim((string) ($item['jenis_media'] ?? '')) : ''; $fmtU = $isDig ? trim((string) ($item['ukuran'] ?? '')) : '';
+        $fmtLbl   = trim($fmtJ . ($fmtU !== '' ? ' ' . preg_replace('/\s*\(.*\)\s*$/u', '', $fmtU) : ''));
+        $knChip   = ['rencana' => 'kn-chip-rencana', 'produksi' => 'kn-chip-produksi', 'tayang' => 'kn-chip-tayang', 'dilaporkan' => 'kn-chip-dilaporkan', 'belum' => 'kn-chip-belum'];
+        $knIcon   = ['rencana' => 'bi-lightbulb', 'produksi' => 'bi-gear', 'tayang' => 'bi-broadcast', 'dilaporkan' => 'bi-clipboard-data', 'belum' => 'bi-dash-circle'];
 
         // Panel yang tersedia (hanya item standalone yang bisa dikelola di sini)
         $panes = [];
         if ($isS && $isMD && ($canEditI || !empty($iFiles) || $iReviews)) $panes['files'] = ['Opsi & Persetujuan', 'bi-images', $jmlOpsi ?: null];
         if ($isMD && (($isS && $canEditI) || $tur['total'] > 0)) $panes['turunan'] = ['Turunan', 'bi-diagram-2', $tur['total'] ?: null];
-        if ($tipe === 'cetak' && (($isS && ($canEditI || $tipeSpot)) || $ttk['total'] > 0)) $panes['titik'] = ['Titik', 'bi-geo-alt', $ttk['total'] ?: null];
-        if (($isS && $hasBudgetField && ($canEditI || $nEntries || $iFs || ($tipe === 'cetak' && $ttk['total'] > 0))) || (!$isS && $iFs)) $panes['realisasi'] = ['Realisasi', 'bi-receipt', ($nEntries + count($iFs)) ?: null];
+        if ($punyaTitik && (($isS && ($canEditI || $tipeSpot)) || $ttk['total'] > 0)) $panes['titik'] = [$isDig ? 'Layar' : 'Titik', $isDig ? 'bi-tv' : 'bi-geo-alt', $ttk['total'] ?: null];
+        if (($isS && $hasBudgetField && ($canEditI || $nEntries || $iFs || ($punyaTitik && $ttk['total'] > 0))) || (!$isS && $iFs)) $panes['realisasi'] = ['Realisasi', 'bi-receipt', ($nEntries + count($iFs)) ?: null];
         if ($isS && $tipe === 'digital' && ($canEditI || $nIns)) $panes['insight'] = ['Insight', 'bi-graph-up', $nIns ?: null];
         $autoOpen = $perluTinjau && isset($panes['files']);
         $primaryPane = $autoOpen ? 'files' : (array_key_first($panes) ?: 'detail');
@@ -71,7 +80,7 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
     <article class="cr-item <?= $isS ? 'is-s' : 'is-e' ?> <?= $rencana ? 'is-rencana' : '' ?> <?= ($closed || ($isMD && $status === 'approved')) ? 'is-done' : '' ?> creative-item-card"
         id="<?= $isS ? 'item-' . $iid . '-s' : 'item-e-' . $iid ?>"
         data-id="<?= $iid ?>" data-ord="<?= $ord ?>" data-src="<?= $isS ? 's' : 'e' ?>" data-tipe="<?= $tipe ?>" data-tema="<?= esc($item['_temaKey'] ?? 'none', 'attr') ?>" data-tab="<?= esc($item['_tab'], 'attr') ?>"
-        data-status="<?= $stKey ?>" data-closed="<?= $closed ? '1' : '0' ?>" data-dl="<?= $dl['key'] ?>" data-rencana="<?= $rencana ? '1' : '0' ?>"
+        data-status="<?= $stKey ?>" data-konten="<?= esc($kn['key'] ?? '', 'attr') ?>" data-pic="<?= esc(mb_strtolower((string) ($item['pic'] ?? '')), 'attr') ?>" data-closed="<?= $closed ? '1' : '0' ?>" data-dl="<?= $dl['key'] ?>" data-rencana="<?= $rencana ? '1' : '0' ?>"
         data-deadline="<?= esc($item['deadline'] ?? '', 'attr') ?>" data-tgl="<?= esc($itgl, 'attr') ?>"
         data-name="<?= esc($item['nama'], 'attr') ?>" data-budget="<?= $iBudget ?>" data-real="<?= $iTotal ?>"
         data-pane="<?= $primaryPane ?>" data-autoopen="<?= $autoOpen ? '1' : '0' ?>"
@@ -95,6 +104,8 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                     <?php if ($tipe === 'digital' && ($item['platform'] ?? '')): ?>
                     <span class="cr-chip cr-chip-t"><i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?>"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?></span>
                     <?php endif; ?>
+                    <?php if ($isDig && $fmtLbl !== ''): ?><span class="cr-chip cr-chip-blue" title="Format konten · ukuran: <?= esc(trim($fmtJ . ' ' . $fmtU), 'attr') ?>"><i class="bi bi-aspect-ratio"></i><?= esc($fmtLbl) ?></span><?php endif; ?>
+                    <?php if ($isDig && !$rencana): ?><span class="cr-chip <?= $knChip[$kn['key']] ?><?= $kn['turunan'] ? ' is-turunan' : '' ?>" title="<?= $kn['diatur'] ? 'Status konten: ' . $kn['label'] : ($kn['turunan'] ? 'Ada insight, jadi ditampilkan Dilaporkan. Status belum tersimpan; gunakan Atur status.' : 'Status konten belum diatur (item lama). Gunakan Atur status.') ?>"><i class="bi <?= $knIcon[$kn['key']] ?>"></i><?= $kn['label'] ?></span><?php endif; ?>
                     <?php if (!$isS): ?><span class="cr-chip cr-chip-gold" title="Dikerjakan di tab Creative event"><i class="bi bi-eye"></i>Baca-saja</span><?php endif; ?>
                     <?php if ($closed): ?><span class="cr-chip cr-chip-mute"><i class="bi bi-check2-circle"></i>Selesai</span><?php endif; ?>
                     <?php if ($dl['key'] === 'done'): ?>
@@ -112,12 +123,13 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                     <?php elseif ($terkunci && $canEdit): ?><span class="cr-chip cr-chip-mute" title="Buka kembali materi di panel Opsi &amp; Persetujuan bila perlu diubah"><i class="bi bi-lock-fill"></i>Terkunci</span><?php endif; ?>
                 </div>
                 <div class="cr-item-meta">
-                    <?php if ($itgl): ?><span><i class="bi bi-calendar3"></i><?= $fTgl($itgl) ?></span><?php endif; ?>
+                    <?php if ($itgl && !($isDig && $itgl === ($item['tanggal_take'] ?? ''))): ?><span><i class="bi bi-calendar3"></i><?= $fTgl($itgl) ?></span><?php endif; ?>
                     
                     <?php if ($tipe === 'digital' && (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? ''))): ?>
                     <span><i class="bi bi-camera"></i>Take <b><?= $fTgl($item['tanggal_take'] ?? '') ?></b><?= ($item['jam_take'] ?? '') ? ' ' . substr($item['jam_take'], 0, 5) : '' ?></span>
                     <?php endif; ?>
                     <?php if ($tipe === 'digital' && ($item['pic'] ?? '')): ?><span><i class="bi bi-person"></i><b><?= esc($item['pic']) ?></b></span><?php endif; ?>
+                    <?php if ($isDig && (($pasangM !== '' && $pasangS !== '') || $ttk['total'] > 0)): ?><span title="Periode tayang di layar · layar yang sudah ditandai tayang"><i class="bi bi-tv"></i><?php if ($pasangM !== '' && $pasangS !== ''): ?><?= $fTgl($pasangM, false) ?> – <?= $fTgl($pasangS, false) ?><?php endif; ?><?php if ($ttk['total'] > 0): ?><?= $pasangM !== '' ? ' · ' : '' ?><b><?= $ttk['terpasang'] ?></b>/<b><?= $ttk['total'] ?></b> layar<?php endif; ?></span><?php endif; ?>
                     <?php if ($tipe === 'cetak' && $pasangM !== '' && $pasangS !== ''): ?><span title="Periode pasang"><i class="bi bi-calendar-range"></i><?= $fTgl($pasangM, false) ?> – <?= $fTgl($pasangS) ?></span><?php endif; ?>
                     <?php if ($tipe === 'cetak' && $ttk['total'] > 0): ?><span title="Titik yang sudah ditandai terpasang"><i class="bi bi-geo-alt"></i><b><?= $ttk['terpasang'] ?></b>/<b><?= $ttk['total'] ?></b> titik terpasang</span><?php endif; ?>
                     <?php if ($isMD && $tur['total'] > 0): ?><span title="Turunan yang sudah disetujui lead"><i class="bi bi-diagram-2"></i><b><?= $tur['selesai'] ?></b> dari <b><?= $tur['total'] ?></b> turunan selesai</span><?php endif; ?>
@@ -212,6 +224,9 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                 <?= view('_creative/_final', ['iFiles' => $iFiles, 'fileBase' => 'uploads/creative-standalone/' . $iid . '/'], ['saveData' => false]) ?>
                 </div>
                 <?php endif; ?>
+                <?php if ($isDig): ?>
+                <?= view('_creative/_status_konten', ['item' => $item, 'iid' => $iid, 'nIns' => $nInsK, 'pfx' => 'cr', 'aksi' => base_url('creative/' . $iid . '/status'), 'canEdit' => $canEditI, 'readOnly' => !$isS], ['saveData' => false]) ?>
+                <?php endif; ?>
                 <dl class="cr-dl">
                     <div><dt>Jenis</dt><dd><?= $cfg['label'] ?></dd></div>
                     <div><dt>Tema</dt><dd><?= esc($item['_temaNama'] ?? 'Tanpa Tema') ?></dd></div>
@@ -229,6 +244,9 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                     <div><dt>Platform</dt><dd><?= esc($platformLabels[$item['platform'] ?? ''] ?? '—') ?></dd></div>
                     <div><dt>Take</dt><dd><?= (($item['tanggal_take'] ?? '') || ($item['jam_take'] ?? '')) ? trim($fTgl($item['tanggal_take'] ?? '') . ' ' . substr($item['jam_take'] ?? '', 0, 5)) : '—' ?></dd></div>
                     <div><dt>PIC</dt><dd><?= ($item['pic'] ?? '') !== '' ? esc($item['pic']) : '—' ?></dd></div>
+                    <div><dt>Status konten</dt><dd><?= esc($kn['label']) ?><?= $kn['turunan'] ? ' (tampilan)' : '' ?></dd></div>
+                    <?php if ($fmtJ !== '' || $fmtU !== ''): ?><div><dt>Format · ukuran</dt><dd><?= esc(trim($fmtJ . ($fmtU !== '' ? ' · ' . $fmtU : ''))) ?></dd></div><?php endif; ?>
+                    <?php if ($pasangM !== ''): ?><div><dt>Tayang di layar</dt><dd><?= $fTgl($pasangM) ?> – <?= $fTgl($pasangS) ?></dd></div><?php endif; ?>
                     <?php endif; ?>
                     <?php if ($tgtReach > 0 || $tgtImpr > 0): ?>
                     <div><dt>Target reach / impresi</dt><dd><?= number_format($tgtReach, 0, ',', '.') ?> / <?= number_format($tgtImpr, 0, ',', '.') ?></dd></div>
@@ -289,7 +307,7 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
             <!-- Realisasi biaya -->
             <div class="cr-pane" data-cr-pane="realisasi" id="realisasi-<?= $iid ?>" hidden>
                 <div class="cr-pane-h">
-                    <div class="cr-pane-t"><i class="bi bi-receipt"></i><?= $tipe === 'cetak' ? 'Biaya (per item)' : 'Realisasi Biaya' ?>
+                    <div class="cr-pane-t"><i class="bi bi-receipt"></i><?= $punyaTitik && $ttk['total'] > 0 ? 'Biaya (per item)' : 'Realisasi Biaya' ?>
                         <?php if ($iTotal > 0): ?><span class="cr-chip cr-chip-ok"><?= $rp($iTotal) ?></span><?php endif; ?>
                         <?php if ($iFsTotal > 0): ?><span class="cr-chip cr-chip-blue" title="Bagian yang berasal dari BTB FlowStore tertaut"><i class="bi bi-box-seam"></i>FlowStore <?= $rp($iFsTotal) ?></span><?php endif; ?>
                         <?php if ($nEntries && $isS): ?><span class="cr-chip cr-chip-mute"><?= $nEntries ?> entri</span><?php endif; ?>
@@ -376,7 +394,7 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                 <?php endif; ?>
                 <?php endif; /* $isS: input & tabel manual */ ?>
                 <?= view('_creative/_biaya_fs', ['iid' => $iid, 'rows' => $iFs, 'total' => $iFsTotal, 'dobel' => $iDobel, 'isS' => $isS, 'totalSemua' => $iTotal, 'fsBuka' => $fsBuka, 'rp' => $rp, 'fTgl' => $fTgl], ['saveData' => false]) ?>
-                <?php if ($tipe === 'cetak' && $ttk['total'] > 0): ?>
+                <?php if ($punyaTitik && $ttk['total'] > 0): ?>
                 <?= view('_creative/_cetak_bukti', ['iid' => $iid, 'item' => $item, 'titik' => $ttk, 'pfx' => 'cr', 'scope' => 'standalone', 'canEdit' => $canEditI], ['saveData' => false]) ?>
                 <?php endif; ?>
             </div>

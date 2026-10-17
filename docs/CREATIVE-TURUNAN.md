@@ -60,3 +60,27 @@ Dibuat otomatis saat Tema Bulanan dibuat (`CreativeTemaCtrl::tambah`) dan saat E
 `GET creative/titik/{standalone|event}/{itemId}/daftar`, `POST creative/titik/{scope}/{itemId}/pilih`, `POST creative/titik/{scope}/{titikId}/{cabut|bukti|bukti-hapus}`.
 Lihat daftar = hak lihat menu; pilih / cabut / bukti = hak ubah menu (`creative_main` standalone, `creative` event). Log: modul `creative_cetak`.
 
+## Tahap 3: Konten Digital (migrasi 2026-10-18-000011)
+| Tabel / kolom | Isi |
+|---|---|
+| `creative_items`, `event_creative_items` : `status_konten` ENUM('rencana','produksi','tayang','dilaporkan') NULL | Status konten Konten Digital. NULL = belum diatur (item lama). Kolom `status` lama tidak diubah. |
+| `creative_items` / `event_creative_items` : `jenis_media`, `ukuran` (sudah ada) | Untuk item digital = **format konten** (nama jenis katalog digital atau teks bebas) dan ukurannya. |
+| `creative_items` / `event_creative_items` : `pasang_mulai`, `pasang_selesai` (sudah ada) | Untuk item digital = **periode tayang di layar** (opsional; wajib lengkap bila ada titik). |
+| `creative_items` / `event_creative_items` : `design_ref` | Design induk pilihan (isian `design_ref_d` di formulir digital). |
+| `creative_cetak_titik` (sudah ada), kolom `slot_number` | Tautan item digital -> pemesanan layar (per slot) -> titik + bukti tayang per titik. Tabel yang sama dengan Media Cetak. |
+| `creative_paket_awal` : `jenis_media`, `ukuran` | Kini juga diisi untuk baris digital (format bawaan paket). |
+
+### Turunan otomatis dari Konten Digital
+`CreativeTurunanOtomatis::sinkron('t5'|'e13', 'digital')`: satu kebutuhan per (Design, format, ukuran dinormalkan). Baris `sumber = otomatis`, `sumber_ref = digital:t5`, `kelompok = digital`, kunci `oto-digital-...`.
+Aturan dedup, keterangan ("Dipakai di N konten digital"), Design induk otomatis / pilihan, hapus bila belum dikerjakan dan penanda "Tidak lagi dipakai konten digital" sama dengan Media Cetak.
+Item "Rencana" tidak menimbulkan kebutuhan. Dipanggil setelah konten digital ditambah, diubah, dihapus, dipindah Tema, dan setelah titik layar dipilih / dicabut. Persetujuan turunan otomatis tetap oleh lead.
+
+### Status konten dan "Atur status"
+Rute: `POST creative/{id}/status` (+ `events/{eventId}/creative/{id}/status`), `GET creative/status-massal/usulan` (JSON), `POST creative/status-massal/terapkan`. Layanan: `CreativeKontenService`.
+Maju / mundur satu langkah; dari NULL bebas asalkan prasyarat terpenuhi (Tayang butuh tanggal take; Dilaporkan butuh insight atau alasan >= 10 karakter pada aksi tunggal). Log modul `creative_digital`.
+
+### Titik layar digital
+Memakai `CreativeTitikService` (rute `creative/titik/{scope}/...` yang sama). Layar tipe `digital` di `promo_media_spots` (17 titik, 12 slot). Pemilihan membuat pemesanan `approved` per layar dengan slot kosong terkecil
+pada periode tayang (`PromoMediaUsageModel::pemakaiSlotDigital`); semua slot terpakai = bentrok. Mengubah periode memperbarui pemesanan dan memindah slot bila bertabrakan. Cabut / hapus item melepas pemesanan; Tema ditutup mengunci.
+Bukti tayang per titik: foto + tanggal + catatan (`uploads/creative-cetak-titik/{id}/`).
+

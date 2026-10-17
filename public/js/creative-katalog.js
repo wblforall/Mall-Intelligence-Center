@@ -60,7 +60,7 @@
     g('katJenisModal').addEventListener('shown.bs.modal', function () { g('kjNama').focus(); });
 
     // ── Paket ──
-    function platTampil() { g('kpPlatDiv').hidden = g('kpTipe').value !== 'digital'; g('kpCetakDiv').hidden = g('kpTipe').value !== 'cetak'; }
+    function platTampil() { g('kpPlatDiv').hidden = g('kpTipe').value !== 'digital'; g('kpCetakDiv').hidden = ['cetak', 'digital'].indexOf(g('kpTipe').value) < 0; g('kpJenisLbl').textContent = g('kpTipe').value === 'digital' ? 'Format konten' : 'Jenis media'; }
     g('kpTipe').addEventListener('change', platTampil);
     function bukaPaket(d, konteks) {
         d = d || {};

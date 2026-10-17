@@ -5,7 +5,7 @@ namespace App\Controllers;
 use App\Services\CreativeTitikService;
 
 /**
- * Titik Media Cetak: pilih / cabut titik dari master Media Promo dan bukti pasang per titik.
+ * Titik Media Cetak dan titik layar Konten Digital: pilih / cabut titik dari master Media Promo dan bukti pasang / tayang per titik.
  *   GET  creative/titik/{standalone|event}/{itemId}/daftar   -> JSON daftar titik + ketersediaan pada periode pasang
  *   POST creative/titik/{standalone|event}/{itemId}/pilih    -> spot_ids[]
  *   POST creative/titik/{standalone|event}/{linkId}/cabut    -> konfirmasi=1 bila titik sudah terpasang
@@ -46,7 +46,7 @@ class CreativeTitikCtrl extends BaseController
 
         $menu = $isEvent ? 'creative' : 'creative_main';
         if (! $this->canViewMenu($menu)) return $this->galat($json, '/', 'Akses ditolak.');
-        if ($aksi !== 'daftar' && ! $this->canEditMenu($menu)) return $this->galat(false, $balik, 'Anda tidak punya hak mengubah titik Media Cetak.');
+        if ($aksi !== 'daftar' && ! $this->canEditMenu($menu)) return $this->galat(false, $balik, 'Anda tidak punya hak mengubah titik Creative (Media Cetak / Konten Digital).');
 
         $svc  = $isEvent ? CreativeTitikService::forEvent($eventId) : CreativeTitikService::standalone();
         $user = $this->currentUser();

@@ -3,6 +3,7 @@
 <link rel="stylesheet" href="<?= base_url('css/events-modul.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-modul.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-turunan.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-turunan.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-titik.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-titik.css') ?: 1 ?>">
+<link rel="stylesheet" href="<?= base_url('css/creative-digital.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-digital.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
@@ -59,7 +60,8 @@ $nRencanaV = (int) ($nRencana ?? 0);   // item "Rencana" (paket awal) dihitung t
 foreach ($items as $it) {
     if (! empty($it['dari_paket'])) continue;
     $nByTipe[$it['tipe']] = ($nByTipe[$it['tipe']] ?? 0) + 1;
-    if (! empty($it['deadline']) && $it['deadline'] < $today && ($it['status'] ?? '') !== 'approved') $nOverdue++;
+    $tayangDone = $it['tipe'] === 'digital' && in_array($it['status_konten'] ?? '', ['tayang', 'dilaporkan'], true);   // Konten Digital yang sudah Tayang tidak terlambat
+    if (! empty($it['deadline']) && $it['deadline'] < $today && ($it['status'] ?? '') !== 'approved' && ! $tayangDone) $nOverdue++;
     if (\App\Services\CreativeApprovalService::isDesain($it['tipe'])) {
         $nMasterAll++;
         if (($it['status'] ?? '') === 'approved') $nMasterOk++;
@@ -154,6 +156,16 @@ if ($canEdit) {
         <option value="">Semua status desain</option>
         <?php foreach ($statusConfig as $sk => $sc): ?><option value="<?= $sk ?>"><?= $sc['label'] ?></option><?php endforeach; ?>
     </select>
+    <select class="ev-select" data-ev-filter="konten" aria-label="Filter status konten digital">
+        <option value="">Semua status konten</option>
+        <option value="rencana">Rencana</option><option value="produksi">Produksi</option><option value="tayang">Tayang</option><option value="dilaporkan">Dilaporkan</option><option value="belum">Belum diatur</option>
+    </select>
+    <?php if (! empty($picDaftar)): ?>
+    <select class="ev-select" data-ev-filter="pic" aria-label="Filter PIC konten digital">
+        <option value="">Semua PIC</option>
+        <?php foreach ($picDaftar as $pc): ?><option value="<?= esc(mb_strtolower($pc), 'attr') ?>"><?= esc($pc) ?></option><?php endforeach; ?>
+    </select>
+    <?php endif; ?>
     <select class="ev-select" data-ev-filter="dl" aria-label="Filter deadline">
         <option value="">Semua deadline</option>
         <option value="lewat">Terlambat</option>
@@ -261,9 +273,12 @@ if ($canEdit) {
                 <input type="time" name="jam_take" class="form-control form-control-sm">
             </div>
             <div class="col-md-3">
-                <label class="form-label"><i class="bi bi-person me-1"></i>PIC</label>
-                <input type="text" name="pic" class="form-control form-control-sm" placeholder="Nama PIC">
+                <label class="form-label"><i class="bi bi-person me-1"></i>PIC <span class="text-danger">*</span></label>
+                <input type="text" name="pic" class="form-control form-control-sm" placeholder="Pilih dari daftar atau ketik nama" list="picList" required maxlength="150" autocomplete="off">
             </div>
+        </div>
+        <div class="row g-2 mt-1">
+            <?= view('_creative/_digital_fields', ['digitalKatalog' => $digitalKatalog, 'uid' => 'ev-add-d', 'cls' => 'col-md-3 col-6'], ['saveData' => false]) ?>
         </div>
         <?php endif; ?>
         <div class="d-flex gap-2 mt-2">
@@ -294,6 +309,8 @@ if ($canEdit) {
     $barCls    = $iPct === null ? 'blue' : ($iTotal > $iBudget ? 'low' : ($iPct >= 100 ? 'ok' : 'mid'));
     $dlDiff    = ! empty($item['deadline']) ? (int) ((strtotime($item['deadline']) - strtotime($today)) / 86400) : null;
     $isDone    = $status === 'approved';
+    $isDig     = $tipe === 'digital';
+    if ($isDig && in_array($item['status_konten'] ?? '', ['tayang', 'dilaporkan'], true)) $isDone = true;   // sudah tayang: tidak dihitung terlambat
     $dlKey     = $dlDiff === null ? 'tanpa' : (($dlDiff < 0 && ! $isDone) ? 'lewat' : (($dlDiff <= 3 && ! $isDone) ? 'dekat' : 'ada'));
     $terkunci  = $isMaster && $status === 'approved';
     $search    = mb_strtolower($item['nama'] . ' ' . ($item['deskripsi'] ?? '') . ' ' . ($item['pic'] ?? '') . ' ' . ($item['catatan'] ?? ''));
@@ -301,14 +318,20 @@ if ($canEdit) {
     $nOpsi     = count(array_filter($iFiles, fn($f) => (int) ($f['is_opsi'] ?? 1) === 1));
     $rencana   = ! empty($item['dari_paket']);
     $tur       = $isMaster ? ($turunan[$iid] ?? ['rows' => [], 'total' => 0, 'selesai' => 0]) : ['rows' => [], 'total' => 0, 'selesai' => 0];
-    $ttk       = $tipe === 'cetak' ? ($titik[$iid] ?? ['rows' => [], 'total' => 0, 'terpasang' => 0]) : ['rows' => [], 'total' => 0, 'terpasang' => 0];
-    $tipeSpot  = $tipe === 'cetak' ? \App\Services\CreativeTitikService::tipeSpot($item['jenis_media'] ?? '') : null;
+    $punyaTitik = in_array($tipe, ['cetak', 'digital'], true);
+    $ttk       = $punyaTitik ? ($titik[$iid] ?? ['rows' => [], 'total' => 0, 'terpasang' => 0]) : ['rows' => [], 'total' => 0, 'terpasang' => 0];
+    $tipeSpot  = $punyaTitik ? \App\Services\CreativeTitikService::tipeItem($item) : null;
+    $nInsK     = (int) (($insightN ?? [])[$iid] ?? 0);
+    $kn        = $isDig ? \App\Services\CreativeKontenService::tampil($item, $nInsK) : null;
+    $fmtJ      = $isDig ? trim((string) ($item['jenis_media'] ?? '')) : ''; $fmtU = $isDig ? trim((string) ($item['ukuran'] ?? '')) : '';
+    $fmtLbl    = trim($fmtJ . ($fmtU !== '' ? ' ' . preg_replace('/\s*\(.*\)\s*$/u', '', $fmtU) : ''));
+    $knChip    = ['rencana' => 'mute', 'produksi' => 'blue', 'tayang' => 'ok', 'dilaporkan' => 'blue', 'belum' => 'mute'];
     $pasangM   = (string) ($item['pasang_mulai'] ?? ''); $pasangS = (string) ($item['pasang_selesai'] ?? '');
     $adaBuktiLama = $tipe === 'cetak' && count(array_filter($iReal['entries'] ?? [], fn($e) => ! empty($e['bukti_terpasang_file_name']))) > 0;
 ?>
 <article class="ev-card<?= $rencana ? ' is-rencana' : '' ?><?= $isMaster ? ($status === 'approved' ? ' is-ok' : ($status === 'revision' ? ' is-bad' : '')) : ($biaya === 'over' ? ' is-bad' : '') ?>" id="item-<?= $iid ?>"
          data-name="<?= esc($item['nama'], 'attr') ?>" data-search="<?= esc($search, 'attr') ?>"
-         data-tipe="<?= $tipe ?>" data-status="<?= $isMaster ? $status : '' ?>" data-dl="<?= $dlKey ?>" data-biaya="<?= $biaya ?>"
+         data-tipe="<?= $tipe ?>" data-status="<?= $isMaster ? $status : '' ?>" data-konten="<?= esc($kn['key'] ?? '', 'attr') ?>" data-pic="<?= esc(mb_strtolower((string) ($item['pic'] ?? '')), 'attr') ?>" data-dl="<?= $dlKey ?>" data-biaya="<?= $biaya ?>"
          data-budget="<?= $hasBudget ? $iBudget : '' ?>" data-dlts="<?= ! empty($item['deadline']) ? strtotime($item['deadline']) : '' ?>" data-order="<?= $ord++ ?>">
     <div class="ev-card-head" data-ev-toggle>
         <button type="button" class="ev-chev" aria-expanded="false" aria-controls="body-<?= $iid ?>" aria-label="Buka atau tutup rincian item"><i class="bi bi-chevron-right"></i></button>
@@ -327,6 +350,8 @@ if ($canEdit) {
                 <?php if ($tipe === 'digital' && $item['platform']): ?>
                 <span class="ev-chip ev-chip-blue"><i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?>"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?></span>
                 <?php endif; ?>
+                <?php if ($isDig && $fmtLbl !== ''): ?><span class="ev-chip ev-chip-mute" title="Format konten · ukuran: <?= esc(trim($fmtJ . ' ' . $fmtU), 'attr') ?>"><i class="bi bi-aspect-ratio"></i><?= esc($fmtLbl) ?></span><?php endif; ?>
+                <?php if ($isDig && ! $rencana): ?><span class="ev-chip ev-chip-<?= $knChip[$kn['key']] ?>" title="<?= $kn['diatur'] ? 'Status konten' : ($kn['turunan'] ? 'Ada insight, jadi ditampilkan Dilaporkan (belum tersimpan)' : 'Status konten belum diatur (item lama)') ?>"><i class="bi bi-broadcast"></i><?= $kn['label'] ?></span><?php endif; ?>
                 <?php if ($dlDiff !== null): ?>
                     <?php if ($isDone): ?><span class="ev-chip ev-chip-ok"><i class="bi bi-check-circle"></i>Tepat waktu</span>
                     <?php elseif ($dlDiff < 0): ?><span class="ev-chip ev-chip-bad" title="Deadline: <?= date('d M Y', strtotime($item['deadline'])) ?>"><i class="bi bi-exclamation-triangle-fill"></i>Terlambat <?= abs($dlDiff) ?> hari</span>
@@ -346,6 +371,8 @@ if ($canEdit) {
                 <?php endif; ?>
                 <?php if ($tipe === 'digital' && $item['pic']): ?><span><i class="bi bi-person"></i><?= esc($item['pic']) ?></span><?php endif; ?>
                 <?php if ($isMaster): ?><span><i class="bi bi-images"></i><?= $nOpsi ?> opsi desain</span><?php endif; ?>
+                <?php if ($isDig && $pasangM !== '' && $pasangS !== ''): ?><span title="Periode tayang di layar"><i class="bi bi-tv"></i><?= date('d M', strtotime($pasangM)) ?> – <?= date('d M Y', strtotime($pasangS)) ?></span><?php endif; ?>
+                <?php if ($isDig && $ttk['total'] > 0): ?><span title="Layar yang sudah ditandai tayang"><i class="bi bi-geo-alt"></i><b><?= $ttk['terpasang'] ?></b>/<b><?= $ttk['total'] ?></b> layar tayang</span><?php endif; ?>
                 <?php if ($tipe === 'cetak' && $pasangM !== '' && $pasangS !== ''): ?><span title="Periode pasang"><i class="bi bi-calendar-range"></i><?= date('d M', strtotime($pasangM)) ?> – <?= date('d M Y', strtotime($pasangS)) ?></span><?php endif; ?>
                 <?php if ($tipe === 'cetak' && $ttk['total'] > 0): ?><span title="Titik yang sudah ditandai terpasang"><i class="bi bi-geo-alt"></i><b><?= $ttk['terpasang'] ?></b>/<b><?= $ttk['total'] ?></b> titik terpasang</span><?php endif; ?>
                 <?php if ($isMaster && $tur['total'] > 0): ?><span title="Turunan yang sudah disetujui lead"><i class="bi bi-diagram-2"></i><b><?= $tur['selesai'] ?></b> dari <b><?= $tur['total'] ?></b> turunan selesai</span><?php endif; ?>
@@ -456,7 +483,14 @@ if ($canEdit) {
         </div>
         <?php endif; ?>
 
-        <?php if ($tipe === 'cetak' && ($canEdit || $tipeSpot || $ttk['total'] > 0)): ?>
+        <?php if ($isDig): ?>
+        <!-- Status konten -->
+        <div class="ev-sec s-violet">
+            <?= view('_creative/_status_konten', ['item' => $item, 'iid' => $iid, 'nIns' => $nInsK, 'pfx' => 'ev', 'aksi' => base_url('events/' . $event['id'] . '/creative/' . $iid . '/status'), 'canEdit' => $canEdit, 'readOnly' => false], ['saveData' => false]) ?>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($punyaTitik && ($canEdit || $tipeSpot || $ttk['total'] > 0)): ?>
         <!-- Titik Media Promo -->
         <div class="ev-sec s-violet" id="titik-e-<?= $iid ?>">
             <?= view('_creative/_cetak_titik', [
@@ -576,7 +610,7 @@ if ($canEdit) {
             <?php else: ?>
             <div class="ev-empty-sm">Belum ada realisasi biaya.</div>
             <?php endif; ?>
-            <?php if ($tipe === 'cetak' && $ttk['total'] > 0): ?>
+            <?php if ($punyaTitik && $ttk['total'] > 0): ?>
             <?= view('_creative/_cetak_bukti', ['iid' => $iid, 'item' => $item, 'titik' => $ttk, 'pfx' => 'ev', 'scope' => 'event', 'canEdit' => $canEdit], ['saveData' => false]) ?>
             <?php endif; ?>
         </div>
@@ -714,6 +748,8 @@ if ($canEdit) {
 
 </div><!-- /page-evm -->
 
+<datalist id="picList"><?php foreach (($picDaftar ?? []) as $pc): ?><option value="<?= esc($pc, 'attr') ?>"><?php endforeach; ?></datalist>
+
 <!-- Edit Modal -->
 <?php if ($canEdit): ?>
 <div class="modal fade" id="editItemModal" tabindex="-1">
@@ -749,8 +785,15 @@ if ($canEdit) {
         </div>
     </div>
     <div id="editPicDiv" class="mb-3 d-none">
-        <label class="form-label small fw-semibold"><i class="bi bi-person me-1"></i>PIC</label>
-        <input type="text" name="pic" id="editPic" class="form-control" placeholder="Nama PIC">
+        <label class="form-label small fw-semibold" for="editPic"><i class="bi bi-person me-1"></i>PIC</label>
+        <input type="text" name="pic" id="editPic" class="form-control" placeholder="Pilih dari daftar atau ketik nama" list="picList" maxlength="150" autocomplete="off">
+    </div>
+    <div id="editDigitalDiv" class="row g-2 mb-3 d-none">
+        <?= view('_creative/_digital_fields', ['digitalKatalog' => $digitalKatalog, 'uid' => 'ev-edit-d'], ['saveData' => false]) ?>
+    </div>
+    <div id="editTargetDiv" class="row g-2 mb-3 d-none">
+        <div class="col-6"><label class="form-label small fw-semibold" for="editTargetReach">Target Reach</label><input type="number" name="target_reach" id="editTargetReach" class="form-control" placeholder="0" min="0"></div>
+        <div class="col-6"><label class="form-label small fw-semibold" for="editTargetImpressions">Target Impresi</label><input type="number" name="target_impressions" id="editTargetImpressions" class="form-control" placeholder="0" min="0"></div>
     </div>
     <div id="editCetakDiv" class="row g-2 mb-3 d-none">
         <?= view('_creative/_cetak_fields', ['cetakKatalog' => $cetakKatalog, 'uid' => 'ev-edit', 'jenisId' => 'editJenisMedia', 'ukuranId' => 'editUkuran'], ['saveData' => false]) ?>
@@ -816,6 +859,15 @@ if ($canEdit) {
             <option value="keduanya">IG &amp; TikTok</option>
         </select>
     </div>
+    <div class="row g-2 mb-3 d-none" id="addDigitalDiv">
+        <div class="col-12">
+            <label class="form-label small fw-semibold" for="addPic"><i class="bi bi-person me-1"></i>PIC</label>
+            <input type="text" name="pic" id="addPic" class="form-control" placeholder="Pilih dari daftar atau ketik nama" list="picList" maxlength="150" autocomplete="off">
+        </div>
+        <div class="col-sm-6"><label class="form-label small fw-semibold" for="addTake"><i class="bi bi-camera me-1"></i>Tanggal Take</label><input type="date" name="tanggal_take" id="addTake" class="form-control"></div>
+        <div class="col-sm-6"><label class="form-label small fw-semibold" for="addJam">Waktu Take</label><input type="time" name="jam_take" id="addJam" class="form-control"></div>
+        <?= view('_creative/_digital_fields', ['digitalKatalog' => $digitalKatalog, 'uid' => 'ev-modal-d'], ['saveData' => false]) ?>
+    </div>
     <div class="row g-2 mb-3 d-none" id="addCetakDiv">
         <?= view('_creative/_cetak_fields', ['cetakKatalog' => $cetakKatalog, 'uid' => 'ev-modal'], ['saveData' => false]) ?>
     </div>
@@ -851,13 +903,17 @@ function updateAddModal() {
     document.getElementById('addPlatformDiv').classList.toggle('d-none', tipe !== 'digital');
     document.getElementById('addBudgetDiv').classList.toggle('d-none', ['master_design', 'motion_graphic'].includes(tipe));
     document.getElementById('addCetakDiv').classList.toggle('d-none', tipe !== 'cetak');
+    document.getElementById('addDigitalDiv').classList.toggle('d-none', tipe !== 'digital');
     if (window.CRE_CETAKEXTRA) window.CRE_CETAKEXTRA(document.querySelector('#addItemModal form'), { budgetWajib: tipe === 'cetak', temaKey: EV_TEMA_KEY });
+    if (window.CRE_PICWAJIB) window.CRE_PICWAJIB(document.getElementById('addPic'), tipe === 'digital');
+    if (window.CRE_DIGITALDESIGN) window.CRE_DIGITALDESIGN(document.querySelector('#addItemModal form'), EV_TEMA_KEY);
 }
 document.querySelectorAll('.add-tipe-radio').forEach(r => r.addEventListener('change', updateAddModal));
 window.addEventListener('load', function () {
     updateAddModal();
     // panel tambah per kelompok (Media Cetak): Design induk bila Tema punya lebih dari satu
     document.querySelectorAll('#add-item-cetak form').forEach(f => window.CRE_CETAKEXTRA && window.CRE_CETAKEXTRA(f, { temaKey: EV_TEMA_KEY }));
+    document.querySelectorAll('#add-item-digital form').forEach(f => window.CRE_DIGITALDESIGN && window.CRE_DIGITALDESIGN(f, EV_TEMA_KEY));
 });
 
 // Edit modal
@@ -874,6 +930,12 @@ document.querySelectorAll('.edit-item-btn').forEach(btn => {
         document.getElementById('editPlatformDiv').classList.toggle('d-none', !isDigital);
         document.getElementById('editTakeDiv').classList.toggle('d-none', !isDigital);
         document.getElementById('editPicDiv').classList.toggle('d-none', !isDigital);
+        document.getElementById('editDigitalDiv').classList.toggle('d-none', !isDigital);
+        document.getElementById('editTargetDiv').classList.toggle('d-none', !(isDigital || tipe === 'influencer'));
+        document.getElementById('editTargetReach').value = this.dataset.targetReach && this.dataset.targetReach !== '0' ? this.dataset.targetReach : '';
+        document.getElementById('editTargetImpressions').value = this.dataset.targetImpressions && this.dataset.targetImpressions !== '0' ? this.dataset.targetImpressions : '';
+        if (window.CRE_PICWAJIB) window.CRE_PICWAJIB(document.getElementById('editPic'), isDigital);
+        if (isDigital && window.CRE_DIGITALFILL) window.CRE_DIGITALFILL(document.getElementById('editItemForm'), { jenis: this.dataset.jenisMedia || '', ukuran: this.dataset.ukuran || '', mulai: this.dataset.pasangMulai || '', selesai: this.dataset.pasangSelesai || '', temaKey: EV_TEMA_KEY, design: this.dataset.designRef || '' });
         document.getElementById('editBudgetDiv').classList.toggle('d-none', ['master_design', 'motion_graphic'].includes(tipe));
         document.getElementById('editCetakDiv').classList.toggle('d-none', tipe !== 'cetak');
         if (window.CRE_CETAKFILL) window.CRE_CETAKFILL(document.getElementById('editJenisMedia'), document.getElementById('editUkuran'), tipe === 'cetak' ? (this.dataset.jenisMedia || '') : '', tipe === 'cetak' ? (this.dataset.ukuran || '') : '');
@@ -920,8 +982,9 @@ document.querySelectorAll('.currency-input').forEach(inp => {
     });
 });
 </script>
-<script>window.CRE_CETAK = <?= json_encode($cetakKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_TITIKJENIS = <?= json_encode($jenisMaster ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_DESIGNS = <?= json_encode(['e' . (int) $event['id'] => $designs ?? []], JSON_UNESCAPED_UNICODE) ?>;</script>
+<script>window.CRE_DIGITAL = <?= json_encode($digitalKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_CETAK = <?= json_encode($cetakKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_TITIKJENIS = <?= json_encode($jenisMaster ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_DESIGNS = <?= json_encode(['e' . (int) $event['id'] => $designs ?? []], JSON_UNESCAPED_UNICODE) ?>;</script>
 <script src="<?= base_url('js/creative-turunan.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-turunan.js') ?: 1 ?>"></script>
 <script src="<?= base_url('js/creative-titik.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-titik.js') ?: 1 ?>"></script>
+<script src="<?= base_url('js/creative-digital.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-digital.js') ?: 1 ?>"></script>
 <script src="<?= base_url('js/events-modul.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-modul.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

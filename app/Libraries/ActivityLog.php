@@ -46,6 +46,7 @@ class ActivityLog
         'creative_turunan'              => 'Turunan Creative',
         'creative_paket'                => 'Paket Item Awal Creative',
         'creative_cetak'                => 'Media Cetak Creative (Titik)',
+        'creative_digital'              => 'Konten Digital Creative (Status & Titik Layar)',
         'vm'                            => 'VM (Event)',
         'vm_realisasi'                  => 'Realisasi VM (Event)',
         'vm_standalone'                 => 'VM — Standalone',

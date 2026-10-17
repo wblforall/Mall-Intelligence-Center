@@ -4,6 +4,7 @@
 <link rel="stylesheet" href="<?= base_url('css/creative-turunan.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-turunan.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-titik.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-titik.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-biaya-fs.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-biaya-fs.css') ?: 1 ?>">
+<link rel="stylesheet" href="<?= base_url('css/creative-digital.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-digital.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
@@ -56,7 +57,9 @@ $dlInfo = function (array $item) use ($today): array {
     $dl = $item['deadline'] ?? '';
     if (!$dl || $dl === '0000-00-00') return ['key' => 'none', 'diff' => 0];
     $diff = (int) ((strtotime($dl) - strtotime($today)) / 86400);
-    $done = !empty($item['is_closed']) || ($item['status'] ?? '') === 'approved';
+    // Konten Digital yang sudah Tayang / Dilaporkan tidak lagi dihitung terlambat
+    $done = !empty($item['is_closed']) || ($item['status'] ?? '') === 'approved'
+        || (($item['tipe'] ?? '') === 'digital' && in_array($item['status_konten'] ?? '', ['tayang', 'dilaporkan'], true));
     if ($done) return ['key' => 'done', 'diff' => $diff];
     if ($diff < 0) return ['key' => 'late', 'diff' => $diff];
     if ($diff <= 3) return ['key' => 'soon', 'diff' => $diff];
@@ -94,7 +97,7 @@ $fileCell = function (?string $file, ?string $orig, int $iid) use ($imageExts): 
 // Variabel bersama untuk kartu Tema & kartu item
 $shared = compact('tipeConfig', 'statusConfig', 'platformLabels', 'imageExts', 'insightFields', 'fTgl', 'rp', 'dlInfo', 'fileCell',
                   'files', 'realisasi', 'insights', 'reviews', 'canEdit', 'canApprove', 'canClose', 'temaPilihan',
-                  'turunanS', 'turunanE', 'katalog', 'titikS', 'titikE', 'eRealisasi', 'fsBuka');
+                  'turunanS', 'turunanE', 'katalog', 'titikS', 'titikE', 'eRealisasi', 'fsBuka', 'insightN');
 $shared['shared'] = $shared;
 
 $nNone    = (int) $tema['none']['n'];
@@ -219,6 +222,20 @@ $renderBulan = function (array $months) use ($shared, $rp) {
         <option value="draft">Draft (Design &amp; Motion)</option>
         <option value="closed">Selesai / close</option>
     </select>
+    <select class="cr-select" id="crFKonten" aria-label="Filter status konten digital">
+        <option value="">Semua status konten</option>
+        <option value="rencana">Rencana</option>
+        <option value="produksi">Produksi</option>
+        <option value="tayang">Tayang</option>
+        <option value="dilaporkan">Dilaporkan</option>
+        <option value="belum">Belum diatur</option>
+    </select>
+    <?php if (!empty($picDaftar)): ?>
+    <select class="cr-select" id="crFPic" aria-label="Filter PIC konten digital">
+        <option value="">Semua PIC</option>
+        <?php foreach ($picDaftar as $pc): ?><option value="<?= esc(mb_strtolower($pc), 'attr') ?>"><?= esc($pc) ?></option><?php endforeach; ?>
+    </select>
+    <?php endif; ?>
     <select class="cr-select" id="crFDl" aria-label="Filter tenggat">
         <option value="">Semua tenggat</option>
         <option value="late">Terlambat</option>
@@ -240,6 +257,7 @@ $renderBulan = function (array $months) use ($shared, $rp) {
         <option value="real">Realisasi terbesar</option>
     </select>
     <div class="cr-tools-end">
+        <?php if (!empty($nStatusBelum)): ?><button type="button" class="cr-btn cr-btn-sm" data-sm-open data-usulan="<?= base_url('creative/status-massal/usulan') ?>" title="Atur status konten untuk konten digital lama yang statusnya belum diatur"><i class="bi bi-list-check"></i>Atur status <span class="cr-chip cr-chip-warn"><?= (int) $nStatusBelum ?></span></button><?php endif; ?>
         <span class="cr-count" id="crCount" aria-live="polite"><?= $nAll ?> item</span>
         <button type="button" class="cr-btn cr-btn-sm" id="crReset"><i class="bi bi-x-circle"></i>Reset</button>
     </div>
@@ -335,8 +353,11 @@ $renderBulan = function (array $months) use ($shared, $rp) {
         </div>
     </div>
     <div id="editPicDiv" class="mb-3 d-none">
-        <label class="form-label small fw-semibold"><i class="bi bi-person me-1"></i>PIC</label>
-        <input type="text" name="pic" id="editPic" class="form-control" placeholder="Nama PIC">
+        <label class="form-label small fw-semibold" for="editPic"><i class="bi bi-person me-1"></i>PIC</label>
+        <input type="text" name="pic" id="editPic" class="form-control" placeholder="Pilih dari daftar atau ketik nama" list="picList" maxlength="150" autocomplete="off">
+    </div>
+    <div id="editDigitalDiv" class="row g-2 mb-3 d-none">
+        <?= view('_creative/_digital_fields', ['digitalKatalog' => $digitalKatalog, 'uid' => 'edit-d'], ['saveData' => false]) ?>
     </div>
     <div id="editCetakDiv" class="row g-2 mb-3 d-none">
         <?= view('_creative/_cetak_fields', ['cetakKatalog' => $cetakKatalog, 'uid' => 'edit', 'jenisId' => 'editJenisMedia', 'ukuranId' => 'editUkuran'], ['saveData' => false]) ?>
@@ -431,7 +452,10 @@ $renderBulan = function (array $months) use ($shared, $rp) {
             <select name="platform" class="form-select"><option value="ig">Instagram</option><option value="tiktok">TikTok</option><option value="keduanya">IG &amp; TikTok</option></select></div>
         <div class="col-sm-4"><label class="form-label small fw-semibold"><i class="bi bi-camera me-1"></i>Tanggal Take</label><input type="date" name="tanggal_take" class="form-control"></div>
         <div class="col-sm-4"><label class="form-label small fw-semibold">Waktu Take</label><input type="time" name="jam_take" class="form-control"></div>
-        <div class="col-12"><label class="form-label small fw-semibold"><i class="bi bi-person me-1"></i>PIC</label><input type="text" name="pic" class="form-control" placeholder="Nama PIC"></div>
+        <div class="col-12"><label class="form-label small fw-semibold" for="addPic"><i class="bi bi-person me-1"></i>PIC</label><input type="text" name="pic" id="addPic" class="form-control" placeholder="Pilih dari daftar atau ketik nama" list="picList" maxlength="150" autocomplete="off"></div>
+    </div>
+    <div class="row g-2 mb-3" data-add-for="digital">
+        <?= view('_creative/_digital_fields', ['digitalKatalog' => $digitalKatalog, 'uid' => 'add-d'], ['saveData' => false]) ?>
     </div>
     <div class="row g-2 mb-3" data-add-for="cetak">
         <?= view('_creative/_cetak_fields', ['cetakKatalog' => $cetakKatalog, 'uid' => 'add'], ['saveData' => false]) ?>
@@ -533,6 +557,32 @@ $renderBulan = function (array $months) use ($shared, $rp) {
 <?= view('_creative/_titik_picker', ['pfx' => 'cr'], ['saveData' => false]) ?>
 <?php endif; ?>
 
+<datalist id="picList"><?php foreach (($picDaftar ?? []) as $pc): ?><option value="<?= esc($pc, 'attr') ?>"><?php endforeach; ?></datalist>
+
+<?php if ($canEdit && !empty($nStatusBelum)): ?>
+<!-- Dialog: Atur status massal untuk konten digital lama (usulan; tidak ada penulisan otomatis) -->
+<div class="modal fade" id="statusMassalModal" tabindex="-1" aria-labelledby="statusMassalTitle" aria-hidden="true">
+<div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+<form id="smForm" method="POST" action="<?= base_url('creative/status-massal/terapkan') ?>">
+<?= csrf_field() ?>
+<div class="modal-header">
+    <h5 class="modal-title fw-semibold" id="statusMassalTitle">Atur status konten digital</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+</div>
+<div class="modal-body sm-wrap">
+    <p class="sm-lead">Konten lama belum punya status konten. Sistem hanya <b>mengusulkan</b>: ada insight → Dilaporkan; tanggal take sudah lewat → Tayang; selain itu Rencana. Ubah bila perlu, centang yang ingin diatur, lalu terapkan. Tidak ada yang ditulis sebelum Anda menekan Terapkan.</p>
+    <div class="sm-scroll" id="smBody"></div>
+    <div class="alert alert-danger py-2 mt-2 mb-0" id="smError" hidden></div>
+</div>
+<div class="modal-footer">
+    <span class="small text-muted me-auto" id="smSum" aria-live="polite"></span>
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+    <button type="submit" class="btn btn-primary" id="smSubmit" disabled><i class="bi bi-check2-square me-1"></i>Terapkan status terpilih</button>
+</div>
+</form>
+</div></div></div>
+<?php endif; ?>
+
 <?php if (!empty($canClose)): ?>
 <!-- Dialog: tutup Tema yang masih punya item Rencana -->
 <div class="modal fade" id="rencanaTutupModal" tabindex="-1" aria-labelledby="rencanaTutupTitle" aria-hidden="true">
@@ -557,8 +607,9 @@ $renderBulan = function (array $months) use ($shared, $rp) {
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
-<script>window.CRE_BASE = <?= json_encode(base_url('creative/')) ?>; window.CRE_CETAK = <?= json_encode($cetakKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_TITIKJENIS = <?= json_encode($jenisMaster ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_DESIGNS = <?= json_encode((object) ($designMap ?? []), JSON_UNESCAPED_UNICODE) ?>;</script>
+<script>window.CRE_BASE = <?= json_encode(base_url('creative/')) ?>; window.CRE_CETAK = <?= json_encode($cetakKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_TITIKJENIS = <?= json_encode($jenisMaster ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_DESIGNS = <?= json_encode((object) ($designMap ?? []), JSON_UNESCAPED_UNICODE) ?>; window.CRE_DIGITAL = <?= json_encode($digitalKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>;</script>
 <script src="<?= base_url('js/creative-main.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-main.js') ?: 1 ?>"></script>
 <script src="<?= base_url('js/creative-turunan.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-turunan.js') ?: 1 ?>"></script>
 <script src="<?= base_url('js/creative-titik.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-titik.js') ?: 1 ?>"></script>
+<script src="<?= base_url('js/creative-digital.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-digital.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

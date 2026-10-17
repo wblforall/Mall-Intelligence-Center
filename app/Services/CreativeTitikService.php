@@ -9,7 +9,11 @@ use App\Models\EventCreativeItemModel;
 use App\Models\PromoMediaUsageModel;
 
 /**
- * Titik Media Cetak (Creative Tahap 2b).
+ * Titik Media Cetak (Creative Tahap 2b) dan titik LAYAR DIGITAL untuk Konten Digital (Tahap 3).
+ *
+ * Satu mekanisme untuk dua jenis item: 'cetak' (titik cetak, satu pemakai per titik) dan 'digital' (layar tipe 'digital'
+ * di Media Promo: pemakaian PER SLOT; sistem memakai slot bebas terkecil pada periode tayang). Periode pasang/tayang disimpan di
+ * `pasang_mulai/pasang_selesai`, format konten di `jenis_media/ukuran`, bukti pasang/tayang di `creative_cetak_titik`.
  *
  * Memilih titik dari master Media Promo (`promo_media_spots`) = MEMBUAT PEMESANAN TERHUBUNG di Media Promo
  * (`promo_media_usage`: sumber internal, dept Creative, status approved langsung, `creative_ref` = 'standalone:ID' | 'event:ID').
@@ -38,7 +42,32 @@ class CreativeTitikService
 
     public const TIPE_LABEL = [
         't_banner' => 'T-Banner', 'hanging' => 'Hanging Banner', 'sticker_lift' => 'Sticker Lift', 'totem_stainless' => 'Totem',
+        'digital' => 'Layar Digital',
     ];
+
+    public const TIPE_ITEM = ['cetak', 'digital'];
+
+    /** Istilah per jenis item (teks pesan, bukti, modul log). */
+    public static function istilah(?string $tipeItem): array
+    {
+        return $tipeItem === 'digital'
+            ? ['nama' => 'Konten Digital', 'periode' => 'periode tayang', 'bukti' => 'tayang', 'modul' => 'creative_digital']
+            : ['nama' => 'Media Cetak',    'periode' => 'periode pasang', 'bukti' => 'pasang', 'modul' => 'creative_cetak'];
+    }
+
+    /** Tipe titik master untuk sebuah item (cetak: dari jenis media; digital: layar digital); null bila tak punya master. */
+    public static function tipeItem(array $item): ?string
+    {
+        if (($item['tipe'] ?? '') === 'digital') return 'digital';
+        return self::tipeSpot($item['jenis_media'] ?? '');
+    }
+
+    /** "1080x1920 (vertikal)" / "1920X1080 px" -> "1080x1920" bila ada pola WxH, selain itu null. */
+    public static function angkaUkuran(?string $u): ?string
+    {
+        if (preg_match('/(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)/i', (string) $u, $m)) return str_replace(',', '.', $m[1]) . 'x' . str_replace(',', '.', $m[2]);
+        return null;
+    }
 
     private string $scope;
     private ?int $eventId;
@@ -88,15 +117,46 @@ class CreativeTitikService
 
     // ───────────────────────────── Formulir Media Cetak (dipakai kedua controller) ─────────────────────────────
 
-    /** Kolom Media Cetak dari isian formulir; semua NULL bila item bukan Media Cetak. */
+    /**
+     * Kolom Media Cetak dari isian formulir; semua NULL bila item bukan Media Cetak.
+     * Untuk Konten Digital: format konten -> jenis_media + ukuran, periode tayang layar -> pasang_mulai/selesai (nama isian berbeda:
+     * fmt_jenis / fmt_jenis_lain / fmt_ukuran / tayang_mulai / tayang_selesai / design_ref_d).
+     */
     public static function dataCetak(array $post): array
     {
+        if (($post['tipe'] ?? '') === 'digital') return self::dataDigital($post);
         $cetak = ($post['tipe'] ?? '') === 'cetak';
         $t = fn($k, $n) => $cetak && trim((string) ($post[$k] ?? '')) !== '' ? mb_substr(trim((string) $post[$k]), 0, $n) : null;
         $tg = fn($k) => $cetak && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($post[$k] ?? '')) ? $post[$k] : null;
         $dr = $cetak && preg_match('/^(standalone|event):\d+$/', (string) ($post['design_ref'] ?? '')) ? $post['design_ref'] : null;
         return ['jenis_media' => $t('jenis_media', 60), 'ukuran' => $t('ukuran', 80),
                 'pasang_mulai' => $tg('pasang_mulai'), 'pasang_selesai' => $tg('pasang_selesai'), 'design_ref' => $dr];
+    }
+
+    /** Format konten, periode tayang layar dan Design induk dari isian Konten Digital. */
+    public static function dataDigital(array $post): array
+    {
+        $jenis = trim((string) ($post['fmt_jenis'] ?? ''));
+        if ($jenis === '__lain') $jenis = trim((string) ($post['fmt_jenis_lain'] ?? ''));
+        $uk = trim((string) ($post['fmt_ukuran'] ?? ''));
+        $tg = fn($k) => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($post[$k] ?? '')) ? $post[$k] : null;
+        $dr = preg_match('/^(standalone|event):\d+$/', (string) ($post['design_ref_d'] ?? '')) ? $post['design_ref_d'] : null;
+        return ['jenis_media' => $jenis !== '' ? mb_substr($jenis, 0, 60) : null, 'ukuran' => $uk !== '' ? mb_substr($uk, 0, 80) : null,
+                'pasang_mulai' => $tg('tayang_mulai'), 'pasang_selesai' => $tg('tayang_selesai'), 'design_ref' => $dr];
+    }
+
+    /**
+     * Validasi Konten Digital yang disimpan lewat formulir: PIC wajib (item baru atau diubah), periode tayang layar lengkap atau kosong.
+     * Pesan galat atau null.
+     */
+    public static function validasiDigital(array $post): ?string
+    {
+        if (($post['tipe'] ?? '') !== 'digital') return null;
+        if (mb_strlen(trim((string) ($post['pic'] ?? ''))) < 2) return 'PIC Konten Digital wajib diisi (pilih dari daftar atau ketik nama).';
+        $m = trim((string) ($post['tayang_mulai'] ?? '')); $s = trim((string) ($post['tayang_selesai'] ?? ''));
+        if (($m === '') !== ($s === '')) return 'Periode tayang di layar diisi lengkap (mulai dan selesai) atau dikosongkan.';
+        if ($m !== '' && ! self::periodeSah($m, $s)) return 'Periode tayang di layar tidak valid: tanggal mulai tidak boleh melewati tanggal selesai.';
+        return null;
     }
 
     /** Validasi item Media Cetak yang disimpan lewat formulir: budget wajib > 0, periode pasang konsisten. Pesan galat atau null. */
@@ -116,7 +176,7 @@ class CreativeTitikService
     private function item(int $id): ?array
     {
         $it = $this->isEvent() ? (new EventCreativeItemModel())->find($id) : (new CreativeItemModel())->find($id);
-        if (! $it || $it['tipe'] !== 'cetak') return null;
+        if (! $it || ! in_array($it['tipe'], self::TIPE_ITEM, true)) return null;
         if ($this->isEvent() && (int) ($it['event_id'] ?? 0) !== (int) $this->eventId) return null;
         return $it;
     }
@@ -202,8 +262,9 @@ class CreativeTitikService
     {
         $item = $this->item($itemId);
         if (! $item) return $this->gagal('Item Media Cetak tidak ditemukan.');
-        $tipe = self::tipeSpot($item['jenis_media'] ?? '');
+        $tipe = self::tipeItem($item);
         if (! $tipe) return $this->gagal('Jenis media ini tidak punya titik di master Media Promo.');
+        if ($tipe === 'digital') return $this->daftarDigital($item);
 
         $mulai = (string) ($item['pasang_mulai'] ?? ''); $selesai = (string) ($item['pasang_selesai'] ?? '');
         $periodeOk = self::periodeSah($mulai, $selesai);
@@ -239,18 +300,81 @@ class CreativeTitikService
         ];
     }
 
+    /** Daftar layar digital: bebas bila masih ada slot kosong pada periode tayang; bentrok bila semua slot terpakai. */
+    private function daftarDigital(array $item): array
+    {
+        $mulai = (string) ($item['pasang_mulai'] ?? ''); $selesai = (string) ($item['pasang_selesai'] ?? '');
+        $periodeOk = self::periodeSah($mulai, $selesai);
+        $db = db_connect();
+        $spots = $db->table('promo_media_spots')->where('tipe', 'digital')->where('is_active', 1)->orderBy('area')->orderBy('kode')->get()->getResultArray();
+        $mine = [];
+        foreach ($db->table('creative_cetak_titik')->select('spot_id')->where('scope', $this->scope)->where('item_id', (int) $item['id'])->get()->getResultArray() as $r) $mine[(int) $r['spot_id']] = true;
+
+        $pakai = [];   // spot_id => [slot => baris pemakai]
+        if ($periodeOk && $spots) {
+            foreach ((new PromoMediaUsageModel())->pemakaiSlotDigital(array_map('intval', array_column($spots, 'id')), $mulai, $selesai) as $u) {
+                $pakai[(int) $u['spot_id']][(int) $u['slot_number']] ??= $u;
+            }
+        }
+        $angkaItem = self::angkaUkuran($item['ukuran'] ?? '');
+        $list = [];
+        foreach ($spots as $s) {
+            $sid = (int) $s['id']; $total = max(1, (int) $s['total_slots']);
+            $terpakai = count(array_filter(array_keys($pakai[$sid] ?? []), fn($n) => $n >= 1 && $n <= $total));
+            $bebas = $total - $terpakai;
+            $state = isset($mine[$sid]) ? 'terpilih' : ($bebas <= 0 ? 'bentrok' : 'bebas');
+            $pm = '';
+            if ($state === 'bentrok') {
+                $nama = array_values(array_unique(array_map(fn($u) => $u['nama_materi'] . ' (' . $u['dept'] . ')', $pakai[$sid] ?? [])));
+                $pm = 'Semua ' . $total . ' slot dipakai pada periode ini: ' . implode('; ', array_slice($nama, 0, 3)) . (count($nama) > 3 ? ' dan ' . (count($nama) - 3) . ' lainnya' : '');
+            }
+            $angkaSpot = self::angkaUkuran($s['ukuran'] ?? '');
+            $list[] = [
+                'id' => $sid, 'kode' => $s['kode'], 'nama' => trim((string) $s['nama']), 'area' => (string) $s['area'], 'ukuran' => (string) $s['ukuran'],
+                'state' => $state, 'pemakai' => $pm,
+                'slotInfo' => $periodeOk ? ($bebas . ' dari ' . $total . ' slot kosong') : '',
+                'ukuranBeda' => $angkaItem !== null && $angkaSpot !== null && $angkaItem !== $angkaSpot,
+            ];
+        }
+        return [
+            'ok' => true, 'tipe' => 'digital', 'tipeLabel' => self::TIPE_LABEL['digital'], 'periodeOk' => $periodeOk, 'periodeNama' => 'Periode tayang',
+            'mulai' => $mulai, 'selesai' => $selesai, 'ukuranItem' => (string) ($item['ukuran'] ?? ''), 'spots' => $list,
+            'catatanSlot' => 'Sistem memakai slot kosong terkecil pada periode tayang.',
+        ];
+    }
+
+    /** Slot bebas terkecil per spot pada periode ini; spot_id => nomor slot, atau pesan galat bila ada layar yang penuh. @return array{slots?:array,err?:string} */
+    private function alokasiSlot(array $spots, array $spotIds, string $mulai, string $selesai, array $excludeUsage = []): array
+    {
+        $pakai = [];
+        foreach ((new PromoMediaUsageModel())->pemakaiSlotDigital($spotIds, $mulai, $selesai, $excludeUsage) as $u) $pakai[(int) $u['spot_id']][(int) $u['slot_number']] = $u;
+        $slots = []; $penuh = [];
+        foreach ($spotIds as $sid) {
+            $total = max(1, (int) $spots[$sid]['total_slots']);
+            $dapat = null;
+            for ($n = 1; $n <= $total; $n++) { if (! isset($pakai[$sid][$n])) { $dapat = $n; break; } }
+            if ($dapat === null) {
+                $nama = array_values(array_unique(array_map(fn($u) => $u['nama_materi'] . ' (' . $u['dept'] . ')', $pakai[$sid] ?? [])));
+                $penuh[] = $spots[$sid]['kode'] . ' penuh, semua ' . $total . ' slot dipakai (' . implode('; ', array_slice($nama, 0, 3)) . (count($nama) > 3 ? ', dst.' : '') . ')';
+            } else $slots[$sid] = $dapat;
+        }
+        return $penuh ? ['err' => 'Layar bentrok pada periode ' . self::rentang($mulai, $selesai) . ', tidak ada yang dipesan: ' . implode('; ', $penuh) . '.'] : ['slots' => $slots];
+    }
+
     // ───────────────────────────── Pilih titik = buat pemesanan ─────────────────────────────
 
     public function pilih(int $itemId, array $spotIds, array $user): array
     {
         $item = $this->item($itemId);
-        if (! $item) return $this->gagal('Item Media Cetak tidak ditemukan.');
+        if (! $item) return $this->gagal('Item tidak ditemukan.');
         if ($msg = $this->terkunci($item)) return $this->gagal($msg);
-        if (! empty($item['dari_paket'])) return $this->gagal('Item ini masih berstatus Rencana. Lengkapi dulu lewat Ubah item (budget wajib diisi), baru pilih titik.');
-        $tipe = self::tipeSpot($item['jenis_media'] ?? '');
+        $ist = self::istilah($item['tipe']);
+        $digital = $item['tipe'] === 'digital';
+        if (! empty($item['dari_paket'])) return $this->gagal('Item ini masih berstatus Rencana. Lengkapi dulu lewat Ubah item (' . ($digital ? 'PIC wajib diisi' : 'budget wajib diisi') . '), baru pilih titik.');
+        $tipe = self::tipeItem($item);
         if (! $tipe) return $this->gagal('Jenis media “' . ($item['jenis_media'] ?: 'belum diisi') . '” tidak punya titik di master Media Promo.');
         $mulai = (string) ($item['pasang_mulai'] ?? ''); $selesai = (string) ($item['pasang_selesai'] ?? '');
-        if (! self::periodeSah($mulai, $selesai)) return $this->gagal('Isi periode pasang (mulai dan selesai) lewat Ubah item sebelum memilih titik.');
+        if (! self::periodeSah($mulai, $selesai)) return $this->gagal('Isi ' . $ist['periode'] . ' (mulai dan selesai) lewat Ubah item sebelum memilih titik.');
         $spotIds = array_values(array_unique(array_filter(array_map('intval', $spotIds))));
         if (! $spotIds) return $this->gagal('Pilih minimal satu titik.');
 
@@ -281,7 +405,15 @@ class CreativeTitikService
                 return $this->gagal('Titik yang dipilih sudah terpilih untuk item ini.');
             }
 
-            $bentrok = (new PromoMediaUsageModel())->pemakaiCetak($baru, $mulai, $selesai);
+            $slotMap = [];
+            if ($digital) {
+                $al = $this->alokasiSlot($spots, $baru, $mulai, $selesai);
+                if (isset($al['err'])) { $db->transRollback(); return $this->gagal($al['err']); }
+                $slotMap = $al['slots'];
+                $bentrok = [];
+            } else {
+                $bentrok = (new PromoMediaUsageModel())->pemakaiCetak($baru, $mulai, $selesai);
+            }
             if ($bentrok) {
                 $db->transRollback();
                 $ket = [];
@@ -298,7 +430,7 @@ class CreativeTitikService
             $label = trim(($item['jenis_media'] ?: '') . ' ' . ($item['ukuran'] ?: ''));
             foreach ($baru as $sid) {
                 $db->table('promo_media_usage')->insert([
-                    'batch_id' => $batch, 'spot_id' => $sid, 'slot_number' => null,
+                    'batch_id' => $batch, 'spot_id' => $sid, 'slot_number' => $slotMap[$sid] ?? null,
                     'dept' => 'Creative', 'requested_by' => mb_substr((string) ($user['name'] ?? ''), 0, 100) ?: null,
                     'event_id' => $tema['event_id'], 'nama_materi' => mb_substr((string) $item['nama'], 0, 200),
                     'deskripsi_materi' => 'Dari Creative' . ($tema['nama'] !== '' ? ' · ' . $tema['nama'] : '') . ($label !== '' ? ' · ' . $label : ''),
@@ -310,19 +442,19 @@ class CreativeTitikService
                 ]);
                 $uidUsage = (int) $db->insertID();
                 $db->table('creative_cetak_titik')->insert([
-                    'scope' => $this->scope, 'item_id' => $itemId, 'usage_id' => $uidUsage, 'spot_id' => $sid,
+                    'scope' => $this->scope, 'item_id' => $itemId, 'usage_id' => $uidUsage, 'spot_id' => $sid, 'slot_number' => $slotMap[$sid] ?? null,
                     'dibuat_oleh' => $uid, 'created_at' => $now, 'updated_at' => $now,
                 ]);
             }
             $db->transCommit();
         } catch (\Throwable $e) {
             $db->transRollback();
-            log_message('error', 'Gagal memilih titik cetak: ' . $e->getMessage());
+            log_message('error', 'Gagal memilih titik ' . $item['tipe'] . ': ' . $e->getMessage());
             return $this->gagal('Gagal menyimpan pemilihan titik. Coba lagi.');
         }
 
-        $kode = array_map(fn($s) => $spots[$s]['kode'], $baru);
-        ActivityLog::write('create', 'creative_cetak', $this->ref($itemId), $item['nama'], ['aksi' => 'pilih_titik', 'titik' => $kode, 'periode' => $mulai . ' s/d ' . $selesai]);
+        $kode = array_map(fn($s) => $spots[$s]['kode'] . ($digital ? ' (slot ' . $slotMap[$s] . ')' : ''), $baru);
+        ActivityLog::write('create', $ist['modul'], $this->ref($itemId), $item['nama'], ['aksi' => 'pilih_titik', 'titik' => $kode, 'periode' => $mulai . ' s/d ' . $selesai]);
         $this->sinkronTurunan($item);
         $lewat = count($spotIds) - count($baru);
         return ['ok' => true, 'message' => count($baru) . ' titik dipilih (' . implode(', ', $kode) . '). Pemesanan di Media Promo dibuat dan langsung disetujui untuk '
@@ -336,7 +468,7 @@ class CreativeTitikService
         $l = db_connect()->table('creative_cetak_titik')->where('id', $linkId)->get()->getRowArray();
         if (! $l || $l['scope'] !== $this->scope) return ['err' => 'Titik tidak ditemukan.'];
         $item = $this->item((int) $l['item_id']);
-        if (! $item) return ['err' => 'Item Media Cetak tidak ditemukan.'];
+        if (! $item) return ['err' => 'Item tidak ditemukan.'];
         return ['l' => $l, 'item' => $item];
     }
 
@@ -361,11 +493,12 @@ class CreativeTitikService
         $kode = $this->kodeSpot((int) $l['spot_id']);
         $u = $db->table('promo_media_usage')->where('id', (int) $l['usage_id'])->get()->getRowArray();
         if ($u && $u['status'] === 'done') {
-            return $this->gagal('Pemesanan titik ' . $kode . ' sudah selesai (periode pasang lewat) dan menjadi riwayat Media Promo, sehingga tidak dapat dicabut.');
+            return $this->gagal('Pemesanan titik ' . $kode . ' sudah selesai (' . self::istilah($item['tipe'])['periode'] . ' lewat) dan menjadi riwayat Media Promo, sehingga tidak dapat dicabut.');
         }
         $terpasang = ! empty($l['tanggal_pasang']) || ! empty($l['bukti_pasang_file']);
+        $bk = self::istilah($item['tipe'])['bukti'];
         if ($terpasang && ! $konfirmasi) {
-            return $this->gagal('Titik ' . $kode . ' sudah ditandai terpasang (ada bukti pasang). Konfirmasi dulu untuk mencabutnya; bukti pasangnya ikut terhapus.');
+            return $this->gagal('Titik ' . $kode . ' sudah ditandai ' . ($bk === 'tayang' ? 'tayang' : 'terpasang') . ' (ada bukti ' . $bk . '). Konfirmasi dulu untuk mencabutnya; bukti ' . $bk . 'nya ikut terhapus.');
         }
 
         $db->transBegin();
@@ -375,11 +508,11 @@ class CreativeTitikService
             $db->transCommit();
         } catch (\Throwable $e) {
             $db->transRollback();
-            log_message('error', 'Gagal mencabut titik cetak: ' . $e->getMessage());
+            log_message('error', 'Gagal mencabut titik: ' . $e->getMessage());
             return $this->gagal('Gagal mencabut titik. Coba lagi.');
         }
         $this->hapusBerkasLink($l);
-        ActivityLog::write('delete', 'creative_cetak', $this->ref((int) $l['item_id']), $item['nama'], ['aksi' => 'cabut_titik', 'titik' => $kode, 'terpasang' => $terpasang]);
+        ActivityLog::write('delete', self::istilah($item['tipe'])['modul'], $this->ref((int) $l['item_id']), $item['nama'], ['aksi' => 'cabut_titik', 'titik' => $kode, 'terpasang' => $terpasang]);
         $this->sinkronTurunan($item);
         return ['ok' => true, 'message' => 'Titik ' . $kode . ' dicabut dan pemesanannya di Media Promo dihapus.'];
     }
@@ -407,14 +540,16 @@ class CreativeTitikService
             ->where('l.scope', $this->scope)->where('l.item_id', $itemId)->get()->getResultArray();
         if (! $links) return null;
 
-        $tipeBaru = self::tipeSpot($baru['jenis_media'] ?? '');
+        $digital = ($itemLama['tipe'] ?? '') === 'digital';
+        $ist = self::istilah($itemLama['tipe'] ?? 'cetak');
+        $tipeBaru = $digital ? 'digital' : self::tipeSpot($baru['jenis_media'] ?? '');
         foreach ($links as $l) {
             if ($l['spot_tipe'] !== $tipeBaru) {
                 return 'Jenis media tidak cocok dengan titik yang sudah dipilih (' . $l['spot_kode'] . ' bertipe ' . (self::TIPE_LABEL[$l['spot_tipe']] ?? $l['spot_tipe']) . '). Cabut titiknya dulu sebelum mengganti jenis media.';
             }
         }
         $mulai = (string) ($baru['pasang_mulai'] ?? ''); $selesai = (string) ($baru['pasang_selesai'] ?? '');
-        if (! self::periodeSah($mulai, $selesai)) return 'Periode pasang wajib diisi (mulai dan selesai, mulai tidak melewati selesai) selama masih ada titik terpilih.';
+        if (! self::periodeSah($mulai, $selesai)) return ucfirst($ist['periode']) . ' wajib diisi (mulai dan selesai, mulai tidak melewati selesai) selama masih ada titik terpilih.';
 
         $berubah = $mulai !== (string) ($itemLama['pasang_mulai'] ?? '') || $selesai !== (string) ($itemLama['pasang_selesai'] ?? '');
         if (! $berubah) return null;
@@ -430,6 +565,35 @@ class CreativeTitikService
                     return 'Periode tidak dapat diubah: pemesanan titik ' . $l['spot_kode'] . ' sudah selesai. Cabut titik yang sudah selesai dulu atau biarkan periodenya.';
                 }
             }
+            if ($digital) {
+                // layar: slot dipertahankan bila masih kosong pada periode baru, selain itu pindah ke slot kosong terkecil
+                $spotRows = [];
+                foreach ($db->query('SELECT * FROM promo_media_spots WHERE id IN (' . implode(',', $spotIds) . ')')->getResultArray() as $r) $spotRows[(int) $r['id']] = $r;
+                $pakai = [];
+                foreach ((new PromoMediaUsageModel())->pemakaiSlotDigital($spotIds, $mulai, $selesai, $usageIds) as $u) $pakai[(int) $u['spot_id']][(int) $u['slot_number']] = $u;
+                $slotBaru = []; $penuh = [];
+                foreach ($links as $l) {
+                    $sid = (int) $l['spot_id']; $total = max(1, (int) ($spotRows[$sid]['total_slots'] ?? 1)); $lama = (int) $l['slot_number'];
+                    if ($lama >= 1 && ! isset($pakai[$sid][$lama])) { $slotBaru[(int) $l['id']] = $lama; continue; }
+                    $dapat = null;
+                    for ($n = 1; $n <= $total; $n++) { if (! isset($pakai[$sid][$n])) { $dapat = $n; break; } }
+                    if ($dapat === null) $penuh[] = $l['spot_kode'] . ' penuh (semua ' . $total . ' slot dipakai)';
+                    else $slotBaru[(int) $l['id']] = $dapat;
+                }
+                if ($penuh) {
+                    $db->transRollback();
+                    return 'Periode baru bentrok, tidak disimpan: ' . implode('; ', $penuh) . '.';
+                }
+                $now = date('Y-m-d H:i:s');
+                foreach ($links as $l) {
+                    $sl = $slotBaru[(int) $l['id']];
+                    $db->table('promo_media_usage')->where('id', (int) $l['usage_id'])->update(['tanggal_mulai' => $mulai, 'tanggal_selesai' => $selesai, 'slot_number' => $sl, 'updated_at' => $now]);
+                    $db->table('creative_cetak_titik')->where('id', (int) $l['id'])->update(['slot_number' => $sl, 'updated_at' => $now]);
+                }
+                $db->transCommit();
+                ActivityLog::write('update', $ist['modul'], $this->ref($itemId), $itemLama['nama'], ['aksi' => 'ubah_periode', 'dari' => ($itemLama['pasang_mulai'] ?? '') . ' s/d ' . ($itemLama['pasang_selesai'] ?? ''), 'ke' => $mulai . ' s/d ' . $selesai]);
+                return null;
+            }
             $bentrok = (new PromoMediaUsageModel())->pemakaiCetak($spotIds, $mulai, $selesai, $usageIds);
             if ($bentrok) {
                 $db->transRollback();
@@ -444,7 +608,7 @@ class CreativeTitikService
             log_message('error', 'Gagal menyelaraskan periode titik: ' . $e->getMessage());
             return 'Gagal memperbarui pemesanan titik. Perubahan tidak disimpan.';
         }
-        ActivityLog::write('update', 'creative_cetak', $this->ref($itemId), $itemLama['nama'], ['aksi' => 'ubah_periode', 'dari' => ($itemLama['pasang_mulai'] ?? '') . ' s/d ' . ($itemLama['pasang_selesai'] ?? ''), 'ke' => $mulai . ' s/d ' . $selesai]);
+        ActivityLog::write('update', $ist['modul'], $this->ref($itemId), $itemLama['nama'], ['aksi' => 'ubah_periode', 'dari' => ($itemLama['pasang_mulai'] ?? '') . ' s/d ' . ($itemLama['pasang_selesai'] ?? ''), 'ke' => $mulai . ' s/d ' . $selesai]);
         return null;
     }
 
@@ -497,14 +661,15 @@ class CreativeTitikService
             return $hasil;
         }
         foreach ($links as $l) $this->hapusBerkasLink($l);
-        ActivityLog::write('delete', 'creative_cetak', $this->ref($itemId), 'Item dihapus', ['aksi' => 'lepas_titik'] + $hasil);
+        $it = $this->item($itemId);
+        ActivityLog::write('delete', self::istilah($it['tipe'] ?? 'cetak')['modul'], $this->ref($itemId), 'Item dihapus', ['aksi' => 'lepas_titik'] + $hasil);
         return $hasil;
     }
 
     private function sinkronTurunan(array $item): void
     {
         $t = self::infoTema($this->scope, $item);
-        if ($t['key'] !== '') CreativeTurunanOtomatis::sinkron($t['key'], CreativeTurunanOtomatis::SUMBER_CETAK);
+        if ($t['key'] !== '') CreativeTurunanOtomatis::sinkron($t['key'], ($item['tipe'] ?? '') === 'digital' ? CreativeTurunanOtomatis::SUMBER_DIGITAL : CreativeTurunanOtomatis::SUMBER_CETAK);
     }
 
     // ───────────────────────────── Bukti pasang ─────────────────────────────
@@ -541,8 +706,9 @@ class CreativeTitikService
             if (is_file($p)) @unlink($p);
         }
         CreativeTemaService::tandaiDikerjakan($this->scope, (int) $item['id']);
-        ActivityLog::write('update', 'creative_cetak', $this->ref((int) $item['id']), $item['nama'], ['aksi' => 'bukti_pasang', 'titik' => $this->kodeSpot((int) $l['spot_id']), 'berkas' => $asli, 'tanggal' => $data['tanggal_pasang'] ?? ($l['tanggal_pasang'] ?? null)]);
-        return ['ok' => true, 'message' => 'Bukti pasang titik ' . $this->kodeSpot((int) $l['spot_id']) . ' disimpan.'];
+        $ist = self::istilah($item['tipe']);
+        ActivityLog::write('update', $ist['modul'], $this->ref((int) $item['id']), $item['nama'], ['aksi' => 'bukti_' . $ist['bukti'], 'titik' => $this->kodeSpot((int) $l['spot_id']), 'berkas' => $asli, 'tanggal' => $data['tanggal_pasang'] ?? ($l['tanggal_pasang'] ?? null)]);
+        return ['ok' => true, 'message' => 'Bukti ' . $ist['bukti'] . ' titik ' . $this->kodeSpot((int) $l['spot_id']) . ' disimpan.'];
     }
 
     /** Hapus bukti pasang (foto, tanggal, catatan) sehingga titik kembali "belum terpasang". */
@@ -555,7 +721,8 @@ class CreativeTitikService
             'tanggal_pasang' => null, 'bukti_pasang_file' => null, 'bukti_pasang_asli' => null, 'catatan' => null, 'updated_at' => date('Y-m-d H:i:s'),
         ]);
         $this->hapusBerkasLink($l);
-        ActivityLog::write('delete_file', 'creative_cetak', $this->ref((int) $item['id']), $item['nama'], ['aksi' => 'hapus_bukti', 'titik' => $this->kodeSpot((int) $l['spot_id'])]);
-        return ['ok' => true, 'message' => 'Bukti pasang titik ' . $this->kodeSpot((int) $l['spot_id']) . ' dihapus.'];
+        $ist = self::istilah($item['tipe']);
+        ActivityLog::write('delete_file', $ist['modul'], $this->ref((int) $item['id']), $item['nama'], ['aksi' => 'hapus_bukti', 'titik' => $this->kodeSpot((int) $l['spot_id'])]);
+        return ['ok' => true, 'message' => 'Bukti ' . $ist['bukti'] . ' titik ' . $this->kodeSpot((int) $l['spot_id']) . ' dihapus.'];
     }
 }

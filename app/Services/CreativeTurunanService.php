@@ -104,6 +104,17 @@ class CreativeTurunanService
         return $out;
     }
 
+    /** Format Konten Digital (jenis digital aktif dari katalog) + ukuran bakunya, untuk pilihan format di formulir item digital. */
+    public static function digitalKatalog(): array
+    {
+        $out = [];
+        foreach (self::katalog(true)['design'] as $j) {
+            if ($j['kelompok'] !== 'digital') continue;
+            $out[] = ['nama' => $j['nama'], 'bebas' => $j['_bebas'], 'ukuran' => array_column($j['_opsi'], 'label')];
+        }
+        return $out;
+    }
+
     // ───────────────────────────── Pembacaan ─────────────────────────────
 
     /**
@@ -335,7 +346,8 @@ class CreativeTurunanService
         if ($msg = $this->indukTerkunci($item)) return $this->gagal($msg);
         if (self::terkunci($t)) return $this->gagal('Turunan sudah disetujui dan tidak bisa dihapus. Lead perlu membukanya kembali dulu.');
         if (($t['sumber'] ?? '') === 'otomatis' && empty($t['penanda'])) {
-            return $this->gagal('Kebutuhan ini berasal dari item Media Cetak yang masih memakainya. Ubah atau hapus item Media Cetak-nya; kebutuhan akan ikut berubah.');
+            $src = strpos((string) ($t['sumber_ref'] ?? ''), 'digital') === 0 ? 'Konten Digital' : 'Media Cetak';
+            return $this->gagal('Kebutuhan ini berasal dari item ' . $src . ' yang masih memakainya. Ubah atau hapus item ' . $src . '-nya; kebutuhan akan ikut berubah.');
         }
 
         $this->hapusBaris([$id]);

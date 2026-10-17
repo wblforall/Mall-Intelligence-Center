@@ -18,8 +18,9 @@ use App\Libraries\ActivityLog;
  *  - Baris memakai tabel `creative_turunan` (sumber = otomatis, sumber_ref = "<sumber>:<kunci Tema>") dengan alur
  *    status / persetujuan lead yang sama seperti turunan manual.
  *
- * Sumber saat ini: 'cetak' (Media Cetak: jenis_media + ukuran). Tahap 3 menambah 'digital' (Konten Digital: format/ukuran)
- * cukup dengan menambah cabang pada kumpulkan() dan teks pada LABEL; pengelompokan / penanda / penghapusan tidak berubah.
+ * Sumber: 'cetak' (Media Cetak: jenis_media + ukuran) dan 'digital' (Konten Digital: format = jenis_media + ukuran; Tahap 3).
+ * Dua sumber memakai kunci terpisah (`oto-cetak-...` / `oto-digital-...`) dan `sumber_ref` terpisah ('cetak:t5' / 'digital:t5'),
+ * jadi sinkron satu sumber tidak pernah menghapus atau menandai kebutuhan milik sumber lain.
  *
  * Idempoten: aman dipanggil berulang untuk Tema yang sama. Dipanggil setelah item sumber ditambah / diubah / dihapus /
  * dipindah dan setelah titik dipilih / dicabut.
@@ -27,7 +28,7 @@ use App\Libraries\ActivityLog;
 class CreativeTurunanOtomatis
 {
     public const SUMBER_CETAK   = 'cetak';
-    public const SUMBER_DIGITAL = 'digital';   // Tahap 3
+    public const SUMBER_DIGITAL = 'digital';   // Konten Digital (Tahap 3)
 
     /** Nama sumber untuk teks penanda / keterangan. */
     private const LABEL = [
@@ -126,22 +127,23 @@ class CreativeTurunanOtomatis
             if ($titik > 0) return "Dipakai di {$titik} titik, {$item} item cetak";
             return $master ? "Dipakai di {$item} item cetak (belum ada titik)" : "Dipakai di {$item} item cetak";
         }
-        return "Dipakai di {$item} item konten digital";
+        return "Dipakai di {$item} konten digital";
     }
 
     /** Kebutuhan mentah dari item sumber: [jenis, ukuran, design_ref, titik, master]. Item "Rencana" (belum dikerjakan) tidak menimbulkan kebutuhan. */
     private static function kumpulkan(string $sumber, string $kind, int $tid): array
     {
-        if ($sumber !== self::SUMBER_CETAK) return [];   // Tahap 3: Konten Digital
+        if (! in_array($sumber, [self::SUMBER_CETAK, self::SUMBER_DIGITAL], true)) return [];
+        $tipeItem = $sumber === self::SUMBER_DIGITAL ? 'digital' : 'cetak';
         $db = db_connect();
         $rows = [];
 
-        $s = $db->table('creative_items')->select('id,jenis_media,ukuran,design_ref')->where('tipe', 'cetak')->where('dari_paket', 0);
+        $s = $db->table('creative_items')->select('id,jenis_media,ukuran,design_ref')->where('tipe', $tipeItem)->where('dari_paket', 0);
         $kind === 'e' ? $s->where('event_id', $tid) : $s->where('tema_id', $tid);
         foreach ($s->get()->getResultArray() as $r) $rows[] = $r + ['scope' => 'standalone'];
 
         if ($kind === 'e') {
-            $e = $db->table('event_creative_items')->select('id,jenis_media,ukuran,design_ref')->where('tipe', 'cetak')->where('dari_paket', 0)->where('event_id', $tid);
+            $e = $db->table('event_creative_items')->select('id,jenis_media,ukuran,design_ref')->where('tipe', $tipeItem)->where('dari_paket', 0)->where('event_id', $tid);
             foreach ($e->get()->getResultArray() as $r) $rows[] = $r + ['scope' => 'event'];
         }
 
@@ -150,7 +152,8 @@ class CreativeTurunanOtomatis
             $jenis = trim((string) $r['jenis_media']); $uk = trim((string) $r['ukuran']);
             if ($jenis === '' || $uk === '') continue;
             $n = $db->table('creative_cetak_titik')->where('scope', $r['scope'])->where('item_id', (int) $r['id'])->countAllResults();
-            $out[] = ['jenis' => $jenis, 'ukuran' => $uk, 'design_ref' => $r['design_ref'], 'titik' => $n, 'master' => CreativeTitikService::tipeSpot($jenis) !== null];
+            $out[] = ['jenis' => $jenis, 'ukuran' => $uk, 'design_ref' => $r['design_ref'], 'titik' => $n,
+                      'master' => $sumber === self::SUMBER_DIGITAL ? true : CreativeTitikService::tipeSpot($jenis) !== null];
         }
         return $out;
     }

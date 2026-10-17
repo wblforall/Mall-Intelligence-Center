@@ -121,7 +121,7 @@ $nPaket = count($paket['bulanan']) + count($paket['event']);
                 </td>
                 <td><span class="cr-chip cr-chip-mute"><?= esc($tipeLabel[$p['tipe']] ?? $p['tipe']) ?></span></td>
                 <td class="fw-semibold"><?= esc($p['nama_pola']) ?></td>
-                <td><?= $p['tipe'] === 'cetak' ? esc(trim(($p['jenis_media'] ?? '') . ($p['ukuran'] ? ' · ' . $p['ukuran'] : ''))) ?: '—' : '<span class="cr-c-mute">—</span>' ?></td>
+                <td><?= in_array($p['tipe'], ['cetak', 'digital'], true) ? esc(trim(($p['jenis_media'] ?? '') . ($p['ukuran'] ? ' · ' . $p['ukuran'] : ''))) ?: '—' : '<span class="cr-c-mute">—</span>' ?></td>
                 <td><?= $p['platform'] ? esc($platLabel[$p['platform']] ?? $p['platform']) : '—' ?></td>
                 <td><?= $p['aktif'] ? '<span class="cr-chip cr-chip-ok">Aktif</span>' : '<span class="cr-chip cr-chip-mute">Nonaktif</span>' ?></td>
                 <td class="nw">
@@ -180,7 +180,7 @@ $nPaket = count($paket['bulanan']) + count($paket['event']);
     <div class="mb-3"><label class="form-label small fw-semibold" for="kpPola">Nama item <span class="text-danger">*</span></label>
         <input type="text" name="nama_pola" id="kpPola" class="form-control" required maxlength="200" placeholder="mis. Design"><div class="form-text">Cukup nama jenisnya; nama Tema tidak perlu ditulis karena item berada di dalam kartu Tema.</div></div>
     <div class="row g-2 mb-3" id="kpCetakDiv">
-        <div class="col-6"><label class="form-label small fw-semibold" for="kpJenis">Jenis media</label><input type="text" name="jenis_media" id="kpJenis" class="form-control" maxlength="60" placeholder="mis. Poster"></div>
+        <div class="col-6"><label class="form-label small fw-semibold" for="kpJenis" id="kpJenisLbl">Jenis media</label><input type="text" name="jenis_media" id="kpJenis" class="form-control" maxlength="60" placeholder="mis. Poster"></div>
         <div class="col-6"><label class="form-label small fw-semibold" for="kpUkuran">Ukuran bawaan</label><input type="text" name="ukuran" id="kpUkuran" class="form-control" maxlength="80" placeholder="mis. A3 297×420 mm"></div>
     </div>
     <div class="mb-0" id="kpPlatDiv"><label class="form-label small fw-semibold" for="kpPlat">Platform (konten digital)</label>

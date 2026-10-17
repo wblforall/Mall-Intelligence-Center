@@ -166,6 +166,9 @@
         var tp = document.getElementById('addTipe').value;
         $$('[data-add-for]', addModal).forEach(function (el) { el.classList.toggle('d-none', el.dataset.addFor.split(' ').indexOf(tp) < 0); });
         if (window.CRE_CETAKEXTRA) window.CRE_CETAKEXTRA(document.getElementById('addItemForm'), { budgetWajib: tp === 'cetak', temaKey: document.getElementById('addTema').value });
+        // Konten Digital: PIC wajib (isian tersembunyi tidak boleh menahan pengiriman), Design induk mengikuti Tema
+        if (window.CRE_PICWAJIB) window.CRE_PICWAJIB(document.getElementById('addPic'), tp === 'digital');
+        if (window.CRE_DIGITALDESIGN) window.CRE_DIGITALDESIGN(document.getElementById('addItemForm'), document.getElementById('addTema').value);
     }
     if (addModal) {
         document.getElementById('addTipe').addEventListener('change', addToggle);
@@ -175,6 +178,7 @@
             document.getElementById('addTema').value = tema || '';
             if (tema && document.getElementById('addTema').value !== tema) document.getElementById('addTema').value = '';
             addToggle();
+            if (window.CRE_DIGITALFILL) window.CRE_DIGITALFILL(document.getElementById('addItemForm'), { temaKey: document.getElementById('addTema').value });
             bootstrap.Modal.getOrCreateInstance(addModal).show();
         };
         addModal.addEventListener('shown.bs.modal', function () { var n = document.getElementById('addNama'); if (n) n.focus(); });
@@ -240,7 +244,10 @@
             g('editDeadline').value = d.deadline || '';
             g('editCatatan').value = d.catatan;
             var te = g('editTema'); if (te) { te.value = d.tema || 'none'; if (te.value !== (d.tema || 'none')) te.value = 'none'; }
-            ['editPlatformDiv', 'editTakeDiv', 'editPicDiv'].forEach(function (id) { g(id).classList.toggle('d-none', !isDigital); });
+            ['editPlatformDiv', 'editTakeDiv', 'editPicDiv', 'editDigitalDiv'].forEach(function (id) { g(id).classList.toggle('d-none', !isDigital); });
+            if (window.CRE_PICWAJIB) window.CRE_PICWAJIB(g('editPic'), isDigital);
+            if (isDigital && window.CRE_DIGITALFILL) window.CRE_DIGITALFILL(g('editItemForm'), { jenis: d.jenisMedia || '', ukuran: d.ukuran || '', mulai: d.pasangMulai || '', selesai: d.pasangSelesai || '',
+                temaKey: g('editTema').value === 'none' ? '' : g('editTema').value, design: d.designRef || '' });
             g('editBudgetDiv').classList.toggle('d-none', DESAIN.indexOf(tipe) > -1);
             g('editCetakDiv').classList.toggle('d-none', tipe !== 'cetak');
             if (window.CRE_CETAKFILL) window.CRE_CETAKFILL(g('editJenisMedia'), g('editUkuran'), tipe === 'cetak' ? d.jenisMedia || '' : '', tipe === 'cetak' ? d.ukuran || '' : '');
@@ -262,10 +269,11 @@
     var editTemaSel = document.getElementById('editTema');
     if (editTemaSel) editTemaSel.addEventListener('change', function () {
         if (window.CRE_DESIGNSYNC) window.CRE_DESIGNSYNC(document.getElementById('editItemForm'), editTemaSel.value === 'none' ? '' : editTemaSel.value, '');
+        if (window.CRE_DIGITALDESIGN) window.CRE_DIGITALDESIGN(document.getElementById('editItemForm'), editTemaSel.value === 'none' ? '' : editTemaSel.value, '');
     });
 
     // ── Filter, cari, urut ────────────────────────────────────────────
-    var q = $('#crQ'), fTipe = $('#crFTipe'), fStatus = $('#crFStatus'), fDl = $('#crFDl'), fSrc = $('#crFSrc'),
+    var q = $('#crQ'), fTipe = $('#crFTipe'), fStatus = $('#crFStatus'), fDl = $('#crFDl'), fSrc = $('#crFSrc'), fKonten = $('#crFKonten') || { value: '' }, fPic = $('#crFPic') || { value: '' },
         sortSel = $('#crSort'), countEl = $('#crCount'), noMatch = $('#crNoMatch'), seg = $('#creativeTabs');
     if (!q) return;
     var fase = '';
@@ -276,10 +284,12 @@
         var d = c.dataset, term = q.value.trim().toLowerCase();
         if (term && d.search.indexOf(term) < 0 && d.name.toLowerCase().indexOf(term) < 0) return false;
         // item Rencana (paket awal, belum dikerjakan) tidak ikut filter fase / status / tenggat / sumber
-        if (d.rencana === '1' && (fase || fStatus.value || fDl.value || fSrc.value)) return false;
+        if (d.rencana === '1' && (fase || fStatus.value || fDl.value || fSrc.value || fKonten.value || fPic.value)) return false;
         if (fase && d.tab !== fase) return false;
         if (fTipe.value && d.tipe !== fTipe.value) return false;
         if (fSrc.value && d.src !== fSrc.value) return false;
+        if (fKonten.value && d.konten !== fKonten.value) return false;   // status konten / PIC hanya ada pada Konten Digital
+        if (fPic.value && d.pic !== fPic.value) return false;
         if (fStatus.value) {
             if (fStatus.value === 'closed') { if (d.closed !== '1') return false; }
             else if (d.status !== fStatus.value) return false;
@@ -291,7 +301,7 @@
         }
         return true;
     }
-    function itemFilterOn() { return !!(fase || fTipe.value || fStatus.value || fDl.value || fSrc.value); }
+    function itemFilterOn() { return !!(fase || fTipe.value || fStatus.value || fDl.value || fSrc.value || fKonten.value || fPic.value); }
     function isFiltered() { return !!(q.value.trim() || itemFilterOn()); }
 
     function apply(resetLimit) {
@@ -365,7 +375,7 @@
 
     var tmr;
     q.addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(apply, 120); });
-    [fTipe, fStatus, fDl, fSrc].forEach(function (el) { el.addEventListener('change', apply); });
+    [fTipe, fStatus, fDl, fSrc, fKonten, fPic].forEach(function (el) { if (el.addEventListener) el.addEventListener('change', apply); });
     sortSel.addEventListener('change', sortCards);
     $$('button', seg).forEach(function (b) {
         b.addEventListener('click', function () {
@@ -375,7 +385,7 @@
         });
     });
     function reset() {
-        q.value = ''; fTipe.value = fStatus.value = fDl.value = fSrc.value = ''; fase = '';
+        q.value = ''; fTipe.value = fStatus.value = fDl.value = fSrc.value = fKonten.value = fPic.value = ''; fase = '';
         $$('button', seg).forEach(function (x) { x.classList.toggle('is-on', x.dataset.tab === ''); });
         apply();
     }

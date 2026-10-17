@@ -56,8 +56,8 @@ class CreativePaketService
             $row = [
                 'tipe' => $p['tipe'], 'nama' => $nama,
                 'platform' => $p['tipe'] === 'digital' ? ($p['platform'] ?: 'ig') : null,
-                'jenis_media' => $p['tipe'] === 'cetak' ? ($p['jenis_media'] ?: null) : null,
-                'ukuran' => $p['tipe'] === 'cetak' ? ($p['ukuran'] ?: null) : null,
+                'jenis_media' => in_array($p['tipe'], ['cetak', 'digital'], true) ? ($p['jenis_media'] ?: null) : null,
+                'ukuran' => in_array($p['tipe'], ['cetak', 'digital'], true) ? ($p['ukuran'] ?: null) : null,
                 'budget' => 0, 'status' => 'draft', 'urutan' => (int) $p['urutan'], 'dari_paket' => 1,
                 'created_by' => $userId, 'created_at' => $now, 'updated_at' => $now,
             ];
@@ -120,8 +120,8 @@ class CreativePaketService
 
         $db = db_connect(); $now = date('Y-m-d H:i:s');
         $baru = ! $id;
-        $jm = $tipe === 'cetak' ? trim((string) ($post['jenis_media'] ?? '')) : '';
-        $uk = $tipe === 'cetak' ? trim((string) ($post['ukuran'] ?? '')) : '';
+        $jm = in_array($tipe, ['cetak', 'digital'], true) ? trim((string) ($post['jenis_media'] ?? '')) : '';
+        $uk = in_array($tipe, ['cetak', 'digital'], true) ? trim((string) ($post['ukuran'] ?? '')) : '';
         $data = ['konteks' => $konteks, 'tipe' => $tipe, 'nama_pola' => mb_substr($pola, 0, 200), 'platform' => $platform,
                  'jenis_media' => $jm !== '' ? mb_substr($jm, 0, 60) : null, 'ukuran' => $uk !== '' ? mb_substr($uk, 0, 80) : null, 'updated_at' => $now];
         if ($id) {

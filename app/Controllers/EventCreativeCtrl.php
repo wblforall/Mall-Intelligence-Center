@@ -16,6 +16,7 @@ use App\Services\CreativeTurunanService;
 use App\Services\CreativePaketService;
 use App\Services\CreativeTitikService;
 use App\Services\CreativeTurunanOtomatis;
+use App\Services\CreativeKontenService;
 
 class EventCreativeCtrl extends BaseController
 {
@@ -32,9 +33,34 @@ class EventCreativeCtrl extends BaseController
         return CreativeTitikService::dataCetak($post);
     }
 
-    private function sinkronTurunan(int $eventId, string $alasan = ''): void
+    private function sinkronTurunan(int $eventId, string $alasan = '', string $sumber = CreativeTurunanOtomatis::SUMBER_CETAK): void
     {
-        CreativeTurunanOtomatis::sinkron('e' . $eventId, CreativeTurunanOtomatis::SUMBER_CETAK, $alasan);
+        CreativeTurunanOtomatis::sinkron('e' . $eventId, $sumber, $alasan);
+    }
+
+    /** Nama PIC yang sudah dipakai di Konten Digital (standalone + event), untuk daftar pilihan; teks bebas tetap boleh. */
+    private function daftarPic(): array
+    {
+        $db = db_connect(); $out = [];
+        foreach (['creative_items', 'event_creative_items'] as $t) {
+            foreach ($db->table($t)->select('pic, COUNT(*) n')->where('tipe', 'digital')->where('pic IS NOT NULL')->where("pic <> ''")->groupBy('pic')->get()->getResultArray() as $r) {
+                $k = trim($r['pic']);
+                if ($k !== '') $out[$k] = ($out[$k] ?? 0) + (int) $r['n'];
+            }
+        }
+        arsort($out);
+        return array_keys($out);
+    }
+
+    /** Ubah status konten satu Konten Digital event. */
+    public function ubahStatus(int $eventId, int $id)
+    {
+        $balik = "/events/{$eventId}/creative#item-{$id}";
+        if (! $this->canEditMenu('creative')) return redirect()->to($balik)->with('error', 'Akses ditolak.');
+        $it = (new EventCreativeItemModel())->find($id);
+        if (! $it || (int) $it['event_id'] !== $eventId) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Item tidak ditemukan.');
+        $h = (new CreativeKontenService())->ubah('event', $id, (string) $this->request->getPost('status'), (string) $this->request->getPost('alasan'), $this->currentUser());
+        return redirect()->to($balik)->with($h['ok'] ? 'success' : 'error', $h['message']);
     }
 
     /** Tema event yang sudah ditutup mengunci seluruh materi creative-nya. */
@@ -156,7 +182,10 @@ class EventCreativeCtrl extends BaseController
             'turunan'        => $turunan,
             'katalog'        => CreativeTurunanService::katalog(true),
             'cetakKatalog'   => CreativeTurunanService::cetakKatalog(),
-            'titik'          => CreativeTitikService::forEvent($eventId)->untukItems(array_column(array_filter($items, fn($it) => $it['tipe'] === 'cetak'), 'id')),
+            'digitalKatalog' => CreativeTurunanService::digitalKatalog(),
+            'insightN'       => CreativeKontenService::jumlahInsight('event', array_column(array_filter($items, fn($it) => $it['tipe'] === 'digital'), 'id')),
+            'picDaftar'      => $this->daftarPic(),
+            'titik'          => CreativeTitikService::forEvent($eventId)->untukItems(array_column(array_filter($items, fn($it) => in_array($it['tipe'], CreativeTitikService::TIPE_ITEM, true)), 'id')),
             'designs'        => CreativeTurunanOtomatis::designsTema('e' . $eventId),
             'jenisMaster'    => CreativeTitikService::jenisBerMaster(),
         ]);
@@ -171,7 +200,7 @@ class EventCreativeCtrl extends BaseController
         if (! in_array($post['tipe'] ?? '', CreativeTemaService::TIPE_URUT, true)) {
             return redirect()->to("/events/{$eventId}/creative")->with('error', 'Jenis item tidak dikenal.');
         }
-        if ($err = CreativeTitikService::validasiCetak($post)) {
+        if ($err = CreativeTitikService::validasiCetak($post) ?? CreativeTitikService::validasiDigital($post)) {
             return redirect()->to("/events/{$eventId}/creative")->with('error', $err);
         }
         $isDigital = ($post['tipe'] === 'digital');
@@ -187,10 +216,15 @@ class EventCreativeCtrl extends BaseController
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
+            'target_reach'       => (($post['target_reach'] ?? '') !== '') ? max(0, (int) $post['target_reach']) : null,
+            'target_impressions' => (($post['target_impressions'] ?? '') !== '') ? max(0, (int) $post['target_impressions']) : null,
+            'deadline'           => ($post['deadline'] ?? '') ?: null,
+            'status_konten'      => $isDigital ? 'rencana' : null,
             'created_by'   => $this->currentUser()['id'],
         ] + $this->cetakFields($post));
         ActivityLog::write('create', 'creative', (string)$cid, $post['nama'], ['event_id' => $eventId, 'tipe' => $post['tipe'], 'budget' => $post['budget'] ?? 0]);
         if ($post['tipe'] === 'cetak') $this->sinkronTurunan($eventId);
+        if ($post['tipe'] === 'digital') $this->sinkronTurunan($eventId, '', CreativeTurunanOtomatis::SUMBER_DIGITAL);
 
         return redirect()->to("/events/{$eventId}/creative")->with('success', 'Item berhasil ditambahkan.');
     }
@@ -201,21 +235,21 @@ class EventCreativeCtrl extends BaseController
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $post              = $this->request->getPost();
-        $isDigital         = ($post['tipe'] === 'digital');
         $eventCreativeModel = new EventCreativeItemModel();
         $existing           = $eventCreativeModel->find($id);
+        if ($existing && in_array($existing['tipe'], CreativeTitikService::TIPE_ITEM, true)) $post['tipe'] = $existing['tipe'];
+        $isDigital         = (($post['tipe'] ?? '') === 'digital');
 
         if (CreativeApprovalService::isLocked($existing)) {
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")
                 ->with('error', CreativeApprovalService::PESAN_TERKUNCI);
         }
 
-        if ($existing && $existing['tipe'] === 'cetak') $post['tipe'] = 'cetak';
-        if ($err = CreativeTitikService::validasiCetak($post)) {
+        if ($err = CreativeTitikService::validasiCetak($post) ?? CreativeTitikService::validasiDigital($post)) {
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', $err);
         }
         $cetakBaru = $this->cetakFields($post);
-        if ($existing && $existing['tipe'] === 'cetak' && ($err = CreativeTitikService::forEvent($eventId)->selaraskan($existing, $cetakBaru))) {
+        if ($existing && in_array($existing['tipe'], CreativeTitikService::TIPE_ITEM, true) && ($err = CreativeTitikService::forEvent($eventId)->selaraskan($existing, $cetakBaru))) {
             return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', $err);
         }
 
@@ -230,14 +264,19 @@ class EventCreativeCtrl extends BaseController
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'      => $post['catatan'] ?? null,
             'urutan'       => (int)($post['urutan'] ?? 0),
+            'target_reach'       => (($post['target_reach'] ?? '') !== '') ? max(0, (int) $post['target_reach']) : null,
+            'target_impressions' => (($post['target_impressions'] ?? '') !== '') ? max(0, (int) $post['target_impressions']) : null,
+            'deadline'           => ($post['deadline'] ?? '') ?: null,
         ] + $this->cetakFields($post);
+        if ($isDigital && $existing && ! empty($existing['dari_paket']) && empty($existing['status_konten'])) $eventCreativeData['status_konten'] = 'rencana';
         $eventCreativeModel->update($id, $eventCreativeData);
         ActivityLog::captureAfter($eventCreativeData);
         ActivityLog::write('update', 'creative', (string)$id, $post['nama'], ['event_id' => $eventId, 'budget' => $post['budget'] ?? 0]);
-        if ($existing && $existing['tipe'] === 'cetak') {
+        if ($existing && in_array($existing['tipe'], CreativeTitikService::TIPE_ITEM, true)) {
             CreativeTitikService::forEvent($eventId)->segarkan($id);
             $berubah = ($existing['jenis_media'] ?? '') !== ($cetakBaru['jenis_media'] ?? '') || ($existing['ukuran'] ?? '') !== ($cetakBaru['ukuran'] ?? '');
-            $this->sinkronTurunan($eventId, $berubah ? 'ukuran atau jenis berubah' : '');
+            $this->sinkronTurunan($eventId, $berubah ? ($isDigital ? 'format berubah' : 'ukuran atau jenis berubah') : '',
+                $isDigital ? CreativeTurunanOtomatis::SUMBER_DIGITAL : CreativeTurunanOtomatis::SUMBER_CETAK);
         }
 
         return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Item berhasil diperbarui.');
@@ -264,7 +303,7 @@ class EventCreativeCtrl extends BaseController
                 ->with('error', 'Item punya turunan yang sudah disetujui. Buka kembali atau hapus turunannya dulu.');
         }
 
-        $lepas = ($citem && $citem['tipe'] === 'cetak') ? CreativeTitikService::forEvent($eventId)->lepasUntukItem($id) : null;
+        $lepas = ($citem && in_array($citem['tipe'], CreativeTitikService::TIPE_ITEM, true)) ? CreativeTitikService::forEvent($eventId)->lepasUntukItem($id) : null;
         $db->transStart();
         $fileModel->where('creative_item_id', $id)->delete();
         (new EventCreativeInsightModel())->where('creative_item_id', $id)->delete();
@@ -284,7 +323,7 @@ class EventCreativeCtrl extends BaseController
         }
 
         ActivityLog::write('delete', 'creative', (string)$id, $citem['nama'] ?? '', ['event_id' => $eventId]);
-        if ($lepas !== null) $this->sinkronTurunan($eventId, 'item dihapus');
+        if ($lepas !== null) $this->sinkronTurunan($eventId, 'item dihapus', $citem['tipe'] === 'digital' ? CreativeTurunanOtomatis::SUMBER_DIGITAL : CreativeTurunanOtomatis::SUMBER_CETAK);
         $msg = 'Item berhasil dihapus.';
         if ($lepas && ($lepas['dilepas'] + $lepas['riwayat']) > 0) {
             $msg .= ' ' . $lepas['dilepas'] . ' pemesanan titik di Media Promo dilepas' . ($lepas['riwayat'] ? ', ' . $lepas['riwayat'] . ' yang sudah selesai tetap sebagai riwayat' : '') . '.';

@@ -17,7 +17,9 @@ use App\Services\CreativeTitikService as TK;
 $rows    = $titik['rows'] ?? [];
 $total   = (int) ($titik['total'] ?? 0);
 $pasang  = (int) ($titik['terpasang'] ?? 0);
-$tipeSpot = TK::tipeSpot($item['jenis_media'] ?? '');
+$tipeSpot = TK::tipeItem($item);
+$digital = ($item['tipe'] ?? '') === 'digital';
+$ist     = TK::istilah($item['tipe'] ?? 'cetak');
 $mulai   = (string) ($item['pasang_mulai'] ?? ''); $selesai = (string) ($item['pasang_selesai'] ?? '');
 $periodeOk = $mulai !== '' && $selesai !== '' && $mulai <= $selesai;
 $rencana = ! empty($item['dari_paket']);
@@ -28,9 +30,9 @@ $bisaPilih = $canEdit && ! $readOnly && $tipeSpot && $periodeOk && ! $rencana;
 ?>
 <div class="tk" data-tk>
     <div class="tk-head">
-        <div class="tk-title"><i class="bi bi-geo-alt"></i>Titik Media Promo
-            <?php if ($total > 0): ?><span class="<?= $pfx ?>-chip <?= $pasang === $total ? $pfx . '-chip-ok' : $pfx . '-chip-mute' ?>" title="Titik yang sudah ditandai terpasang"><?= $pasang ?> dari <?= $total ?> terpasang</span><?php endif; ?>
-            <?php if ($periodeOk): ?><span class="<?= $pfx ?>-chip <?= $pfx ?>-chip-blue" title="Periode pasang"><i class="bi bi-calendar-range"></i><?= esc($fTk($mulai)) ?> – <?= esc($fTk($selesai)) ?></span><?php endif; ?>
+        <div class="tk-title"><i class="bi <?= $digital ? 'bi-tv' : 'bi-geo-alt' ?>"></i><?= $digital ? 'Titik layar digital (Media Promo)' : 'Titik Media Promo' ?>
+            <?php if ($total > 0): ?><span class="<?= $pfx ?>-chip <?= $pasang === $total ? $pfx . '-chip-ok' : $pfx . '-chip-mute' ?>" title="Titik yang sudah ditandai <?= $digital ? 'tayang' : 'terpasang' ?>"><?= $pasang ?> dari <?= $total ?> <?= $digital ? 'tayang' : 'terpasang' ?></span><?php endif; ?>
+            <?php if ($periodeOk): ?><span class="<?= $pfx ?>-chip <?= $pfx ?>-chip-blue" title="<?= ucfirst($ist['periode']) ?>"><i class="bi bi-calendar-range"></i><?= esc($fTk($mulai)) ?> – <?= esc($fTk($selesai)) ?></span><?php endif; ?>
         </div>
         <div class="tk-act">
             <?php if ($readOnly): ?>
@@ -46,7 +48,7 @@ $bisaPilih = $canEdit && ! $readOnly && $tipeSpot && $periodeOk && ! $rencana;
     </div>
 
     <?php if ($temaTutup && $total > 0): ?>
-    <p class="tk-note"><i class="bi bi-lock-fill"></i>Tema sudah ditutup; titik, pemesanan dan bukti pasang terkunci.</p>
+    <p class="tk-note"><i class="bi bi-lock-fill"></i>Tema sudah ditutup; titik, pemesanan dan bukti <?= $ist['bukti'] ?> terkunci.</p>
     <?php endif; ?>
 
     <?php if (! $tipeSpot): ?>
@@ -54,13 +56,13 @@ $bisaPilih = $canEdit && ! $readOnly && $tipeSpot && $periodeOk && ! $rencana;
         ? 'Jenis “' . esc($item['jenis_media']) . '” tidak punya titik di master Media Promo, jadi titik tidak diperlukan.'
         : 'Jenis media belum diisi. Isi jenis media, ukuran dan periode pasang lewat “Ubah item”; titik bisa dipilih untuk T-Banner, Hanging Banner, Sticker Lift dan Totem.' ?></p>
     <?php elseif ($rencana && ! $readOnly): ?>
-    <p class="tk-note"><i class="bi bi-lightbulb"></i>Item masih berstatus Rencana. Lengkapi lewat “Ubah item” (budget wajib diisi), lalu pilih titik.</p>
+    <p class="tk-note"><i class="bi bi-lightbulb"></i>Item masih berstatus Rencana. Lengkapi lewat “Ubah item” (<?= $digital ? 'PIC wajib diisi' : 'budget wajib diisi' ?>), lalu pilih titik.</p>
     <?php elseif (! $periodeOk && ! $readOnly && $canEdit): ?>
-    <p class="tk-note"><i class="bi bi-calendar-range"></i>Isi periode pasang (mulai dan selesai) lewat “Ubah item” dulu agar ketersediaan titik bisa dihitung.</p>
+    <p class="tk-note"><i class="bi bi-calendar-range"></i>Isi <?= $ist['periode'] ?> (mulai dan selesai) lewat “Ubah item” dulu agar ketersediaan titik <?= $digital ? 'layar' : '' ?> bisa dihitung.</p>
     <?php endif; ?>
 
     <?php if ($total === 0 && $tipeSpot): ?>
-    <div class="tk-empty">Belum ada titik terpilih.<?= $readOnly ? ' Titik dikelola di tab Creative event.' : '' ?></div>
+    <div class="tk-empty"><?= $digital ? 'Belum ada layar digital terpilih. Titik layar opsional: banyak konten hanya tayang di media sosial.' : 'Belum ada titik terpilih.' ?><?= $readOnly ? ' Titik dikelola di tab Creative event.' : '' ?></div>
     <?php endif; ?>
 
     <?php if ($rows): ?>
@@ -69,11 +71,11 @@ $bisaPilih = $canEdit && ! $readOnly && $tipeSpot && $periodeOk && ! $rencana;
             $lid = (int) $r['id'];
             $terpasang = ! empty($r['tanggal_pasang']);
             $selesaiPakai = ($r['usage_status'] ?? '') === 'done';
-            $judul = trim(($r['spot_nama'] ?? '') . ' · ' . ($r['spot_area'] ?? '') . ' · ' . ($r['spot_ukuran'] ?? '')) . ' — pemesanan Media Promo ' . ($selesaiPakai ? 'selesai' : 'disetujui');
+            $judul = trim(($r['spot_nama'] ?? '') . ' · ' . ($r['spot_area'] ?? '') . ' · ' . ($r['spot_ukuran'] ?? '')) . (! empty($r['slot_number']) ? ' · slot ' . (int) $r['slot_number'] : '') . ' — pemesanan Media Promo ' . ($selesaiPakai ? 'selesai' : 'disetujui');
         ?>
         <span class="tk-chip <?= $terpasang ? 'is-pasang' : '' ?> <?= $selesaiPakai ? 'is-done' : '' ?>" title="<?= esc($judul, 'attr') ?>">
             <i class="bi <?= $terpasang ? 'bi-check-circle-fill' : 'bi-geo-alt' ?>" aria-hidden="true"></i>
-            <b><?= esc($r['spot_kode']) ?></b><em><?= esc((string) $r['spot_area']) ?></em>
+            <b><?= esc($r['spot_kode']) ?></b><em><?= esc((string) $r['spot_area']) ?><?= ! empty($r['slot_number']) ? ' · slot ' . (int) $r['slot_number'] : '' ?></em>
             <?php if ($canEdit && ! $readOnly && ! $selesaiPakai): ?>
             <form method="POST" action="<?= $aksi . $lid ?>/cabut" class="tk-x" data-tk-cabut data-kode="<?= esc($r['spot_kode'], 'attr') ?>" data-terpasang="<?= $terpasang ? '1' : '0' ?>"><?= csrf_field() ?>
                 <input type="hidden" name="konfirmasi" value="<?= $terpasang ? '1' : '' ?>">

@@ -1,6 +1,6 @@
 # Rancangan Creative: Tema, Design/Motion Graphic + Turunan, Media Cetak
 
-Status: DISETUJUI pemilik 18 Okt 2026. Tahap 1, Tahap 2a dan Tahap 2b selesai di LOKAL (belum commit/deploy); Tahap 3 dan seterusnya belum dibangun.
+Status: DISETUJUI pemilik 18 Okt 2026. Tahap 1, 2a, 2b (sudah di-commit lokal, sedang di-deploy sesi lain) dan Tahap 3 (Konten Digital, working tree lokal, belum commit/deploy) selesai; Tahap 4 belum dibangun.
 Dokumen ini adalah acuan agen/pengembang; ubah di sini bila keputusan berubah.
 
 ## 1. Prinsip
@@ -60,14 +60,14 @@ Dokumen ini adalah acuan agen/pengembang; ubah di sini bila keputusan berubah.
   (master Media Promo, 17 titik). Format/ukuran memunculkan kebutuhan turunan Design otomatis dengan aturan
   yang sama seperti Media Cetak (DIPUTUSKAN 18 Okt 2026: ya, satu kebutuhan per format/ukuran).
 - Status disederhanakan: Rencana, Produksi, Tayang, Dilaporkan; PIC wajib; tenggat dan target reach tersimpan
-  (perbaikan bug 17 Okt).
+  (perbaikan bug 17 Okt). Dibangun di Tahap 3, rincian di bagian 12.
 
 ## 7. Tahapan
 1. (selesai lokal) Tahap 1: Tema, daftar per bulan, Terkunci, label Design, Motion Graphic, pemetaan.
 2. (selesai lokal 18 Okt) Tahap 2a: katalog turunan, Design/Motion Graphic + turunan + persetujuan lead, paket item awal,
    jenis media + ukuran pada Media Cetak (kolom `jenis_media`, `ukuran`), tampilan padat. Rincian: `docs/CREATIVE-TURUNAN.md`.
 3. (selesai lokal 18 Okt) Tahap 2b: Media Cetak (jenis, ukuran, periode pasang, titik Media Promo + pemesanan terhubung, turunan otomatis, realisasi + bukti pasang). Rincian: bagian 10 dan `docs/CREATIVE-TURUNAN.md`.
-4. Tahap 3: Konten Digital (status, PIC wajib, titik layar, turunan otomatis).
+4. (selesai lokal 18 Okt, working tree) Tahap 3: Konten Digital (status konten, PIC wajib, titik layar digital, turunan Design otomatis). Rincian: bagian 12 dan `docs/CREATIVE-TURUNAN.md`.
 5. Tahap 4: pandangan performa tim (volume, hasil tayang, biaya, siklus persetujuan, ketepatan waktu,
    disertai kelengkapan pencatatan).
 
@@ -117,3 +117,31 @@ Keputusan pemilik (A-H) dijalankan apa adanya; yang perlu diketahui pengembang:
 - Realisasi item = `creative_realisasi` (data lama/manual, tidak diubah) + BTB tertaut; serapan, total Tema, KPI, Summary bulanan (+ cetak) memakai gabungan. Data Jul–Agu tetap; penarikan FlowStore mulai Okt 2026.
 - Tidak dobel: modal Realisasi memberi catatan "Biaya baru diambil dari FlowStore; isi manual hanya untuk biaya di luar FlowStore"; item dengan realisasi manual di bulan yang sama dengan BTB tertaut diberi penanda "Kemungkinan dobel" (angka tak diubah).
 - Hak: tautan & Catat mengikuti `budget_dept` dept CCD; tim Creative tanpa hak itu hanya melihat. Rincian teknis: `docs/PENAUTAN-FLOWSTORE.md` (bagian CCD).
+
+## 12. Tahap 3: Konten Digital (dibangun di lokal 18 Okt 2026, belum commit/deploy)
+Keputusan pemilik dijalankan apa adanya; hal yang perlu diketahui pengembang:
+- **Status konten** (`status_konten` ENUM rencana / produksi / tayang / dilaporkan, NULL, pada `creative_items` dan `event_creative_items`; migrasi `2026-10-18-000011`).
+  Kolom `status` lama (alur persetujuan Design) tidak diubah. NULL = "belum diatur" (item lama), tampil netral; **NULL + ada insight tampil "Dilaporkan" hanya sebagai tampilan** (lencana bergaris putus,
+  tidak menulis DB). Logika di `CreativeKontenService`.
+  Aturan: dari status yang sudah diatur hanya maju / mundur satu langkah; dari NULL boleh langsung ke status mana pun yang prasyaratnya terpenuhi. **Tayang** butuh `tanggal_take`;
+  **Dilaporkan** butuh >= 1 insight, kecuali dengan alasan (min. 10 karakter) yang dicatat sebagai pengecualian. Item "Rencana" dari paket belum boleh diberi status (isi dulu lewat Ubah item).
+  Konten baru / paket yang diisi mulai di "rencana". Tema ditutup (event: modul diselesaikan) mengunci status. Semua perubahan tercatat di Activity Log, modul `creative_digital`.
+- **Atur status massal untuk item lama**: tombol "Atur status (N)" di bilah filter /creative membuka dialog usulan (ada insight -> Dilaporkan; tanggal take sudah lewat -> Tayang; selain itu Rencana).
+  Pengguna boleh mengubah usulan per baris dan mencentang yang diinginkan; **tidak ada yang ditulis sebelum "Terapkan"**, prasyarat tetap dijaga server (Tayang tanpa tanggal take dan
+  Dilaporkan tanpa insight dilewati; tidak ada pengecualian alasan pada aksi massal), item Tema ditutup tidak ikut.
+- **PIC wajib** (>= 2 karakter, daftar nama yang sudah ada + teks bebas) untuk item digital baru atau yang disimpan lewat formulir (termasuk item Rencana yang diisi); validasi klien (isian wajib)
+  dan server (`CreativeTitikService::validasiDigital`). Tenggat (`deadline`) dan target reach tampil di baris / rincian; **lencana terlambat** bila tenggat lewat dan status belum Tayang
+  (Tayang / Dilaporkan = tidak terlambat). Item "Rencana" dari paket tetap tidak ikut KPI / Perlu Perhatian. Tab Creative event kini juga menyimpan deadline dan target (sebelumnya form-nya ada tetapi tidak disimpan).
+- **Titik layar digital (opsional)**: mekanisme sama dengan Media Cetak (`CreativeTitikService` generik untuk `cetak` dan `digital`): panel "Layar" / modal "Pilih titik", pemesanan terhubung di Media Promo
+  (`approved`, sumber internal, dept Creative, `creative_ref`), tautan `creative_cetak_titik` (tabel yang sama). **Bedanya**: layar digital memakai **slot** (`total_slots` = 12, pemakaian per slot di Media Promo),
+  jadi layar "bebas" bila masih ada slot kosong pada periode tayang; sistem memakai **slot kosong terkecil** dan menyimpannya di `slot_number`. "Bentrok" = semua slot terpakai pada periode itu (seluruh pilihan ditolak).
+  Mengubah periode tayang memperbarui pemesanan dan memindahkan slot bila slot lama bertabrakan (ditolak bila layar penuh). Periode tayang di layar disimpan di `pasang_mulai / pasang_selesai`
+  (isian "Tayang di layar: mulai / selesai"), wajib lengkap selama ada titik. **Bukti tayang** (foto / tangkapan, tanggal, catatan) per titik di pane Realisasi, indikator "N dari M titik tayang".
+  Aturan hapus / cabut / Tema ditutup sama dengan Media Cetak. Log modul `creative_digital`.
+- **Turunan Design otomatis**: sumber `digital` pada `CreativeTurunanOtomatis` (format konten = `jenis_media`, ukuran = `ukuran`). Format dipilih dari katalog Design kelompok digital (Feed Instagram 1080x1350 / 1080x1080,
+  Story / Reels / TikTok, Carousel, Poster WhatsApp, Layar / TV mall, LED Videotron, Banner website) atau "Lainnya (ketik sendiri)". Satu kebutuhan per (Design, format, ukuran); keterangan "Dipakai di N konten digital";
+  Design induk dibuat otomatis bila Tema belum punya, `design_ref_d` memilih bila Tema punya lebih dari satu; hapus / ubah sebelum dikerjakan ikut berubah, setelah dikerjakan tetap + penanda "Tidak lagi dipakai konten digital".
+  Item "Rencana" membawa format bawaan dari paket (Feed Instagram -> 1080x1350, Story / Reels -> 1080x1920; baris paket digital kini punya kolom format di Katalog & Paket) tetapi kebutuhan baru muncul saat item diisi / diubah.
+  Sinkron Media Cetak dan Konten Digital terpisah (`sumber_ref` 'cetak:t5' / 'digital:t5'), tidak saling menghapus.
+- **Hak**: ubah status / titik / format = hak ubah `creative_main` (standalone) atau `creative` (event); persetujuan turunan = lead / admin (tidak berubah). Item event di /creative baca-saja ("Isi di event").
+- **Tampilan**: baris item digital menampilkan platform, format, lencana status konten, PIC (meta), tenggat, reach; filter "status konten" dan "PIC" di bilah filter /creative dan tab event.

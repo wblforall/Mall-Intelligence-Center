@@ -167,6 +167,7 @@ $routes->post('events/(:num)/creative/add', 'EventCreativeCtrl::store/$1', ['fil
 $routes->post('events/(:num)/creative/paket-awal', 'EventCreativeCtrl::paketAwal/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/edit', 'EventCreativeCtrl::update/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/delete', 'EventCreativeCtrl::delete/$1/$2', ['filter' => 'auth']);
+$routes->post('events/(:num)/creative/(:num)/status', 'EventCreativeCtrl::ubahStatus/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/upload', 'EventCreativeCtrl::uploadFile/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/file/(:num)/delete', 'EventCreativeCtrl::deleteFile/$1/$2/$3', ['filter' => 'auth']);
 // Alur persetujuan: aksi eksplisit, bukan lagi satu endpoint status bebas
@@ -211,6 +212,9 @@ $routes->post('creative/add', 'CreativeCtrl::store', ['filter' => 'auth']);
 $routes->post('creative/(:num)/edit', 'CreativeCtrl::update/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/delete', 'CreativeCtrl::delete/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/pindah', 'CreativeCtrl::pindah/$1', ['filter' => 'auth']);
+$routes->post('creative/(:num)/status', 'CreativeCtrl::ubahStatus/$1', ['filter' => 'auth']);
+$routes->get('creative/status-massal/usulan', 'CreativeCtrl::statusUsulan', ['filter' => 'auth']);
+$routes->post('creative/status-massal/terapkan', 'CreativeCtrl::statusTerapkan', ['filter' => 'auth']);
 $routes->post('creative/(:num)/upload', 'CreativeCtrl::uploadFile/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/file/(:num)/delete', 'CreativeCtrl::deleteFile/$1/$2', ['filter' => 'auth']);
 // Alur persetujuan: aksi eksplisit, bukan lagi satu endpoint status bebas

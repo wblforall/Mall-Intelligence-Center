@@ -295,8 +295,8 @@ class Events extends BaseController
             array_column($db->table('event_creative_items')->select('id')->where('event_id', $id)->get()->getResultArray(), 'id')
         );
 
-        // 3c. Titik Media Cetak milik item Creative event: lepas pemesanan terhubung di Media Promo (yang sudah 'done' tetap riwayat).
-        foreach ($db->table('event_creative_items')->select('id')->where('event_id', $id)->where('tipe', 'cetak')->get()->getResultArray() as $ci) {
+        // 3c. Titik Media Cetak / layar digital milik item Creative event: lepas pemesanan terhubung di Media Promo (yang sudah 'done' tetap riwayat).
+        foreach ($db->table('event_creative_items')->select('id')->where('event_id', $id)->whereIn('tipe', ['cetak', 'digital'])->get()->getResultArray() as $ci) {
             \App\Services\CreativeTitikService::forEvent((int) $id)->lepasUntukItem((int) $ci['id']);
         }
 

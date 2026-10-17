@@ -111,6 +111,24 @@ class PromoMediaUsageModel extends Model
             ->orderBy('tanggal_mulai')->get()->getResultArray();
     }
 
+    /**
+     * Pemesanan LAYAR DIGITAL (per slot) yang memakan periode ini: aturan sama dengan hasConflictDigital
+     * (pending / approved, tanggal beririsan) tetapi mengembalikan barisnya agar slot bebas bisa dihitung.
+     * Kolom: id, spot_id, slot_number, nama_materi, dept, requested_by, tanggal_mulai, tanggal_selesai, status, creative_ref.
+     */
+    public function pemakaiSlotDigital(array $spotIds, string $tglMulai, string $tglSelesai, array $excludeIds = []): array
+    {
+        if (! $spotIds) return [];
+        $q = $this->db->table('promo_media_usage')
+            ->select('id, spot_id, slot_number, nama_materi, dept, requested_by, tanggal_mulai, tanggal_selesai, status, creative_ref')
+            ->whereIn('spot_id', $spotIds)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('tanggal_mulai <=', $tglSelesai)
+            ->where('tanggal_selesai >=', $tglMulai);
+        if ($excludeIds) $q->whereNotIn('id', $excludeIds);
+        return $q->orderBy('spot_id')->orderBy('slot_number')->get()->getResultArray();
+    }
+
     public function hasConflictDigital(int $spotId, int $slot, string $tglMulai, string $tglSelesai, ?int $excludeId = null): bool
     {
         $q = $this->db->table('promo_media_usage')
