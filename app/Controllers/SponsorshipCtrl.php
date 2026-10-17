@@ -401,8 +401,10 @@ class SponsorshipCtrl extends BaseController
         $programs   = (new SponsorshipProgramModel())->getAll(); // sudah urut per periode
         $programIds = array_column($programs, 'id');
 
-        $bulan = $this->request->getGet('bulan') ?: date('Y-m');
-        if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+        $bulanSekarang = date('Y-m');
+        $bulanGet = $this->request->getGet('bulan');
+        $bulan = $bulanGet ?: $bulanSekarang;
+        if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) { $bulan = $bulanSekarang; $bulanGet = null; }
 
         $realModel = new SponsorshipRealisasiModel();
         $spModel   = new SponsorshipSponsorModel();
@@ -412,6 +414,25 @@ class SponsorshipCtrl extends BaseController
         $evrModel  = new EventSponsorRealisasiModel();
         $eventAggs = $evModel->getEventAggregates();
         $eventIds  = array_column($eventAggs, 'event_id');
+
+        // Total realisasi per bulan, semua tahun (standalone + event digabung per bulan)
+        $monthMap = [];
+        foreach ($realModel->getAllMonthlyTotals($programIds) as $r) { $monthMap[$r['bulan']] = (int)$r['total_nilai']; }
+        foreach ($evrModel->getAllMonthlyTotals($eventIds) as $r)    { $monthMap[$r['bulan']] = ($monthMap[$r['bulan']] ?? 0) + (int)$r['total_nilai']; }
+        ksort($monthMap);
+
+        // Bulan bawaan cerdas: bila parameter `bulan` TIDAK diberikan dan bulan berjalan belum punya
+        // realisasi sama sekali, pakai bulan terbaru (<= bulan berjalan) yang punya realisasi.
+        // Bulan yang diminta eksplisit selalu dihormati.
+        $bulanFallback = null;
+        if (! $bulanGet && (int)($monthMap[$bulan] ?? 0) <= 0) {
+            $adaReal = array_keys(array_filter($monthMap, fn($v) => (int)$v > 0));
+            rsort($adaReal);
+            foreach ($adaReal as $m) {
+                if ($m <= $bulanSekarang) { $bulan = $m; $bulanFallback = $m; break; }
+            }
+            if ($bulanFallback === null && $adaReal) { $bulan = $adaReal[0]; $bulanFallback = $bulan; }
+        }
 
         // Daftar bulan dropdown: gabungan bulan REALISASI + PERIODE program +
         // periode event. Sebelumnya hanya dari realisasi — bila realisasi masih
@@ -459,11 +480,7 @@ class SponsorshipCtrl extends BaseController
         }
         $grandTotal = array_sum($allTimeRealMap) + $evGrand; // all-time terkumpul (standalone + event)
 
-        // All-time monthly trend (standalone + event, digabung per bulan)
-        $monthMap = [];
-        foreach ($realModel->getAllMonthlyTotals($programIds) as $r) { $monthMap[$r['bulan']] = (int)$r['total_nilai']; }
-        foreach ($evrModel->getAllMonthlyTotals($eventIds) as $r)    { $monthMap[$r['bulan']] = ($monthMap[$r['bulan']] ?? 0) + (int)$r['total_nilai']; }
-        ksort($monthMap);
+        // All-time monthly trend (standalone + event, digabung per bulan) — $monthMap dihitung di atas
         $currentYear = date('Y');
         $allMonthlyTotals = [];
         foreach ($monthMap as $b => $v) {
@@ -511,6 +528,11 @@ class SponsorshipCtrl extends BaseController
             'analisaMap'       => $analisaMap,
             'prevAnalisaMap'   => $prevAnalisaMap,
             'canEdit'          => $this->canEditMenu('sponsorship_main'),
+            // Turunan untuk halaman analisis (tidak mengubah angka di atas)
+            'bulanSekarang'    => $bulanSekarang,
+            'bulanFallback'    => $bulanFallback,
+            'kpiTerkumpulPrev' => $monthMap[$prevBulan] ?? null, // null = bulan lalu tak punya catatan realisasi
+            'targetTotal'      => array_sum(array_map(fn($p) => (int)($p['target_nilai'] ?? 0), $programs)),
         ]);
     }
 
@@ -669,7 +691,7 @@ class SponsorshipCtrl extends BaseController
         $outstanding = max(0, $kpiKomitmen - $kpiKumulatif);
         $insights   = [];
         $insights[] = 'Penerimaan sponsorship bulan ini ' . $fmtRp($kpiRealisasi) . ' — ' . $fmtDelta($kpiRealisasi, $kpiRealisasiPrev) . '.';
-        $insights[] = 'Komitmen deal (terkonfirmasi + lunas) ' . $fmtRp($kpiKomitmen) . ' dari ' . number_format($kpiSponsorDeal) . ' sponsor — ' . $fmtDelta($kpiKomitmen, $prevKomitmen)
+        $insights[] = 'Komitmen deal (terkonfirmasi + lunas) ' . $fmtRp($kpiKomitmen) . ' dari ' . number_format($kpiSponsorDeal, 0, ',', '.') . ' sponsor — ' . $fmtDelta($kpiKomitmen, $prevKomitmen)
             . '; sponsor ' . ($kpiSponsorDeal >= $prevSponsorDeal ? '+' : '') . ($kpiSponsorDeal - $prevSponsorDeal) . ' vs bln lalu (' . $prevSponsorDeal . ').';
         $insights[] = 'Realisasi kumulatif ' . $fmtRp($kpiKumulatif)
             . ($outstanding > 0 ? ' — sisa komitmen belum cair ' . $fmtRp($outstanding) . '.' : '.');
@@ -678,7 +700,7 @@ class SponsorshipCtrl extends BaseController
         }
         if ($topName) $insights[] = 'Penerimaan terbesar bulan ini: ' . $topName . ' (' . $fmtRp($topVal) . ').';
         if ($noActivity > 0) $insights[] = $noActivity . ' program aktif belum mencatat penerimaan bulan ini — perlu ditindaklanjuti.';
-        if ($targetNilaiAktif > 0) $insights[] = 'Capaian kumulatif vs target program aktif: ' . $capaianPct . '% dari ' . $fmtRp($targetNilaiAktif) . '.';
+        if ($targetNilaiAktif > 0) $insights[] = 'Capaian kumulatif vs target program bulan ini: ' . rtrim(rtrim(number_format($capaianPct, 1, ',', '.'), '0'), ',') . '% dari ' . $fmtRp($targetNilaiAktif) . '.';
 
         // ── Detail sponsor per program standalone (laporan achievement) ──
         $allSponsorIds = [];
@@ -695,6 +717,14 @@ class SponsorshipCtrl extends BaseController
                 $eventRealBySp[$eid][$sid] = array_sum(array_column($rows, 'nilai'));
             }
         }
+
+        // Analisa bulan ini + program yang beranalisa tetapi di luar daftar relevan (tidak memengaruhi KPI).
+        $analisaModel = new SponsorshipSummaryAnalysisModel();
+        $analisaMap   = $analisaModel->getMapByMonth($bulan);
+        $programAnalisaLain = array_values(array_filter(
+            $allPrograms,
+            fn($p) => isset($analisaMap[(int)$p['id']]) && ! in_array($p['id'], $programIds)
+        ));
 
         return view('sponsorship/print_summary', [
             'bulan'          => $bulan,
@@ -727,7 +757,9 @@ class SponsorshipCtrl extends BaseController
             'trendMonths'    => $trendMonths,
             'dailyNilai'     => $dailyNilai,
             'insights'       => $insights,
-            'analisaMap'     => (new SponsorshipSummaryAnalysisModel())->getMapByMonth($bulan),
+            'analisaMap'     => $analisaMap,
+            'prevAnalisaMap' => $analisaModel->getMapByMonth($prevBulan),
+            'programAnalisaLain' => $programAnalisaLain,
             'signatories'    => \App\Libraries\ReportSignatories::resolve('sponsorship_main'),
             'printedBy'      => $this->currentUser()['name'] ?? '',
             'printedAt'      => date('d M Y H:i'),

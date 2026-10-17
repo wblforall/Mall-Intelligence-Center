@@ -1,15 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
-<style>
-.fade-up { opacity:0; transform:translateY(16px); animation:fadeUpSp .5s cubic-bezier(.22,.68,0,1.2) forwards; }
-@keyframes fadeUpSp { to { opacity:1; transform:translateY(0); } }
-.deal-badge { font-size:.68rem; font-weight:600; padding:2px 8px; border-radius:999px; }
-.deal-prospek      { background:#f1f5f9; color:#64748b; }
-.deal-negosiasi    { background:#fef3c7; color:#d97706; }
-.deal-terkonfirmasi{ background:#dbeafe; color:#1d4ed8; }
-.deal-lunas        { background:#dcfce7; color:#16a34a; }
-.deal-batal        { background:#fee2e2; color:#dc2626; }
-</style>
+<link rel="stylesheet" href="<?= base_url('css/sponsorship-index.css') ?>?v=<?= @filemtime(FCPATH . 'css/sponsorship-index.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
@@ -22,405 +13,440 @@ $dealStatusLabel = [
     'batal'         => 'Batal',
 ];
 $kategoriOptions = ['Platinum', 'Gold', 'Silver', 'Bronze', 'Media Partner', 'In-kind', 'Lainnya'];
+$mallLabel = ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity', 'both' => 'eWalk + Pentacity'];
 
-function spFmt(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); }
-function spPct(int $actual, int $target): float {
-    return $target > 0 ? min(100, round($actual / $target * 100, 1)) : 0;
+if (! function_exists('spFmt')) {
+    function spFmt(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); }
 }
+if (! function_exists('spPct')) {
+    function spPct(int $actual, int $target): float {
+        return $target > 0 ? min(100, round($actual / $target * 100, 1)) : 0;
+    }
+}
+// Ringkas: 97.628.000 -> "97,6 jt"
+if (! function_exists('spShort')) {
+    function spShort(int $n): string {
+        if ($n >= 1000000000) return 'Rp ' . number_format($n / 1e9, 1, ',', '.') . ' M';
+        if ($n >= 1000000)    return 'Rp ' . number_format($n / 1e6, 1, ',', '.') . ' jt';
+        return spFmt($n);
+    }
+}
+
+$activePrograms   = array_filter($programs, fn($p) => $p['status'] === 'active');
+$inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive');
+
+// Sisa belum terkumpul (program aktif; program yang sudah lewat target tidak menutupi program lain)
+$totalSisa = 0;
+foreach ($activePrograms as $p) {
+    $totalSisa += max(0, (int)(($committedMap[$p['id']]['total_nilai'] ?? 0)) - (int)($realisasiMap[$p['id']] ?? 0));
+}
+$collRateAll = spPct($totalNilaiTerkumpul, $totalNilaiCommitted);
+
+// Pilihan tahun dari tanggal mulai
+$yearOpts = [];
+foreach ($programs as $p) {
+    if (! empty($p['tanggal_mulai'])) $yearOpts[date('Y', strtotime($p['tanggal_mulai']))] = true;
+}
+krsort($yearOpts);
 ?>
 
+<div class="page-spon-idx" id="sponIdx">
+
 <!-- Header -->
-<div class="d-flex align-items-center gap-2 mb-4 fade-up" style="animation-delay:.05s">
-    <div class="rounded-2 d-flex align-items-center justify-content-center flex-shrink-0"
-         style="width:36px;height:36px;background:rgba(245,158,11,.15)">
-        <i class="bi bi-trophy-fill" style="color:#d97706;font-size:1rem"></i>
+<div class="si-head">
+    <div class="si-head-ico"><i class="bi bi-trophy-fill"></i></div>
+    <div class="min-w-0">
+        <h1 class="si-title">Program Sponsorship</h1>
+        <div class="si-subtitle">Kelola deal sponsor, realisasi penerimaan, dan tracking target</div>
     </div>
-    <div>
-        <h4 class="fw-bold mb-0">Program Sponsorship</h4>
-        <small class="text-muted">Kelola deal sponsor, realisasi penerimaan, dan tracking target</small>
-    </div>
-    <div class="d-flex gap-2 ms-auto">
-        <a href="<?= base_url('sponsorship/summary') ?>" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-bar-chart-line me-1"></i>Summary Bulanan
-        </a>
+    <div class="si-head-act">
+        <a href="<?= base_url('sponsorship/summary') ?>" class="si-btn"><i class="bi bi-bar-chart-line"></i><span class="d-none d-sm-inline">Summary Bulanan</span></a>
         <?php if ($canEdit): ?>
-        <button class="btn btn-sm btn-warning text-white" data-bs-toggle="modal" data-bs-target="#addProgramModal">
-            <i class="bi bi-plus-lg me-1"></i>Tambah Program
+        <button class="si-btn si-btn-primary" data-bs-toggle="modal" data-bs-target="#addProgramModal">
+            <i class="bi bi-plus-lg"></i>Tambah Program
         </button>
         <?php endif; ?>
     </div>
 </div>
 
-<!-- KPI Cards -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="card border-warning-subtle h-100 fade-up" style="animation-delay:.1s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-warning-subtle"><i class="bi bi-trophy text-warning fs-5"></i></div>
-                    <span class="small text-muted">Program Aktif</span>
-                </div>
-                <div class="fw-bold fs-4 text-warning"><?= $activeCount ?></div>
-                <div class="small text-muted">dari <?= count($programs) ?> total</div>
-            </div>
-        </div>
+<!-- Strip KPI (program aktif) -->
+<div class="si-kpis">
+    <div class="si-kpi">
+        <div class="si-kpi-l">Program Aktif</div>
+        <div class="si-kpi-v"><?= $activeCount ?></div>
+        <div class="si-kpi-s">dari <?= count($programs) ?> program</div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-primary-subtle h-100 fade-up" style="animation-delay:.18s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-primary-subtle"><i class="bi bi-people text-primary fs-5"></i></div>
-                    <span class="small text-muted">Sponsor (Konfirmasi)</span>
-                </div>
-                <div class="fw-bold fs-4 text-primary"><?= $totalSponsorCount ?></div>
-                <?php if ($targetSponsor > 0): ?>
-                <div class="small text-muted">target <?= $targetSponsor ?></div>
-                <?php endif; ?>
-            </div>
-        </div>
+    <div class="si-kpi">
+        <div class="si-kpi-l">Sponsor Terkonfirmasi</div>
+        <div class="si-kpi-v"><?= $totalSponsorCount ?></div>
+        <div class="si-kpi-s"><?= $targetSponsor > 0 ? 'target ' . $targetSponsor . ' sponsor' : 'belum ada target' ?></div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-success-subtle h-100 fade-up" style="animation-delay:.26s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-success-subtle"><i class="bi bi-cash-coin text-success fs-5"></i></div>
-                    <span class="small text-muted">Nilai Deal (Konfirmasi)</span>
-                </div>
-                <div class="fw-bold fs-5 text-success"><?= spFmt($totalNilaiCommitted) ?></div>
-                <div class="small text-muted">
-                    Cash: <?= spFmt($totalNilaiCash) ?>
-                    <?php if ($totalNilaiBarang > 0): ?> · Barang: <?= spFmt($totalNilaiBarang) ?><?php endif; ?>
-                </div>
-                <?php if ($targetNilai > 0): ?>
-                <div class="small text-muted">target <?= spFmt($targetNilai) ?></div>
-                <?php endif; ?>
-            </div>
-        </div>
+    <div class="si-kpi">
+        <div class="si-kpi-l">Nilai Deal</div>
+        <div class="si-kpi-v" title="<?= spFmt($totalNilaiCommitted) ?>"><?= spFmt($totalNilaiCommitted) ?></div>
+        <div class="si-kpi-s">Cash <?= spFmt($totalNilaiCash) ?><?php if ($totalNilaiBarang > 0): ?> · Barang <?= spFmt($totalNilaiBarang) ?><?php endif; ?><?php if ($targetNilai > 0): ?> · target <?= spFmt($targetNilai) ?><?php endif; ?></div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-info-subtle h-100 fade-up" style="animation-delay:.34s">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="rounded-2 p-1 bg-info-subtle"><i class="bi bi-arrow-down-circle text-info fs-5"></i></div>
-                    <span class="small text-muted">Total Terkumpul</span>
-                </div>
-                <div class="fw-bold fs-5 text-info"><?= spFmt($totalNilaiTerkumpul) ?></div>
-                <?php if ($totalNilaiCommitted > 0): ?>
-                <?php $collRate = spPct($totalNilaiTerkumpul, $totalNilaiCommitted); ?>
-                <div class="small text-muted"><?= $collRate ?>% dari deal</div>
-                <?php endif; ?>
-            </div>
-        </div>
+    <div class="si-kpi">
+        <div class="si-kpi-l">Terkumpul</div>
+        <div class="si-kpi-v si-c-cyan" title="<?= spFmt($totalNilaiTerkumpul) ?>"><?= spFmt($totalNilaiTerkumpul) ?></div>
+        <div class="si-kpi-s"><?= $totalNilaiCommitted > 0 ? $collRateAll . '% dari nilai deal' : 'belum ada deal' ?></div>
+        <?php if ($totalNilaiCommitted > 0): ?><div class="si-bar"><i style="width:<?= $collRateAll ?>%"></i></div><?php endif; ?>
+    </div>
+    <div class="si-kpi">
+        <div class="si-kpi-l">Sisa Belum Terkumpul</div>
+        <div class="si-kpi-v <?= $totalSisa > 0 ? 'si-c-warn' : 'si-c-ok' ?>" title="<?= spFmt($totalSisa) ?>"><?= spFmt($totalSisa) ?></div>
+        <div class="si-kpi-s">deal dikurangi realisasi</div>
     </div>
 </div>
 
-<?php
-$activePrograms   = array_filter($programs, fn($p) => $p['status'] === 'active');
-$inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive');
-?>
-
 <?php if (empty($programs)): ?>
-<div class="text-center text-muted py-5 fade-up">
-    <i class="bi bi-trophy fs-1 d-block mb-2 opacity-25"></i>
-    <p>Belum ada program sponsorship.</p>
+<div class="si-empty">
+    <i class="bi bi-trophy"></i>
+    <h5>Belum ada program sponsorship</h5>
+    <p>Buat program pertama, lalu catat sponsor dan realisasi penerimaannya di sini.</p>
     <?php if ($canEdit): ?>
-    <button class="btn btn-sm btn-warning text-white" data-bs-toggle="modal" data-bs-target="#addProgramModal">
-        <i class="bi bi-plus-lg me-1"></i>Buat Program Pertama
+    <button class="si-btn si-btn-primary" data-bs-toggle="modal" data-bs-target="#addProgramModal">
+        <i class="bi bi-plus-lg"></i>Buat Program Pertama
     </button>
     <?php endif; ?>
 </div>
-<?php endif; ?>
+<?php else: ?>
+
+<!-- Pencarian & filter -->
+<div class="si-tools" id="siTools">
+    <div class="si-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="siQ" placeholder="Cari program atau nama sponsor…" autocomplete="off" aria-label="Cari program atau sponsor">
+    </div>
+    <select class="si-select" id="siFStatus" aria-label="Filter status">
+        <option value="">Semua status</option>
+        <option value="active">Aktif</option>
+        <option value="inactive">Tidak aktif</option>
+        <option value="locked">Terkunci</option>
+    </select>
+    <select class="si-select" id="siFYear" aria-label="Filter tahun">
+        <option value="">Semua tahun</option>
+        <?php foreach (array_keys($yearOpts) as $y): ?><option value="<?= $y ?>"><?= $y ?></option><?php endforeach; ?>
+    </select>
+    <select class="si-select" id="siFMall" aria-label="Filter mall">
+        <option value="">Semua mall</option>
+        <option value="ewalk">eWalk</option>
+        <option value="pentacity">Pentacity</option>
+        <option value="both">Keduanya</option>
+    </select>
+    <select class="si-select" id="siFJenis" aria-label="Filter jenis sponsor">
+        <option value="">Semua jenis</option>
+        <option value="cash">Ada sponsor Cash</option>
+        <option value="barang">Ada sponsor Barang</option>
+    </select>
+    <select class="si-select" id="siSort" aria-label="Urutkan">
+        <option value="">Urutan: terbaru</option>
+        <option value="nama">Nama A–Z</option>
+        <option value="deal">Nilai deal terbesar</option>
+        <option value="sisa">Sisa terbesar</option>
+        <option value="pct">Progres terendah</option>
+    </select>
+    <div class="si-tools-end">
+        <span class="si-count" id="siCount" aria-live="polite"></span>
+        <button type="button" class="si-btn si-btn-sm" id="siExpand" title="Buka semua program"><i class="bi bi-arrows-expand"></i><span class="d-none d-md-inline">Buka semua</span></button>
+        <button type="button" class="si-btn si-btn-sm" id="siCollapse" title="Tutup semua program"><i class="bi bi-arrows-collapse"></i><span class="d-none d-md-inline">Tutup semua</span></button>
+    </div>
+</div>
 
 <?php foreach ([['active', 'Aktif', $activePrograms], ['inactive', 'Tidak Aktif', $inactivePrograms]] as [$statusKey, $statusLabel, $progList]):
     if (empty($progList)) continue; ?>
 
-<div class="d-flex align-items-center gap-2 mb-3 mt-4 fade-up">
-    <span class="badge <?= $statusKey === 'active' ? 'bg-warning text-dark' : 'bg-secondary' ?>"><?= $statusLabel ?></span>
-    <small class="text-muted"><?= count($progList) ?> program</small>
+<section class="si-group" data-group="<?= $statusKey ?>">
+<div class="si-group-h">
+    <span class="si-pill <?= $statusKey === 'active' ? 'si-pill-on' : 'si-pill-off' ?>"><?= $statusLabel ?></span>
+    <span class="si-group-n"><?= count($progList) ?> program</span>
 </div>
+<div class="si-list">
 
 <?php foreach ($progList as $prog):
     $pid          = $prog['id'];
     $spList       = $sponsors[$pid] ?? [];
     $committed    = $committedMap[$pid] ?? ['total_nilai' => 0, 'total_sponsor' => 0];
-    $terkumpul    = $realisasiMap[$pid] ?? 0;
-    $collPct      = spPct($terkumpul, $committed['total_nilai']);
-    $collBar      = $collPct >= 100 ? 'danger' : ($collPct >= 75 ? 'warning' : 'success');
+    $dealNilai    = (int)($committed['total_nilai'] ?? 0);
+    $terkumpul    = (int)($realisasiMap[$pid] ?? 0);
+    $collPct      = spPct($terkumpul, $dealNilai);
+    $sisa         = $dealNilai - $terkumpul;
     $isLocked     = (bool)($prog['locked'] ?? false);
     $canEditProg  = $canEdit && ! $isLocked;
+    $isActive     = $prog['status'] === 'active';
+    $targetNilaiP = (int)($prog['target_nilai'] ?? 0);
+    $year         = ! empty($prog['tanggal_mulai']) ? date('Y', strtotime($prog['tanggal_mulai'])) : '';
+    $jenisSet     = array_values(array_unique(array_map(fn($s) => $s['jenis'] === 'cash' ? 'cash' : 'barang', $spList)));
+    $searchText   = mb_strtolower($prog['nama_program'] . ' ' . implode(' ', array_column($spList, 'nama_sponsor')));
+    $barCls       = $collPct >= 100 ? 'ok' : ($collPct >= 50 ? 'mid' : 'low');
+    $evS          = $prog['eval_status'] ?? '';
 ?>
-<div class="card mb-3 fade-up" id="program-<?= $pid ?>" style="animation-delay:.1s">
-    <div class="card-header d-flex align-items-center gap-2 py-2 flex-wrap">
-        <i class="bi bi-trophy-fill text-warning"></i>
-        <span class="fw-semibold"><?= esc($prog['nama_program']) ?></span>
-        <?php if ($prog['tanggal_mulai']): ?>
-        <small class="text-muted text-nowrap">
-            <?= date('d M Y', strtotime($prog['tanggal_mulai'])) ?>
-            <?php if ($prog['tanggal_selesai']): ?>– <?= date('d M Y', strtotime($prog['tanggal_selesai'])) ?><?php endif; ?>
-        </small>
-        <?php endif; ?>
-        <?php if ($isLocked): ?>
-        <span class="badge bg-danger-subtle text-danger ms-1"><i class="bi bi-lock-fill me-1"></i>Terkunci</span>
-        <?php if (($prog['eval_status'] ?? '')): ?>
-        <?php
-        $evS     = $prog['eval_status'];
-        $evColor = ['berhasil'=>'success','sebagian'=>'warning','gagal'=>'danger'][$evS] ?? 'secondary';
-        $evIcon  = ['berhasil'=>'check-circle-fill','sebagian'=>'dash-circle-fill','gagal'=>'x-circle-fill'][$evS] ?? 'lock-fill';
-        $evLabel = ['berhasil'=>'Berhasil','sebagian'=>'Sebagian','gagal'=>'Perlu Perbaikan'][$evS] ?? $evS;
-        ?>
-        <span class="badge bg-<?= $evColor ?>-subtle text-<?= $evColor ?>"><i class="bi bi-<?= $evIcon ?> me-1"></i><?= esc($evLabel) ?></span>
-        <?php endif; ?>
-        <?php endif; ?>
-        <div class="ms-auto d-flex gap-1">
-            <?php if ($canEdit): ?>
-            <?php if ($isLocked): ?>
-                <?php if ($user['role'] === 'admin'): ?>
-                <form method="post" action="<?= base_url('sponsorship/' . $pid . '/unlock') ?>" class="d-inline">
-                    <?= csrf_field() ?>
-                    <button class="btn btn-sm btn-outline-danger" title="Buka Kunci"><i class="bi bi-unlock"></i></button>
-                </form>
+<article class="si-prog<?= $isActive ? '' : ' is-off' ?>" id="program-<?= $pid ?>"
+         data-pid="<?= $pid ?>"
+         data-name="<?= esc($prog['nama_program'], 'attr') ?>"
+         data-search="<?= esc($searchText, 'attr') ?>"
+         data-status="<?= $prog['status'] ?>" data-locked="<?= $isLocked ? 1 : 0 ?>"
+         data-year="<?= $year ?>" data-mall="<?= esc($prog['mall'] ?? '', 'attr') ?>"
+         data-jenis="<?= implode(',', $jenisSet) ?>"
+         data-deal="<?= $dealNilai ?>" data-sisa="<?= $sisa ?>" data-pct="<?= $collPct ?>"
+         data-order="<?= $pid ?>">
+    <div class="si-prog-head" data-si-toggle>
+        <button type="button" class="si-chev" aria-expanded="false" aria-controls="body-<?= $pid ?>" aria-label="Buka atau tutup rincian program"><i class="bi bi-chevron-right"></i></button>
+        <div class="si-prog-main">
+            <div class="si-prog-name">
+                <span class="si-prog-t"><?= esc($prog['nama_program']) ?></span>
+                <?php if ($isLocked): ?><span class="si-chip si-chip-bad"><i class="bi bi-lock-fill"></i>Terkunci</span><?php endif; ?>
+                <?php if ($isLocked && $evS):
+                    $evColor = ['berhasil'=>'ok','sebagian'=>'warn','gagal'=>'bad'][$evS] ?? 'mute';
+                    $evIcon  = ['berhasil'=>'check-circle-fill','sebagian'=>'dash-circle-fill','gagal'=>'x-circle-fill'][$evS] ?? 'lock-fill';
+                    $evLabel = ['berhasil'=>'Berhasil','sebagian'=>'Sebagian','gagal'=>'Perlu Perbaikan'][$evS] ?? $evS; ?>
+                <span class="si-chip si-chip-<?= $evColor ?>"><i class="bi bi-<?= $evIcon ?>"></i><?= esc($evLabel) ?></span>
                 <?php endif; ?>
-            <?php else: ?>
-                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
-                        data-bs-target="#editProgramModal"
-                        data-id="<?= $pid ?>"
-                        data-nama="<?= esc($prog['nama_program'], 'attr') ?>"
-                        data-mall="<?= esc($prog['mall'] ?? '', 'attr') ?>"
-                        data-mulai="<?= $prog['tanggal_mulai'] ?? '' ?>"
-                        data-selesai="<?= $prog['tanggal_selesai'] ?? '' ?>"
-                        data-deskripsi="<?= esc($prog['deskripsi'] ?? '', 'attr') ?>"
-                        data-target-sponsor="<?= $prog['target_sponsor'] ?? '' ?>"
-                        data-target-nilai="<?= $prog['target_nilai'] ?? '' ?>"
-                        data-catatan="<?= esc($prog['catatan'] ?? '', 'attr') ?>"
-                        title="Edit"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-warning" title="Kunci"
-                        data-bs-toggle="modal" data-bs-target="#lockProgramModal"
-                        data-id="<?= $pid ?>" data-nama="<?= esc($prog['nama_program'], 'attr') ?>">
-                    <i class="bi bi-lock"></i>
-                </button>
-                <form method="post" action="<?= base_url('sponsorship/' . $pid . '/toggle') ?>" class="d-inline">
-                    <?= csrf_field() ?>
-                    <button class="btn btn-sm <?= $prog['status'] === 'active' ? 'btn-outline-secondary' : 'btn-outline-success' ?>" title="Toggle Status">
-                        <i class="bi bi-<?= $prog['status'] === 'active' ? 'pause-circle' : 'play-circle' ?>"></i>
-                    </button>
-                </form>
-                <form method="post" action="<?= base_url('sponsorship/' . $pid . '/delete') ?>" class="d-inline"
-                      onsubmit="return confirm('Hapus program ini beserta semua data sponsor dan realisasinya?')">
-                    <?= csrf_field() ?>
-                    <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
-                </form>
+                <?php if (! $isActive): ?><span class="si-chip si-chip-mute">Tidak aktif</span><?php endif; ?>
+                <?php if (! empty($prog['mall'])): ?><span class="si-chip si-chip-blue"><i class="bi bi-buildings"></i><?= esc($mallLabel[$prog['mall']] ?? $prog['mall']) ?></span><?php endif; ?>
+            </div>
+            <div class="si-prog-meta">
+                <?php if ($prog['tanggal_mulai']): ?>
+                <span><i class="bi bi-calendar3"></i><?= date('d M Y', strtotime($prog['tanggal_mulai'])) ?><?php if ($prog['tanggal_selesai']): ?> – <?= date('d M Y', strtotime($prog['tanggal_selesai'])) ?><?php endif; ?></span>
+                <?php endif; ?>
+                <span><i class="bi bi-people"></i><?= (int)$committed['total_sponsor'] ?> terkonfirmasi<?= $prog['target_sponsor'] ? ' / target ' . (int)$prog['target_sponsor'] : '' ?> · <?= count($spList) ?> sponsor total</span>
+                <?php if ($targetNilaiP > 0): ?>
+                <span><i class="bi bi-bullseye"></i>Target <?= spFmt($targetNilaiP) ?><?php if ($dealNilai > 0): ?> · deal <?= round($dealNilai / $targetNilaiP * 100) ?>%<?php endif; ?></span>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="si-prog-fig">
+            <div class="si-fig-row">
+                <div><span class="si-fig-l">Nilai deal</span><b><?= spFmt($dealNilai) ?></b></div>
+                <div><span class="si-fig-l">Terkumpul</span><b class="si-c-cyan"><?= spFmt($terkumpul) ?></b></div>
+                <div><span class="si-fig-l"><?= $sisa < 0 ? 'Lebih' : 'Sisa' ?></span><b class="<?= $sisa > 0 ? 'si-c-warn' : 'si-c-ok' ?>"><?= spFmt(abs($sisa)) ?></b></div>
+            </div>
+            <div class="si-prog-bar">
+                <div class="si-bar si-bar-<?= $barCls ?>"><i style="width:<?= $collPct ?>%"></i></div>
+                <span class="si-pct"><?= $dealNilai > 0 ? $collPct . '%' : '—' ?></span>
+            </div>
+        </div>
+        <div class="si-prog-act" data-si-notoggle>
+            <?php if ($canEditProg): ?>
+            <button class="si-btn si-btn-sm si-btn-soft" data-bs-toggle="modal" data-bs-target="#addSponsorModal"
+                    data-pid="<?= $pid ?>" data-nama="<?= esc($prog['nama_program'], 'attr') ?>" title="Tambah sponsor ke program ini">
+                <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline">Sponsor</span>
+            </button>
             <?php endif; ?>
+            <?php if ($canEdit): ?>
+            <div class="dropdown">
+                <button class="si-iconbtn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi program"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end si-menu">
+                <?php if ($isLocked): ?>
+                    <?php if ($user['role'] === 'admin'): ?>
+                    <li>
+                        <form method="post" action="<?= base_url('sponsorship/' . $pid . '/unlock') ?>">
+                            <?= csrf_field() ?>
+                            <button class="dropdown-item text-danger"><i class="bi bi-unlock"></i>Buka kunci</button>
+                        </form>
+                    </li>
+                    <?php else: ?>
+                    <li><span class="dropdown-item-text small text-muted">Program terkunci. Hanya admin yang dapat membuka kunci.</span></li>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <li>
+                        <button type="button" class="dropdown-item" data-bs-toggle="modal"
+                                data-bs-target="#editProgramModal"
+                                data-id="<?= $pid ?>"
+                                data-nama="<?= esc($prog['nama_program'], 'attr') ?>"
+                                data-mall="<?= esc($prog['mall'] ?? '', 'attr') ?>"
+                                data-mulai="<?= $prog['tanggal_mulai'] ?? '' ?>"
+                                data-selesai="<?= $prog['tanggal_selesai'] ?? '' ?>"
+                                data-deskripsi="<?= esc($prog['deskripsi'] ?? '', 'attr') ?>"
+                                data-target-sponsor="<?= $prog['target_sponsor'] ?? '' ?>"
+                                data-target-nilai="<?= $prog['target_nilai'] ?? '' ?>"
+                                data-catatan="<?= esc($prog['catatan'] ?? '', 'attr') ?>"><i class="bi bi-pencil"></i>Edit program</button>
+                    </li>
+                    <li>
+                        <form method="post" action="<?= base_url('sponsorship/' . $pid . '/toggle') ?>">
+                            <?= csrf_field() ?>
+                            <button class="dropdown-item"><i class="bi bi-<?= $isActive ? 'pause-circle' : 'play-circle' ?>"></i><?= $isActive ? 'Nonaktifkan' : 'Aktifkan' ?></button>
+                        </form>
+                    </li>
+                    <li>
+                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#lockProgramModal"
+                                data-id="<?= $pid ?>" data-nama="<?= esc($prog['nama_program'], 'attr') ?>"><i class="bi bi-lock"></i>Kunci program</button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="post" action="<?= base_url('sponsorship/' . $pid . '/delete') ?>"
+                              onsubmit="return confirm('Hapus program ini beserta semua data sponsor dan realisasinya?')">
+                            <?= csrf_field() ?>
+                            <button class="dropdown-item text-danger"><i class="bi bi-trash"></i>Hapus program</button>
+                        </form>
+                    </li>
+                <?php endif; ?>
+                </ul>
+            </div>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="card-body pb-2">
-        <!-- Program stats row -->
-        <div class="row g-3 mb-3">
-            <div class="col-6 col-md-3">
-                <div class="text-muted small">Target Sponsor</div>
-                <div class="fw-semibold"><?= $prog['target_sponsor'] ? $prog['target_sponsor'] . ' sponsor' : '—' ?></div>
-                <div class="small text-muted">Konfirmasi: <?= $committed['total_sponsor'] ?></div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="text-muted small">Target Nilai</div>
-                <div class="fw-semibold"><?= $prog['target_nilai'] ? spFmt((int)$prog['target_nilai']) : '—' ?></div>
-                <?php if (($committed['total_cash'] ?? 0) > 0): ?>
-                <div class="small text-muted">Cash: <?= spFmt($committed['total_cash']) ?></div>
-                <?php endif; ?>
-                <?php if (($committed['total_barang'] ?? 0) > 0): ?>
-                <div class="small text-muted">Barang: <?= spFmt($committed['total_barang']) ?></div>
-                <?php endif; ?>
-                <?php if (($committed['total_cash'] ?? 0) === 0 && ($committed['total_barang'] ?? 0) === 0): ?>
-                <div class="small text-muted">Deal: <?= spFmt($committed['total_nilai'] ?? 0) ?></div>
-                <?php endif; ?>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="text-muted small">Terkumpul</div>
-                <div class="fw-semibold text-info"><?= spFmt($terkumpul) ?></div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="text-muted small">Collection Rate</div>
-                <div class="fw-semibold"><?= $collPct ?>%</div>
-                <div class="progress mt-1" style="height:5px">
-                    <div class="progress-bar bg-<?= $collBar ?>" style="width:<?= $collPct ?>%"></div>
+    <div class="si-prog-body" id="body-<?= $pid ?>" hidden>
+        <?php if ($prog['deskripsi']): ?>
+        <p class="si-desc"><?= esc($prog['deskripsi']) ?></p>
+        <?php endif; ?>
+
+        <?php if (! empty($spList)): ?>
+        <div class="si-sp-head" aria-hidden="true">
+            <span>Sponsor</span><span>Kategori · Jenis</span><span class="si-r">Nilai deal</span><span>Terkumpul</span><span>Status</span><span></span>
+        </div>
+        <?php foreach ($spList as $sp):
+            $spReal    = $realisasi[$sp['id']] ?? ['total_nilai' => 0, 'entries' => []];
+            $items     = $itemsBySponsors[$sp['id']] ?? [];
+            $nilaiDeal = (int)$sp['nilai'];
+            $nilaiReal = (int)$spReal['total_nilai'];
+            $lunasPenuh = $nilaiDeal > 0 && $nilaiReal >= $nilaiDeal;
+            $spPctVal   = $nilaiDeal > 0 ? min(100, round($nilaiReal / $nilaiDeal * 100)) : 0;
+            $entries    = $spReal['entries'] ?? [];
+            // Tanggal input sponsor -> durasi sampai realisasi terpenuhi
+            $inputDate   = ! empty($sp['created_at']) ? substr($sp['created_at'], 0, 10) : null;
+            $fulfillDate = null;
+            if ($nilaiDeal > 0 && ! empty($entries)) {
+                $ents = $entries;
+                usort($ents, fn($a, $b) => strcmp($a['tanggal'] ?? '', $b['tanggal'] ?? ''));
+                $cum = 0;
+                foreach ($ents as $en) {
+                    $cum += (int)$en['nilai'];
+                    if ($cum >= $nilaiDeal) { $fulfillDate = $en['tanggal']; break; }
+                }
+            }
+        ?>
+        <div class="si-sp" id="sponsor-<?= $sp['id'] ?>">
+            <div class="si-sp-row">
+                <div class="si-sp-name" data-l="Sponsor">
+                    <div class="si-sp-n"><?= esc($sp['nama_sponsor']) ?></div>
+                    <?php if ($sp['detail']): ?><div class="si-sp-d"><?= esc($sp['detail']) ?></div><?php endif; ?>
+                    <div class="si-sp-d"><i class="bi bi-person"></i>PIC: <?= esc($sp['pic_nama'] ?? '—') ?></div>
+                    <?php if (! empty($items)): ?>
+                    <div class="si-items">
+                        <?php foreach ($items as $item):
+                            $lineTotal = (int)$item['nilai'] * max(1, (int)($item['qty'] ?? 1)); ?>
+                        <span class="si-item"><?= esc($item['deskripsi_barang']) ?>
+                            <?php if ($item['qty']): ?>×<?= $item['qty'] ?> @ <?= spFmt((int)$item['nilai']) ?> = <?= spFmt($lineTotal) ?><?php else: ?>— <?= spFmt((int)$item['nilai']) ?><?php endif; ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div class="si-sp-kat" data-l="Kategori · Jenis">
+                    <?php if ($sp['kategori']): ?><span class="si-chip si-chip-mute"><?= esc($sp['kategori']) ?></span><?php endif; ?>
+                    <span class="si-chip si-chip-jenis"><?= esc(ucfirst($sp['jenis'])) ?></span>
+                </div>
+                <div class="si-sp-val si-r" data-l="Nilai deal"><b><?= spFmt($nilaiDeal) ?></b></div>
+                <div class="si-sp-col" data-l="Terkumpul">
+                    <div class="si-sp-colh">
+                        <b class="<?= $lunasPenuh ? 'si-c-ok' : 'si-c-cyan' ?>"><?= spFmt($nilaiReal) ?></b>
+                        <?php if ($lunasPenuh): ?><i class="bi bi-check-circle-fill si-c-ok" title="Realisasi sudah mencapai nilai deal"></i>
+                        <?php elseif ($nilaiDeal > 0 && $nilaiReal > 0): ?><span class="si-sp-pct"><?= round($nilaiReal / $nilaiDeal * 100) ?>%</span><?php endif; ?>
+                    </div>
+                    <?php if ($nilaiDeal > 0): ?><div class="si-bar si-bar-<?= $lunasPenuh ? 'ok' : ($nilaiReal > 0 ? 'mid' : 'low') ?>"><i style="width:<?= $spPctVal ?>%"></i></div><?php endif; ?>
+                    <?php if ($inputDate): ?>
+                    <div class="si-sp-d"><i class="bi bi-calendar-plus"></i><?= date('d/m/y', strtotime($inputDate)) ?>
+                        <?php if ($fulfillDate): $days = max(0, (int)floor((strtotime($fulfillDate) - strtotime($inputDate)) / 86400)); ?>
+                        → <span class="si-c-ok"><?= date('d/m/y', strtotime($fulfillDate)) ?> (<?= $days ?> hari)</span>
+                        <?php else: ?>· <span class="si-c-warn">belum terpenuhi</span><?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div class="si-sp-st" data-l="Status"><span class="si-deal si-deal-<?= esc($sp['status_deal']) ?>"><?= $dealStatusLabel[$sp['status_deal']] ?? esc($sp['status_deal']) ?></span></div>
+                <div class="si-sp-act">
+                    <?php if (! empty($entries)): ?>
+                    <button type="button" class="si-btn si-btn-xs" data-si-real="<?= $sp['id'] ?>" aria-expanded="false" title="Lihat riwayat realisasi">
+                        <i class="bi bi-receipt"></i><?= count($entries) ?><i class="bi bi-chevron-down si-caret"></i>
+                    </button>
+                    <?php endif; ?>
+                    <?php if ($canEditProg): ?>
+                    <button class="si-btn si-btn-xs si-btn-soft-ok" title="Input realisasi"
+                            data-bs-toggle="modal" data-bs-target="#addRealisasiModal"
+                            data-pid="<?= $pid ?>" data-spid="<?= $sp['id'] ?>" data-nama="<?= esc($sp['nama_sponsor'], 'attr') ?>">
+                        <i class="bi bi-plus-circle"></i>Realisasi
+                    </button>
+                    <button class="si-iconbtn si-iconbtn-sm" title="Edit sponsor" aria-label="Edit sponsor"
+                            data-bs-toggle="modal" data-bs-target="#editSponsorModal"
+                            data-pid="<?= $pid ?>"
+                            data-id="<?= $sp['id'] ?>"
+                            data-nama="<?= esc($sp['nama_sponsor'], 'attr') ?>"
+                            data-kategori="<?= esc($sp['kategori'] ?? '', 'attr') ?>"
+                            data-jenis="<?= esc($sp['jenis'], 'attr') ?>"
+                            data-nilai="<?= $sp['nilai'] ?>"
+                            data-status="<?= esc($sp['status_deal'], 'attr') ?>"
+                            data-detail="<?= esc($sp['detail'] ?? '', 'attr') ?>"
+                            data-catatan="<?= esc($sp['catatan'] ?? '', 'attr') ?>"
+                            data-items="<?= esc(json_encode($itemsBySponsors[$sp['id']] ?? []), 'attr') ?>">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <form method="post" action="<?= base_url('sponsorship/' . $pid . '/sponsor/' . $sp['id'] . '/delete') ?>"
+                          class="d-inline" onsubmit="return confirm('Hapus sponsor ini beserta realisasinya?')">
+                        <?= csrf_field() ?>
+                        <button class="si-iconbtn si-iconbtn-sm si-iconbtn-bad" title="Hapus sponsor" aria-label="Hapus sponsor"><i class="bi bi-trash"></i></button>
+                    </form>
+                    <?php endif; ?>
                 </div>
             </div>
-        </div>
-
-        <?php if ($prog['deskripsi']): ?>
-        <p class="small text-muted mb-3"><?= esc($prog['deskripsi']) ?></p>
-        <?php endif; ?>
-
-        <!-- Sponsor deals table -->
-        <?php if (! empty($spList)): ?>
-        <div class="table-responsive mb-2">
-            <table class="table table-sm table-hover align-middle mb-0" style="font-size:.82rem">
-                <thead class="table-light">
-                    <tr>
-                        <th>Nama Sponsor</th>
-                        <th>Kategori</th>
-                        <th>Jenis</th>
-                        <th class="text-end">Nilai Deal</th>
-                        <th class="text-end">Terkumpul</th>
-                        <th>Status Deal</th>
-                        <?php if ($canEditProg): ?><th></th><?php endif; ?>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($spList as $sp):
-                    $spReal  = $realisasi[$sp['id']] ?? ['total_nilai' => 0, 'entries' => []];
-                    $items   = $itemsBySponsors[$sp['id']] ?? [];
-                ?>
-                <tr id="sponsor-<?= $sp['id'] ?>">
-                    <td>
-                        <div class="fw-medium"><?= esc($sp['nama_sponsor']) ?></div>
-                        <?php if ($sp['detail']): ?>
-                        <div class="text-muted" style="font-size:.75rem"><?= esc($sp['detail']) ?></div>
-                        <?php endif; ?>
-                        <div class="text-muted" style="font-size:.72rem"><i class="bi bi-person me-1"></i>PIC: <?= esc($sp['pic_nama'] ?? '—') ?></div>
-                        <?php if (! empty($items)): ?>
-                        <div class="mt-1">
-                            <?php foreach ($items as $item):
-                                $lineTotal = (int)$item['nilai'] * max(1, (int)($item['qty'] ?? 1));
-                            ?>
-                            <span class="badge me-1" style="font-size:.7rem;background:#e2e8f0;color:#334155;font-weight:500">
-                                <?= esc($item['deskripsi_barang']) ?>
-                                <?php if ($item['qty']): ?>×<?= $item['qty'] ?> @ <?= spFmt((int)$item['nilai']) ?> = <?= spFmt($lineTotal) ?><?php else: ?>— <?= spFmt((int)$item['nilai']) ?><?php endif; ?>
-                            </span>
-                            <?php endforeach; ?>
-                        </div>
-                        <?php endif; ?>
-                    </td>
-                    <td><?= $sp['kategori'] ? '<span class="badge bg-secondary-subtle text-secondary">' . esc($sp['kategori']) . '</span>' : '—' ?></td>
-                    <td><span class="badge" style="background:#e2e8f0;color:#334155;font-weight:600"><?= esc(ucfirst($sp['jenis'])) ?></span></td>
-                    <td class="text-end fw-semibold"><?= spFmt((int)$sp['nilai']) ?></td>
-                    <td class="text-end fw-semibold">
-                        <?php
-                        $nilaiDeal = (int)$sp['nilai'];
-                        $nilaiReal = (int)$spReal['total_nilai'];
-                        $lunasPenuh = $nilaiDeal > 0 && $nilaiReal >= $nilaiDeal;
-                        ?>
-                        <span class="<?= $lunasPenuh ? 'text-success' : 'text-info' ?>"><?= spFmt($nilaiReal) ?></span>
-                        <?php if ($lunasPenuh): ?>
-                        <i class="bi bi-check-circle-fill text-success ms-1" style="font-size:.8rem" title="Realisasi sudah mencapai nilai deal"></i>
-                        <?php elseif ($nilaiDeal > 0 && $nilaiReal > 0): ?>
-                        <div class="text-muted" style="font-size:.7rem"><?= round($nilaiReal / $nilaiDeal * 100) ?>%</div>
-                        <?php endif; ?>
-                        <?php
-                        // Tanggal input sponsor → durasi sampai realisasi terpenuhi (kumulatif capai nilai deal)
-                        $inputDate   = ! empty($sp['created_at']) ? substr($sp['created_at'], 0, 10) : null;
-                        $fulfillDate = null;
-                        if ($nilaiDeal > 0 && ! empty($spReal['entries'])) {
-                            $ents = $spReal['entries'];
-                            usort($ents, fn($a, $b) => strcmp($a['tanggal'] ?? '', $b['tanggal'] ?? ''));
-                            $cum = 0;
-                            foreach ($ents as $en) {
-                                $cum += (int)$en['nilai'];
-                                if ($cum >= $nilaiDeal) { $fulfillDate = $en['tanggal']; break; }
-                            }
-                        }
-                        ?>
-                        <?php if ($inputDate): ?>
-                        <div class="text-muted fw-normal" style="font-size:.66rem">
-                            <i class="bi bi-calendar-plus me-1"></i><?= date('d/m/y', strtotime($inputDate)) ?>
-                            <?php if ($fulfillDate): $days = max(0, (int)floor((strtotime($fulfillDate) - strtotime($inputDate)) / 86400)); ?>
-                            → <span class="text-success"><?= date('d/m/y', strtotime($fulfillDate)) ?> (<?= $days ?> hari)</span>
-                            <?php else: ?>
-                            · <span class="text-warning-emphasis">belum terpenuhi</span>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-                    </td>
-                    <td><span class="deal-badge deal-<?= esc($sp['status_deal']) ?>"><?= $dealStatusLabel[$sp['status_deal']] ?? esc($sp['status_deal']) ?></span></td>
-                    <?php if ($canEditProg): ?>
-                    <td class="text-end">
-                        <div class="d-flex gap-1 justify-content-end">
-                            <button class="btn btn-xs btn-outline-primary" style="padding:2px 6px;font-size:.72rem"
-                                    data-bs-toggle="modal" data-bs-target="#editSponsorModal"
-                                    data-pid="<?= $pid ?>"
-                                    data-id="<?= $sp['id'] ?>"
-                                    data-nama="<?= esc($sp['nama_sponsor'], 'attr') ?>"
-                                    data-kategori="<?= esc($sp['kategori'] ?? '', 'attr') ?>"
-                                    data-jenis="<?= esc($sp['jenis'], 'attr') ?>"
-                                    data-nilai="<?= $sp['nilai'] ?>"
-                                    data-status="<?= esc($sp['status_deal'], 'attr') ?>"
-                                    data-detail="<?= esc($sp['detail'] ?? '', 'attr') ?>"
-                                    data-catatan="<?= esc($sp['catatan'] ?? '', 'attr') ?>"
-                                    data-items="<?= esc(json_encode($itemsBySponsors[$sp['id']] ?? []), 'attr') ?>">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-xs btn-outline-success" style="padding:2px 6px;font-size:.72rem"
-                                    data-bs-toggle="modal" data-bs-target="#addRealisasiModal"
-                                    data-pid="<?= $pid ?>"
-                                    data-spid="<?= $sp['id'] ?>"
-                                    data-nama="<?= esc($sp['nama_sponsor'], 'attr') ?>">
-                                <i class="bi bi-plus-circle"></i> Realisasi
-                            </button>
-                            <form method="post" action="<?= base_url('sponsorship/' . $pid . '/sponsor/' . $sp['id'] . '/delete') ?>"
-                                  class="d-inline" onsubmit="return confirm('Hapus sponsor ini beserta realisasinya?')">
-                                <?= csrf_field() ?>
-                                <button class="btn btn-xs btn-outline-danger" style="padding:2px 6px;font-size:.72rem"><i class="bi bi-trash"></i></button>
-                            </form>
-                        </div>
-                        <!-- Realisasi entries inline -->
-                        <?php if (! empty($spReal['entries'])): ?>
-                        <div class="mt-2">
-                            <?php foreach ($spReal['entries'] as $r): ?>
-                            <div class="d-flex align-items-center gap-1 mb-1" style="font-size:.72rem">
-                                <span class="text-muted"><?= date('d/m/Y', strtotime($r['tanggal'])) ?></span>
-                                <span class="fw-semibold text-info"><?= spFmt((int)$r['nilai']) ?></span>
-                                <?php if ($r['file_bukti']): ?>
-                                <a href="<?= base_url('sponsorship/' . $pid . '/file/' . $r['file_bukti']) ?>" target="_blank" class="text-primary"><i class="bi bi-paperclip"></i></a>
-                                <?php endif; ?>
-                                <span class="text-muted" title="PIC pengisi realisasi"><i class="bi bi-person"></i> <?= esc($r['pengisi'] ?? '—') ?></span>
-                                <form method="post" action="<?= base_url('sponsorship/' . $pid . '/sponsor/' . $sp['id'] . '/realisasi/' . $r['id'] . '/delete') ?>"
-                                      class="d-inline" onsubmit="return confirm('Hapus entri realisasi ini?')">
-                                    <?= csrf_field() ?>
-                                    <button class="btn btn-xs text-danger p-0 border-0 bg-transparent"><i class="bi bi-x-circle"></i></button>
-                                </form>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                        <?php endif; ?>
-                    </td>
+            <?php if (! empty($entries)): ?>
+            <div class="si-reals" id="reals-<?= $sp['id'] ?>" hidden>
+                <?php foreach ($entries as $r): ?>
+                <div class="si-real">
+                    <span class="si-real-d"><i class="bi bi-calendar-check"></i><?= date('d/m/Y', strtotime($r['tanggal'])) ?></span>
+                    <b class="si-c-cyan"><?= spFmt((int)$r['nilai']) ?></b>
+                    <?php if ($r['file_bukti']): ?>
+                    <a href="<?= base_url('sponsorship/' . $pid . '/file/' . $r['file_bukti']) ?>" target="_blank" class="si-real-f"><i class="bi bi-paperclip"></i>Bukti</a>
                     <?php endif; ?>
-                </tr>
+                    <span class="si-real-p" title="PIC pengisi realisasi"><i class="bi bi-person"></i><?= esc($r['pengisi'] ?? '—') ?></span>
+                    <?php if ($canEditProg): ?>
+                    <form method="post" action="<?= base_url('sponsorship/' . $pid . '/sponsor/' . $sp['id'] . '/realisasi/' . $r['id'] . '/delete') ?>"
+                          class="ms-auto" onsubmit="return confirm('Hapus entri realisasi ini?')">
+                        <?= csrf_field() ?>
+                        <button class="si-iconbtn si-iconbtn-sm si-iconbtn-bad" title="Hapus entri" aria-label="Hapus entri realisasi"><i class="bi bi-x-lg"></i></button>
+                    </form>
+                    <?php endif; ?>
+                </div>
                 <?php endforeach; ?>
-                </tbody>
-                <tfoot class="table-light">
-                    <tr>
-                        <td colspan="3" class="fw-semibold small">Total</td>
-                        <td class="text-end fw-bold">
-                            <?= spFmt(array_sum(array_column($spList, 'nilai'))) ?>
-                            <?php
-                            $footCash   = array_sum(array_map(fn($s) => $s['jenis'] === 'cash'   ? (int)$s['nilai'] : 0, $spList));
-                            $footBarang = array_sum(array_map(fn($s) => $s['jenis'] !== 'cash'   ? (int)$s['nilai'] : 0, $spList));
-                            ?>
-                            <?php if ($footCash > 0 && $footBarang > 0): ?>
-                            <div class="text-muted fw-normal" style="font-size:.72rem">Cash: <?= spFmt($footCash) ?> · Barang: <?= spFmt($footBarang) ?></div>
-                            <?php endif; ?>
-                        </td>
-                        <td class="text-end fw-bold text-info"><?= spFmt($terkumpul) ?></td>
-                        <td colspan="<?= $canEditProg ? 2 : 1 ?>"></td>
-                    </tr>
-                </tfoot>
-            </table>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+        <?php
+        $footCash   = array_sum(array_map(fn($s) => $s['jenis'] === 'cash' ? (int)$s['nilai'] : 0, $spList));
+        $footBarang = array_sum(array_map(fn($s) => $s['jenis'] !== 'cash' ? (int)$s['nilai'] : 0, $spList));
+        ?>
+        <div class="si-foot">
+            <span class="si-foot-l">Total semua sponsor</span>
+            <span class="si-foot-v"><?= spFmt(array_sum(array_column($spList, 'nilai'))) ?>
+                <?php if ($footCash > 0 && $footBarang > 0): ?><small>Cash <?= spFmt($footCash) ?> · Barang <?= spFmt($footBarang) ?></small><?php endif; ?></span>
+            <span class="si-foot-v si-c-cyan"><?= spFmt($terkumpul) ?><small>terkumpul</small></span>
         </div>
         <?php else: ?>
-        <p class="text-muted small mb-2">Belum ada sponsor terdaftar.</p>
-        <?php endif; ?>
-
-        <?php if ($canEditProg): ?>
-        <button class="btn btn-sm btn-outline-primary mt-1" data-bs-toggle="modal" data-bs-target="#addSponsorModal"
-                data-pid="<?= $pid ?>" data-nama="<?= esc($prog['nama_program'], 'attr') ?>">
-            <i class="bi bi-plus-lg me-1"></i>Tambah Sponsor
-        </button>
+        <div class="si-nosp">
+            <i class="bi bi-people"></i> Belum ada sponsor terdaftar.
+            <?php if ($canEditProg): ?>
+            <button class="si-btn si-btn-sm si-btn-soft" data-bs-toggle="modal" data-bs-target="#addSponsorModal"
+                    data-pid="<?= $pid ?>" data-nama="<?= esc($prog['nama_program'], 'attr') ?>"><i class="bi bi-plus-lg"></i>Tambah sponsor pertama</button>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
     </div>
+</article>
+<?php endforeach; ?>
+
 </div>
+</section>
 <?php endforeach; ?>
-<?php endforeach; ?>
+
+<div class="si-empty si-empty-filter" id="siNoMatch" hidden>
+    <i class="bi bi-search"></i>
+    <h5>Tidak ada program yang cocok</h5>
+    <p>Ubah kata kunci atau longgarkan filter.</p>
+    <button type="button" class="si-btn si-btn-sm" id="siReset"><i class="bi bi-x-circle"></i>Reset filter</button>
+</div>
+
+<?php endif; ?>
+</div><!-- /.page-spon-idx -->
 
 <!-- ── Modals ── -->
 
@@ -791,6 +817,7 @@ $inactivePrograms = array_filter($programs, fn($p) => $p['status'] === 'inactive
 </div>
 
 <?= $this->section('scripts') ?>
+<script src="<?= base_url('js/sponsorship-index.js') ?>?v=<?= @filemtime(FCPATH . 'js/sponsorship-index.js') ?: 1 ?>"></script>
 <script>
 function numFmt(val) {
     const digits = String(val).replace(/\D/g, '');

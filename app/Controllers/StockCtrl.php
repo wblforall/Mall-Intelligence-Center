@@ -67,6 +67,7 @@ class StockCtrl extends BaseController
         [$from, $to] = $this->period();
 
         $entries = (new StockBarangLogModel())->getByBarangAsc($id, $from, $to);
+        $entries = $this->attachRealisasi($entries, $id, $from, $to);
         return view('stock/kartu_barang', [
             'user'    => $this->currentUser(),
             'barang'  => $barang,
@@ -74,6 +75,57 @@ class StockCtrl extends BaseController
             'from'    => $from,
             'to'      => $to,
         ]);
+    }
+
+
+    /**
+     * Tautkan baris log 'keluar' (program loyalty / event) ke realisasi (penerima + foto).
+     * Log tidak punya id realisasi, jadi dicocokkan per kelompok (tipe, program, tanggal):
+     *  - 'pasti'  : 1 log ↔ 1 realisasi, jumlah sama.
+     *  - 'urutan' : n log ↔ n realisasi, urutan id & jumlah identik (dibuat bersamaan, urutan sama).
+     *  - 'ambigu' : selain itu → semua penerima kelompok itu ditampilkan, tanpa dipasangkan.
+     * Hanya baca; tanpa ubah data/skema.
+     */
+    private function attachRealisasi(array $entries, int $barangId, string $from, string $to): array
+    {
+        $db  = \Config\Database::connect();
+        $src = [
+            'loyalty_program' => ['loyalty_hadiah_realisasi', 'loyalty_hadiah_items', 'loyalty'],
+            'event_loyalty'   => ['event_loyalty_hadiah_realisasi', 'event_loyalty_hadiah_items', 'event'],
+        ];
+        $real = []; // "tipe|program|tanggal" => [rows]
+        foreach ($src as $tipe => [$rt, $it, $kind]) {
+            $rows = $db->table($rt . ' r')
+                ->select('r.id, r.program_id, r.tanggal, r.jumlah_dibagikan, r.nama_penerima, r.foto')
+                ->join($it . ' i', 'i.id = r.item_id')
+                ->where('i.barang_id', $barangId)->where('r.kode_id', null)->where('r.jumlah_dibagikan >', 0)
+                ->where('r.tanggal >=', $from)->where('r.tanggal <=', $to)
+                ->orderBy('r.id', 'ASC')->get()->getResultArray();
+            foreach ($rows as $r) {
+                $r['foto_ada'] = ! empty($r['foto']) && is_file(FCPATH . 'uploads/loyalty-realisasi/' . $r['foto']);
+                $real[$tipe . '|' . $r['program_id'] . '|' . $r['tanggal']][] = $r;
+            }
+        }
+        $grp = [];
+        foreach ($entries as $i => $e) {
+            if ($e['tipe'] !== 'keluar' || ! isset($src[$e['referensi_tipe'] ?? ''])) continue;
+            $grp[$e['referensi_tipe'] . '|' . $e['referensi_id'] . '|' . $e['tanggal']][] = $i;
+        }
+        foreach ($grp as $key => $idxs) {
+            $rs = $real[$key] ?? [];
+            if (! $rs) continue;
+            $sameCount = count($rs) === count($idxs);
+            $sameQty = $sameCount;
+            if ($sameCount) foreach ($idxs as $n => $i) if ((int) $entries[$i]['jumlah'] !== (int) $rs[$n]['jumlah_dibagikan']) { $sameQty = false; break; }
+            foreach ($idxs as $n => $i) {
+                if ($sameQty) {
+                    $entries[$i]['realisasi'] = ['mode' => count($idxs) === 1 ? 'pasti' : 'urutan', 'rows' => [$rs[$n]]];
+                } else {
+                    $entries[$i]['realisasi'] = ['mode' => 'ambigu', 'rows' => $rs];
+                }
+            }
+        }
+        return $entries;
     }
 
     // Kartu stok satu batch voucher

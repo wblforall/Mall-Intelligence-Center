@@ -25,6 +25,176 @@ use App\Models\LoyaltySummaryAnalysisModel;
 
 class LoyaltyCtrl extends BaseController
 {
+    // ── Aturan kelengkapan analisa bulanan (Summary Loyalty) ──────────────
+    /** true = cetak Laporan Bulanan ditolak bila ada program relevan yang analisanya belum lengkap. */
+    public const WAJIB_LENGKAP_CETAK = true;
+    /** Aturan hanya berlaku untuk bulan berjalan + sekian bulan sebelumnya; bulan lebih lama = arsip (cetak bebas). */
+    public const BATAS_BULAN_WAJIB   = 2;
+    /** Panjang minimum (karakter, setelah trim) tiap kolom analisa yang wajib. */
+    public const ANALISA_MIN_KARAKTER = 10;
+    /** Batas lunak per kolom: lebih dari ini hanya diperingatkan di layar. */
+    public const ANALISA_MAKS_LUNAK  = 1000;
+    /** Batas keras per kolom: server menolak isian BARU/BERUBAH yang lebih panjang (data lama yang tak berubah tetap boleh). */
+    public const ANALISA_MAKS_KERAS  = 2000;
+    /** Kolom analisa => label. */
+    public const KOLOM_ANALISA = ['highlight' => 'Highlight', 'kendala' => 'Kendala', 'tindak_lanjut' => 'Tindak Lanjut'];
+
+    /** Trim yang sama persis dengan JS (spasi Unicode, NBSP, BOM). */
+    public static function analisaTrim(string $t): string
+    {
+        return (string) preg_replace('/^[\p{Z}\s\x{FEFF}]+|[\p{Z}\s\x{FEFF}]+$/u', '', $t);
+    }
+
+    /**
+     * Isian sah: >= ANALISA_MIN_KARAKTER karakter (titik kode, setelah trim), memuat sedikitnya satu huruf,
+     * dan bukan pengulangan satu karakter. Logika yang sama ada di loyalty-summary.js (analisaSah).
+     */
+    public static function analisaTeksSah(string $t): bool
+    {
+        $t = self::analisaTrim($t);
+        if (mb_strlen($t, 'UTF-8') < self::ANALISA_MIN_KARAKTER) return false;
+        if (! preg_match('/\p{L}/u', $t)) return false;
+        $tanpaSpasi = (string) preg_replace('/[\p{Z}\s\x{FEFF}]+/u', '', $t);
+        $huruf = preg_split('//u', mb_strtolower($tanpaSpasi, 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        return count(array_unique($huruf)) > 1;
+    }
+
+    /** Kolom yang wajib menurut status program: done|notarget => Highlight saja; partial|belum => ketiganya. */
+    public static function analisaKolomWajib(string $status): array
+    {
+        return in_array($status, ['partial', 'belum', 'sebagian'], true) ? array_keys(self::KOLOM_ANALISA) : ['highlight'];
+    }
+
+    /** Evaluasi satu analisa terhadap status: ['lengkap'=>bool,'kurang'=>[kolom],'draf'=>bool(ada isi)]. */
+    public static function analisaEvaluasi(string $status, array $an): array
+    {
+        $kurang = [];
+        foreach (self::analisaKolomWajib($status) as $k) {
+            if (! self::analisaTeksSah((string)($an[$k] ?? ''))) $kurang[] = $k;
+        }
+        $draf = false;
+        foreach (array_keys(self::KOLOM_ANALISA) as $k) {
+            if (self::analisaTrim((string)($an[$k] ?? '')) !== '' ) { $draf = true; break; }
+        }
+        return ['lengkap' => $kurang === [], 'kurang' => $kurang, 'draf' => $draf];
+    }
+
+    /** Apakah aturan kelengkapan berlaku untuk bulan ini (bulan berjalan + BATAS_BULAN_WAJIB bulan sebelumnya)? */
+    public static function bulanBerlaku(string $bulan): bool
+    {
+        $awal = date('Y-m', strtotime('first day of this month -' . self::BATAS_BULAN_WAJIB . ' months'));
+        return $bulan >= $awal && $bulan <= date('Y-m');
+    }
+
+    /**
+     * Program (SEMUA, urutan sama dengan tabel Summary) beserta status target & apakah relevan di bulan itu.
+     * Logika status/relevansi disalin dari view summary.php agar penjaga cetak & respons simpan selaras.
+     * @return array<string,array{key:string,nama:string,status:string,relevan:bool}>
+     */
+    private function petaProgramBulan(string $bulan): array
+    {
+        $programs      = $this->mergePrograms();
+        $standaloneIds = array_column(array_filter($programs, fn($p) => $p['source'] === 'standalone'), 'id');
+        $eventIds      = array_column(array_filter($programs, fn($p) => $p['source'] === 'event'), 'id');
+
+        $sModel = new LoyaltyRealisasiModel();      $eModel  = new EventLoyaltyRealisasiModel();
+        $vrModel = new LoyaltyVoucherRealisasiModel(); $evrModel = new EventLoyaltyVoucherRealisasiModel();
+        $hrModel = new LoyaltyHadiahRealisasiModel();  $ehrModel = new EventLoyaltyHadiahRealisasiModel();
+
+        $vGroup  = (new LoyaltyVoucherItemModel())->getByPrograms($standaloneIds);
+        $evGroup = (new EventLoyaltyVoucherItemModel())->getByPrograms($eventIds);
+        $hGroup  = (new LoyaltyHadiahItemModel())->getByPrograms($standaloneIds);
+        $ehGroup = (new EventLoyaltyHadiahItemModel())->getByPrograms($eventIds);
+        $ids = fn(array $g): array => array_merge([], ...array_map(fn($items) => array_column($items, 'id'), array_values($g)));
+        $vIds = $ids($vGroup); $evIds = $ids($evGroup); $hIds = $ids($hGroup); $ehIds = $ids($ehGroup);
+
+        $monthly = []; $cum = [];
+        foreach ($sModel->getMonthlyByPrograms($bulan, $standaloneIds) as $id => $d) $monthly['s_' . $id] = $d;
+        foreach ($eModel->getMonthlyByPrograms($bulan, $eventIds) as $id => $d)      $monthly['e_' . $id] = $d;
+        foreach ($sModel->getCumulativeByPrograms($bulan, $standaloneIds) as $id => $d) $cum['s_' . $id] = $d;
+        foreach ($eModel->getCumulativeByPrograms($bulan, $eventIds) as $id => $d)      $cum['e_' . $id] = $d;
+
+        $aggV = function (array $group, array $perItem): array {
+            $out = [];
+            foreach ($group as $pid => $items) {
+                $out[$pid] = ['total_tersebar' => 0, 'total_terpakai' => 0];
+                foreach ($items as $vi) {
+                    if ($vd = ($perItem[$vi['id']] ?? null)) {
+                        $out[$pid]['total_tersebar'] += (int)$vd['total_tersebar'];
+                        $out[$pid]['total_terpakai'] += (int)$vd['total_terpakai'];
+                    }
+                }
+            }
+            return $out;
+        };
+        $aggH = function (array $group, array $perItem): array {
+            $out = [];
+            foreach ($group as $pid => $items) {
+                $out[$pid] = 0;
+                foreach ($items as $hi) $out[$pid] += (int)($perItem[$hi['id']] ?? 0);
+            }
+            return $out;
+        };
+        $vMon  = $aggV($vGroup,  $vrModel->getMonthlyByItems($bulan, $vIds));
+        $evMon = $aggV($evGroup, $evrModel->getMonthlyByItems($bulan, $evIds));
+        $vCum  = $aggV($vGroup,  $vrModel->getCumulativeByItems($bulan, $vIds));
+        $evCum = $aggV($evGroup, $evrModel->getCumulativeByItems($bulan, $evIds));
+        $hMon  = $aggH($hGroup,  $hrModel->getMonthlyByItems($bulan, $hIds));
+        $ehMon = $aggH($ehGroup, $ehrModel->getMonthlyByItems($bulan, $ehIds));
+
+        $awal = $bulan . '-01';
+        $akhir = date('Y-m-t', strtotime($awal));
+        $semua = [];
+        foreach ($programs as $p) {
+            $isS = $p['source'] === 'standalone';
+            $key = ($isS ? 's_' : 'e_') . $p['id'];
+            $pid = $p['id'];
+
+            // — relevansi (sama dengan $progInMonth di view)
+            $mulai   = $isS ? ($p['tanggal_mulai'] ?? '')   : ($p['event_start_date'] ?? '');
+            $selesai = $isS ? ($p['tanggal_selesai'] ?? '') : ($p['event_start_date'] ?? '');
+            $md = $monthly[$key] ?? [];
+            $vd = $isS ? ($vMon[$pid] ?? []) : ($evMon[$pid] ?? []);
+            $relevan = ($mulai && $mulai <= $akhir && (empty($selesai) || $selesai >= $awal))
+                || (int)($md['total_jumlah'] ?? 0) > 0 || (int)($md['total_member_aktif'] ?? 0) > 0
+                || (int)($vd['total_tersebar'] ?? 0) > 0 || (int)($vd['total_terpakai'] ?? 0) > 0
+                || ($isS ? (int)($hMon[$pid] ?? 0) : (int)($ehMon[$pid] ?? 0)) > 0;
+
+            // — status target (sama dengan $buildCardData di view)
+            $c = $cum[$key] ?? [];
+            $vcd = $isS ? ($vCum[$pid] ?? []) : ($evCum[$pid] ?? []);
+            $vQuota = 0;
+            if ($isS && ($p['target_type'] ?? '') === 'evoucher' && ($p['total_voucher'] ?? 0) > 0) $vQuota = (int)$p['total_voucher'];
+            elseif (! $isS && isset($evGroup[$pid])) $vQuota = array_sum(array_column($evGroup[$pid], 'total_diterbitkan'));
+            $tgt = 0; $ach = 0;
+            if (($p['target_peserta'] ?? 0) > 0)      { $tgt++; if ((int)($c['total_jumlah'] ?? 0)       >= (int)$p['target_peserta'])      $ach++; }
+            if (($p['target_member_aktif'] ?? 0) > 0) { $tgt++; if ((int)($c['total_member_aktif'] ?? 0) >= (int)$p['target_member_aktif']) $ach++; }
+            if ($vQuota > 0)                          { $tgt++; if ((int)($vcd['total_terpakai'] ?? 0)   >= $vQuota)                        $ach++; }
+            $status = $tgt === 0 ? 'notarget' : ($ach === $tgt ? 'done' : ($ach > 0 ? 'partial' : 'belum'));
+
+            $semua[$key] = ['key' => $key, 'nama' => (string)($p['nama_program'] ?? ''), 'status' => $status, 'relevan' => $relevan,
+                            'grup' => $p['source'] === 'event' ? 2 : (($p['status'] ?? 'active') === 'inactive' ? 1 : 0)];
+        }
+        // urutan view: standalone aktif, non-aktif, event
+        uasort($semua, fn($a, $b) => $a['grup'] <=> $b['grup']);
+        return $semua;
+    }
+
+    /** Ringkasan kelengkapan satu bulan: program relevan yang belum lengkap + apakah aturan berlaku. */
+    private function aturanBulan(string $bulan): array
+    {
+        $peta = $this->petaProgramBulan($bulan);
+        $an   = (new LoyaltySummaryAnalysisModel())->getMapByMonth($bulan);
+        $relevan = 0; $belum = [];
+        foreach ($peta as $key => $p) {
+            if (! $p['relevan']) continue;
+            $relevan++;
+            $ev = self::analisaEvaluasi($p['status'], $an[$key] ?? []);
+            if (! $ev['lengkap']) $belum[$key] = ['nama' => $p['nama'], 'status' => $p['status'], 'kurang' => $ev['kurang']];
+        }
+        return ['berlaku' => self::bulanBerlaku($bulan), 'relevan' => $relevan, 'belum' => $belum];
+    }
+
     private function mergePrograms(): array
     {
         $standalone = (new LoyaltyProgramModel())->getAll();
@@ -154,6 +324,9 @@ class LoyaltyCtrl extends BaseController
             $barang      = (new StockBarangModel())->find($barangId);
             $namaHadiah  = $barang['nama_barang'] ?? $namaHadiah;
             $nilaiSatuan = (int)($barang['nilai_satuan'] ?? $nilaiSatuan);
+            if ($stok > 0 && $stok > ((int)$barang['stok_tersedia'] - (int)$barang['stok_reserved'])) {
+                return redirect()->to('/loyalty#program-s-'.$programId)->with('error', StockBarangModel::pesanAlokasiMelebihi((string)($barang['nama_barang'] ?? ''), $stok, (int)$barang['stok_tersedia'] - (int)$barang['stok_reserved']));
+            }
             if ($stok <= 0) $stok = max(0, (int)$barang['stok_tersedia'] - (int)$barang['stok_reserved']);
         } elseif ($batchId) {
             $batch       = (new StockVoucherBatchModel())->find($batchId);
@@ -190,6 +363,12 @@ class LoyaltyCtrl extends BaseController
         $newStok     = (int)($post['stok'] ?? (int)$old['stok']);
         $namaHadiah  = $post['nama_hadiah'] ?? $old['nama_hadiah'];
         $nilaiSatuan = ($post['nilai_satuan'] ?? '') !== '' ? $clean($post['nilai_satuan']) : (int)$old['nilai_satuan'];
+        if (! empty($old['barang_id']) && ($newStok - (int)$old['stok']) > 0) {
+            $bebas = (new StockBarangModel())->bebas((int)$old['barang_id']);
+            if (($newStok - (int)$old['stok']) > $bebas) {
+                return redirect()->to('/loyalty#program-s-'.$programId)->with('error', StockBarangModel::pesanAlokasiMelebihi((string)($old['nama_hadiah'] ?? ''), $newStok - (int)$old['stok'], $bebas));
+            }
+        }
         ActivityLog::captureBefore($old);
         $hiData = [
             'nama_hadiah'  => $namaHadiah,
@@ -257,6 +436,16 @@ class LoyaltyCtrl extends BaseController
         if (! $this->assertNotLocked($programId)) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', 'Program terkunci.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to('/loyalty')->with('error', 'Tanggal wajib diisi.');
+        $jumlahCek = (int)($post['jumlah_dibagikan'] ?? 0);
+        if (($post['kode_id'] ?? '') === '' && $jumlahCek > 0) {
+            $itemCek = (new LoyaltyHadiahItemModel())->find($itemId);
+            if (! empty($itemCek['barang_id'])) {
+                $tersediaCek = (new StockBarangModel())->tersedia((int)$itemCek['barang_id']);
+                if ($jumlahCek > $tersediaCek) {
+                    return redirect()->to('/loyalty#program-s-'.$programId)->with('error', StockBarangModel::pesanRealisasiMelebihi((string)($itemCek['nama_hadiah'] ?? ''), $jumlahCek, $tersediaCek));
+                }
+            }
+        }
         [$fotoName, $fotoErr] = $this->uploadRealisasiFoto();
         if ($fotoErr) return redirect()->to('/loyalty#program-s-'.$programId)->with('error', $fotoErr);
         $userId  = $this->currentUser()['id'];
@@ -706,6 +895,35 @@ class LoyaltyCtrl extends BaseController
             foreach ($items as $hi) { $allEhadiahIds[] = $hi['id']; }
         }
 
+        // Bulan bawaan cerdas: bila parameter `bulan` TIDAK diberikan dan bulan berjalan belum punya
+        // realisasi apa pun, pakai bulan terbaru yang punya data. Bulan yang diminta eksplisit dihormati.
+        $bulanSekarang = date('Y-m');
+        $bulanFallback = null; // diisi bila bulan bawaan dialihkan
+        if (! $this->request->getGet('bulan')) {
+            $adaData = [];
+            $kumpul = function (array $rows, array $kolom) use (&$adaData) {
+                foreach ($rows as $r) {
+                    foreach ($kolom as $k) {
+                        if ((int)($r[$k] ?? 0) > 0) { $adaData[$r['bulan']] = true; break; }
+                    }
+                }
+            };
+            $kumpul($sModel->getAllMonthlyTotals($standaloneIds), ['total_jumlah', 'total_member_aktif']);
+            $kumpul($eModel->getAllMonthlyTotals($eventIds),      ['total_jumlah', 'total_member_aktif']);
+            $kumpul($vrModel->getAllMonthlyTotals($allVoucherIds),   ['total_tersebar', 'total_terpakai']);
+            $kumpul($evrModel->getAllMonthlyTotals($allEvoucherIds), ['total_tersebar', 'total_terpakai']);
+            $kumpul((new LoyaltyHadiahRealisasiModel())->getAllMonthlyTotals($allHadiahIds),          ['total_dibagikan']);
+            $kumpul((new EventLoyaltyHadiahRealisasiModel())->getAllMonthlyTotals($allEhadiahIds),    ['total_dibagikan']);
+            if ($adaData && ! isset($adaData[$bulanSekarang])) {
+                $bulanData = array_keys($adaData);
+                rsort($bulanData);
+                $terakhir = null;
+                foreach ($bulanData as $m) { if ($m <= $bulanSekarang) { $terakhir = $m; break; } }
+                $bulan = $terakhir ?? $bulanData[0];
+                $bulanFallback = $bulan;
+            }
+        }
+
         $sMonths = array_column($sModel->getAvailableMonths(), 'bulan');
         $eMonths = array_column($eModel->getAvailableMonths(), 'bulan');
         $monthList = array_unique(array_merge($sMonths, $eMonths));
@@ -1003,6 +1221,17 @@ class LoyaltyCtrl extends BaseController
             'dailyMember'          => $dailyMember,
             'dailyTersebar'        => $dailyTersebar,
             'dailyTerpakai'        => $dailyTerpakai,
+            'bulanSekarang'        => $bulanSekarang,
+            'bulanFallback'        => $bulanFallback,
+            'aturanAnalisa'        => [
+                'wajibCetak' => self::WAJIB_LENGKAP_CETAK,
+                'berlaku'    => self::bulanBerlaku($bulan),
+                'arsip'      => $bulan < date('Y-m', strtotime('first day of this month -' . self::BATAS_BULAN_WAJIB . ' months')),
+                'min'        => self::ANALISA_MIN_KARAKTER,
+                'maksLunak'  => self::ANALISA_MAKS_LUNAK,
+                'maksKeras'  => self::ANALISA_MAKS_KERAS,
+                'isAdmin'    => $this->isAdmin(),
+            ],
         ]);
     }
 
@@ -1024,11 +1253,39 @@ class LoyaltyCtrl extends BaseController
             return $this->response->setStatusCode(400)->setJSON(['ok' => false, 'error' => 'Data tidak valid.', 'csrf' => csrf_hash()]);
         }
 
-        (new LoyaltySummaryAnalysisModel())->saveAnalisa($bulan, $source, $programId, $analisa, $this->currentUser()['id'], $highlight, $kendala, $tindakLanjut);
-        ActivityLog::write('update', 'loyalty_analisa', $source . '_' . $programId, 'Analisa program — ' . $bulan, ['bulan' => $bulan]);
+        $am  = new LoyaltySummaryAnalysisModel();
+        $key = $source . '_' . $programId;
+
+        // Batas keras per kolom. Isian yang SAMA dengan yang tersimpan (data lama yang panjang) tetap boleh disimpan.
+        $tersimpan = $am->getMapByMonth($bulan)[$key] ?? [];
+        foreach (['highlight' => $highlight, 'kendala' => $kendala, 'tindak_lanjut' => $tindakLanjut] as $kolom => $nilai) {
+            $panjang = mb_strlen($nilai, 'UTF-8');
+            if ($panjang > self::ANALISA_MAKS_KERAS && $nilai !== trim((string)($tersimpan[$kolom] ?? ''))) {
+                return $this->response->setStatusCode(422)->setJSON([
+                    'ok' => false, 'csrf' => csrf_hash(),
+                    'error' => 'Kolom ' . self::KOLOM_ANALISA[$kolom] . ' terlalu panjang (' . number_format($panjang, 0, ',', '.')
+                        . ' karakter). Maksimum ' . number_format(self::ANALISA_MAKS_KERAS, 0, ',', '.') . ' karakter — mohon diringkas.',
+                ]);
+            }
+        }
+
+        $am->saveAnalisa($bulan, $source, $programId, $analisa, $this->currentUser()['id'], $highlight, $kendala, $tindakLanjut);
+        ActivityLog::write('update', 'loyalty_analisa', $key, 'Analisa program — ' . $bulan, ['bulan' => $bulan]);
 
         $filled = $analisa !== '' || $highlight !== '' || $kendala !== '' || $tindakLanjut !== '';
-        return $this->response->setJSON(['ok' => true, 'filled' => $filled, 'csrf' => csrf_hash()]);
+        $out = ['ok' => true, 'filled' => $filled, 'csrf' => csrf_hash()];
+
+        // Tambahan (aditif): kelengkapan menurut status target program di bulan itu. Gagal menghitung tak boleh menggagalkan simpan.
+        try {
+            $status = ($this->petaProgramBulan($bulan)[$key]['status'] ?? 'notarget');
+            $ev = self::analisaEvaluasi($status, ['highlight' => $highlight, 'kendala' => $kendala, 'tindak_lanjut' => $tindakLanjut]);
+            $out['lengkap'] = $ev['lengkap'];
+            $out['kurang']  = $ev['kurang'];
+            $out['status']  = $status;
+        } catch (\Throwable $e) {
+            log_message('error', 'saveAnalisa kelengkapan: ' . $e->getMessage());
+        }
+        return $this->response->setJSON($out);
     }
 
     public function printSummary()
@@ -1039,6 +1296,25 @@ class LoyaltyCtrl extends BaseController
 
         $bulan = $this->request->getGet('bulan') ?: date('Y-m');
         if (! preg_match('/^\d{4}-\d{2}$/', $bulan)) $bulan = date('Y-m');
+
+        // ── Penjaga kelengkapan analisa (hanya bulan berjalan + BATAS_BULAN_WAJIB bulan sebelumnya) ──
+        $analisaBelumLengkap = 0; $analisaKurang = [];
+        if (self::WAJIB_LENGKAP_CETAK && self::bulanBerlaku($bulan)) {
+            $aturan = $this->aturanBulan($bulan);
+            if ($aturan['belum']) {
+                // `lanjut=1` HANYA dihormati untuk admin; selain itu tetap ditolak.
+                $lanjutAdmin = $this->request->getGet('lanjut') === '1' && $this->isAdmin();
+                if (! $lanjutAdmin) {
+                    return redirect()->to('/loyalty/summary?bulan=' . $bulan . '#kelengkapan')
+                        ->with('error', 'Laporan belum bisa dicetak: ' . count($aturan['belum']) . ' program belum lengkap analisanya.');
+                }
+                $analisaBelumLengkap = count($aturan['belum']);
+                $analisaKurang = $aturan['belum'];
+                ActivityLog::write('export', 'loyalty_summary', $bulan, 'cetak laporan dengan analisa belum lengkap', [
+                    'bulan' => $bulan, 'belum_lengkap' => $analisaBelumLengkap, 'program' => array_column($aturan['belum'], 'nama'),
+                ]);
+            }
+        }
 
         $programs      = $this->mergePrograms();
         $standaloneIds = array_column(array_filter($programs, fn($p) => $p['source'] === 'standalone'), 'id');
@@ -1229,32 +1505,102 @@ class LoyaltyCtrl extends BaseController
         foreach (array_merge($vPrevM, $evPrevM) as $d) { $kpiTersebarPrev += (int)$d['total_tersebar']; $kpiTerpakaiPrev += (int)$d['total_terpakai']; }
         foreach (array_merge($hPrevM, $ehPrevM) as $n) { $kpiHadiahPrev += (int)$n; }
 
-        $fmtDelta = function (int $now, int $prev): string {
+        $idn = fn($n, int $d = 0): string => number_format((float)$n, $d, ',', '.');
+        $fmtDelta = function (int $now, int $prev) use ($idn): string {
             if ($prev <= 0) return $now > 0 ? 'naik dari 0 bulan lalu' : 'sama dengan bulan lalu (0)';
             $pct = round(($now - $prev) / $prev * 100);
-            return ($pct >= 0 ? 'naik ' : 'turun ') . abs($pct) . '% dari bulan lalu (' . number_format($prev) . ')';
+            return ($pct == 0 ? 'sama dengan' : ($pct > 0 ? 'naik ' . $idn(abs($pct)) . '% dari' : 'turun ' . $idn(abs($pct)) . '% dari')) . ' bulan lalu (' . $idn($prev) . ')';
         };
 
-        // Program paling aktif bulan ini (skor = member + voucher terpakai + hadiah)
-        $topName = null; $topScore = 0;
-        $noActivity = 0;
+        // Relevansi program di bulan terpilih (sama dengan filter di view & petaProgramBulan).
+        $awalBln = $bulan . '-01'; $akhirBln = date('Y-m-t', strtotime($awalBln));
+        $relevanFn = function (array $p) use ($awalBln, $akhirBln, $monthlyData, $voucherByProgram, $evoucherByProgram, $hadiahByProgram, $ehadiahByProgram): bool {
+            $isS = $p['source'] === 'standalone';
+            $key = ($isS ? 's_' : 'e_') . $p['id'];
+            $mulai   = $isS ? ($p['tanggal_mulai'] ?? '') : ($p['event_start_date'] ?? '');
+            $selesai = $isS ? ($p['tanggal_selesai'] ?? '') : ($p['event_start_date'] ?? '');
+            if ($mulai && $mulai <= $akhirBln && (empty($selesai) || $selesai >= $awalBln)) return true;
+            $md = $monthlyData[$key] ?? [];
+            if ((int)($md['total_jumlah'] ?? 0) > 0 || (int)($md['total_member_aktif'] ?? 0) > 0) return true;
+            $vd = $isS ? ($voucherByProgram[$p['id']] ?? []) : ($evoucherByProgram[$p['id']] ?? []);
+            if ((int)($vd['total_tersebar'] ?? 0) > 0 || (int)($vd['total_terpakai'] ?? 0) > 0) return true;
+            return (int)($isS ? ($hadiahByProgram[$p['id']] ?? 0) : ($ehadiahByProgram[$p['id']] ?? 0)) > 0;
+        };
+
+        // Rincian item voucher & hadiah per program (bulan ini + kumulatif) dan capaian target kumulatif.
+        $vCumItem  = $vrModel->getCumulativeByItems($bulan, $allVoucherIds);
+        $evCumItem = $evrModel->getCumulativeByItems($bulan, $allEvoucherIds);
+        $hCumItem  = $hrModel->getCumulativeByItems($bulan, $allHadiahIds);
+        $ehCumItem = $ehrModel->getCumulativeByItems($bulan, $allEhadiahIds);
+        $itemDetail = []; $capaian = [];
+        $topName = null; $topScore = 0; $noActivity = 0; $relevanN = 0;
+        $serapTop = null; $serapLow = null; $targetN = 0; $targetOk = 0;
         foreach ($programs as $p) {
-            $key   = ($p['source'] === 'standalone' ? 's_' : 'e_') . $p['id'];
-            $vd    = $p['source'] === 'standalone' ? ($voucherByProgram[$p['id']] ?? []) : ($evoucherByProgram[$p['id']] ?? []);
-            $score = (int)(($monthlyData[$key]['total_jumlah'] ?? 0))
-                   + (int)($vd['total_terpakai'] ?? 0)
-                   + (int)($p['source'] === 'standalone' ? ($hadiahByProgram[$p['id']] ?? 0) : ($ehadiahByProgram[$p['id']] ?? 0));
+            $isS = $p['source'] === 'standalone';
+            $pid = $p['id'];
+            $key = ($isS ? 's_' : 'e_') . $pid;
+            $vItems = $isS ? ($voucherItemsGrouped[$pid] ?? []) : ($evoucherItemsGrouped[$pid] ?? []);
+            $hItems = $isS ? ($hadiahItemsGrouped[$pid] ?? [])  : ($ehadiahItemsGrouped[$pid] ?? []);
+            $vMon = $isS ? $vMonthly : $evMonthly; $vCum = $isS ? $vCumItem : $evCumItem;
+            $hMon = $isS ? $hMonthly : $ehMonthly; $hCum = $isS ? $hCumItem : $ehCumItem;
+            $det = ['voucher' => [], 'hadiah' => []];
+            foreach ($vItems as $vi) {
+                $id = $vi['id'];
+                $det['voucher'][] = ['nama' => (string)$vi['nama_voucher'], 'nilai' => (int)($vi['nilai_voucher'] ?? 0),
+                    'terbit' => (int)($vi['total_diterbitkan'] ?? 0),
+                    'sebar' => (int)($vMon[$id]['total_tersebar'] ?? 0), 'pakai' => (int)($vMon[$id]['total_terpakai'] ?? 0),
+                    'sebar_kum' => (int)($vCum[$id]['total_tersebar'] ?? 0), 'pakai_kum' => (int)($vCum[$id]['total_terpakai'] ?? 0)];
+            }
+            foreach ($hItems as $hi) {
+                $id = $hi['id'];
+                $det['hadiah'][] = ['nama' => (string)$hi['nama_hadiah'], 'nilai' => (int)($hi['nilai_satuan'] ?? 0), 'stok' => (int)($hi['stok'] ?? 0),
+                    'bagi' => (int)($hMon[$id] ?? 0), 'bagi_kum' => (int)($hCum[$id] ?? 0)];
+            }
+            $itemDetail[$key] = $det;
+
+            // capaian target kumulatif (aturan sama dengan petaProgramBulan)
+            $c   = $cumulativeData[$key] ?? [];
+            $vcd = $isS ? ($voucherCumByProgram[$pid] ?? []) : ($evoucherCumByProgram[$pid] ?? []);
+            $vQuota = 0;
+            if ($isS && ($p['target_type'] ?? '') === 'evoucher' && ($p['total_voucher'] ?? 0) > 0) $vQuota = (int)$p['total_voucher'];
+            elseif (! $isS && $vItems) $vQuota = array_sum(array_column($vItems, 'total_diterbitkan'));
+            $tgt = 0; $ach = 0; $rinci = [];
+            if (($p['target_peserta'] ?? 0) > 0)      { $tgt++; $n = (int)($c['total_jumlah'] ?? 0);       if ($n >= (int)$p['target_peserta'])      $ach++; $rinci[] = 'Peserta ' . $idn($n) . ' / ' . $idn($p['target_peserta']); }
+            if (($p['target_member_aktif'] ?? 0) > 0) { $tgt++; $n = (int)($c['total_member_aktif'] ?? 0); if ($n >= (int)$p['target_member_aktif']) $ach++; $rinci[] = 'Member aktif ' . $idn($n) . ' / ' . $idn($p['target_member_aktif']); }
+            if ($vQuota > 0)                          { $tgt++; $n = (int)($vcd['total_terpakai'] ?? 0);   if ($n >= $vQuota)                        $ach++; $rinci[] = 'Voucher terpakai ' . $idn($n) . ' / ' . $idn($vQuota); }
+            $capaian[$key] = ['status' => $tgt === 0 ? 'notarget' : ($ach === $tgt ? 'done' : ($ach > 0 ? 'partial' : 'belum')), 'rinci' => $rinci, 'tgt' => $tgt, 'ach' => $ach];
+
+            // bahan temuan utama (hanya program relevan di bulan ini)
+            if (! $relevanFn($p)) continue;
+            $relevanN++;
+            if ($tgt > 0) { $targetN++; if ($ach === $tgt) $targetOk++; }
+            $vd    = $isS ? ($voucherByProgram[$pid] ?? []) : ($evoucherByProgram[$pid] ?? []);
+            $hBln  = (int)($isS ? ($hadiahByProgram[$pid] ?? 0) : ($ehadiahByProgram[$pid] ?? 0));
+            $score = (int)($monthlyData[$key]['total_jumlah'] ?? 0) + (int)($vd['total_terpakai'] ?? 0) + $hBln;
             if ($score > $topScore) { $topScore = $score; $topName = $p['nama_program'] ?? null; }
-            if ($score === 0 && (int)(($monthlyData[$key]['total_member_aktif'] ?? 0)) === 0 && $p['status'] === 'active') $noActivity++;
+            if ($score === 0 && (int)($monthlyData[$key]['total_member_aktif'] ?? 0) === 0 && (int)($vd['total_tersebar'] ?? 0) === 0 && $p['status'] === 'active') $noActivity++;
+            $sb = (int)($vd['total_tersebar'] ?? 0); $pk = (int)($vd['total_terpakai'] ?? 0);
+            if ($sb >= 20) {
+                $pct = $pk / $sb * 100;
+                if ($serapTop === null || $pct > $serapTop['pct']) $serapTop = ['nama' => $p['nama_program'], 'pct' => $pct, 'sb' => $sb];
+                if ($serapLow === null || $pct < $serapLow['pct']) $serapLow = ['nama' => $p['nama_program'], 'pct' => $pct, 'sb' => $sb];
+            }
         }
 
+        $serapBln = $kpiTersebar > 0 ? $kpiTerpakai / $kpiTersebar * 100 : null;
         $insights = [];
-        $insights[] = 'Akuisisi member baru bulan ini ' . number_format($kpiMember) . ' — ' . $fmtDelta($kpiMember, $kpiMemberPrev) . '.';
-        $insights[] = 'Voucher terpakai ' . number_format($kpiTerpakai) . ' (' . $fmtDelta($kpiTerpakai, $kpiTerpakaiPrev) . '); hadiah dibagikan ' . number_format($kpiHadiah) . ' (' . $fmtDelta($kpiHadiah, $kpiHadiahPrev) . ').';
-        if ($topName) $insights[] = 'Program paling aktif bulan ini: ' . $topName . '.';
-        if ($noActivity > 0) $insights[] = $noActivity . ' program berstatus aktif belum mencatat realisasi apa pun bulan ini — perlu ditindaklanjuti.';
-        $insights[] = 'Nilai realisasi bulan ini Rp ' . number_format($nilaiRealisasi, 0, ',', '.')
-            . ($totalBudgetActive > 0 ? ' (' . $serapanPct . '% dari total budget program aktif).' : '.');
+        $insights[] = 'Akuisisi member baru bulan ini ' . $idn($kpiMember) . ' — ' . $fmtDelta($kpiMember, $kpiMemberPrev) . '; member aktif tercatat ' . $idn($kpiMemberAktif) . '.';
+        $insights[] = 'Voucher tersebar ' . $idn($kpiTersebar) . ' (' . $fmtDelta($kpiTersebar, $kpiTersebarPrev) . ') dan terpakai ' . $idn($kpiTerpakai) . ' (' . $fmtDelta($kpiTerpakai, $kpiTerpakaiPrev) . ')'
+            . ($serapBln !== null ? ' — penyerapan ' . $idn($serapBln, 1) . '%.' : '.');
+        $insights[] = 'Hadiah dibagikan ' . $idn($kpiHadiah) . ' (' . $fmtDelta($kpiHadiah, $kpiHadiahPrev) . ').';
+        if ($topName) $insights[] = 'Program paling aktif bulan ini: ' . $topName . ' (member baru + voucher terpakai + hadiah = ' . $idn($topScore) . ').';
+        if ($serapTop && $serapLow && $serapTop['nama'] !== $serapLow['nama']) {
+            $insights[] = 'Penyerapan voucher tertinggi: ' . $serapTop['nama'] . ' (' . $idn($serapTop['pct']) . '% dari ' . $idn($serapTop['sb']) . ' tersebar); terendah: ' . $serapLow['nama'] . ' (' . $idn($serapLow['pct']) . '% dari ' . $idn($serapLow['sb']) . ').';
+        }
+        if ($targetN > 0) $insights[] = $idn($targetOk) . ' dari ' . $idn($targetN) . ' program bertarget sudah memenuhi seluruh targetnya (kumulatif s/d akhir bulan).';
+        if ($noActivity > 0) $insights[] = $idn($noActivity) . ' dari ' . $idn($relevanN) . ' program aktif yang berjalan bulan ini belum mencatat realisasi apa pun — perlu ditindaklanjuti.';
+        $insights[] = 'Nilai realisasi bulan ini Rp ' . $idn($nilaiRealisasi)
+            . ($totalBudgetActive > 0 ? ' (' . $idn($serapanPct, 1) . '% dari total budget program aktif Rp ' . $idn($totalBudgetActive) . ').' : '.');
 
         return view('loyalty_program/print_summary', [
             'trendMonths'       => $trendMonths,
@@ -1293,6 +1639,11 @@ class LoyaltyCtrl extends BaseController
             'signatories'       => \App\Libraries\ReportSignatories::resolve('loyalty_main'),
             'printedBy'         => $this->currentUser()['name'] ?? '',
             'printedAt'         => date('d M Y H:i'),
+            'analisaBelumLengkap' => $analisaBelumLengkap,
+            'analisaKurang'     => $analisaKurang,
+            'prevAnalisaMap'    => (new LoyaltySummaryAnalysisModel())->getMapByMonth($prevBulan),
+            'itemDetail'        => $itemDetail,
+            'capaian'           => $capaian,
         ]);
     }
 

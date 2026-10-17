@@ -291,6 +291,9 @@ class EventLoyaltyCtrl extends BaseController
             $barang      = (new StockBarangModel())->find($barangId);
             $namaHadiah  = $barang['nama_barang'] ?? $namaHadiah;
             $nilaiSatuan = (int)($barang['nilai_satuan'] ?? $nilaiSatuan);
+            if ($stok > 0 && $stok > ((int)$barang['stok_tersedia'] - (int)$barang['stok_reserved'])) {
+                return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('error', StockBarangModel::pesanAlokasiMelebihi((string)($barang['nama_barang'] ?? ''), $stok, (int)$barang['stok_tersedia'] - (int)$barang['stok_reserved']));
+            }
             if ($stok <= 0) $stok = max(0, (int)$barang['stok_tersedia'] - (int)$barang['stok_reserved']);
         } elseif ($batchId) {
             $batch       = (new StockVoucherBatchModel())->find($batchId);
@@ -327,6 +330,12 @@ class EventLoyaltyCtrl extends BaseController
         $newStok     = (int)($post['stok'] ?? (int)$old['stok']);
         $namaHadiah  = $post['nama_hadiah'] ?? $old['nama_hadiah'];
         $nilaiSatuan = ($post['nilai_satuan'] ?? '') !== '' ? $clean($post['nilai_satuan']) : (int)$old['nilai_satuan'];
+        if (! empty($old['barang_id']) && ($newStok - (int)$old['stok']) > 0) {
+            $bebas = (new StockBarangModel())->bebas((int)$old['barang_id']);
+            if (($newStok - (int)$old['stok']) > $bebas) {
+                return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('error', StockBarangModel::pesanAlokasiMelebihi((string)($old['nama_hadiah'] ?? ''), $newStok - (int)$old['stok'], $bebas));
+            }
+        }
         ActivityLog::captureBefore($old);
         $hiData = [
             'nama_hadiah'  => $namaHadiah,
@@ -375,6 +384,16 @@ class EventLoyaltyCtrl extends BaseController
         if (! $this->canEditMenu('loyalty')) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Akses ditolak.');
         $post = $this->request->getPost();
         if (empty($post['tanggal'])) return redirect()->to("/events/{$eventId}/loyalty")->with('error', 'Tanggal wajib diisi.');
+        $jumlahCek = (int)($post['jumlah_dibagikan'] ?? 0);
+        if (($post['kode_id'] ?? '') === '' && $jumlahCek > 0) {
+            $itemCek = (new EventLoyaltyHadiahItemModel())->find($itemId);
+            if (! empty($itemCek['barang_id'])) {
+                $tersediaCek = (new StockBarangModel())->tersedia((int)$itemCek['barang_id']);
+                if ($jumlahCek > $tersediaCek) {
+                    return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('error', StockBarangModel::pesanRealisasiMelebihi((string)($itemCek['nama_hadiah'] ?? ''), $jumlahCek, $tersediaCek));
+                }
+            }
+        }
         [$fotoName, $fotoErr] = $this->uploadRealisasiFoto();
         if ($fotoErr) return redirect()->to("/events/{$eventId}/loyalty#program-{$programId}")->with('error', $fotoErr);
         $userId  = $this->currentUser()['id'];

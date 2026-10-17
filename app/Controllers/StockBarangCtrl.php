@@ -25,6 +25,7 @@ class StockBarangCtrl extends BaseController
         return view('stock/barang/index', [
             'user'  => $this->currentUser(),
             'items' => $items,
+            'canEdit' => $this->canEditMenu('loyalty_main'),
         ]);
     }
 

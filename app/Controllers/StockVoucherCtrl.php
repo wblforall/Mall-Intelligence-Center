@@ -47,6 +47,7 @@ class StockVoucherCtrl extends BaseController
             'user'        => $this->currentUser(),
             'batches'     => $batches,
             'canDeassign' => $this->can('can_deassign_voucher'),
+            'canEdit'     => $this->canEditMenu('loyalty_main'),
             'progNames'   => $progNames,
             'assignedBy'  => (new StockVoucherLogModel())->getAssignerByKode(),
         ]);
@@ -96,7 +97,7 @@ class StockVoucherCtrl extends BaseController
         ActivityLog::captureAfter($batchData);
 
         ActivityLog::write('update', 'stock_voucher_batch', (string)$id, $post['nama_voucher']);
-        return redirect()->to('/stock/voucher')->with('success', 'Batch voucher diupdate.');
+        return redirect()->to('/stock/voucher#batch-' . $id)->with('success', 'Batch voucher diupdate.');
     }
 
     public function importKode(int $batchId)
@@ -129,7 +130,7 @@ class StockVoucherCtrl extends BaseController
         ActivityLog::captureAfter($importData);
 
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Import {$inserted} kode ke batch {$batch['nama_voucher']}");
-        return redirect()->to('/stock/voucher')->with('success', "{$inserted} kode berhasil diimport.");
+        return redirect()->to('/stock/voucher#batch-' . $batchId)->with('success', "{$inserted} kode berhasil diimport.");
     }
 
     public function deleteKode(int $batchId, int $kodeId)
@@ -159,7 +160,7 @@ class StockVoucherCtrl extends BaseController
         (new StockVoucherLogModel())->record($batchId, 'keluar', 1, $sisaSebelum, 'delete', $kodeId, $this->currentUser()['id'], "Hapus kode {$kode['kode']}");
         ActivityLog::write('delete', 'stock_voucher', (string) $batchId, 'Hapus kode ' . $kode['kode']);
 
-        return redirect()->to('/stock/voucher')->with('success', 'Kode dihapus.');
+        return redirect()->to('/stock/voucher#batch-' . $batchId)->with('success', 'Kode dihapus.');
     }
 
     public function distributeKode(int $batchId, int $kodeId)
@@ -188,7 +189,7 @@ class StockVoucherCtrl extends BaseController
         ActivityLog::captureBefore(['status' => $kode['status'], 'nama_penerima' => $kode['nama_penerima'] ?? '']);
         ActivityLog::captureAfter(['status'  => 'assigned',      'nama_penerima' => $namaPenerima]);
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Distribusi manual kode {$kode['kode']}");
-        return redirect()->to('/stock/voucher')->with('success', "Kode {$kode['kode']} berhasil didistribusikan.");
+        return redirect()->to('/stock/voucher#batch-' . $batchId)->with('success', "Kode {$kode['kode']} berhasil didistribusikan.");
     }
 
     // Batalkan distribusi MANUAL — kode kembali ke stok tersedia (mis. mau dialokasikan via program)
@@ -216,7 +217,7 @@ class StockVoucherCtrl extends BaseController
         ActivityLog::captureBefore(['status' => 'assigned',  'nama_penerima' => $kode['nama_penerima'] ?? '']);
         ActivityLog::captureAfter(['status'  => 'available', 'nama_penerima' => '']);
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Batal distribusi manual kode {$kode['kode']}");
-        return redirect()->to('/stock/voucher')->with('success', "Distribusi kode {$kode['kode']} dibatalkan — kembali ke stok tersedia.");
+        return redirect()->to('/stock/voucher#batch-' . $batchId)->with('success', "Distribusi kode {$kode['kode']} dibatalkan — kembali ke stok tersedia.");
     }
 
     public function deleteBatch(int $id)

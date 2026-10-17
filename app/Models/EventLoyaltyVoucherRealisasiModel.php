@@ -16,9 +16,10 @@ class EventLoyaltyVoucherRealisasiModel extends Model
     public function getGroupedByItems(array $itemIds): array
     {
         if (empty($itemIds)) return [];
-        $rows = $this->select('event_loyalty_voucher_realisasi.*, u.name AS pengisi')
+        $rows = $this->select('event_loyalty_voucher_realisasi.*, u.name AS pengisi, k.kode AS kode_voucher')
                      ->join('users u', 'u.id = event_loyalty_voucher_realisasi.created_by', 'left')
-                     ->whereIn('item_id', $itemIds)->orderBy('tanggal', 'ASC')->orderBy('id', 'ASC')->findAll();
+                     ->join('stock_voucher_kode k', 'k.id = event_loyalty_voucher_realisasi.kode_id', 'left')
+                     ->whereIn('event_loyalty_voucher_realisasi.item_id', $itemIds)->orderBy('event_loyalty_voucher_realisasi.tanggal', 'ASC')->orderBy('event_loyalty_voucher_realisasi.id', 'ASC')->findAll();
         $grouped = [];
         foreach ($rows as $row) {
             $iid = $row['item_id'];
