@@ -203,18 +203,20 @@ $potong = fn (string $t, int $n) => mb_strlen($t) > $n ? mb_substr($t, 0, $n - 1
 <?php endif; ?>
 
 <div class="bfs-card">
-<table class="bfs-tbl" id="bfsTbl">
+<table class="bfs-tbl<?= $creative ? ' bfs-tbl-cr' : '' ?>" id="bfsTbl">
     <thead><tr>
         <?php if ($canEdit && $status === 'baru'): ?><th class="c-cek"><input type="checkbox" id="bfsSemua" aria-label="Pilih semua yang tampil"></th><?php endif; ?>
         <th>Diterima</th><th>Barang</th><th class="c-qty">Qty</th><th class="c-nilai">Nilai (Rp)</th>
-        <th class="c-pos">Pos budget</th><th class="c-bln">Bulan beban<?= $pisahMal ? ' · Mal' : '' ?></th><th class="c-aksi"></th>
+        <th class="c-pos">Pos budget</th><th class="c-bln">Bulan beban<?= $pisahMal ? ' · Mal' : '' ?></th>
+        <?php if ($creative): ?><th class="c-cr" title="Opsional: tautkan biaya BTB ini ke item di modul Creative">Untuk Creative</th><?php endif; ?>
+        <th class="c-aksi"></th>
     </tr></thead>
     <tbody>
     <?php $grupSekarang = null; $grupHitung = []; if ($kel) { foreach ($rows as $_r) { $k = trim((string) $_r['keperluan']); $grupHitung[$k]['n'] = ($grupHitung[$k]['n'] ?? 0) + 1; $grupHitung[$k]['nilai'] = ($grupHitung[$k]['nilai'] ?? 0) + (float) $_r['nilai_diterima']; $grupHitung[$k]['baru'] = ($grupHitung[$k]['baru'] ?? 0) + ($_r['pem_status'] === 'baru' ? 1 : 0); if (! empty($_r['no_mr'])) $grupHitung[$k]['mr'][$_r['no_mr']] = 1; } }
     $grupNo = 0; foreach ($rows as $r):
         if ($kel) { $gk = trim((string) $r['keperluan']);
             if ($grupSekarang !== $gk || $grupSekarang === null) { $grupSekarang = $gk; $grupNo++; $G = $grupHitung[$gk]; $mrs = array_keys($G['mr'] ?? []);
-                $kolom = 7 + (($canEdit && $status === 'baru') ? 1 : 0); ?>
+                $kolom = 7 + (($canEdit && $status === 'baru') ? 1 : 0) + ($creative ? 1 : 0); ?>
     <tr class="bfs-grup" data-grup="<?= $grupNo ?>"><td colspan="<?= $kolom ?>">
         <div class="bfs-grup-in">
             <?php if ($canEdit && $status === 'baru' && $G['baru'] >= 2): ?><input type="checkbox" class="bfs-grup-cek" aria-label="Pilih semua item kelompok ini"><?php endif; ?>
@@ -249,7 +251,7 @@ $potong = fn (string $t, int $n) => mb_strlen($t) > $n ? mb_substr($t, 0, $n - 1
         $bulanTerima = substr((string) $r['tanggal_diterima'], 0, 7);
         $tip = 'Sebelum PPN: Rp ' . ($r['nilai_sebelum_ppn'] !== null ? $rp($r['nilai_sebelum_ppn']) : '–') . ' · PPN: Rp ' . ($r['ppn_rupiah'] !== null ? $rp($r['ppn_rupiah']) : '–') . ' · sumber nilai: ' . ($r['sumber_nilai'] ?: '–');
     ?>
-    <tr data-id="<?= (int) $r['id_btb_item'] ?>"<?= $kel ? ' data-grup-isi="' . $grupNo . '"' : '' ?> data-terima="<?= esc($bulanTerima) ?>" data-nol="<?= $nilai0 ? 1 : 0 ?>" class="<?= $st === 'perlu_ditinjau' ? 'is-tinjau' : '' ?>">
+    <tr data-id="<?= (int) $r['id_btb_item'] ?>"<?= $kel ? ' data-grup-isi="' . $grupNo . '"' : '' ?> data-terima="<?= esc($bulanTerima) ?>" data-nol="<?= $nilai0 ? 1 : 0 ?>"<?php if ($creative && $baru): ?> data-cr-ref="<?= esc($r['cr_ref'], 'attr') ?>" data-cr-none="<?= $r['cr_none'] ? 1 : 0 ?>" data-cr-saran="<?= esc($r['cr_saran']['ref'] ?? '', 'attr') ?>" data-cr-alasan="<?= esc($r['cr_saran']['alasan'] ?? '', 'attr') ?>"<?php endif; ?> class="<?= $st === 'perlu_ditinjau' ? 'is-tinjau' : '' ?>">
         <?php if ($canEdit && $status === 'baru'): ?>
         <td class="c-cek"><?php if ($baru): ?><input type="checkbox" class="bfs-cek" aria-label="Pilih <?= esc($r['nama_barang']) ?>"><?php endif; ?></td>
         <?php endif; ?>
@@ -321,6 +323,17 @@ $potong = fn (string $t, int $n) => mb_strlen($t) > $n ? mb_substr($t, 0, $n - 1
             <?php else: ?><span class="bfs-sub"><?= esc(BudgetRekap::MAL_REALISASI[$malPilih] ?? '–') ?></span><?php endif; ?>
             <?php endif; ?>
         </td>
+        <?php if ($creative): ?>
+        <td data-l="Untuk Creative" class="c-cr">
+            <?php if ($baru && $canEdit): ?>
+            <select class="form-select form-select-sm bfs-cr-tema" aria-label="Tema Creative"></select>
+            <select class="form-select form-select-sm bfs-cr-item mt-1" aria-label="Item Creative" hidden></select>
+            <span class="bfs-rekbadge bfs-crbadge" hidden tabindex="0" data-bs-toggle="tooltip" data-bs-title="Usulan otomatis"><i class="bi bi-stars"></i>usulan</span>
+            <?php elseif ($r['cr_label']): ?>
+            <a class="bfs-crlink" href="<?= esc($r['cr_label']['url'], 'attr') ?>" title="Buka item di Creative"><span class="bfs-sub-i"><?= esc($r['cr_label']['tema']) ?></span><span class="bfs-crit"><i class="bi bi-link-45deg"></i><?= esc($r['cr_label']['item']) ?></span></a>
+            <?php else: ?><span class="bfs-sub">–</span><?php endif; ?>
+        </td>
+        <?php endif; ?>
         <td class="c-aksi">
             <?php if ($st === 'baru' && $canEdit): ?>
             <button type="button" class="bfs-btn bfs-btn-primary bfs-btn-xs bfs-catat" <?= $nilai0 ? 'disabled title="Nilai Rp 0 tidak bisa dicatat — gunakan Abaikan"' : '' ?>><i class="bi bi-check2"></i>Catat</button>
@@ -394,7 +407,7 @@ $potong = fn (string $t, int $n) => mb_strlen($t) > $n ? mb_substr($t, 0, $n - 1
             <div class="bfs-kata">
                 <?php foreach ($kataKunci as $a): ?>
                 <div class="bfs-kata-r">
-                    <?php if (($a['sasaran'] ?? 'nama') === 'keperluan'): ?><span class="bfs-tag bfs-tag-kep" title="Dicocokkan ke keterangan order; urutan daftar = prioritas">keperluan</span><?php endif; ?><code><?= esc($a['kunci']) ?></code><i class="bi bi-arrow-right"></i><span><?= $a['pos_nama'] !== '' ? esc($a['pos_nama']) : '<em>tanpa pos</em>' ?></span>
+                    <?php if (($a['sasaran'] ?? 'nama') === 'keperluan'): ?><span class="bfs-tag bfs-tag-kep" title="Dicocokkan ke keterangan order; urutan daftar = prioritas">keperluan</span><?php endif; ?><code><?= esc($a['kunci']) ?></code><?php if (! empty($a['mal'])): ?><span class="bfs-tag" title="Aturan hanya berlaku untuk mal ini"><?= esc(['ewalk' => 'E-Walk', 'pentacity' => 'Pentacity', 'both' => 'mal tak dikenal'][$a['mal']] ?? $a['mal']) ?></span><?php endif; ?><?php if (! empty($a['pengganti'])): ?><span class="bfs-tag" title="Pengganti terakhir: dipakai hanya bila tak ada aturan biasa yang cocok">pengganti</span><?php endif; ?><i class="bi bi-arrow-right"></i><span><?= $a['pos_nama'] !== '' ? esc($a['pos_nama']) : '<em>tanpa pos</em>' ?></span>
                     <form method="POST" action="<?= $url('flowstore/kata/' . $a['id'] . '/hapus') ?>" onsubmit="return confirm('Hapus kata kunci ini?')"><?= csrf_field() ?>
                         <input type="hidden" name="tahun" value="<?= (int) $tahun ?>"><input type="hidden" name="dept" value="<?= (int) $dept['id'] ?>">
                         <button class="bfs-x" aria-label="Hapus"><i class="bi bi-trash"></i></button></form>
@@ -413,12 +426,21 @@ $potong = fn (string $t, int $n) => mb_strlen($t) > $n ? mb_substr($t, 0, $n - 1
                     <?php foreach ($posAktif as $p): ?><option value="<?= (int) $p['id'] ?>"><?= esc($p['nama']) ?></option><?php endforeach; ?>
                 </select>
                 <button class="bfs-btn bfs-btn-sm"><i class="bi bi-plus-lg"></i>Tambah</button>
+                <div class="bfs-kata-opsi">
+                    <select name="mal" class="form-select form-select-sm" aria-label="Berlaku untuk mal" title="Kualifier mal: aturan hanya dipakai bila skema BTB item sama (mis. T-Banner e-Walk vs Pentacity)">
+                        <option value="">semua mal</option><option value="ewalk">hanya E-Walk</option><option value="pentacity">hanya Pentacity</option><option value="both">hanya mal tak dikenal</option>
+                    </select>
+                    <label class="bfs-chk" title="Dipakai hanya bila tak ada aturan biasa yang cocok (mis. bahan cetak apa pun jatuh ke Materi cetak lainnya)"><input type="checkbox" name="pengganti" value="1"><span>pengganti terakhir</span></label>
+                </div>
             </form>
         </section>
     </div>
 </details>
 <?php endif; ?>
 
+<?php if ($creative): ?>
+<script type="application/json" id="bfsCreativeData"><?= json_encode(['kandidat' => $creative['kandidat']], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+<?php endif; ?>
 </div><!-- /.bfs -->
 
 <?php if ($canEdit): ?>

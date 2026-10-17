@@ -88,12 +88,79 @@
         jalan = null;
     }
 
-    const nilaiBaris = (tr) => ({
-        id: tr.dataset.id,
-        pos: tr.querySelector('.bfs-pos')?.value || '',
-        bulan: tr.querySelector('.bfs-bln')?.value || '',
-        mall: tr.querySelector('.bfs-mal')?.value || '',
-    });
+    const nilaiBaris = (tr) => {
+        const v = {
+            id: tr.dataset.id,
+            pos: tr.querySelector('.bfs-pos')?.value || '',
+            bulan: tr.querySelector('.bfs-bln')?.value || '',
+            mall: tr.querySelector('.bfs-mal')?.value || '',
+        };
+        if (tr.querySelector('.bfs-cr-tema')) v.creative = tr.querySelector('.bfs-cr-item')?.value || '';   // tautan Creative (dept CCD)
+        return v;
+    };
+
+    // ── Untuk Creative (dept CCD): Tema -> item, dengan usulan. Tema disaring menurut bulan terima/bulan beban ± 1. ──
+    const dataCr = (() => { try { return JSON.parse(document.getElementById('bfsCreativeData')?.textContent || 'null'); } catch (e) { return null; } })();
+    const geserBulan = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+    const BLN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const bulanLabel = (ym) => ym ? BLN_PENDEK[Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4) : '';
+    const rpJt = (v) => v >= 1e6 ? 'Rp ' + (Math.round(v / 1e5) / 10).toString().replace('.', ',') + ' jt' : 'Rp ' + Number(v).toLocaleString('id-ID');
+    const temaLabel = (t) => t.nama + (t.kind === 'bulanan' ? ' · ' + BLN_PENDEK[Number(t.bulan.slice(5, 7)) - 1] : '');   // nama dulu agar tak terpotong; Tema Bulanan diberi akhiran bulan
+    const itemLabel = (it) => it.nama + (it.jenis || it.ukuran ? ' · ' + [it.jenis, it.ukuran].filter(Boolean).join(' ') : '') + (it.budget ? ' · ' + rpJt(it.budget) : '');
+    const opsi = (v, t, pilih) => { const o = document.createElement('option'); o.value = v; o.textContent = t; o.title = t; if (pilih) o.selected = true; return o; };
+
+    function temaUntuk(tr, ref) {
+        const bt = tr.dataset.terima, bb = tr.querySelector('.bfs-bln')?.value || bt;
+        const dari = geserBulan(bt < bb ? bt : bb, -1), sampai = geserBulan(bt > bb ? bt : bb, 1);
+        return dataCr.kandidat.filter((t) => t.bulan === '' || (t.bulan >= dari && t.bulan <= sampai) || t.items.some((i) => i.ref === ref));
+    }
+    function badgeCr(tr, ref) {
+        const b = tr.querySelector('.bfs-crbadge'); if (!b) return;
+        const adaSaran = tr.dataset.crSaran && ref === tr.dataset.crSaran;
+        b.hidden = !adaSaran;
+        if (adaSaran) { b.setAttribute('data-bs-title', 'Usulan otomatis: ' + (tr.dataset.crAlasan || '')); b.setAttribute('aria-label', 'Usulan otomatis: ' + (tr.dataset.crAlasan || '')); window.bootstrap?.Tooltip.getInstance(b)?.dispose(); if (window.bootstrap) new bootstrap.Tooltip(b, { trigger: 'hover focus' }); }
+    }
+    function isiItemCr(tr, temaKey, ref) {
+        const sel = tr.querySelector('.bfs-cr-item'); sel.innerHTML = '';
+        const t = dataCr.kandidat.find((x) => x.key === temaKey);
+        sel.hidden = !t;
+        if (!t) return;
+        sel.appendChild(opsi('', '— pilih item —', !ref));
+        t.items.forEach((it) => sel.appendChild(opsi(it.ref, itemLabel(it), it.ref === ref)));
+    }
+    function isiCr(tr, ref) {
+        const selT = tr.querySelector('.bfs-cr-tema'); selT.innerHTML = '';
+        const daftar = temaUntuk(tr, ref);
+        const tema = ref ? (dataCr.kandidat.find((t) => t.items.some((i) => i.ref === ref))?.key || '') : '';
+        selT.appendChild(opsi('', '— tidak terkait Creative —', !tema));
+        daftar.forEach((t) => selT.appendChild(opsi(t.key, temaLabel(t), t.key === tema)));
+        isiItemCr(tr, tema, ref);
+        selT.classList.toggle('is-kosong', !tema);
+        badgeCr(tr, ref);
+    }
+    if (dataCr) {
+        tabel.querySelectorAll('tr[data-id]').forEach((tr) => {
+            if (!tr.querySelector('.bfs-cr-tema')) return;
+            const awal = tr.dataset.crRef || (tr.dataset.crNone === '1' ? '' : (tr.dataset.crSaran || ''));
+            isiCr(tr, awal);
+        });
+        tabel.addEventListener('change', (e) => {
+            const tr = e.target.closest('tr[data-id]');
+            if (!tr) return;
+            if (e.target.classList.contains('bfs-cr-tema')) {
+                isiItemCr(tr, e.target.value, '');
+                e.target.classList.toggle('is-kosong', !e.target.value);
+                badgeCr(tr, '');
+                kirimDraf(tr.dataset.id, { creative: '' });
+            } else if (e.target.classList.contains('bfs-cr-item')) {
+                badgeCr(tr, e.target.value);
+                kirimDraf(tr.dataset.id, { creative: e.target.value });
+            } else if (e.target.classList.contains('bfs-bln') && tr.querySelector('.bfs-cr-tema')) {
+                const ref = tr.querySelector('.bfs-cr-item')?.value || '';
+                isiCr(tr, ref);   // daftar Tema mengikuti bulan beban yang baru; pilihan yang masih sah dipertahankan
+            }
+        });
+    }
 
     tabel.addEventListener('change', (e) => {
         const tr = e.target.closest('tr[data-id]');

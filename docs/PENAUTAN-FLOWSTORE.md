@@ -96,6 +96,45 @@ rekomendasi. Tidak bergantung pada `kategori` (hampir selalu kosong). Aturan kep
 `2026-10-17-000003_FsKeperluan` dan dapat ditambah/dihapus admin di **Pengaturan penautan** (pilih "pada keperluan"). Uji:
 `php spark mic:fs-uji-rekomendasi` (52 kasus: nama barang tanpa keperluan, keperluan, memori [di-rollback], kemiripan).
 
+## CCD (Creative Concept & Design): aturan mal dan tautan ke Creative (18 Okt 2026)
+
+Keputusan pemilik: **FlowStore adalah SUMBER realisasi biaya CCD** (divisi FlowStore `DGM` id 35 ↔ dept 3). BTB DGM dipetakan ke pos CCD lewat tab
+FlowStore seperti dept lain (usulan → Catat); biaya TIDAK diinput ulang di modul Creative. Migrasi aditif `2026-10-18-000010_CcdFlowstore`.
+
+**Aturan rekomendasi bermal & pengganti terakhir** (`budget_fs_aturan.mal`, `.pengganti`; mesin `BudgetFsRekomendasi`):
+- `mal` = `ewalk` | `pentacity` | `both` (skema FlowStore tak dikenal / kosong); NULL = semua mal. Aturan bermal hanya dipakai bila mal item sama
+  (mal dari `id_skema`/`skema`: 2/Ewalk, 1/Pentacity). Dipakai untuk T-Banner: `T BANNER|X BANNER` + e-Walk → *T-Banner 1x3m (e-Walk)*, + Pentacity →
+  *T-Banner 1x2,4m (Pentacity)*, + skema tak dikenal → "tanpa pos" (jangan menebak). Bila ada aturan bermal yang cocok, **memori tidak dipakai**
+  (memori hanya mengenal nama barang).
+- `pengganti = 1`: aturan "pengganti terakhir" (keperluan lalu nama), hanya bila tak ada aturan biasa/memori yang cocok; skor 40. Urutan akhir:
+  keperluan → mirip keperluan → memori → nama → pengganti → kemiripan → tanpa rekomendasi.
+- Admin dapat menambah aturan dengan kualifier mal dan penanda pengganti di **Pengaturan penautan**; lencana mal/pengganti tampil di daftar.
+- Seed CCD (urutan = prioritas): Sticker Lift; Sticker Main Gate (`MAIN GATE|KACA LOBBY|GATE LOBBY`, ukuran stiker 117×40/185, keperluan "gate lobby utama");
+  T-Banner per mal; Hanging Banner (`HANGING|GIANT BANNER`); Neon Box Beach Gate / Foodcourt (regex AND; albatros foodcourt / A1 59,4×84,1); Cover FOH/Backstage;
+  KOL/Talent (`KOL|TALENT|ENDORSE`); Giveaway; Press Conference; Kuota; IG Ads; Subscription Adobe/Canva/Capcut/Envato/Freepik/GoogleOne;
+  pengganti: bahan cetak apa pun (`STICKER|BANNER|POSTER|ALBATROS|VINYL|WALL SIGN|…`) dan keperluan "administrasi departemen creative"/"media cetak" → *Materi cetak lainnya*.
+  **Pos nonaktif dilewati** (saat ini Cover FOH, Cover Backstage, Subscription Adobe): cover jatuh ke *Materi cetak lainnya*; aktifkan posnya bila ingin direkomendasikan.
+- Uji: `php spark mic:fs-uji-rekomendasi` (kasus CCD + memori-tak-menimpa-mal); `--laporan` bila `writable/flowstore-fixture-dgm.json` ada
+  (`php scripts/fs-buat-fixture.php --divisi=35 --keluar=writable/flowstore-fixture-dgm.json`; status BTB fixture jadikan `draft`) mencetak cakupan rekomendasi
+  2026, yang meragukan, dan perbandingan BTB per pos per bulan dengan Budget Departemen (hanya baca).
+
+**Tautan BTB → item Creative** (`budget_fs_pemetaan.creative_scope` `standalone|event`, `creative_item_id`; 0 = dipilih "tidak terkait Creative"):
+- Hanya dept CCD (nama dept "Creative Concept & Design"): kolom **Untuk Creative** di tab FlowStore = pemilih bertingkat Tema → item. Tema = Tema Bulanan / event pada
+  bulan terima atau bulan beban ± 1 (daftar mengikuti pilihan bulan beban) + "Tanpa Tema" (item lama). Item "Rencana" dan Tema yang ditutup tidak bisa dipilih.
+- **Usulan otomatis** (`CreativeBiayaFs::saran`): jenis media (Sticker Lift, T-Banner, Hanging, Neon Box, Poster…) +50, ukuran sama +40, kata nama item +10; Tema: bulan
+  disebut keperluan ("WHATS ON OKTOBER" → Tema Bulanan Oktober) +30, nama event disebut +40, Tema pada bulan terima +10. Minimal 60 dan pemenang tunggal (seri = tanpa usulan);
+  alasan tampil di lencana "usulan".
+- Draf tersimpan otomatis bersama pilihan pos/bulan. **Catat**: realisasi Budget Dept dibuat seperti biasa (pos + bulan) dan tautan tersimpan; **tidak** ada baris `creative_realisasi` baru.
+  Menghapus realisasi hasil catat melepas tautan (item kembali ke antrean tanpa tautan). Baris yang sudah dicatat menampilkan "Tema › Item" (tautan ke /creative).
+- Modul Creative hanya MEMBACA (`App\Libraries\CreativeBiayaFs`): realisasi item = `creative_realisasi` (manual lama) + realisasi Budget Dept dari BTB tertaut (status dicatat/perlu ditinjau);
+  kartu Tema, KPI, Summary bulanan (+ cetak) memakai gabungan (bulan = bulan beban); tanpa tautan angkanya identik dengan sebelumnya. Rincian BTB (tanggal, BTB/PO, supplier, barang, nilai,
+  lencana FlowStore) ada di pane Realisasi item; penanda "kemungkinan dobel" bila ada realisasi manual di bulan yang sama dengan BTB tertaut (hanya penanda).
+- Hak: tab & Catat mengikuti hak `budget_dept` dept CCD (dept sendiri/admin menulis; Deputy/GM hanya lihat). Tim Creative tanpa hak `budget_dept` hanya melihat biaya tertaut
+  (hak `creative_main`); tautan "Buka antrean FlowStore" hanya tampil bila pengguna punya `budget_dept` dan CCD terlihat (admin / dept sendiri). **Untuk deploy**: beri dept CCD hak
+  `budget_dept` (lokal sudah: dept 3 lihat+ubah) dan pastikan tanggal mulai penarikan CCD (bawaan 1 Okt 2026; data Jul–Agu di `creative_realisasi` dibiarkan, tak bertabrakan).
+- Batasan: tab Creative event dan ringkasan event belum membaca biaya FlowStore; biaya item event hanya tampil di /creative. Tautan tidak memindahkan biaya antar-bulan di Creative
+  (mengikuti bulan beban Budget Dept).
+
 ## Konfigurasi `.env`
 
 ```
@@ -137,6 +176,7 @@ Server tiruan memakai aturan token feed asli: token server kosong → 404, token
 `fs_divisi`, `fs_btb_item` (cermin), `budget_fs_divisi_map` (satu divisi hanya milik satu dept; seed 12 dept yang namanya
 cocok, sisanya diatur admin), `budget_fs_pemetaan` (UNIK per `id_btb_item`), `budget_fs_aturan` (memori + kata kunci;
 seed IT), `budget_fs_sinkron` (catatan tiap sinkron untuk "terakhir sinkron"/galat). Tabel lama tidak diubah.
+Migrasi `2026-10-18-000010_CcdFlowstore` menambah `budget_fs_aturan.mal/pengganti` dan `budget_fs_pemetaan.creative_scope/creative_item_id` (+ seed aturan CCD).
 Migrasi `2026-10-17-000003_FsKeperluan` menambah kolom `fs_btb_item.keperluan/spesifikasi/no_mr/keterangan_pr/po/btb` dan
 `budget_fs_aturan.sasaran` (+ seed aturan keperluan IT); `2026-10-17-000004_FsMulaiTarik` menambah tabel `budget_fs_setelan`
 (tanggal mulai penarikan: `dept_id` 0 = semua dept).

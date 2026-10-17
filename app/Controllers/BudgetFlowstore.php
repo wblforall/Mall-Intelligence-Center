@@ -6,6 +6,7 @@ use App\Libraries\ActivityLog;
 use App\Libraries\BudgetFsRekomendasi;
 use App\Libraries\BudgetFsSinkron;
 use App\Libraries\BudgetRekap;
+use App\Libraries\CreativeBiayaFs;
 use App\Models\BudgetDeptSettingModel;
 use App\Models\BudgetPosModel;
 use App\Models\BudgetRealisasiModel;
@@ -61,10 +62,7 @@ class BudgetFlowstore extends BudgetDept
     /** Mal bawaan dari skema FlowStore (1 Pentacity, 2 Ewalk) — selain itu keduanya. */
     public static function malDariSkema(?int $idSkema, ?string $skema): string
     {
-        $s = strtolower((string) $skema);
-        if ($idSkema === 2 || str_contains($s, 'ewalk') || str_contains($s, 'e-walk')) return 'ewalk';
-        if ($idSkema === 1 || str_contains($s, 'penta')) return 'pentacity';
-        return 'both';
+        return BudgetFsRekomendasi::malDariSkema($idSkema, $skema);
     }
 
     // ── Halaman ──────────────────────────────────────────────────────
@@ -129,7 +127,7 @@ class BudgetFlowstore extends BudgetDept
         $halMaks = max(1, (int) ceil($total / $perHal));
         $hal = min($hal, $halMaks);
         $rows = $db->query("SELECT f.*, p.id AS pem_id, p.status AS pem_status, p.pos_id AS pem_pos, p.bulan_beban, p.mall AS pem_mall, p.realisasi_id,
-                    p.alasan_abaikan, p.catatan_tinjau, x.tanggal AS real_tanggal
+                    p.alasan_abaikan, p.catatan_tinjau, p.creative_scope, p.creative_item_id, x.tanggal AS real_tanggal
                FROM budget_fs_pemetaan p JOIN fs_btb_item f ON f.id_btb_item = p.id_btb_item
                LEFT JOIN budget_realisasi x ON x.id = p.realisasi_id
               WHERE $where ORDER BY " . ($kel ? "COALESCE(f.keperluan,'') , f.no_mr, " : '') . "f.tanggal_diterima DESC, f.id_btb_item DESC LIMIT " . $perHal . ' OFFSET ' . (($hal - 1) * $perHal), $arg)->getResultArray();
@@ -144,6 +142,10 @@ class BudgetFlowstore extends BudgetDept
             $r['bln_bawaan'] = substr((string) $r['tanggal_diterima'], 0, 4) === (string) $tahun ? substr((string) $r['tanggal_diterima'], 0, 7) : $tahun . '-01';
         }
         unset($r);
+
+        // Dept CCD: kolom "Untuk Creative" (pemilih Tema -> item + usulan). Tautan hanya MEMBACA modul Creative; angkanya tetap dari BTB.
+        $creative = null;
+        if ($deptId === CreativeBiayaFs::deptCcdId()) $creative = $this->siapkanCreative($rows, $tahun);
 
         $suppliers = array_column($db->query("SELECT DISTINCT f.nama_supplier s FROM budget_fs_pemetaan p JOIN fs_btb_item f ON f.id_btb_item = p.id_btb_item
             WHERE $lingkup AND f.nama_supplier IS NOT NULL AND f.nama_supplier <> '' ORDER BY s LIMIT 300", $lingkupArg)->getResultArray(), 's');
@@ -161,12 +163,38 @@ class BudgetFlowstore extends BudgetDept
         return view('budget_dept/flowstore', $this->konteks($dept, $tahun, 'flowstore') + $extra + [
             'status' => $status, 'bln' => $bln, 'posF' => $posF, 'sup' => $sup, 'cari' => $cari, 'kep' => $kep, 'kel' => $kel, 'kelompok' => $kelompok, 'hal' => $hal, 'halMaks' => $halMaks, 'total' => $total,
             'kpi' => $kpi, 'nilaiBulan' => $nilaiBulan, 'bulanKpi' => $bulanKpi,
-            'rows' => $rows, 'pos' => $pos, 'posNama' => $posNama, 'suppliers' => $suppliers, 'pisahMal' => $pisahMal,
+            'rows' => $rows, 'creative' => $creative, 'pos' => $pos, 'posNama' => $posNama, 'suppliers' => $suppliers, 'pisahMal' => $pisahMal,
             'sinkron' => $sink->terakhir($deptId), 'mulai' => $mulai, 'mulaiKhusus' => $sink->mulaiKhusus($deptId), 'sebelumMulai' => $sebelumMulai, 'sumber' => $sink->feed()->mode(), 'siap' => $sink->feed()->siap(),
             'adaCermin' => (bool) $db->table('fs_btb_item')->countAllResults(),
             'divisiDept' => array_keys($sink->petaDivisi($deptId)),
             'url' => fn (string $p, array $q = []) => $this->url($p, $dept, $q),
         ]);
+    }
+
+    /**
+     * Data pemilih Creative untuk dept CCD: kandidat Tema -> item (Tema Bulanan & event setahun, ±1 bulan), usulan per baris 'baru'
+     * (jenis/ukuran/bulan/nama event) dan label tautan untuk baris yang sudah dicatat. Disisipkan ke $rows (cr_ref, cr_none, cr_saran, cr_label).
+     */
+    private function siapkanCreative(array &$rows, int $tahun): array
+    {
+        $cr = new CreativeBiayaFs();
+        $ikut = [];
+        foreach ($rows as $r) if ($r['creative_scope'] && (int) $r['creative_item_id']) $ikut[] = CreativeBiayaFs::ref($r['creative_scope'], (int) $r['creative_item_id']);
+        $kandidat = $cr->kandidat(($tahun - 1) . '-12', ($tahun + 1) . '-01', $ikut);
+        $label = [];
+        foreach ($rows as &$r) {
+            $r['cr_ref'] = ($r['creative_scope'] && (int) $r['creative_item_id']) ? CreativeBiayaFs::ref($r['creative_scope'], (int) $r['creative_item_id']) : '';
+            $r['cr_none'] = $r['creative_item_id'] !== null && (int) $r['creative_item_id'] === 0;
+            $r['cr_saran'] = null; $r['cr_label'] = null;
+            if ($r['cr_ref'] !== '') $r['cr_label'] = $label[$r['cr_ref']] ??= $cr->label($r['cr_ref']);
+            if ($r['pem_status'] === 'baru' && $r['cr_ref'] === '' && ! $r['cr_none']) {
+                $bt = substr((string) $r['tanggal_diterima'], 0, 7);
+                $sempit = array_values(array_filter($kandidat, fn ($t) => $t['bulan'] === '' || ($t['bulan'] >= date('Y-m', strtotime($bt . '-01 -1 month')) && $t['bulan'] <= date('Y-m', strtotime($bt . '-01 +1 month')))));
+                $r['cr_saran'] = CreativeBiayaFs::saran($r, $sempit);
+            }
+        }
+        unset($r);
+        return ['kandidat' => $kandidat];
     }
 
     // ── Sinkron ──────────────────────────────────────────────────────
@@ -225,6 +253,17 @@ class BudgetFlowstore extends BudgetDept
         if ($mal !== '') {
             if (! isset(BudgetRekap::MAL_REALISASI[$mal])) return $this->json(422, ['ok' => false, 'pesan' => 'Mal tidak dikenal.']);
             $upd['mall'] = $mal;
+        }
+        // Tautan Creative (hanya dept CCD): 'standalone:ID' / 'event:ID'; '' = dipilih "tidak terkait Creative" (creative_item_id 0).
+        $cr = $this->request->getPost('creative');
+        if ($cr !== null && (int) $dept['id'] === CreativeBiayaFs::deptCcdId()) {
+            $cr = trim((string) $cr);
+            if ($cr === '') { $upd['creative_scope'] = null; $upd['creative_item_id'] = 0; }
+            else {
+                $galat = (new CreativeBiayaFs($db))->periksa($cr);
+                if ($galat) return $this->json(422, ['ok' => false, 'pesan' => ucfirst($galat) . '.']);
+                [$upd['creative_scope'], $upd['creative_item_id']] = CreativeBiayaFs::urai($cr);
+            }
         }
         $db->table('budget_fs_pemetaan')->where('id', $p['id'])->where('status', 'baru')->update($upd);
         return $this->json(200, ['ok' => true]);
@@ -299,6 +338,16 @@ class BudgetFlowstore extends BudgetDept
         $mal = (string) ($x['mall'] ?? '');
         if ($pisah && ! isset(BudgetRekap::MAL_REALISASI[$mal])) return [false, '#' . $id . ': mal tidak sah.'];
         if (! $pisah) $mal = '';
+        // Tautan Creative (hanya dept CCD). Tidak membuat realisasi Creative baru — biayanya dibaca dari BTB ini.
+        $cref = null;
+        if ($deptId === CreativeBiayaFs::deptCcdId()) {
+            $cr = trim((string) ($x['creative'] ?? ''));
+            if ($cr !== '') {
+                $galat = (new CreativeBiayaFs($db))->periksa($cr);
+                if ($galat) return [false, '#' . $id . ': ' . $galat . '.'];
+                $cref = CreativeBiayaFs::urai($cr);
+            }
+        }
 
         $db->transStart();
         // Kunci baris pemetaan: klik ganda / POST ulang menunggu di sini lalu mendapati status sudah 'dicatat'.
@@ -332,6 +381,7 @@ class BudgetFlowstore extends BudgetDept
                 'realisasi_id' => $rid, 'catatan_tinjau' => null, 'alasan_abaikan' => null, 'diperbarui_oleh' => $uid, 'dibuat_oleh' => $p['dibuat_oleh'] ?: $uid,
                 'rekomendasi_pos_id' => $rek['pos_id'], 'rekomendasi_sumber' => $rek['sumber'], 'rekomendasi_skor' => $rek['skor'],
                 'rekomendasi_alasan' => mb_substr($rek['alasan'], 0, 255), 'updated_at' => date('Y-m-d H:i:s'),
+                'creative_scope' => $cref[0] ?? null, 'creative_item_id' => $cref[1] ?? null,
             ]);
             (new BudgetFsRekomendasi($db))->ingat($deptId, $f, (int) $pos['id']);
         }
@@ -340,7 +390,7 @@ class BudgetFlowstore extends BudgetDept
         if ($galat !== null) return [false, $galat];
 
         ActivityLog::captureAfter($data);
-        ActivityLog::write('create', 'budget_realisasi', (string) $rid, $data['uraian'], ['sumber' => 'flowstore', 'id_btb_item' => $id]);
+        ActivityLog::write('create', 'budget_realisasi', (string) $rid, $data['uraian'], ['sumber' => 'flowstore', 'id_btb_item' => $id] + ($cref ? ['creative' => CreativeBiayaFs::ref($cref[0], $cref[1])] : []));
         return [true, ''];
     }
 
@@ -482,10 +532,13 @@ class BudgetFlowstore extends BudgetDept
         }
         $db = db_connect();
         $sasaran = $this->request->getPost('sasaran') === 'keperluan' ? 'keperluan' : 'nama';
+        $mal = (string) $this->request->getPost('mal');
+        if (! in_array($mal, ['ewalk', 'pentacity', 'both'], true)) $mal = null;
+        $pengganti = $this->request->getPost('pengganti') ? 1 : 0;
         $maks = (int) ($db->table('budget_fs_aturan')->selectMax('urutan')->where('dept_id', $deptId)->where('jenis', 'kata_kunci')->where('sasaran', $sasaran)->get()->getRowArray()['urutan'] ?? 0);
-        $db->table('budget_fs_aturan')->insert(['dept_id' => $deptId, 'jenis' => 'kata_kunci', 'sasaran' => $sasaran, 'kunci' => $pola, 'pos_id' => null, 'pos_nama' => $posNama,
+        $db->table('budget_fs_aturan')->insert(['dept_id' => $deptId, 'jenis' => 'kata_kunci', 'sasaran' => $sasaran, 'kunci' => $pola, 'pos_id' => null, 'pos_nama' => $posNama, 'mal' => $mal, 'pengganti' => $pengganti,
             'urutan' => $maks + 10, 'dipakai_berapa_kali' => 0, 'created_at' => date('Y-m-d H:i:s')]);
-        ActivityLog::write('create', 'budget_fs', (string) $deptId, 'Kata kunci FlowStore (' . $sasaran . ') ' . $dept['name'] . ': ' . $pola . ' → ' . ($posNama ?: '(tanpa pos)'));
+        ActivityLog::write('create', 'budget_fs', (string) $deptId, 'Kata kunci FlowStore (' . $sasaran . ') ' . $dept['name'] . ': ' . $pola . ' → ' . ($posNama ?: '(tanpa pos)') . ($mal ? ' [mal ' . $mal . ']' : '') . ($pengganti ? ' [pengganti]' : ''));
         return $back->with('success', 'Kata kunci ditambahkan.');
     }
 

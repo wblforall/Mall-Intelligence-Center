@@ -13,8 +13,13 @@ namespace App\Libraries;
  *  (a) memori  : kode_barang / nama ternormalisasi yang pernah dicatat user di dept yang sama
  *                (skor 90–99; pos yang paling sering dipakai menang),
  *  (b) kata kunci : aturan bawaan/admin per dept (jenis 'kata_kunci'; skor 70),
+ *  (b2) pengganti terakhir: aturan bertanda 'pengganti' (keperluan lalu nama; skor 40) — hanya bila tak ada aturan biasa yang cocok,
  *  (c) kemiripan  : token nama barang ↔ nama pos (skor 30–60),
  *  (d) tanpa rekomendasi.
+ *
+ * Aturan kata kunci dapat memuat kualifier MAL (kolom budget_fs_aturan.mal: ewalk | pentacity | both): aturan hanya dipakai bila mal item
+ * (dari skema FlowStore; selain Ewalk/Pentacity = 'both') sama. Aturan tanpa mal berlaku untuk semua mal. Bila ada aturan bermal yang
+ * cocok dengan nama/keperluan item, memori tidak dipakai (memori hanya mengenal nama barang, tak tahu mal-nya).
  *
  * Hanya pos AKTIF milik dept yang pernah disarankan. Tanpa akses DB lain selain
  * budget_pos & budget_fs_aturan; dimuat sekali per dept lalu di-cache di objek.
@@ -58,22 +63,39 @@ class BudgetFsRekomendasi
         if (isset($this->cache[$deptId])) return $this->cache[$deptId];
         $pos = [];
         foreach ($this->db->table('budget_pos')->where('dept_id', $deptId)->get()->getResultArray() as $p) $pos[(int) $p['id']] = $p;
-        $memori = $kata = $kataKep = [];
+        $memori = $kata = $kataKep = $kataP = $kataKepP = [];
         $rows = $this->db->table('budget_fs_aturan')->where('dept_id', $deptId)->orderBy('urutan')->orderBy('id')->get()->getResultArray();
         foreach ($rows as $a) {
+            $ganti = ! empty($a['pengganti']);
             if ($a['jenis'] === 'memori') $memori[$a['kunci']][(int) $a['pos_id']] = (int) $a['dipakai_berapa_kali'];
-            elseif (($a['sasaran'] ?? 'nama') === 'keperluan') $kataKep[] = $a;
+            elseif (($a['sasaran'] ?? 'nama') === 'keperluan') { if ($ganti) $kataKepP[] = $a; else $kataKep[] = $a; }
+            elseif ($ganti) $kataP[] = $a;
             else $kata[] = $a;
         }
-        return $this->cache[$deptId] = ['pos' => $pos, 'memori' => $memori, 'kata' => $kata, 'kataKep' => $kataKep];
+        return $this->cache[$deptId] = ['pos' => $pos, 'memori' => $memori, 'kata' => $kata, 'kataKep' => $kataKep, 'kataP' => $kataP, 'kataKepP' => $kataKepP];
     }
 
     /** Lupakan cache (setelah memori berubah). */
     public function segarkan(): void { $this->cache = []; }
 
+    /** Mal item dari skema FlowStore: 'ewalk' | 'pentacity' | 'both' (skema tak dikenal / tak ada). */
+    public static function malItem(array $item): string
+    {
+        return self::malDariSkema(isset($item['id_skema']) && $item['id_skema'] !== null && $item['id_skema'] !== '' ? (int) $item['id_skema'] : null, $item['skema'] ?? null);
+    }
+
+    /** Mal bawaan dari skema FlowStore (1 Pentacity, 2 Ewalk) — selain itu keduanya ('both'). */
+    public static function malDariSkema(?int $idSkema, ?string $skema): string
+    {
+        $s = strtolower((string) $skema);
+        if ($idSkema === 2 || str_contains($s, 'ewalk') || str_contains($s, 'e-walk')) return 'ewalk';
+        if ($idSkema === 1 || str_contains($s, 'penta')) return 'pentacity';
+        return 'both';
+    }
+
     /**
-     * @param array $item baris fs_btb_item (butuh kode_barang, nama_barang)
-     * @return array{pos_id:?int,skor:float,sumber:string,alasan:string}  sumber: memori|kata_kunci|kemiripan|none
+     * @param array $item baris fs_btb_item (butuh kode_barang, nama_barang; keperluan, id_skema/skema bila ada)
+     * @return array{pos_id:?int,skor:float,sumber:string,alasan:string}  sumber: memori|kata_kunci|keperluan|kemiripan|none
      */
     public function untuk(int $deptId, array $item): array
     {
@@ -81,27 +103,15 @@ class BudgetFsRekomendasi
         $aktif = fn (int $id) => isset($d['pos'][$id]) && ! empty($d['pos'][$id]['aktif']);
         $nomor = [];
         foreach ($d['pos'] as $p) $nomor[mb_strtolower($p['nama'])] = (int) $p['id'];
+        $mal = self::malItem($item);
+        $nama = ' ' . self::normal($item['nama_barang'] ?? '') . ' ';
 
         // (0) keperluan (keterangan order). Item tanpa keperluan (feed lama) langsung ke langkah berikutnya.
         $kep = self::normal($item['keperluan'] ?? '');
         if ($kep !== '') {
             $kepB = ' ' . $kep . ' ';
-            foreach ($d['kataKep'] as $a) {   // urutan aturan = prioritas
-                $tanpaPos = trim((string) $a['pos_nama']) === '' && ! $a['pos_id'];
-                $pid = $a['pos_id'] ? (int) $a['pos_id'] : ($nomor[mb_strtolower((string) $a['pos_nama'])] ?? 0);
-                if (! $tanpaPos && (! $pid || ! $aktif($pid))) continue;
-                $kena = self::cocokKata((string) $a['kunci'], $kepB);
-                if ($kena === null) continue;
-                if ($tanpaPos) {
-                    return ['pos_id' => null, 'skor' => 0.0, 'sumber' => 'none',
-                            'alasan' => 'keperluan "' . strtolower($kena[0]) . '": tidak ada pos khusus untuk ini — pilih manual'];
-                }
-                $alasan = 'keperluan "' . strtolower($kena[0]) . '"';
-                $nm = $this->kataNama($d, ' ' . self::normal($item['nama_barang'] ?? '') . ' ', $nomor, $aktif);
-                if ($nm && $nm['pos_id'] === $pid) $alasan .= ' · nama barang sejalan';
-                elseif ($nm && $nm['pos_id']) $alasan .= ' (mengalahkan nama barang → ' . $d['pos'][$nm['pos_id']]['nama'] . ')';
-                return ['pos_id' => $pid, 'skor' => 80.0, 'sumber' => 'keperluan', 'alasan' => $alasan];
-            }
+            $r = $this->kataKeperluan($d, $kepB, $nama, $nomor, $aktif, $mal, false);
+            if ($r) return $r;
             $mirip = $this->miripKeperluan($d, $kep);
             if ($mirip) {
                 return ['pos_id' => $mirip[0], 'skor' => 55.0, 'sumber' => 'keperluan',
@@ -109,21 +119,29 @@ class BudgetFsRekomendasi
             }
         }
 
-        // (a) memori persis — kode dulu, lalu nama
-        foreach (self::kunciMemori($item) as $kunci) {
-            $kandidat = array_filter($d['memori'][$kunci] ?? [], fn ($n, $pid) => $n > 0 && $aktif((int) $pid), ARRAY_FILTER_USE_BOTH);
-            if (! $kandidat) continue;
-            arsort($kandidat);
-            $pid = (int) array_key_first($kandidat);
-            $n = (int) $kandidat[$pid];
-            return ['pos_id' => $pid, 'skor' => (float) min(99, 90 + $n), 'sumber' => 'memori',
-                    'alasan' => 'pernah dipetakan ' . $n . '× ke pos ini' . (str_starts_with($kunci, 'K:') ? ' (kode barang sama)' : ' (nama barang sama)')];
+        // (a) memori persis — kode dulu, lalu nama. Dilewati bila ada aturan bermal yang cocok (memori tak tahu mal).
+        if (! $this->malMenentukan($d, ' ' . $kep . ' ', $nama)) {
+            foreach (self::kunciMemori($item) as $kunci) {
+                $kandidat = array_filter($d['memori'][$kunci] ?? [], fn ($n, $pid) => $n > 0 && $aktif((int) $pid), ARRAY_FILTER_USE_BOTH);
+                if (! $kandidat) continue;
+                arsort($kandidat);
+                $pid = (int) array_key_first($kandidat);
+                $n = (int) $kandidat[$pid];
+                return ['pos_id' => $pid, 'skor' => (float) min(99, 90 + $n), 'sumber' => 'memori',
+                        'alasan' => 'pernah dipetakan ' . $n . '× ke pos ini' . (str_starts_with($kunci, 'K:') ? ' (kode barang sama)' : ' (nama barang sama)')];
+            }
         }
 
-        $nama = ' ' . self::normal($item['nama_barang'] ?? '') . ' ';
-
         // (b) kata kunci pada nama barang (lihat kataNama)
-        $nm = $this->kataNama($d, $nama, $nomor, $aktif);
+        $nm = $this->kataNama($d, $nama, $nomor, $aktif, $mal, false);
+        if ($nm) return $nm;
+
+        // (b2) pengganti terakhir: keperluan lalu nama (hanya bila tak ada aturan biasa yang cocok)
+        if ($kep !== '') {
+            $r = $this->kataKeperluan($d, ' ' . $kep . ' ', $nama, $nomor, $aktif, $mal, true);
+            if ($r) return $r;
+        }
+        $nm = $this->kataNama($d, $nama, $nomor, $aktif, $mal, true);
         if ($nm) return $nm;
 
         // (c) kemiripan token nama barang ↔ nama pos
@@ -148,16 +166,77 @@ class BudgetFsRekomendasi
         return ['pos_id' => null, 'skor' => 0.0, 'sumber' => 'none', 'alasan' => 'tidak ada petunjuk — pilih pos'];
     }
 
+    /** Aturan ini berlaku untuk mal item? (tanpa kualifier = semua mal) */
+    private static function malCocok(array $a, string $mal): bool
+    {
+        $m = trim((string) ($a['mal'] ?? ''));
+        return $m === '' || $m === $mal;
+    }
+
+    /** Kata yang kena untuk alasan; pola regex lookahead tak punya teks cocok -> 'pola aturan'. */
+    private static function labelKena(array $kena): string
+    {
+        return trim((string) $kena[0]) !== '' ? (string) $kena[0] : 'pola aturan';
+    }
+
+    private static function labelMal(array $a): string
+    {
+        $m = trim((string) ($a['mal'] ?? ''));
+        return $m === '' ? '' : ' · mal ' . (['ewalk' => 'E-Walk', 'pentacity' => 'Pentacity', 'both' => 'tak dikenal'][$m] ?? $m);
+    }
+
+    /** Adakah aturan bermal (jenis apa pun) yang cocok dengan keperluan/nama item, terlepas dari mal-nya? */
+    private function malMenentukan(array $d, string $kepB, string $nama): bool
+    {
+        foreach (['kataKep' => $kepB, 'kataKepP' => $kepB, 'kata' => $nama, 'kataP' => $nama] as $daftar => $teks) {
+            foreach ($d[$daftar] as $a) {
+                if (trim((string) ($a['mal'] ?? '')) === '') continue;
+                if (self::cocokKata((string) $a['kunci'], $teks) !== null) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * (0) Aturan kata kunci pada KEPERLUAN, berurutan (yang pertama cocok menang; skor 80; "tanpa pos" menutup rekomendasi).
+     * $pengganti = true: aturan "pengganti terakhir" (skor 40).
+     */
+    private function kataKeperluan(array $d, string $kepB, string $nama, array $nomor, callable $aktif, string $mal, bool $pengganti): ?array
+    {
+        foreach ($d[$pengganti ? 'kataKepP' : 'kataKep'] as $a) {   // urutan aturan = prioritas
+            if (! self::malCocok($a, $mal)) continue;
+            $tanpaPos = trim((string) $a['pos_nama']) === '' && ! $a['pos_id'];
+            $pid = $a['pos_id'] ? (int) $a['pos_id'] : ($nomor[mb_strtolower((string) $a['pos_nama'])] ?? 0);
+            if (! $tanpaPos && (! $pid || ! $aktif($pid))) continue;
+            $kena = self::cocokKata((string) $a['kunci'], $kepB);
+            if ($kena === null) continue;
+            if ($tanpaPos) {
+                return ['pos_id' => null, 'skor' => 0.0, 'sumber' => 'none',
+                        'alasan' => 'keperluan "' . strtolower(self::labelKena($kena)) . '": tidak ada pos khusus untuk ini — pilih manual' . self::labelMal($a)];
+            }
+            $alasan = 'keperluan "' . strtolower(self::labelKena($kena)) . '"' . ($pengganti ? ' (pengganti terakhir)' : '') . self::labelMal($a);
+            if (! $pengganti) {
+                $nm = $this->kataNama($d, $nama, $nomor, $aktif, $mal, false);
+                if ($nm && $nm['pos_id'] === $pid) $alasan .= ' · nama barang sejalan';
+                elseif ($nm && $nm['pos_id']) $alasan .= ' (mengalahkan nama barang → ' . $d['pos'][$nm['pos_id']]['nama'] . ')';
+            }
+            return ['pos_id' => $pid, 'skor' => $pengganti ? 40.0 : 80.0, 'sumber' => 'keperluan', 'alasan' => $alasan];
+        }
+        return null;
+    }
+
     /**
      * (b) Kata kunci pada NAMA barang. Aturan "tanpa pos" (pos_nama kosong, mis. perangkat jaringan) DIDAHULUKAN dan
      * menutup rekomendasi; selain itu kata kunci yang muncul paling awal pada nama barang menang
      * (CHARGER ADAPTOR LAPTOP → "CHARGER" di depan → pos aksesori, bukan pos laptop); seri → urutan aturan.
+     * Aturan bermal hanya dipertimbangkan bila mal-nya sama dengan mal item. $pengganti = true: hanya aturan "pengganti terakhir" (skor 40).
      * @return ?array hasil rekomendasi (sumber kata_kunci/none) atau null bila tak ada yang cocok
      */
-    private function kataNama(array $d, string $nama, array $nomor, callable $aktif): ?array
+    private function kataNama(array $d, string $nama, array $nomor, callable $aktif, string $mal = 'both', bool $pengganti = false): ?array
     {
         $menang = null;
-        foreach ($d['kata'] as $a) {
+        foreach ($d[$pengganti ? 'kataP' : 'kata'] as $a) {
+            if (! self::malCocok($a, $mal)) continue;
             $tanpaPos = trim((string) $a['pos_nama']) === '' && ! $a['pos_id'];
             $pid = $a['pos_id'] ? (int) $a['pos_id'] : ($nomor[mb_strtolower((string) $a['pos_nama'])] ?? 0);
             if (! $tanpaPos && (! $pid || ! $aktif($pid))) continue;
@@ -165,11 +244,12 @@ class BudgetFsRekomendasi
             if ($kena === null) continue;
             if ($tanpaPos) {
                 return ['pos_id' => null, 'skor' => 0.0, 'sumber' => 'none',
-                        'alasan' => 'kata kunci ' . $kena[0] . ': tidak ada pos khusus untuk ini — pilih manual'];
+                        'alasan' => 'kata kunci ' . self::labelKena($kena) . ': tidak ada pos khusus untuk ini — pilih manual' . self::labelMal($a)];
             }
-            if ($menang === null || $kena[1] < $menang['posisi']) $menang = ['pid' => $pid, 'kata' => $kena[0], 'posisi' => $kena[1]];
+            if ($menang === null || $kena[1] < $menang['posisi']) $menang = ['pid' => $pid, 'kata' => self::labelKena($kena), 'posisi' => $kena[1], 'label' => self::labelMal($a)];
         }
-        return $menang ? ['pos_id' => $menang['pid'], 'skor' => 70.0, 'sumber' => 'kata_kunci', 'alasan' => 'kata kunci ' . $menang['kata']] : null;
+        return $menang ? ['pos_id' => $menang['pid'], 'skor' => $pengganti ? 40.0 : 70.0, 'sumber' => 'kata_kunci',
+                          'alasan' => 'kata kunci ' . $menang['kata'] . ($pengganti ? ' (pengganti terakhir)' : '') . $menang['label']] : null;
     }
 
     /**
