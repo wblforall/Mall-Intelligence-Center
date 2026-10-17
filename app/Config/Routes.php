@@ -164,6 +164,7 @@ $routes->post('events/(:num)/vm/(:num)/realisasi/(:num)/delete', 'EventVM::delet
 // Creative, Concept & Design
 $routes->get('events/(:num)/creative', 'EventCreativeCtrl::index/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/add', 'EventCreativeCtrl::store/$1', ['filter' => 'auth']);
+$routes->post('events/(:num)/creative/paket-awal', 'EventCreativeCtrl::paketAwal/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/edit', 'EventCreativeCtrl::update/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/delete', 'EventCreativeCtrl::delete/$1/$2', ['filter' => 'auth']);
 $routes->post('events/(:num)/creative/(:num)/upload', 'EventCreativeCtrl::uploadFile/$1/$2', ['filter' => 'auth']);
@@ -182,9 +183,34 @@ $routes->post('events/(:num)/creative/(:num)/insight/(:num)/delete', 'EventCreat
 $routes->get('creative/monthly-summary',       'CreativeCtrl::monthly',       ['filter' => 'auth']);
 $routes->get('creative/monthly-summary/print', 'CreativeCtrl::printMonthly',  ['filter' => 'auth']);
 $routes->get('creative', 'CreativeCtrl::index', ['filter' => 'auth']);
+// Tema Creative (induk item): Tema Bulanan, tutup/buka, pemetaan data lama
+$routes->get('creative/pemetaan',                  'CreativeTemaCtrl::pemetaan',  ['filter' => 'auth']);
+$routes->post('creative/pemetaan/terapkan',        'CreativeTemaCtrl::terapkan',  ['filter' => 'auth']);
+$routes->post('creative/pemetaan/batal',           'CreativeTemaCtrl::batal',     ['filter' => 'auth']);
+$routes->post('creative/pemetaan/ukuran',          'CreativeTemaCtrl::terapkanUkuran', ['filter' => 'auth']);
+$routes->post('creative/tema/add',                 'CreativeTemaCtrl::tambah',    ['filter' => 'auth']);
+$routes->post('creative/tema/tutup',               'CreativeTemaCtrl::tutup',     ['filter' => 'auth']);
+$routes->post('creative/tema/buka',                'CreativeTemaCtrl::buka',      ['filter' => 'auth']);
+$routes->post('creative/tema/(:num)/edit',         'CreativeTemaCtrl::ubah/$1',   ['filter' => 'auth']);
+$routes->post('creative/tema/(:num)/delete',       'CreativeTemaCtrl::hapus/$1',  ['filter' => 'auth']);
+$routes->post('creative/tema/paket-awal',          'CreativeTemaCtrl::paketAwal', ['filter' => 'auth']);
+// Tahap 2a: turunan Design / Motion Graphic (satu pintu, dua lingkup), katalog turunan, paket item awal
+$routes->post('creative/turunan/(:segment)/(:num)/(:segment)', 'CreativeTurunanCtrl::aksi/$1/$2/$3', ['filter' => 'auth']);
+$routes->get('creative/titik/(:segment)/(:num)/daftar',  'CreativeTitikCtrl::aksi/$1/$2/daftar', ['filter' => 'auth']);
+$routes->post('creative/titik/(:segment)/(:num)/(:segment)', 'CreativeTitikCtrl::aksi/$1/$2/$3', ['filter' => 'auth']);
+$routes->get('creative/katalog',                           'CreativeKatalogCtrl::index',        ['filter' => 'auth']);
+$routes->post('creative/katalog/jenis/simpan',             'CreativeKatalogCtrl::simpanJenis',  ['filter' => 'auth']);
+$routes->post('creative/katalog/jenis/(:num)/toggle',      'CreativeKatalogCtrl::toggleJenis/$1', ['filter' => 'auth']);
+$routes->post('creative/katalog/jenis/(:num)/geser',       'CreativeKatalogCtrl::geserJenis/$1',  ['filter' => 'auth']);
+$routes->post('creative/katalog/jenis/(:num)/hapus',       'CreativeKatalogCtrl::hapusJenis/$1',  ['filter' => 'auth']);
+$routes->post('creative/katalog/paket/simpan',             'CreativeKatalogCtrl::simpanPaket',  ['filter' => 'auth']);
+$routes->post('creative/katalog/paket/(:num)/toggle',      'CreativeKatalogCtrl::togglePaket/$1', ['filter' => 'auth']);
+$routes->post('creative/katalog/paket/(:num)/geser',       'CreativeKatalogCtrl::geserPaket/$1',  ['filter' => 'auth']);
+$routes->post('creative/katalog/paket/(:num)/hapus',       'CreativeKatalogCtrl::hapusPaket/$1',  ['filter' => 'auth']);
 $routes->post('creative/add', 'CreativeCtrl::store', ['filter' => 'auth']);
 $routes->post('creative/(:num)/edit', 'CreativeCtrl::update/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/delete', 'CreativeCtrl::delete/$1', ['filter' => 'auth']);
+$routes->post('creative/(:num)/pindah', 'CreativeCtrl::pindah/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/upload', 'CreativeCtrl::uploadFile/$1', ['filter' => 'auth']);
 $routes->post('creative/(:num)/file/(:num)/delete', 'CreativeCtrl::deleteFile/$1/$2', ['filter' => 'auth']);
 // Alur persetujuan: aksi eksplisit, bukan lagi satu endpoint status bebas
@@ -309,6 +335,8 @@ $routes->post('sponsorship/(:num)/sponsor/(:num)/delete', 'SponsorshipCtrl::dele
 $routes->post('sponsorship/(:num)/sponsor/(:num)/realisasi/add', 'SponsorshipCtrl::storeRealisasi/$1/$2', ['filter' => 'auth']);
 $routes->post('sponsorship/(:num)/sponsor/(:num)/realisasi/(:num)/delete', 'SponsorshipCtrl::deleteRealisasi/$1/$2/$3', ['filter' => 'auth']);
 $routes->post('sponsorship/analisa/save', 'SponsorshipCtrl::saveAnalisa', ['filter' => 'auth']);
+$routes->post('sponsorship/dobel/putuskan', 'SponsorshipCtrl::putuskanDobel', ['filter' => 'auth']);
+$routes->post('sponsorship/dobel/batal', 'SponsorshipCtrl::batalkanDobel', ['filter' => 'auth']);
 
 // VM Standalone (non-event)
 $routes->get('vm/monthly-summary', 'VMStandalone::monthly', ['filter' => 'auth']);
