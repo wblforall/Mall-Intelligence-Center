@@ -1,8 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
-.fade-up { opacity:0; transform:translateY(14px); animation:fadeUpVmS .55s cubic-bezier(.22,.68,0,1.2) forwards; }
-@keyframes fadeUpVmS { to { opacity:1; transform:translateY(0); } }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -271,37 +269,6 @@ $renderItem = function(array $it, array $realisasi, bool $canEdit) {
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
-document.querySelectorAll('.card.mb-3').forEach((card, i) => {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(16px)';
-    setTimeout(() => {
-        card.style.transition = 'opacity .45s ease, transform .45s ease';
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0)';
-    }, 80 + i * 80);
-});
-(function() {
-    const n = document.querySelectorAll('.card.mb-3').length;
-    const footer = document.querySelector('.card.border-warning-subtle');
-    if (footer) {
-        footer.style.opacity = '0';
-        footer.style.transform = 'translateY(12px)';
-        setTimeout(() => {
-            footer.style.transition = 'opacity .4s ease, transform .4s ease';
-            footer.style.opacity = '1';
-            footer.style.transform = 'translateY(0)';
-        }, 120 + n * 80);
-    }
-})();
-document.querySelectorAll('.progress-bar').forEach((bar, i) => {
-    const target = bar.style.width;
-    if (!target || parseFloat(target) === 0) return;
-    bar.style.width = '0';
-    setTimeout(() => {
-        bar.style.transition = 'width .7s ease';
-        bar.style.width = target;
-    }, 300 + i * 60);
-});
 <?php if ($canEdit): ?>
 document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', function() {

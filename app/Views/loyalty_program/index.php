@@ -1,14 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
-.fade-up {
-    opacity: 0;
-    transform: translateY(16px);
-    animation: fadeUpLoy .5s cubic-bezier(.22,.68,0,1.2) forwards;
-}
-@keyframes fadeUpLoy {
-    to { opacity: 1; transform: translateY(0); }
-}
 .sec-toggle { cursor: pointer; user-select: none; }
 .sec-toggle .sec-chevron { transition: transform .25s ease; transform: rotate(-90deg); }
 .sec-toggle.sec-open .sec-chevron { transform: rotate(0deg); }
@@ -84,7 +76,7 @@ $allClosed        = array_filter($programs, fn($p) => $p['status'] === 'inactive
                     <div class="rounded-2 p-1 bg-success-subtle"><i class="bi bi-person-plus text-success fs-5"></i></div>
                     <span class="small text-muted">Total Member Baru</span>
                 </div>
-                <div class="fw-bold fs-4 text-success" data-count="<?= $totalMemberKpi ?>"><?= number_format($totalMemberKpi) ?></div>
+                <div class="fw-bold fs-4 text-success" data-count="<?= $totalMemberKpi ?>"><?= number_format($totalMemberKpi, 0, ',', '.') ?></div>
                 <?php if ($targetMemberKpi > 0): ?>
                 <div class="small text-muted">target <?= number_format($targetMemberKpi) ?></div>
                 <?php endif; ?>
@@ -98,7 +90,7 @@ $allClosed        = array_filter($programs, fn($p) => $p['status'] === 'inactive
                     <div class="rounded-2 p-1 bg-warning-subtle"><i class="bi bi-ticket-perforated text-warning fs-5"></i></div>
                     <span class="small text-muted">e-Voucher Dipakai</span>
                 </div>
-                <div class="fw-bold fs-4 text-warning" data-count="<?= $totalTerpakaiKpi ?>"><?= number_format($totalTerpakaiKpi) ?></div>
+                <div class="fw-bold fs-4 text-warning" data-count="<?= $totalTerpakaiKpi ?>"><?= number_format($totalTerpakaiKpi, 0, ',', '.') ?></div>
                 <div class="small text-muted">dari semua program aktif</div>
             </div>
         </div>
@@ -1435,46 +1427,7 @@ $cntClosed     = count($allClosed);
     });
 })();
 
-// KPI count-up
-(function() {
-    const dur = 900;
-    document.querySelectorAll('[data-count]').forEach(el => {
-        const target = parseInt(el.dataset.count) || 0;
-        if (!target) return;
-        const start = performance.now();
-        function step(now) {
-            const t = Math.min(1, (now - start) / dur);
-            const ease = 1 - Math.pow(1 - t, 3);
-            el.textContent = Math.round(ease * target).toLocaleString('id-ID');
-            if (t < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-    });
-})();
-
-// Program card stagger entrance
-document.querySelectorAll('.card.border-start').forEach((card, i) => {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(18px)';
-    setTimeout(() => {
-        card.style.transition = 'opacity .45s ease, transform .45s ease';
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0)';
-    }, 180 + i * 90);
-});
-
-// Progress bar grow animation
-document.querySelectorAll('.progress-bar').forEach((bar, i) => {
-    const target = bar.style.width;
-    if (!target || target === '0%') return;
-    bar.style.width = '0';
-    setTimeout(() => {
-        bar.style.transition = 'width .75s ease';
-        bar.style.width = target;
-    }, 420 + i * 55);
-});
-
-// Collapsible sections — animated height expand/collapse
+// Collapsible sections// Collapsible sections — animated height expand/collapse
 // Init: semua sec-body mulai tertutup (height 0 via JS, bukan CSS, agar tidak konflik)
 document.querySelectorAll('.sec-body').forEach(b => { b.style.height = '0'; });
 

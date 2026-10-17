@@ -1,8 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
-@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-.anim-fade-up { opacity:0; animation:fadeUp .45s cubic-bezier(.22,.68,0,1.15) forwards; }
 .emp-photo { width:80px; height:80px; border-radius:50%; object-fit:cover; }
 .emp-photo-placeholder { width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:700; background:var(--c-avatar-bg); color:var(--c-avatar-fg); }
 </style>

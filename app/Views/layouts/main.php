@@ -16,43 +16,11 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="<?= base_url('css/theme.css') ?>?v=2.24.1" rel="stylesheet">
+<link href="<?= base_url('css/sidebar-nav.css') ?>?v=<?= @filemtime(FCPATH.'css/sidebar-nav.css') ?: 1 ?>" rel="stylesheet">
 <style>
-:root { --sidebar-width: 248px; }
 body { min-height: 100vh; }
 
-/* ── Sidebar — layout only, colors live in theme.css ── */
-.sidebar {
-    width: var(--sidebar-width); height: 100vh;
-    position: fixed; top: 0; left: 0; z-index: 1000;
-    overflow: hidden; transition: transform .25s ease;
-    display: flex; flex-direction: column;
-}
-.sidebar .brand       { padding: 1.1rem 1.25rem .9rem; }
-.sidebar .brand-name  { font-weight: 700; font-size: .85rem; letter-spacing: .01em; white-space: nowrap; }
-.sidebar .brand-sub   { font-size: .68rem; margin-top: 2px; }
-.sidebar .nav-section { padding: 0 .75rem; margin-top: .5rem; flex: 1 1 0; overflow-y: auto; }
-.sidebar .nav-label   { font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: .8rem .5rem .3rem; }
-/* ── Accordion sidebar: section & subnav modul bisa dibuka/tutup ── */
-.sidebar .nav-label.nav-toggle { display: flex; align-items: center; cursor: pointer; user-select: none; border-radius: .4rem; transition: color .15s; }
-.sidebar .nav-label.nav-toggle:hover { color: var(--bs-emphasis-color, #fff); }
-.sidebar .nav-caret { margin-left: auto; font-size: .6rem; opacity: .55; transition: transform .18s; }
-.sidebar .nav-label.collapsed .nav-caret { transform: rotate(-90deg); }
-.sidebar .nav-group.collapsed { display: none; }
-.sidebar .subnav.collapsed { display: none; }
-.sidebar .subnav-caret { margin-left: auto; padding: 0 .15rem; font-size: .6rem; opacity: .5; cursor: pointer; transition: transform .18s; flex-shrink: 0; }
-.sidebar .subnav-caret.collapsed { transform: rotate(-90deg); }
-.sidebar .nav-link    { padding: .45rem .75rem; border-radius: .5rem; display: flex; align-items: center; gap: .65rem; font-size: .83rem; transition: background .15s, color .15s; margin-bottom: 1px; }
-.sidebar .nav-link i  { width: 16px; text-align: center; font-size: .9rem; flex-shrink: 0; }
-.sidebar .subnav      { margin: 2px 0 4px 0; }
-.sidebar .subnav .nav-link { padding-left: 1rem; font-size: .8rem; border-left: 2px solid transparent; border-radius: 0 .5rem .5rem 0; margin-left: .25rem; }
-.sidebar .sidebar-footer   { flex-shrink: 0; padding: .75rem 1rem; }
-.sidebar .sidebar-footer .user-name { font-size: .8rem; font-weight: 500; }
-.sidebar .sidebar-footer .user-role { font-size: .7rem; }
-.sidebar .sidebar-footer .btn-logout { background: none; border: none; padding: 0; font-size: .8rem; transition: color .15s; }
-
-
-/* ── Main ── */
-.main-content { margin-left: var(--sidebar-width); min-height: 100vh; position: relative; }
+.main-content { min-height: 100vh; position: relative; }   /* margin-left sidebar: public/css/sidebar-nav.css */
 .topbar { padding: .6rem 1.5rem; position: sticky; top: 0; z-index: 999; }
 .page-content { padding: 1.5rem; }
 
@@ -66,48 +34,41 @@ body { min-height: 100vh; }
 .table th { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .table td { font-size: .875rem; vertical-align: middle; }
 
-@media (max-width: 768px) {
-    .sidebar { transform: translateX(-100%); }
-    .sidebar.show { transform: translateX(0); }
-    .main-content { margin-left: 0; }
+/* ══ STANDAR ANIMASI MIC (rincian: docs/ANIMASI.md) ═══════════════════════
+   1. Masuk halaman: SATU animasi untuk semua halaman, otomatis, tanpa kelas/JS.
+      Anak langsung .page-content (dan anak langsung wrapper .page-ev* kecuali
+      .ev-head, supaya kepala event diam saat pindah tab) fade + naik 8px,
+      .35s ease-out, sekali saat muat. fill-mode "backwards": setelah selesai
+      efek dilepas (tak ada opacity:0 permanen / containing block), dan bila
+      CSS animasi gagal konten tetap tampil.
+   2. .fade-up / .anim-fade-up (warisan, ~41 view) DINETRALKAN: tanpa gerak
+      sendiri & tanpa delay berjenjang; yang bergerak hanya animasi standar #1.
+   3. Count-up angka: TIDAK ada di halaman operasional/laporan. Hanya Dashboard.
+   4. Hover 0.15-0.2s ease; buka-tutup 0.2-0.25s; modal = Bootstrap bawaan.
+   5. prefers-reduced-motion & cetak: semua animasi/transisi dimatikan. */
+@keyframes micPageIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
 }
-/* ── Sidebar mini (desktop): lajur ikon; arahkan kursor → melebar menimpa konten.
-      Pilihan di localStorage 'micSidebarMini', dipasang di <head> agar tanpa kedip. ── */
-@media (min-width: 769px) {
-    :root { --sidebar-mini: 64px; }
-    html.sb-mini .main-content { margin-left: var(--sidebar-mini); }
-    html.sb-mini .sidebar { transition: width .18s ease, box-shadow .18s ease; }
-    html.sb-mini .sidebar:hover { box-shadow: 0 0 32px rgba(0,0,0,.35); transition-delay: .12s; }
-    html.sb-mini .sidebar:not(:hover) { width: var(--sidebar-mini); }
-    html.sb-mini .sidebar:not(:hover) .brand { padding: 1.1rem 14px .9rem; }
-    html.sb-mini .sidebar:not(:hover) .brand > div,
-    html.sb-mini .sidebar:not(:hover) .nav-caret,
-    html.sb-mini .sidebar:not(:hover) .subnav-caret,
-    html.sb-mini .sidebar:not(:hover) .subnav,
-    html.sb-mini .sidebar:not(:hover) .sidebar-footer > .flex-grow-1,
-    html.sb-mini .sidebar:not(:hover) .sidebar-footer .btn-logout,
-    html.sb-mini .sidebar:not(:hover) .sidebar-versi { display: none !important; }
-    html.sb-mini .sidebar:not(:hover) .nav-section { padding: 0 .5rem; overflow-x: hidden; scrollbar-width: none; }
-    html.sb-mini .sidebar:not(:hover) .nav-label { font-size: 0; padding: 0; margin: .55rem .4rem; border-top: 1px solid var(--bs-border-color); }
-    html.sb-mini .sidebar:not(:hover) .nav-label.collapsed { display: none; }   /* section tertutup: tak perlu garis */
-    html.sb-mini .sidebar:not(:hover) .nav-link { padding: .5rem .9rem; gap: 3rem; white-space: nowrap; overflow: hidden; }
-    html.sb-mini .sidebar .nav-link, html.sb-mini .sidebar .brand-name { white-space: nowrap; }
+@keyframes fadeUp { /* nama lama dipertahankan agar view lama yang memanggilnya tetap valid */
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
 }
-.sb-toggle i { transition: transform .18s; }
-html.sb-mini .sb-toggle i { transform: scaleX(-1); }
-[aria-expanded="true"] #eventsChevron  { transform: rotate(-180deg); }
-[aria-expanded="true"] #loyaltyChevron { transform: rotate(-180deg); }
-[aria-expanded="true"] #creativeChevron{ transform: rotate(-180deg); }
-[aria-expanded="true"] #vmChevron      { transform: rotate(-180deg); }
-[aria-expanded="true"] #sponsorChevron { transform: rotate(-180deg); }
-#eventsChevron, #loyaltyChevron, #creativeChevron, #vmChevron, #sponsorChevron { transition: transform .2s; }
-
-/* ── Global entrance animation ── */
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
+.page-content > :not([class*="page-ev"]):not(.fade):not(.collapse):not(.modal):not(.offcanvas):not(.toast-container):not(script):not(style),
+.page-content > [class*="page-ev"] > :not(.ev-head):not(.fade):not(.collapse):not(.modal):not(.offcanvas):not(.toast-container):not(.ev-cmpbar):not(script):not(style) {
+    animation: var(--mic-in, micPageIn .35s ease-out backwards) !important;
+    animation-delay: 0s !important;
 }
-.fade-up { opacity: 0; animation: fadeUp .45s cubic-bezier(.22,.68,0,1.1) forwards; }
+.fade-up, .anim-fade-up, .anim-fade-in, .hr-up { opacity: 1; animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    :root { --mic-in: none; }
+    *, *::before, *::after {
+        animation-duration: .001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important;
+    }
+    .spinner-border, .spinner-grow { animation-duration: .75s !important; animation-iteration-count: infinite !important; }
+}
+@media print { :root { --mic-in: none; } *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 <?= $this->renderSection('styles') ?>
 <script>try { if (localStorage.getItem('micSidebarMini') === '1') document.documentElement.classList.add('sb-mini'); } catch (e) {}</script>
@@ -116,21 +77,30 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
 
 <?php $currentUser = session()->get('user_name') ?? ''; $currentRole = session()->get('user_role') ?? ''; ?>
 
-<div class="sidebar" id="sidebar">
+<div class="sidebar" id="sidebar" data-uid="<?= (int) session()->get('user_id') ?>" aria-label="Navigasi utama">
 
     <!-- Brand -->
-    <div class="brand d-flex align-items-center gap-2">
+    <div class="sb-brand d-flex align-items-center gap-2">
         <img src="<?= base_url('img/mic-logo-sm.png') ?>" alt="MIC Logo"
              width="36" height="36"
-             style="object-fit:contain;flex-shrink:0;border-radius:4px;background:var(--c-logo-bg);padding:2px">
-        <div>
-            <div class="brand-name">Mall Intelligence Center</div>
-            <div class="brand-sub">eWalk & Pentacity</div>
+             style="object-fit:contain;flex-shrink:0;border-radius:8px;background:var(--c-logo-bg);padding:2px">
+        <div class="sb-brand-text">
+            <div class="sb-brand-name">Mall Intelligence Center</div>
+            <div class="sb-brand-sub">eWalk &amp; Pentacity</div>
         </div>
     </div>
 
+    <!-- Cari menu (Ctrl+K atau /) -->
+    <div class="sb-search" role="search">
+        <button type="button" class="sb-search-btn" id="sbSearchBtn" aria-label="Cari menu" data-tip="Cari menu (Ctrl+K)"><i class="bi bi-search"></i></button>
+        <input type="search" id="sbSearchInput" class="sb-search-input" placeholder="Cari menu…" autocomplete="off" spellcheck="false"
+               aria-label="Cari menu (Ctrl+K atau /)" aria-controls="sbNav">
+        <kbd class="sb-kbd" aria-hidden="true">Ctrl K</kbd>
+        <button type="button" class="sb-clear" id="sbSearchClear" aria-label="Bersihkan pencarian" hidden><i class="bi bi-x-lg"></i></button>
+    </div>
+
     <!-- Nav -->
-    <div class="nav-section flex-grow-1">
+    <nav class="nav-section" id="sbNav" aria-label="Menu">
 
         <?php
         // Mirror persis canViewMenu()/canEditMenu() di BaseController:
@@ -174,21 +144,20 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
         <?php endif; ?>
         <?php
         if ($navCanView('events')):
-            $_eventsOpen = str_starts_with(uri_string(), 'events') && ! isset($event);
+            $_eventsOpen = str_starts_with(uri_string(), 'events');
         ?>
-        <a href="<?= base_url('events') ?>" class="nav-link <?= str_starts_with(uri_string(), 'events') && !isset($event) && ! str_starts_with(uri_string(), 'events/monthly-summary') ? 'active' : '' ?>"
-           data-bs-toggle="collapse" data-bs-target="#eventsSubmenu" aria-expanded="<?= $_eventsOpen ? 'true' : 'false' ?>">
+        <a href="<?= base_url('events') ?>" class="nav-link <?= str_starts_with(uri_string(), 'events') && ! str_starts_with(uri_string(), 'events/monthly-summary') ? 'active' : '' ?>"
+           data-sb-toggle="eventsSubmenu" aria-expanded="<?= $_eventsOpen ? 'true' : 'false' ?>">
             <i class="bi bi-calendar-event-fill"></i> Events
             <?php if (!empty($_waitingDataCount)): ?>
             <span class="badge bg-warning text-dark ms-1 rounded-pill" style="font-size:.65rem"><?= $_waitingDataCount ?></span>
             <?php endif; ?>
-            <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="eventsChevron"></i>
         </a>
-        <div class="collapse <?= $_eventsOpen ? 'show' : '' ?>" id="eventsSubmenu">
-            <a href="<?= base_url('events') ?>" class="nav-link <?= uri_string() === 'events' ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+        <div class="sb-sub-src" id="eventsSubmenu">
+            <a href="<?= base_url('events') ?>" class="nav-link <?= (uri_string() === 'events' || preg_match('#^events/\d+#', uri_string())) ? 'active' : '' ?>">
                 <i class="bi bi-list-ul"></i> Semua Event
             </a>
-            <a href="<?= base_url('events/monthly-summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'events/monthly-summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('events/monthly-summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'events/monthly-summary') ? 'active' : '' ?>">
                 <i class="bi bi-calendar-month"></i> Summary Bulanan
             </a>
         </div>
@@ -198,27 +167,26 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
             $_loyaltyOpen = str_starts_with(uri_string(), 'loyalty') || str_starts_with(uri_string(), 'stock/');
         ?>
         <a href="<?= base_url('loyalty') ?>" class="nav-link"
-           data-bs-toggle="collapse" data-bs-target="#loyaltySubmenu" aria-expanded="<?= $_loyaltyOpen ? 'true' : 'false' ?>">
+           data-sb-toggle="loyaltySubmenu" aria-expanded="<?= $_loyaltyOpen ? 'true' : 'false' ?>">
             <i class="bi bi-star-fill"></i> Program Loyalty
-            <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="loyaltyChevron"></i>
         </a>
-        <div class="collapse <?= $_loyaltyOpen ? 'show' : '' ?>" id="loyaltySubmenu">
-            <a href="<?= base_url('loyalty') ?>" class="nav-link <?= uri_string() === 'loyalty' ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+        <div class="sb-sub-src" id="loyaltySubmenu">
+            <a href="<?= base_url('loyalty') ?>" class="nav-link <?= uri_string() === 'loyalty' ? 'active' : '' ?>">
                 <i class="bi bi-list-ul"></i> Semua Program
             </a>
-            <a href="<?= base_url('loyalty/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'loyalty/summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('loyalty/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'loyalty/summary') ? 'active' : '' ?>">
                 <i class="bi bi-bar-chart-line"></i> Summary Bulanan
             </a>
-            <a href="<?= base_url('loyalty/tenants') ?>" class="nav-link <?= str_starts_with(uri_string(), 'loyalty/tenants') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('loyalty/tenants') ?>" class="nav-link <?= str_starts_with(uri_string(), 'loyalty/tenants') ? 'active' : '' ?>">
                 <i class="bi bi-shop"></i> Master Tenant
             </a>
-            <a href="<?= base_url('stock/summary') ?>" class="nav-link <?= (uri_string() === 'stock/summary' || str_contains(uri_string(), '/kartu')) ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('stock/summary') ?>" class="nav-link <?= (uri_string() === 'stock/summary' || str_contains(uri_string(), '/kartu')) ? 'active' : '' ?>">
                 <i class="bi bi-clipboard-data"></i> Summary Stok Fisik
             </a>
-            <a href="<?= base_url('stock/barang') ?>" class="nav-link <?= (str_starts_with(uri_string(), 'stock/barang') && ! str_contains(uri_string(), '/kartu')) ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('stock/barang') ?>" class="nav-link <?= (str_starts_with(uri_string(), 'stock/barang') && ! str_contains(uri_string(), '/kartu')) ? 'active' : '' ?>">
                 <i class="bi bi-box-seam"></i> Stock Hadiah Fisik
             </a>
-            <a href="<?= base_url('stock/voucher') ?>" class="nav-link <?= str_starts_with(uri_string(), 'stock/voucher') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('stock/voucher') ?>" class="nav-link <?= str_starts_with(uri_string(), 'stock/voucher') ? 'active' : '' ?>">
                 <i class="bi bi-ticket-perforated"></i> Stock Voucher Fisik
             </a>
         </div>
@@ -229,15 +197,14 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
             $_sponsorOpen = str_starts_with(uri_string(), 'sponsorship');
         ?>
         <a href="<?= base_url('sponsorship') ?>" class="nav-link"
-           data-bs-toggle="collapse" data-bs-target="#sponsorSubmenu" aria-expanded="<?= $_sponsorOpen ? 'true' : 'false' ?>">
+           data-sb-toggle="sponsorSubmenu" aria-expanded="<?= $_sponsorOpen ? 'true' : 'false' ?>">
             <i class="bi bi-trophy-fill"></i> Sponsorship
-            <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="sponsorChevron"></i>
         </a>
-        <div class="collapse <?= $_sponsorOpen ? 'show' : '' ?>" id="sponsorSubmenu">
-            <a href="<?= base_url('sponsorship') ?>" class="nav-link <?= uri_string() === 'sponsorship' ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+        <div class="sb-sub-src" id="sponsorSubmenu">
+            <a href="<?= base_url('sponsorship') ?>" class="nav-link <?= uri_string() === 'sponsorship' ? 'active' : '' ?>">
                 <i class="bi bi-list-ul"></i> Semua Program
             </a>
-            <a href="<?= base_url('sponsorship/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'sponsorship/summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('sponsorship/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'sponsorship/summary') ? 'active' : '' ?>">
                 <i class="bi bi-bar-chart-line"></i> Summary Bulanan
             </a>
         </div>
@@ -248,27 +215,26 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
         if ($navCanView('creative_main')):
         ?>
         <a href="<?= base_url('creative') ?>" class="nav-link"
-           data-bs-toggle="collapse" data-bs-target="#creativeSubmenu" aria-expanded="<?= $_creativeMainOpen ? 'true' : 'false' ?>">
+           data-sb-toggle="creativeSubmenu" aria-expanded="<?= $_creativeMainOpen ? 'true' : 'false' ?>">
             <i class="bi bi-vector-pen"></i> Creative &amp; Design
-            <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="creativeChevron"></i>
         </a>
-        <div class="collapse <?= $_creativeMainOpen ? 'show' : '' ?>" id="creativeSubmenu">
-            <a href="<?= base_url('creative') ?>" class="nav-link <?= uri_string() === 'creative' ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+        <div class="sb-sub-src" id="creativeSubmenu">
+            <a href="<?= base_url('creative') ?>" class="nav-link <?= uri_string() === 'creative' ? 'active' : '' ?>">
                 <i class="bi bi-list-ul"></i> Semua Item
             </a>
-            <a href="<?= base_url('creative/monthly-summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/monthly-summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('creative/monthly-summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/monthly-summary') ? 'active' : '' ?>">
                 <i class="bi bi-bar-chart-line"></i> Summary Bulanan
             </a>
-            <a href="<?= base_url('creative/media-promo') ?>" class="nav-link <?= uri_string() === 'creative/media-promo' || (str_starts_with(uri_string(), 'creative/media-promo/') && !str_starts_with(uri_string(), 'creative/media-promo/master') && !str_starts_with(uri_string(), 'creative/media-promo/summary') && !str_starts_with(uri_string(), 'creative/media-promo/gantt')) ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('creative/media-promo') ?>" class="nav-link <?= uri_string() === 'creative/media-promo' || (str_starts_with(uri_string(), 'creative/media-promo/') && !str_starts_with(uri_string(), 'creative/media-promo/master') && !str_starts_with(uri_string(), 'creative/media-promo/summary') && !str_starts_with(uri_string(), 'creative/media-promo/gantt')) ? 'active' : '' ?>">
                 <i class="bi bi-megaphone"></i> Media Promo
             </a>
-            <a href="<?= base_url('creative/media-promo/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/summary') ? 'active' : '' ?>" style="padding-left:2.8rem;font-size:.75rem">
+            <a href="<?= base_url('creative/media-promo/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/summary') ? 'active' : '' ?>" data-lvl="3">
                 <i class="bi bi-graph-up-arrow"></i> Summary
             </a>
-            <a href="<?= base_url('creative/media-promo/gantt') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/gantt') ? 'active' : '' ?>" style="padding-left:2.8rem;font-size:.75rem">
+            <a href="<?= base_url('creative/media-promo/gantt') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/gantt') ? 'active' : '' ?>" data-lvl="3">
                 <i class="bi bi-calendar3-range"></i> Gantt
             </a>
-            <a href="<?= base_url('creative/media-promo/master') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/master') ? 'active' : '' ?>" style="padding-left:2.8rem;font-size:.75rem">
+            <a href="<?= base_url('creative/media-promo/master') ?>" class="nav-link <?= str_starts_with(uri_string(), 'creative/media-promo/master') ? 'active' : '' ?>" data-lvl="3">
                 <i class="bi bi-pin-map"></i> Master Titik
             </a>
         </div>
@@ -279,15 +245,14 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
         if ($navCanView('vm_main')):
         ?>
         <a href="<?= base_url('vm') ?>" class="nav-link"
-           data-bs-toggle="collapse" data-bs-target="#vmSubmenu" aria-expanded="<?= $_vmOpen ? 'true' : 'false' ?>">
+           data-sb-toggle="vmSubmenu" aria-expanded="<?= $_vmOpen ? 'true' : 'false' ?>">
             <i class="bi bi-palette-fill"></i> Dekorasi &amp; VM
-            <i class="bi bi-chevron-down ms-auto" style="font-size:.65rem;transition:transform .2s" id="vmChevron"></i>
         </a>
-        <div class="collapse <?= $_vmOpen ? 'show' : '' ?>" id="vmSubmenu">
-            <a href="<?= base_url('vm') ?>" class="nav-link <?= uri_string() === 'vm' ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+        <div class="sb-sub-src" id="vmSubmenu">
+            <a href="<?= base_url('vm') ?>" class="nav-link <?= uri_string() === 'vm' ? 'active' : '' ?>">
                 <i class="bi bi-list-ul"></i> Semua Item
             </a>
-            <a href="<?= base_url('vm/monthly-summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'vm/monthly-summary') ? 'active' : '' ?>" style="padding-left:2rem;font-size:.78rem">
+            <a href="<?= base_url('vm/monthly-summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'vm/monthly-summary') ? 'active' : '' ?>">
                 <i class="bi bi-bar-chart-line"></i> Summary Bulanan
             </a>
         </div>
@@ -415,68 +380,6 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
         <?php endif; ?>
         <?php endif; ?>
 
-        <?php if (isset($event)):
-            $isAdmin    = ($currentRole === 'admin');
-            $canSeeMenu = function(string $key) use ($isAdmin, $_navDeptMenus, $navCanView): bool {
-                if ($isAdmin) return true;
-                if ($_navDeptMenus === null) return true; // tanpa dept: submenu event tetap tampil (perilaku lama)
-                return $navCanView($key);
-            };
-            $uri = uri_string();
-        ?>
-        <div class="nav-label">Event Ini</div>
-        <div class="subnav">
-            <?php if ($canSeeMenu('summary')): ?>
-            <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="nav-link <?= str_ends_with($uri, '/summary') ? 'active' : '' ?>">
-                <i class="bi bi-speedometer2"></i> Summary
-            </a>
-            <a href="<?= base_url('events/'.$event['id'].'/gallery') ?>" class="nav-link <?= str_contains($uri, '/gallery') ? 'active' : '' ?>">
-                <i class="bi bi-images"></i> Gallery Foto
-            </a>
-            <?php endif; ?>
-            <?php if ($canSeeMenu('content')): ?>
-            <a href="<?= base_url('events/'.$event['id'].'/content') ?>" class="nav-link <?= str_contains($uri, '/content') ? 'active' : '' ?>">
-                <i class="bi bi-collection-play"></i> Content Event
-            </a>
-            <a href="<?= base_url('events/'.$event['id'].'/rundown') ?>" class="nav-link <?= str_contains($uri, '/rundown') ? 'active' : '' ?>">
-                <i class="bi bi-list-ol"></i> Rundown
-            </a>
-            <?php endif; ?>
-            <?php if ($canSeeMenu('loyalty')): ?>
-            <a href="<?= base_url('events/'.$event['id'].'/loyalty') ?>" class="nav-link <?= str_contains($uri, '/loyalty') ? 'active' : '' ?>">
-                <i class="bi bi-star-fill"></i> Program Loyalty
-            </a>
-            <?php endif; ?>
-            <?php if ($canSeeMenu('vm')): ?>
-            <a href="<?= base_url('events/'.$event['id'].'/vm') ?>" class="nav-link <?= str_contains($uri, '/vm') ? 'active' : '' ?>">
-                <i class="bi bi-palette-fill"></i> Dekorasi & VM
-            </a>
-            <?php endif; ?>
-            <?php if ($canSeeMenu('creative')): ?>
-            <a href="<?= base_url('events/'.$event['id'].'/creative') ?>" class="nav-link <?= str_contains($uri, '/creative') ? 'active' : '' ?>">
-                <i class="bi bi-vector-pen"></i> Creative & Design
-            </a>
-            <?php endif; ?>
-            <?php if ($canSeeMenu('exhibitors')): ?>
-            <a href="<?= base_url('events/'.$event['id'].'/exhibitors') ?>" class="nav-link <?= str_contains($uri, '/exhibitors') ? 'active' : '' ?>">
-                <i class="bi bi-shop"></i> Exhibition
-            </a>
-            <?php endif; ?>
-            <?php if ($canSeeMenu('sponsors')): ?>
-            <a href="<?= base_url('events/'.$event['id'].'/sponsors') ?>" class="nav-link <?= str_contains($uri, '/sponsors') ? 'active' : '' ?>">
-                <i class="bi bi-award-fill"></i> Sponsorship
-            </a>
-            <?php endif; ?>
-            <?php if ($canSeeMenu('budget')): ?>
-            <a href="<?= base_url('events/'.$event['id'].'/budget') ?>" class="nav-link <?= str_contains($uri, '/budget') ? 'active' : '' ?>">
-                <i class="bi bi-cash-stack"></i> Budget
-            </a>
-            <a href="<?= base_url('events/'.$event['id'].'/other-cost') ?>" class="nav-link <?= str_contains($uri, '/other-cost') ? 'active' : '' ?>">
-                <i class="bi bi-receipt"></i> Other Cost
-            </a>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
 
         <?php
         $_isAdmin   = $_navIsAdmin;
@@ -722,106 +625,50 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
         </a>
         <?php endif; ?>
 
+    </nav>
+
+    <!-- Minimize / Expand -->
+    <div class="sb-bottom">
+        <button type="button" class="sb-collapse" id="sbCollapse" aria-expanded="true" aria-label="Minimize Sidebar" data-tip="Expand Sidebar">
+            <span class="sb-ico"><i class="bi bi-chevron-bar-left"></i></span><span class="sb-text">Minimize Sidebar</span>
+        </button>
     </div>
+    <div class="sb-note visually-hidden" id="sbLive" role="status" aria-live="polite"></div>
 
     <!-- User footer -->
-    <div class="sidebar-footer d-flex align-items-center gap-2">
-        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold"
-             style="width:30px;height:30px;background:var(--c-avatar-bg);color:var(--c-avatar-fg);font-size:.75rem">
+    <div class="sb-foot d-flex align-items-center gap-2">
+        <div class="sb-avatar rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold"
+             style="width:32px;height:32px;background:var(--c-avatar-bg);color:var(--c-avatar-fg);font-size:.78rem">
             <?= strtoupper(substr($currentUser, 0, 1)) ?>
         </div>
-        <div class="flex-grow-1 min-w-0">
-            <div class="user-name text-truncate"><?= esc($currentUser) ?></div>
-            <div class="user-role"><?= ucfirst($currentRole) ?></div>
+        <div class="sb-user flex-grow-1 min-w-0">
+            <div class="sb-user-name text-truncate"><?= esc($currentUser) ?></div>
+            <div class="sb-user-role"><?= ucfirst($currentRole) ?></div>
         </div>
-        <a href="<?= base_url('logout') ?>" class="btn-logout" title="Logout">
+        <a href="<?= base_url('profile') ?>" class="sb-act sb-act-profile" title="Profil" aria-label="Profil" data-tip="Profil">
+            <i class="bi bi-person-gear"></i>
+        </a>
+        <a href="<?= base_url('logout') ?>" class="sb-act sb-act-logout" title="Keluar" aria-label="Keluar" data-tip="Keluar">
             <i class="bi bi-box-arrow-right"></i>
         </a>
     </div>
-    <div class="sidebar-versi" style="padding:.4rem 1rem .6rem;font-size:.6rem;opacity:.35;line-height:1.5;white-space:nowrap">
+    <div class="sb-versi">
         v2.30.0 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
 </div>
 
-<script>
-/* ── Accordion sidebar ────────────────────────────────────────────────
-   Tingkat 1: tiap section (.nav-label) bisa dibuka/tutup — section berisi
-   halaman aktif dipaksa terbuka; pilihan user diingat di localStorage.
-   Tingkat 2: subnav modul (mis. Events/Loyalty di section Main) otomatis
-   tertutup bila tidak memuat halaman aktif; toggle via caret (klik nama
-   modul tetap navigasi). Dijalankan inline agar tanpa kedip. */
-(function () {
-    const nav = document.querySelector('.sidebar .nav-section');
-    if (!nav) return;
-    const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    let store = {};
-    try { store = JSON.parse(localStorage.getItem('micNavSections') || '{}'); } catch (e) {}
-    const save = () => { try { localStorage.setItem('micNavSections', JSON.stringify(store)); } catch (e) {} };
-
-    // ── Tingkat 2: subnav modul (diproses dulu, sebelum node dipindah) ──
-    nav.querySelectorAll(':scope .subnav').forEach(sub => {
-        const parent = sub.previousElementSibling;
-        if (!parent || !parent.classList.contains('nav-link')) return;
-        const isActive = !!sub.querySelector('.nav-link.active') || parent.classList.contains('active');
-        const caret = document.createElement('i');
-        caret.className = 'bi bi-chevron-down subnav-caret' + (isActive ? '' : ' collapsed');
-        parent.appendChild(caret);
-        if (!isActive) sub.classList.add('collapsed');
-        caret.addEventListener('click', function (e) {
-            e.preventDefault(); e.stopPropagation();
-            caret.classList.toggle('collapsed', sub.classList.toggle('collapsed'));
-        });
-    });
-
-    // ── Tingkat 1: kelompokkan section per .nav-label ──
-    const labels = Array.from(nav.querySelectorAll(':scope > .nav-label'));
-    labels.forEach((label, i) => {
-        const group = document.createElement('div');
-        group.className = 'nav-group';
-        const moved = [];
-        let n = label.nextSibling;
-        while (n && !(n.nodeType === 1 && n.classList && n.classList.contains('nav-label'))) {
-            const next = n.nextSibling; moved.push(n); n = next;
-        }
-        label.after(group);
-        moved.forEach(el => group.appendChild(el));
-
-        const key = slug(label.textContent.trim()) || ('sec-' + i);
-        label.classList.add('nav-toggle');
-        label.insertAdjacentHTML('beforeend', '<i class="bi bi-chevron-down nav-caret"></i>');
-
-        // Terbuka bila: memuat halaman aktif · dipilih user · default (Event Ini kontekstual)
-        const hasActive = !!group.querySelector('.nav-link.active');
-        let open = hasActive || (key in store ? !!store[key] : key === 'event-ini');
-        if (!open) { label.classList.add('collapsed'); group.classList.add('collapsed'); }
-
-        label.addEventListener('click', function () {
-            const closed = group.classList.toggle('collapsed');
-            label.classList.toggle('collapsed', closed);
-            store[key] = closed ? 0 : 1;
-            save();
-        });
-    });
-
-    // Tak ada satupun section terbuka (mis. halaman di luar sidebar) → buka yang pertama
-    if (labels.length && !nav.querySelector('.nav-group:not(.collapsed)')) {
-        const l = labels[0];
-        l.classList.remove('collapsed');
-        if (l.nextElementSibling) l.nextElementSibling.classList.remove('collapsed');
-    }
-})();
-</script>
+<div class="sidebar-overlay" id="sbOverlay"></div>
+<script src="<?= base_url('js/sidebar-nav.js') ?>?v=<?= @filemtime(FCPATH.'js/sidebar-nav.js') ?: 1 ?>"></script>
 
 <div class="main-content">
     <canvas id="themeCanvas" style="position:absolute;top:0;left:0;width:100%;height:220px;pointer-events:none;z-index:9;opacity:0;transition:opacity .6s"></canvas>
     <nav class="topbar d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
-            <button class="btn btn-sm btn-light d-md-none" onclick="document.getElementById('sidebar').classList.toggle('show')">
+            <button type="button" class="btn btn-sm btn-light d-lg-none" id="sbBurger" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
                 <i class="bi bi-list"></i>
             </button>
-            <button type="button" class="btn btn-sm btn-light d-none d-md-inline-block sb-toggle" id="sbToggle" title="Kecilkan / lebarkan sidebar" aria-label="Kecilkan atau lebarkan sidebar"
-                    onclick="var m = document.documentElement.classList.toggle('sb-mini'); try { localStorage.setItem('micSidebarMini', m ? '1' : '0'); } catch (e) {} window.dispatchEvent(new Event('resize'));">
+            <button type="button" class="btn btn-sm btn-light d-none d-lg-inline-block sb-toggle" id="sbToggle" title="Minimize / Expand Sidebar" aria-label="Minimize or Expand Sidebar" aria-pressed="false">
                 <i class="bi bi-layout-sidebar-inset"></i>
             </button>
             <?php if (isset($event)): ?>
@@ -924,21 +771,10 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-// Persist sidebar scroll position across page loads
-(function() {
-    const nav = document.querySelector('.sidebar .nav-section');
-    if (!nav) return;
-    const saved = sessionStorage.getItem('sidebarScroll');
-    if (saved) nav.scrollTop = parseInt(saved);
-    nav.addEventListener('scroll', function() {
-        sessionStorage.setItem('sidebarScroll', this.scrollTop);
-    }, { passive: true });
-})();
-</script>
-<script>
 if (typeof Chart !== 'undefined') {
     const _dark = document.documentElement.getAttribute('data-theme') === 'dark';
     Chart.defaults.color                        = _dark ? 'rgba(180,210,255,.6)'  : '#64748b';
+    try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) Chart.defaults.animation = false; } catch (e) {}
     Chart.defaults.borderColor                  = _dark ? 'rgba(255,255,255,.06)' : 'rgba(99,102,241,.12)';
     Chart.defaults.plugins.legend.labels.color  = _dark ? 'rgba(180,210,255,.7)'  : '#475569';
     Chart.defaults.scale.grid.color             = _dark ? 'rgba(255,255,255,.05)' : 'rgba(99,102,241,.07)';
@@ -949,6 +785,21 @@ if (typeof Chart !== 'undefined') {
 <style>
 /* Tabel responsif: jangan potong scroll-x saat dicetak dari halaman biasa */
 @media print { .table-responsive { overflow: visible !important; } }
+/* Cetak halaman layar (tombol Print/Cetak): kertas A4 tegak, tanpa sidebar/topbar. */
+@page { size: A4 portrait; margin: 12mm; }
+@media print {
+    html, body { background: #fff !important; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sidebar, .topbar, .sidebar-overlay, .no-print, .btn, .modal, .toast-container, #debug-icon, #debug-bar { display: none !important; }
+    .main-content { margin-left: 0 !important; padding: 0 !important; }
+    .table tr, .alert { break-inside: avoid; page-break-inside: avoid; }
+    .main-content { width: 100% !important; max-width: 100% !important; overflow: visible !important; }
+    .table-responsive, .card { overflow: visible !important; max-width: 100% !important; }
+    table { width: 100% !important; min-width: 0 !important; }
+    td, th { overflow-wrap: anywhere; }
+    thead { display: table-header-group; }
+    h1, h2, h3, h4, h5, .card-header { break-after: avoid; page-break-after: avoid; }
+}
 </style>
 <script>
 /* Auto-bungkus setiap tabel Bootstrap yang belum responsive agar bisa digeser
@@ -1288,14 +1139,33 @@ if (typeof Chart !== 'undefined') {
         last = Date.now();
         if (warning) { warning = false; clearInterval(cdTimer); modal.style.display = 'none'; }
     });
-    setInterval(() => { if (!warning) try { localStorage.setItem('mic_activity', String(last)); } catch (e) {} }, 15000);
+    // Tulis tanda aktivitas hanya bila lebih baru daripada yang sudah ada (tab beku/lama tak boleh menimpa yang baru).
+    function tulisAktivitas() {
+        try {
+            const t = parseInt(localStorage.getItem('mic_activity') || '0', 10);
+            if (!t || last > t) localStorage.setItem('mic_activity', String(last));
+        } catch (e) {}
+    }
+    setInterval(() => { if (!warning) tulisAktivitas(); }, 15000);
+    // Sebelum benar-benar logout, cek tab lain / login baru: bila ada aktivitas dalam batas idle, batalkan.
+    function bolehLogout() {
+        try {
+            const t = parseInt(localStorage.getItem('mic_activity') || '0', 10);
+            if (t && (Date.now() - t) < IDLE_MS) {
+                last = Math.max(last, t);
+                warning = false; clearInterval(cdTimer); modal.style.display = 'none';
+                return false;
+            }
+        } catch (e) {}
+        return true;
+    }
 
     function showWarning() {
         warning = true; let left = Math.ceil(WARN_MS / 1000);
         countEl.textContent = left; modal.style.display = 'flex';
         cdTimer = setInterval(() => {
             left--; countEl.textContent = left;
-            if (left <= 0) { clearInterval(cdTimer); window.location.href = LOGOUT; }
+            if (left <= 0) { clearInterval(cdTimer); if (bolehLogout()) window.location.href = LOGOUT; }
         }, 1000);
     }
     document.getElementById('idle-stay').addEventListener('click', () => {
@@ -1305,7 +1175,7 @@ if (typeof Chart !== 'undefined') {
     setInterval(() => {
         if (warning) return;
         const idle = Date.now() - last;
-        if (idle >= IDLE_MS) { window.location.href = LOGOUT; }
+        if (idle >= IDLE_MS) { if (bolehLogout()) window.location.href = LOGOUT; }
         else if (idle >= IDLE_MS - WARN_MS) { showWarning(); }
     }, 5000);
 })();

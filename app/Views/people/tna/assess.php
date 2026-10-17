@@ -1,8 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
-@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
-.anim-fade-up { animation: fadeUp .4s cubic-bezier(.22,.68,0,1.1) both; }
 .q-row { border-bottom:1px solid var(--bs-border-color); padding:.75rem 0; }
 .q-row:last-child { border-bottom:none; }
 .likert-group { display:flex; gap:.35rem; flex-wrap:wrap; }

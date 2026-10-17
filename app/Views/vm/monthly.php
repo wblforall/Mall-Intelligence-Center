@@ -1,8 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
-.fade-up { opacity:0; transform:translateY(14px); animation:fadeUpVmM .55s cubic-bezier(.22,.68,0,1.2) forwards; }
-@keyframes fadeUpVmM { to { opacity:1; transform:translateY(0); } }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -184,21 +182,7 @@ $hasChart   = !empty($chartItems);
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
-(function() {
-    const dur = 900;
-    document.querySelectorAll('[data-count]').forEach(el => {
-        const target = parseInt(el.dataset.count) || 0;
-        if (!target) return;
-        const start = performance.now();
-        function step(now) {
-            const t = Math.min(1, (now - start) / dur);
-            const ease = 1 - Math.pow(1 - t, 3);
-            el.textContent = Math.round(ease * target).toLocaleString('id-ID');
-            if (t < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-    });
-})();
+// (tanpa count-up: angka KPI langsung utuh — docs/ANIMASI.md)
 </script>
 <?php if ($hasChart): ?>
 <script>

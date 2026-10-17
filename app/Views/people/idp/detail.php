@@ -16,8 +16,6 @@ $recsByComp = $trainingRecs;
 ?>
 
 <style>
-@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
-.anim-fade-up { animation: fadeUp .4s cubic-bezier(.22,.68,0,1.1) both; }
 </style>
 
 <!-- Header -->

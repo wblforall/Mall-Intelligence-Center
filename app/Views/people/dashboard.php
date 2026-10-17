@@ -1,8 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
-@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
-.anim-fade-up { animation: fadeUp .4s cubic-bezier(.22,.68,0,1.1) both; }
 .kpi-people { border-radius:.85rem; padding:1.1rem 1.25rem; }
 .kpi-people .kpi-val { font-size:2rem; font-weight:700; line-height:1.1; }
 .kpi-people .kpi-lbl { font-size:.72rem; opacity:.75; font-weight:500; }

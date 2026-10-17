@@ -9,11 +9,6 @@
     --c-badge-down-bg:    #fee2e2; --c-badge-down-fg:    #b91c1c;
     --c-badge-neutral-bg: #f1f5f9; --c-badge-neutral-fg: #475569;
 }
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-.anim-fade-up { opacity: 0; animation: fadeUp .5s cubic-bezier(.22,.68,0,1.15) forwards; }
 </style>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -148,11 +143,11 @@ function kpiCard(array $k, bool $hasP3): string {
         <div class="d-flex justify-content-between align-items-end mb-2">
             <div>
                 <div style="font-size:.7rem" class="text-muted">Periode 1</div>
-                <div class="fw-bold" data-count="<?= $k['p1'] ?>" style="color:var(--c-p1);font-size:1.1rem"><?= number_format($k['p1']) ?></div>
+                <div class="fw-bold" data-count="<?= $k['p1'] ?>" style="color:var(--c-p1);font-size:1.1rem"><?= number_format($k['p1'], 0, ',', '.') ?></div>
             </div>
             <div class="text-end">
                 <div style="font-size:.7rem" class="text-muted">Periode 2</div>
-                <div class="fw-bold" data-count="<?= $k['p2'] ?>" style="color:var(--c-p2);font-size:1.1rem"><?= number_format($k['p2']) ?></div>
+                <div class="fw-bold" data-count="<?= $k['p2'] ?>" style="color:var(--c-p2);font-size:1.1rem"><?= number_format($k['p2'], 0, ',', '.') ?></div>
             </div>
         </div>
         <div class="text-center"><?= diffBadge($k['p1'], $k['p2']) ?></div>
@@ -160,20 +155,20 @@ function kpiCard(array $k, bool $hasP3): string {
         <div class="d-flex flex-column gap-1">
             <div class="d-flex justify-content-between align-items-center">
                 <span style="font-size:.7rem;color:var(--c-p1);font-weight:600">P1</span>
-                <span class="fw-bold" data-count="<?= $k['p1'] ?>" style="color:var(--c-p1);font-size:1rem"><?= number_format($k['p1']) ?></span>
+                <span class="fw-bold" data-count="<?= $k['p1'] ?>" style="color:var(--c-p1);font-size:1rem"><?= number_format($k['p1'], 0, ',', '.') ?></span>
             </div>
             <div class="d-flex justify-content-between align-items-center">
                 <span style="font-size:.7rem;color:var(--c-p2);font-weight:600">P2</span>
                 <div class="d-flex align-items-center gap-2">
                     <?= diffBadge($k['p1'], $k['p2']) ?>
-                    <span class="fw-bold" data-count="<?= $k['p2'] ?>" style="color:var(--c-p2);font-size:1rem"><?= number_format($k['p2']) ?></span>
+                    <span class="fw-bold" data-count="<?= $k['p2'] ?>" style="color:var(--c-p2);font-size:1rem"><?= number_format($k['p2'], 0, ',', '.') ?></span>
                 </div>
             </div>
             <div class="d-flex justify-content-between align-items-center">
                 <span style="font-size:.7rem;color:var(--c-p3);font-weight:600">P3</span>
                 <div class="d-flex align-items-center gap-2">
                     <?= diffBadge($k['p1'], $k['p3']) ?>
-                    <span class="fw-bold" data-count="<?= $k['p3'] ?>" style="color:var(--c-p3);font-size:1rem"><?= number_format($k['p3']) ?></span>
+                    <span class="fw-bold" data-count="<?= $k['p3'] ?>" style="color:var(--c-p3);font-size:1rem"><?= number_format($k['p3'], 0, ',', '.') ?></span>
                 </div>
             </div>
         </div>
@@ -468,23 +463,6 @@ foreach ($doorData as $pintu => $v):
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
-// Count-up animation
-(function () {
-    const dur = 900;
-    document.querySelectorAll('[data-count]').forEach(function (el) {
-        const target = parseInt(el.dataset.count) || 0;
-        if (! target) return;
-        el.textContent = '0';
-        const start = performance.now();
-        function step(now) {
-            const t = Math.min(1, (now - start) / dur);
-            el.textContent = Math.round((1 - Math.pow(1 - t, 3)) * target).toLocaleString('id-ID');
-            if (t < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-    });
-})();
-
 // Toggle Periode 3
 document.getElementById('toggleP3').addEventListener('click', function () {
     const wrap    = document.getElementById('p3Wrap');

@@ -7,7 +7,7 @@
 .eei-gauge::before { content:''; position:absolute; width:100px; height:100px;
     border-radius:50%; background:var(--bs-body-bg); }
 .eei-gauge-inner { position:relative; z-index:1; text-align:center; }
-.dim-bar { height:10px; border-radius:5px; width:0 !important; transition:width .7s cubic-bezier(.22,.68,0,1.1); }
+.dim-bar { height:10px; border-radius:5px; width:0 !important; transition:width .35s ease; }
 .dim-bar.animated { width:var(--bar-w) !important; }
 .score-chip { min-width:52px; }
 .card { overflow:hidden; }

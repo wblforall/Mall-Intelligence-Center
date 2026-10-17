@@ -1,16 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-}
-.anim-fade-up  { opacity: 0; animation: fadeUp .5s cubic-bezier(.22,.68,0,1.15) forwards; }
-.anim-fade-in  { opacity: 0; animation: fadeIn .45s ease forwards; }
 /* Panel kembar (weekday/weekend, per-pintu): saat stack di HP, ganti garis kanan jadi garis bawah */
 @media (max-width: 575.98px) {
     .split-col { border-right: 0 !important; border-bottom: 1px solid var(--bs-border-color) !important; }
@@ -82,7 +72,7 @@
         <div class="card text-center h-100">
             <div class="card-body py-3">
                 <div class="small text-muted mb-1">Total Pengunjung</div>
-                <div class="fw-bold fs-4" data-count="<?= $totalVisitor ?>"><?= number_format($totalVisitor) ?></div>
+                <div class="fw-bold fs-4" data-count="<?= $totalVisitor ?>"><?= number_format($totalVisitor, 0, ',', '.') ?></div>
                 <div class="small text-muted">eWalk + Pentacity</div>
             </div>
         </div>
@@ -91,7 +81,7 @@
         <div class="card text-center h-100" style="border-top:3px solid var(--c-ewalk)">
             <div class="card-body py-3">
                 <div class="small text-muted mb-1"><i class="bi bi-building text-primary me-1"></i>eWalk</div>
-                <div class="fw-bold fs-4 text-primary" data-count="<?= $totalEwalk ?>"><?= number_format($totalEwalk) ?></div>
+                <div class="fw-bold fs-4 text-primary" data-count="<?= $totalEwalk ?>"><?= number_format($totalEwalk, 0, ',', '.') ?></div>
                 <?php if ($totalVisitor > 0): ?>
                 <div class="small text-muted"><?= round($totalEwalk / $totalVisitor * 100) ?>% total</div>
                 <?php endif; ?>
@@ -102,7 +92,7 @@
         <div class="card text-center h-100" style="border-top:3px solid var(--c-penta)">
             <div class="card-body py-3">
                 <div class="small text-muted mb-1"><i class="bi bi-building text-success me-1"></i>Pentacity</div>
-                <div class="fw-bold fs-4 text-success" data-count="<?= $totalPenta ?>"><?= number_format($totalPenta) ?></div>
+                <div class="fw-bold fs-4 text-success" data-count="<?= $totalPenta ?>"><?= number_format($totalPenta, 0, ',', '.') ?></div>
                 <?php if ($totalVisitor > 0): ?>
                 <div class="small text-muted"><?= round($totalPenta / $totalVisitor * 100) ?>% total</div>
                 <?php endif; ?>
@@ -113,7 +103,7 @@
         <div class="card text-center h-100">
             <div class="card-body py-3">
                 <div class="small text-muted mb-1"><i class="bi bi-car-front me-1"></i>Kendaraan</div>
-                <div class="fw-bold fs-5" data-count="<?= $totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree ?>"><?= number_format($totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree) ?></div>
+                <div class="fw-bold fs-5" data-count="<?= $totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree ?>"><?= number_format($totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree, 0, ',', '.') ?></div>
                 <div class="small text-muted"><?= number_format($totalMobil) ?> mobil · <?= number_format($totalMotor) ?> motor</div>
                 <?php if ($totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree > 0): ?>
                 <div class="small text-muted mt-1">
@@ -383,49 +373,6 @@
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
 <script>
-// Count-up animation
-(function() {
-    const dur = 900;
-    document.querySelectorAll('[data-count]').forEach(el => {
-        const target = parseInt(el.dataset.count) || 0;
-        if (!target) return;
-        el.textContent = '0';
-        const start = performance.now();
-        function step(now) {
-            const t    = Math.min(1, (now - start) / dur);
-            const ease = 1 - Math.pow(1 - t, 3);
-            el.textContent = Math.round(ease * target).toLocaleString('id-ID');
-            if (t < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-    });
-})();
-
-// Progress bar grow (IntersectionObserver)
-(function() {
-    const bars = document.querySelectorAll('.progress-bar');
-    bars.forEach(bar => {
-        const target = bar.style.width;
-        bar.style.width = '0';
-        bar.style.transition = 'none';
-    });
-    const obs = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            if (!entry.isIntersecting) return;
-            const bar = entry.target;
-            const target = bar.dataset.w;
-            setTimeout(() => {
-                bar.style.transition = 'width .8s cubic-bezier(.25,.46,.45,.94)';
-                bar.style.width = target;
-            }, 120);
-            obs.unobserve(bar);
-        });
-    }, { threshold: 0.1 });
-    bars.forEach(bar => {
-        bar.dataset.w = bar.style.width || '0%';
-        obs.observe(bar);
-    });
-})();
 </script>
 <script>
 <?php if ($totalVisitor > 0): ?>

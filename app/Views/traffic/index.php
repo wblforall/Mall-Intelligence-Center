@@ -2,11 +2,6 @@
 <?= $this->section('styles') ?>
 <style>
 .card { overflow: hidden; }
-@keyframes countUp {
-    from { opacity: 0; transform: scale(.85); }
-    to   { opacity: 1; transform: scale(1); }
-}
-.traffic-num { display: inline-block; animation: countUp .35s ease forwards; }
 .list-group-item { transition: background .15s; }
 </style>
 <?= $this->endSection() ?>

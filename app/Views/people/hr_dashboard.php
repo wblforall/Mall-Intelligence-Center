@@ -1,8 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
-@keyframes hrUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
-.hr-up { opacity:0; animation:hrUp .5s cubic-bezier(.22,.68,0,1.15) forwards; }
 .kpi-card { display:flex; align-items:center; gap:.95rem; border-radius:1rem; padding:1.05rem 1.2rem; position:relative; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease; }
 .kpi-card:hover { transform:translateY(-3px); box-shadow:0 .6rem 1.4rem rgba(0,0,0,.12); }
 .kpi-card .kpi-ico { width:50px; height:50px; border-radius:.85rem; display:flex; align-items:center; justify-content:center; font-size:1.45rem; flex:0 0 auto; }
