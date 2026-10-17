@@ -17,10 +17,39 @@ $_tabs = [
     'realisasi' => ['realisasi', 'bi-receipt', 'Realisasi'],
     'pos'       => ['pos', 'bi-list-ol', 'Pos Budget'],
 ];
+// Tab FlowStore (penautan barang diterima → realisasi) hanya untuk dept yang punya pemetaan divisi FlowStore (admin: selalu).
+if (! empty($adaFs)) $_tabs = array_slice($_tabs, 0, 3, true) + ['flowstore' => ['flowstore', 'bi-box-seam', 'FlowStore']] + array_slice($_tabs, 3, null, true);
 // Tab RAB hanya untuk dept yang terhubung ke modul Events (E&P).
-if (! empty($adaRab)) $_tabs = array_slice($_tabs, 0, 3, true) + ['rab' => ['rab', 'bi-file-earmark-text', 'RAB']] + array_slice($_tabs, 3, null, true);
+if (! empty($adaRab)) { $_n = ! empty($adaFs) ? 4 : 3; $_tabs = array_slice($_tabs, 0, $_n, true) + ['rab' => ['rab', 'bi-file-earmark-text', 'RAB']] + array_slice($_tabs, $_n, null, true); }
 $_bawaQ = array_filter(['tahun' => $tahun]);
+
+// ── Penanda & pemilih tahun (pengaman salah tahun) ──
+$_thIni = (int) date('Y');
+if (! function_exists('bdtPosisi')) {
+    /** Posisi tahun terhadap tahun berjalan → [kelas, label, ikon, kata-pendek untuk konfirmasi]. */
+    function bdtPosisi(int $t): array
+    {
+        $ini = (int) date('Y');
+        if ($t === $ini) return ['now', 'Tahun berjalan', 'bi-calendar-check', 'tahun berjalan'];
+        if ($t > $ini)   return ['next', $t === $ini + 1 ? 'Tahun depan · perencanaan' : 'Tahun mendatang · perencanaan', 'bi-calendar-plus', $t === $ini + 1 ? 'tahun depan' : 'tahun mendatang'];
+        return ['past', 'Arsip tahun lalu', 'bi-archive', 'arsip tahun lalu'];
+    }
+}
+$_posisiTahun = 'bdtPosisi';
+[$_pk, $_pLabel, $_pIkon] = $_posisiTahun((int) $tahun);
+// Deretan tahun tanpa celah: dari terkecil sampai terbesar yang tersedia (termasuk tahun yang sedang dibuka).
+$_yr = array_map('intval', (array) $years);
+$_yr[] = (int) $tahun;
+if ($_thIni - 1 >= (int) ($tahunMulai ?? 0)) $_yr[] = $_thIni - 1;
+$_yr = range(min($_yr), max($_yr));
+// Pindah tahun = tab yang sama, saringan lain (bulan, pos, mal…) tetap, hanya tahun yang diganti.
+$_getSkrg = (array) service('request')->getGet();
+unset($_getSkrg['dept']);
+$_tabPath = $_tabs[$tab][0] ?? '';
+$_urlTahun = fn (int $y) => $url($_tabPath, ['tahun' => $y] + $_getSkrg);
 ?>
+<link rel="stylesheet" href="<?= base_url('css/budget-tahun.css') ?>?v=<?= @filemtime(FCPATH . 'css/budget-tahun.css') ?: 1 ?>">
+<script src="<?= base_url('js/budget-tahun.js') ?>?v=<?= @filemtime(FCPATH . 'js/budget-tahun.js') ?: 1 ?>"></script>
 <style>
 /* Tombol pilihan yang aktif (bulan, Ringkas/Per Bulan, mal). Tema memaksa warna
    teks .btn-outline-secondary dengan !important, sehingga saat aktif teksnya
@@ -127,22 +156,40 @@ document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('s
             <?php endforeach; ?>
         </select>
         <?php endif; ?>
-        <select name="tahun" class="form-select form-select-sm bd-ts bd-ts-tahun" onchange="this.form.submit()" aria-label="Tahun">
-            <?php foreach ($years as $y): ?>
-            <option value="<?= $y ?>" <?= (int) $y === (int) $tahun ? 'selected' : '' ?>><?= $y ?></option>
-            <?php endforeach; ?>
-        </select>
+        <input type="hidden" name="tahun" value="<?= (int) $tahun ?>">
         <a href="<?= $url('excel', ['tahun' => $tahun]) ?>" class="btn btn-sm btn-outline-success text-nowrap" title="Unduh Excel: rekap, per bulan, rincian budget & realisasi <?= $tahun ?>">
             <i class="bi bi-file-earmark-excel me-1"></i>Excel
         </a>
     </form>
 </div>
 
+<div class="bdt bdt-bar" data-bdt-tahun-bar>
+    <div class="bdt-pill bdt-p-<?= $_pk ?>" role="status" aria-label="Tahun budget yang sedang dibuka: <?= (int) $tahun ?>, <?= $_pLabel ?>">
+        <span class="bdt-pill-ico"><i class="bi <?= $_pIkon ?>"></i></span>
+        <span class="bdt-pill-mid">
+            <span>
+                <span class="bdt-pill-lbl d-block">Tahun Budget</span>
+                <span class="bdt-pill-th"><?= (int) $tahun ?></span>
+            </span>
+            <span class="bdt-pill-st"><?= $_pLabel ?></span>
+        </span>
+    </div>
+    <nav class="bdt-seg-wrap" aria-label="Pilih tahun budget">
+        <span class="bdt-seg-lbl d-none d-sm-inline">Pindah tahun</span>
+        <div class="bdt-seg">
+            <?php foreach ($_yr as $y): [$yk, $yl] = $_posisiTahun($y); $aktif = $y === (int) $tahun; ?>
+            <a href="<?= $aktif ? '#' : $_urlTahun($y) ?>" class="bdt-p-<?= $yk ?> <?= $aktif ? 'on' : '' ?>" <?= $aktif ? 'aria-current="true" onclick="return false"' : 'data-bdt-nav data-bdt-tujuan="Budget ' . $y . '"' ?>
+               title="<?= $y ?> — <?= $yl ?>"><?= $y ?></a>
+            <?php endforeach; ?>
+        </div>
+    </nav>
+</div>
+
 <ul class="nav nav-tabs mb-3">
     <?php foreach ($_tabs as $k => [$path, $ikon, $label]): ?>
     <li class="nav-item">
-        <a class="nav-link <?= $tab === $k ? 'active' : '' ?>" href="<?= $url($path, $k === 'pos' ? [] : $_bawaQ) ?>">
-            <i class="bi <?= $ikon ?> me-1"></i><?= $label ?>
+        <a class="nav-link <?= $tab === $k ? 'active' : '' ?>" data-bdt-nav data-bdt-tujuan="tab <?= $label ?>" href="<?= $url($path, $_bawaQ) ?>">
+            <i class="bi <?= $ikon ?> me-1"></i><?= $label ?><?php if ($k === 'flowstore' && ! empty($fsBaru)): ?> <span class="badge rounded-pill text-bg-warning ms-1" title="<?= (int) $fsBaru ?> barang diterima menunggu dipetakan"><?= (int) $fsBaru ?></span><?php endif; ?>
         </a>
     </li>
     <?php endforeach; ?>

@@ -101,6 +101,7 @@ class ActivityLog
         'training_budget'               => 'Budget Training',
         'rab'                           => 'RAB Event & Promotion',
         'rab_laporan'                   => 'Laporan Realisasi RAB',
+        'budget_fs'                     => 'Penautan FlowStore (Budget)',
         'talent_placement'              => 'Penempatan Talent',
         'talent_period'                 => 'Periode Talent',
         'talent_viewer'                 => 'Viewer Talent',

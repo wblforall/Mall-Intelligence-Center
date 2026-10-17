@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\ActivityLog;
+use App\Libraries\BudgetCekTahun;
 use App\Libraries\BudgetEkspor;
 use App\Libraries\BudgetRekap;
 use App\Libraries\BudgetXlsx;
@@ -119,7 +120,20 @@ class BudgetDept extends BaseController
             'tahunMulai' => $this->tahunMulai($dept),
             'pisahMal'   => (new BudgetDeptSettingModel())->pisahMal((int) $dept['id']),
             'adaRab'     => (new BudgetDeptSettingModel())->eventMulai((int) $dept['id']) !== null,
+            // Tab FlowStore: dept yang punya pemetaan divisi (admin selalu, untuk menyetelnya) + jumlah menunggu di tahun ini.
+            'adaFs'      => $this->isAdmin() || BudgetFlowstore::adaPemetaanDivisi((int) $dept['id']),
+            'fsBaru'     => $this->fsMenunggu((int) $dept['id'], $tahun),
         ];
+    }
+
+    /** Jumlah item FlowStore menunggu diproses untuk tahun ini (lencana tab). */
+    protected function fsMenunggu(int $deptId, int $tahun): int
+    {
+        try {
+            return (int) db_connect()->query(
+                "SELECT COUNT(*) n FROM budget_fs_pemetaan p JOIN fs_btb_item f ON f.id_btb_item = p.id_btb_item
+                  WHERE p.dept_id = ? AND p.status = 'baru' AND f.tanggal_diterima <= ?", [$deptId, "$tahun-12-31"])->getRowArray()['n'];
+        } catch (\Throwable $e) { return 0; }
     }
 
     /**
@@ -194,6 +208,7 @@ class BudgetDept extends BaseController
             'mal'    => $mal,
             'sd'     => $sd,
             'tampil' => $tampil,
+            'cekTahun' => BudgetCekTahun::periksa($deptId, $tahun, $this->tahunMulai($dept)),
             'url'    => fn (string $p, array $q = []) => $this->url($p, $dept, $q),
         ]);
     }
@@ -461,6 +476,16 @@ class BudgetDept extends BaseController
         $pisah   = (new BudgetDeptSettingModel())->pisahMal($deptId);
         $mall    = $pisah ? (string) ($p['mall'] ?? '') : '';
 
+        // Pengaman salah tahun: tanggal PEMBEBANAN harus jatuh di tahun budget yang sedang
+        // dikerjakan (kolom tahun terkirim dari halaman). Periode asal (tagihan bulan lain,
+        // mis. Desember dibayar Januari) sah beda tahun — itu bukan tanggal pembebanan.
+        $tahunHal = (int) ($p['tahun'] ?? 0);
+        if ($tahunHal >= 2000 && $tahunHal <= 2100 && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) && strtotime($tanggal)
+            && (int) substr($tanggal, 0, 4) !== $tahunHal) {
+            return $back->withInput()->with('error', 'Tanggal ' . date('d/m/Y', strtotime($tanggal)) . ' bukan di tahun budget ' . $tahunHal
+                . '. Pindah ke tahun ' . (int) substr($tanggal, 0, 4) . ' dulu atau perbaiki tanggal.');
+        }
+
         $salah = [];
         if (! $pos) $salah[] = 'pos budget';
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || ! strtotime($tanggal)) $salah[] = 'tanggal';
@@ -511,10 +536,15 @@ class BudgetDept extends BaseController
         $back = redirect()->to(is_string($kembali) && str_starts_with($kembali, base_url()) ? $kembali : $this->url('realisasi', $dept));
         if (! $row) return $back->with('error', 'Transaksi tidak ditemukan.');
 
+        $db = db_connect();
+        $db->transStart();
         $model->delete($id);
+        // Realisasi hasil "Catat" tab FlowStore → item kembali ke antrean (lihat BudgetFsSinkron::lepasRealisasi).
+        $dariFs = (new \App\Libraries\BudgetFsSinkron())->lepasRealisasi($id, (int) session()->get('user_id'));
+        $db->transComplete();
         ActivityLog::captureBefore($row);
         ActivityLog::write('delete', 'budget_realisasi', (string) $id, $row['uraian']);
-        return $back->with('success', 'Transaksi dihapus.');
+        return $back->with('success', $dariFs ? 'Transaksi dihapus; item FlowStore-nya kembali ke antrean tab FlowStore.' : 'Transaksi dihapus.');
     }
 
     // ── Pos budget & pengaturan ──────────────────────────────────────

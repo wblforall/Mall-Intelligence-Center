@@ -43,6 +43,51 @@ $naik = function (array $b): string {
 $adaLalu = $t['budgetLalu'] > 0;
 ?>
 
+<?php
+// ── Cek salah tahun (hanya membaca) ──
+$ck = $cekTahun ?? ['ada' => false, 'jauh' => [], 'tertukar' => [], 'salinan' => []];
+$nTemuan = count($ck['jauh']) + count($ck['tertukar']) + count($ck['salinan']);
+$rp = fn (float $v) => 'Rp ' . number_format($v, 0, ',', '.');
+?>
+<?php if ($ck['ada']): ?>
+<details class="bdt bdt-cek" id="bdt-cek">
+    <summary><i class="bi bi-question-diamond"></i> Mungkin salah tahun? <span class="fw-normal small">· <?= $nTemuan ?> petunjuk untuk diperiksa, data tidak diubah</span><i class="bi bi-chevron-down caret"></i></summary>
+    <div class="bdt-cek-body">
+        <?php if ($ck['jauh']): ?>
+        <h6>Realisasi bertanggal jauh di depan (lebih dari 1 bulan dari hari ini)</h6>
+        <ul>
+            <?php foreach ($ck['jauh'] as $r): $th = (int) substr($r['tanggal'], 0, 4); $bl = (int) substr($r['tanggal'], 5, 2); ?>
+            <li><a href="<?= $url('realisasi', ['tahun' => $th, 'bulan' => $bl, 'q' => mb_substr($r['uraian'], 0, 40)]) ?>"><?= date('d/m/Y', strtotime($r['tanggal'])) ?></a>
+                · <?= esc($r['pos']) ?> · <?= esc(mb_strimwidth($r['uraian'], 0, 70, '…')) ?> · <span class="nilai"><?= $rp((float) $r['nilai']) ?></span></li>
+            <?php endforeach; ?>
+        </ul>
+        <?php endif; ?>
+        <?php if ($ck['tertukar']): ?>
+        <h6>Budget <?= (int) $tahun ?> kosong, tetapi tahun sebelahnya terisi mirip realisasi <?= (int) $tahun ?> (pola tertukar)</h6>
+        <ul>
+            <?php foreach ($ck['tertukar'] as $r): ?>
+            <li><a href="<?= $url('rencana', ['tahun' => $r['tahun_isi']]) ?>#pos-<?= (int) $r['pos_id'] ?>"><?= esc($r['pos']) ?></a>
+                · budget <?= (int) $r['tahun_isi'] ?> <span class="nilai"><?= $rp($r['rencana_isi']) ?></span>
+                ≈ realisasi <?= (int) $tahun ?> <span class="nilai"><?= $rp($r['realisasi']) ?></span>,
+                sedangkan budget <?= (int) $r['tahun_kosong'] ?> kosong</li>
+            <?php endforeach; ?>
+        </ul>
+        <?php endif; ?>
+        <?php foreach ($ck['salinan'] as $sl): ?>
+        <h6>Budget <?= $sl['a'] ?> vs <?= $sl['b'] ?></h6>
+        <div><?= $sl['semua'] ? 'SEMUA pos' : count($sl['identik']) . ' pos' ?> berisi angka yang <strong>identik</strong> di kedua tahun (mungkin salinan yang belum disesuaikan)<?= $sl['semua'] ? '' : '; ' . $sl['beda'] . ' pos sudah berbeda' ?>.</div>
+        <div class="text-muted" style="font-size:.78rem">
+            <a href="<?= $url('rencana', ['tahun' => $sl['b']]) ?>">Buka Budget <?= $sl['b'] ?></a> ·
+            <?= esc(implode(', ', array_slice($sl['identik'], 0, 8))) ?><?= count($sl['identik']) > 8 ? ', +' . (count($sl['identik']) - 8) . ' lainnya' : '' ?>
+        </div>
+        <?php endforeach; ?>
+        <div class="catatan">Ini hanya petunjuk dari pola angka — bisa saja memang benar. Pemeriksa tidak mengubah data apa pun.</div>
+    </div>
+</details>
+<?php else: ?>
+<div class="bdt bdt-cek-ok"><i class="bi bi-shield-check me-1"></i>Cek salah tahun: tidak ada kecurigaan pada data <?= esc($dept['name']) ?>.</div>
+<?php endif; ?>
+
 <?php if (! $rekap['baris']): ?>
 <div class="card"><div class="card-body text-center py-5">
     <i class="bi bi-wallet2 fs-1 text-body-tertiary"></i>

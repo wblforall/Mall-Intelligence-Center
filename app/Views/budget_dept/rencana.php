@@ -43,7 +43,15 @@ $nk = count($kolomMal);
 $labelPendek = ['x' => 'Tanpa mal', 'ewalk' => 'eWalk', 'pentacity' => 'Penta'];
 // Sel "berinci" = punya keterangan atau lebih dari satu baris → tak bisa diketik langsung.
 $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== '');
+[$_pk, $_pLabel, $_pIkon, $_pKata] = bdtPosisi((int) $tahun);
+$_beda = (int) $tahun !== (int) date('Y');          // tahun ≠ berjalan → simpan minta konfirmasi
 ?>
+<div class="bdt bdt-banner bdt-p-<?= $_pk ?>" role="status" data-bdt-banner>
+    <i class="bi <?= $_pIkon ?>"></i>
+    <span><?= $canEdit ? 'Anda sedang <strong>MENGISI BUDGET</strong>' : 'Anda sedang <strong>MELIHAT BUDGET</strong>' ?> <strong class="th"><?= (int) $tahun ?></strong>
+        <span class="bdt-chip ms-1"><?= $_pLabel ?></span></span>
+    <span class="sub"><?= esc($dept['name']) ?> · angka yang disimpan di sini masuk ke tahun <?= (int) $tahun ?>, bukan tahun lain.</span>
+</div>
 
 <?php if (! $posAktif): ?>
 <div class="card"><div class="card-body text-center py-5">
@@ -68,7 +76,7 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
 <input type="hidden" name="data" value="">
 <div class="card">
     <div class="card-header d-flex flex-wrap align-items-center gap-2">
-        <h6 class="mb-0 fw-semibold">Budget per bulan — <?= $tahun ?></h6>
+        <h6 class="mb-0 fw-semibold">Budget per bulan <span class="bdt bdt-chip bdt-p-<?= $_pk ?>"><?= (int) $tahun ?></span></h6>
         <span class="text-muted small">Isi dalam Rupiah. <i class="bi bi-list-ul"></i> = pecah satu bulan per event/keterangan.</span>
         <?php if (! empty($terakhir)): ?>
         <span class="small text-muted"><i class="bi bi-clock-history me-1"></i>Terakhir disimpan
@@ -99,7 +107,7 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
         </thead>
         <tbody>
         <?php foreach ($posAktif as $p): $pid = (int) $p['id']; ?>
-        <tr data-baris data-pos="<?= $pid ?>" data-nama="<?= esc($p['nama']) ?>">
+        <tr data-baris id="pos-<?= $pid ?>" data-pos="<?= $pid ?>" data-nama="<?= esc($p['nama']) ?>">
             <td class="col-pos">
                 <?= esc($p['nama']) ?>
                 <?php if (empty($p['aktif'])): ?><span class="badge text-bg-secondary ms-1">nonaktif</span><?php endif; ?>
@@ -159,7 +167,7 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
 <!-- Pratinjau rincian budget — hanya baca; sumbernya sel grid di atas, ikut berubah saat grid diisi -->
 <div class="card mt-3" id="bd-rinci">
     <div class="card-header d-flex flex-wrap align-items-center gap-2">
-        <h6 class="mb-0 fw-semibold">Rincian Budget — <span data-rb-judul></span> <?= $tahun ?></h6>
+        <h6 class="mb-0 fw-semibold">Rincian Budget — <span data-rb-judul></span> <span class="bdt bdt-chip bdt-p-<?= $_pk ?>"><?= (int) $tahun ?></span></h6>
         <span class="text-muted small">pratinjau; isi lewat grid di atas (<i class="bi bi-list-ul"></i> untuk rincian per event)</span>
     </div>
     <div class="card-body pb-2">
@@ -202,7 +210,7 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
 <div class="modal-content">
     <div class="modal-header">
         <div>
-            <h6 class="modal-title mb-0" id="mRinciJudul">Rincian budget</h6>
+            <h6 class="modal-title mb-0" id="mRinciJudul">Rincian budget <span class="bdt bdt-chip bdt-p-<?= $_pk ?>"><?= (int) $tahun ?></span></h6>
             <div class="small text-muted" data-r-label></div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
@@ -226,6 +234,28 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
 </div>
 </div>
 </div>
+<?php if ($canEdit && $_beda): ?>
+<!-- Konfirmasi simpan untuk tahun selain tahun berjalan -->
+<div class="modal fade bdt" id="mKonfTahun" tabindex="-1" aria-labelledby="mKonfTahunJudul" aria-hidden="true">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content">
+    <div class="modal-header">
+        <h6 class="modal-title" id="mKonfTahunJudul"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Pastikan tahunnya benar</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+    </div>
+    <div class="modal-body">
+        <p class="mb-2">Menyimpan budget tahun <strong><?= (int) $tahun ?></strong> (<?= $_pKata ?>) untuk <strong><?= esc($dept['name']) ?></strong>. Sudah benar?</p>
+        <div class="bdt-banner bdt-p-<?= $_pk ?> mb-0 py-2"><i class="bi <?= $_pIkon ?>"></i><span><strong class="th">Budget <?= (int) $tahun ?></strong> · <?= $_pLabel ?></span></div>
+        <p class="small text-muted mt-2 mb-0">Tahun berjalan sekarang adalah <?= (int) date('Y') ?>. Bila yang ingin diisi tahun itu, batalkan lalu pindah tahun di bagian atas halaman.</p>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal, periksa lagi</button>
+        <button type="button" class="btn btn-sm btn-primary" id="bdt-ya"><i class="bi bi-floppy me-1"></i>Ya, simpan Budget <?= (int) $tahun ?></button>
+    </div>
+</div>
+</div>
+</div>
+<?php endif; ?>
 <?php endif; ?>
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
@@ -276,6 +306,8 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
     }
 
     let kotor = false;
+    window.bdKotor = () => kotor;
+    window.bdTahunIni = <?= (int) $tahun ?>;
     // Ketik langsung di sel biasa → satu baris tanpa keterangan.
     form.addEventListener('input', e => {
         if (!e.target.matches('input.angka') || e.target.readOnly) return;
@@ -416,6 +448,20 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
     // Kirim HANYA sel yang diubah, beserta isinya saat halaman dibuka (asli):
     // server menolak menimpa sel yang sudah diubah orang lain sejak itu.
     const sama = (a, b) => JSON.stringify(a.map(x => [x.k, +x.j])) === JSON.stringify(b.map(x => [x.k, +x.j]));
+    // Tahun ≠ tahun berjalan: tanya dulu (capture, supaya jalan sebelum penyusun data di bawah).
+    <?php if ($canEdit && $_beda): ?>
+    let sudahYa = false;
+    form.addEventListener('submit', e => {
+        if (sudahYa) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('mKonfTahun')).show();
+    }, true);
+    document.getElementById('bdt-ya').addEventListener('click', () => {
+        sudahYa = true;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('mKonfTahun')).hide();
+        form.requestSubmit();
+    });
+    <?php endif; ?>
     form.addEventListener('submit', () => {
         const data = {};
         form.querySelectorAll('td.sel').forEach(td => {
@@ -427,7 +473,7 @@ $berinci = fn (array $r) => count($r) > 1 || (count($r) === 1 && $r[0]['k'] !== 
         form.elements['data'].value = JSON.stringify(data);
         kotor = false;
     });
-    window.addEventListener('beforeunload', e => { if (kotor) { e.preventDefault(); e.returnValue = ''; } });
+    window.addEventListener('beforeunload', e => { if (kotor && !window.bdLepas) { e.preventDefault(); e.returnValue = ''; } });
     hitung();
 })();
 </script>

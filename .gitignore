@@ -89,3 +89,6 @@ Sample data/
 API Key Open Router.md
 deepseek-v4.1-flash API Key.md
 API KEY/
+
+# Fixture uji penautan FlowStore (memuat data nyata)
+writable/flowstore-*.json

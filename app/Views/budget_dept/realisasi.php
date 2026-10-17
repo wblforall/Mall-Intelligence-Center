@@ -20,12 +20,20 @@ $posAktif = array_filter($pos, fn ($p) => ! empty($p['aktif']));
 $total = array_sum(array_map(fn ($r) => (float) $r['nilai'], $rows));
 $kembali = (string) current_url(true);
 $tglBawaan = (int) date('Y') === (int) $tahun ? date('Y-m-d') : ($bulan ? sprintf('%d-%02d-01', $tahun, $bulan) : "$tahun-01-01");
+[$_pk, $_pLabel, $_pIkon] = bdtPosisi((int) $tahun);
 $fmtAsal = function (?string $ym) use ($BLN) {
     if (! $ym) return '';
     [$y, $m] = explode('-', $ym);
     return substr($BLN[(int) $m], 0, 3) . ' ' . $y;
 };
 ?>
+
+<div class="bdt bdt-banner bdt-p-<?= $_pk ?>" role="status" data-bdt-banner>
+    <i class="bi <?= $_pIkon ?>"></i>
+    <span><?= $canEdit ? 'Realisasi dicatat ke <strong class="th">TAHUN ' . (int) $tahun . '</strong>' : 'Anda sedang <strong>MELIHAT REALISASI</strong> <strong class="th">' . (int) $tahun . '</strong>' ?>
+        <span class="bdt-chip ms-1"><?= $_pLabel ?></span></span>
+    <span class="sub"><?= $canEdit ? 'Tanggal pembebanan harus di tahun ' . (int) $tahun . ' — transaksi tahun lain dicatat setelah pindah tahun di atas.' : esc($dept['name']) . ' · transaksi tanggal ' . (int) $tahun . '.' ?></span>
+</div>
 
 <?php
 // Filter bulan = tombol pil (sekali klik), membawa saringan pos & kata cari yang sedang aktif.
@@ -95,6 +103,12 @@ $_qBulan = fn (int $m) => array_filter(['tahun' => $tahun, 'bulan' => $m ?: null
             <a href="<?= base_url('events/' . $r['event_id'] . '/content#item-' . $r['item_id']) ?>" class="badge text-bg-info-subtle text-info-emphasis text-decoration-none me-1"
                title="Dicatat di modul Events (Event Content) — ubah/hapus dari sana"><i class="bi bi-calendar-event me-1"></i>Event</a>
             <?php endif; ?>
+            <?php if (str_starts_with((string) ($r['referensi'] ?? ''), 'FlowStore BTB ')): ?>
+            <?php if (! empty($adaFs)): ?>
+            <a href="<?= $url('flowstore', ['tahun' => $tahun, 'status' => 'dicatat', 'q' => preg_replace('/^FlowStore BTB (.+) #\d+$/', '$1', $r['referensi'])]) ?>" class="badge text-bg-primary-subtle text-primary-emphasis text-decoration-none me-1"
+               title="Dicatat dari barang diterima di FlowStore — buka di tab FlowStore"><i class="bi bi-box-seam me-1"></i>FlowStore</a>
+            <?php else: ?><span class="badge text-bg-primary-subtle text-primary-emphasis me-1" title="Dicatat dari barang diterima di FlowStore"><i class="bi bi-box-seam me-1"></i>FlowStore</span><?php endif; ?>
+            <?php endif; ?>
             <?= esc($r['uraian']) ?>
             <?php if ($r['keterangan']): ?><div class="ket"><?= esc($r['keterangan']) ?></div><?php endif; ?>
         </td>
@@ -140,11 +154,19 @@ $_qBulan = fn (int $m) => array_filter(['tahun' => $tahun, 'bulan' => $m ?: null
     <?= csrf_field() ?>
     <input type="hidden" name="id" value="<?= esc(old('id') ?? '') ?>">
     <input type="hidden" name="kembali" value="<?= esc($kembali) ?>">
+    <input type="hidden" name="tahun" value="<?= (int) $tahun ?>">
     <div class="modal-header">
         <h6 class="modal-title" id="mTxJudul">Catat Realisasi</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
     </div>
     <div class="modal-body row g-3">
+        <div class="col-12">
+            <div class="bdt bdt-banner bdt-p-<?= $_pk ?> mb-0 py-2">
+                <i class="bi <?= $_pIkon ?>"></i>
+                <span>Realisasi dicatat ke <strong class="th">TAHUN <?= (int) $tahun ?></strong> <span class="bdt-chip ms-1"><?= $_pLabel ?></span></span>
+                <span class="sub">tanggal harus di tahun ini (<?= (int) $tahun ?>)</span>
+            </div>
+        </div>
         <div class="col-md-6">
             <label class="form-label small" for="tx-pos">Pos budget</label>
             <select id="tx-pos" name="pos_id" class="form-select form-select-sm bd-ts" required>
@@ -155,8 +177,8 @@ $_qBulan = fn (int $m) => array_filter(['tahun' => $tahun, 'bulan' => $m ?: null
             </select>
         </div>
         <div class="col-6 col-md-3">
-            <label class="form-label small" for="tx-tgl">Tanggal pembebanan</label>
-            <input id="tx-tgl" type="date" name="tanggal" class="form-control form-control-sm" required min="<?= (int) $tahunMulai ?>-01-01" value="<?= esc(old('tanggal') ?? $tglBawaan) ?>">
+            <label class="form-label small" for="tx-tgl">Tanggal pembebanan <span class="text-muted">(<?= (int) $tahun ?>)</span></label>
+            <input id="tx-tgl" type="date" name="tanggal" class="form-control form-control-sm" required min="<?= (int) $tahun ?>-01-01" max="<?= (int) $tahun ?>-12-31" data-bdt-tahun="<?= (int) $tahun ?>" value="<?= esc(old('tanggal') ?? $tglBawaan) ?>">
         </div>
         <div class="col-6 col-md-3">
             <label class="form-label small" for="tx-asal">Periode asal <span class="text-muted">(opsional)</span></label>
@@ -194,7 +216,7 @@ $_qBulan = fn (int $m) => array_filter(['tahun' => $tahun, 'bulan' => $m ?: null
                       placeholder="mis. Auntie Anne 310.000; Blibli 50.000"><?= esc(old('keterangan') ?? '') ?></textarea>
         </div>
         <div class="col-12 small text-muted">
-            Tanggal pembebanan menentukan bulan realisasi. Isi periode asal bila tagihan untuk bulan lain (mis. reimburse poin Desember dibayar Januari).
+            Tanggal pembebanan menentukan bulan <em>dan tahun</em> realisasi (harus di <?= (int) $tahun ?>). Isi periode asal bila tagihan untuk bulan lain (mis. reimburse poin Desember dibayar Januari) — periode asal boleh beda tahun.
         </div>
     </div>
     <div class="modal-footer">
