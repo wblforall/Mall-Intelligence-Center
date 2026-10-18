@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<?php helper('tanggal'); ?><!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -180,7 +180,7 @@ $insightDef = [
     <div class="meta">
         Dokumen: Laporan Post Event<br>
         Durasi: <?= $event['event_days'] ?> hari<br>
-        Dicetak: <?= date('d M Y, H:i') ?>
+        Dicetak: <?= tgl_indo_pendek(date('Y-m-d'), false) . ', ' . date('H:i') ?>
     </div>
 </div>
 
@@ -234,7 +234,7 @@ $marginPct = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
         <div><span>Total Pengunjung</span><b class="info"><?= number_format($trafficTotal, 0, ',', '.') ?></b></div>
         <div><span>Rata-rata / Hari</span><b><?= number_format($trafficAvg, 0, ',', '.') ?></b></div>
         <?php if ($peakDate): ?>
-        <div><span>Puncak — <?= date('d M', strtotime($peakDate)) ?></span><b class="baik"><?= number_format($peakVal, 0, ',', '.') ?></b></div>
+        <div><span>Puncak — <?= tgl_indo_dm($peakDate) ?></span><b class="baik"><?= number_format($peakVal, 0, ',', '.') ?></b></div>
         <?php endif; ?>
         <div><span>Total Kendaraan</span><b class="info"><?= number_format($vehGrandTotal, 0, ',', '.') ?></b></div>
     </div>
@@ -804,7 +804,7 @@ $marginPct = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
         </div>
         <div class="item-meta">
             <?php if ($tipe === 'digital' && ($ci['tanggal_take'] || $ci['pic'])): ?>
-            <?php if ($ci['tanggal_take']): ?><span>Take: <b><?= date('d M Y', strtotime($ci['tanggal_take'])) ?><?= $ci['jam_take'] ? ' '.substr($ci['jam_take'],0,5) : '' ?></b></span><?php endif; ?>
+            <?php if ($ci['tanggal_take']): ?><span>Take: <b><?= tgl_indo_pendek($ci['tanggal_take'], false) ?><?= $ci['jam_take'] ? ' '.substr($ci['jam_take'],0,5) : '' ?></b></span><?php endif; ?>
             <?php if ($ci['pic']): ?><span>PIC: <b><?= esc($ci['pic']) ?></b></span><?php endif; ?>
             <?php endif; ?>
             <?php if ($ci['deskripsi']): ?><span><?= esc($ci['deskripsi']) ?></span><?php endif; ?>
@@ -870,7 +870,7 @@ $marginPct = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
         <tbody>
         <?php foreach ($ciRData['entries'] as $e): ?>
         <tr>
-            <td style="white-space:nowrap"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
+            <td style="white-space:nowrap"><?= tgl_indo_pendek($e['tanggal'], false) ?></td>
             <td style="font-weight:600;color:var(--tinta)"><?= esc($e['nama_influencer'] ?? '—') ?></td>
             <td class="num text-green" style="font-weight:700">Rp <?= number_format($e['nilai'],0,',','.') ?></td>
             <td style="text-align:center">
@@ -915,7 +915,7 @@ $marginPct = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
         <tbody>
         <?php foreach ($ciRData['entries'] as $e): ?>
         <tr>
-            <td style="white-space:nowrap"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
+            <td style="white-space:nowrap"><?= tgl_indo_pendek($e['tanggal'], false) ?></td>
             <td class="num text-green" style="font-weight:700">Rp <?= number_format($e['nilai'],0,',','.') ?></td>
             <td style="color:var(--redup)"><?= esc($e['catatan'] ?: '—') ?></td>
             <td>
@@ -956,7 +956,7 @@ $marginPct = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
         <tbody>
         <?php foreach ($ciRData['entries'] as $e): ?>
         <tr>
-            <td style="white-space:nowrap"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
+            <td style="white-space:nowrap"><?= tgl_indo_pendek($e['tanggal'], false) ?></td>
             <td class="num text-green" style="font-weight:700">Rp <?= number_format($e['nilai'],0,',','.') ?></td>
             <td style="color:var(--redup)"><?= esc($e['catatan'] ?: '—') ?></td>
             <td>

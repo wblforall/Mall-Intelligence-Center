@@ -101,3 +101,13 @@ if (! function_exists('periode_indo')) {
         return bulan_indo((int) $bl) . ' ' . $th;
     }
 }
+
+if (! function_exists('tgl_indo_dm')) {
+    /** Tanggal-bulan ringkas tanpa tahun, mis. "13 Okt". */
+    function tgl_indo_dm(?string $tanggal): string
+    {
+        if (! $tanggal || ! strtotime($tanggal)) return '—';
+        $ts = strtotime($tanggal);
+        return date('j', $ts) . ' ' . mb_substr(bulan_indo((int) date('n', $ts)), 0, 3);
+    }
+}

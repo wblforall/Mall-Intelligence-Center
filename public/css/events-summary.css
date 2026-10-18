@@ -70,7 +70,7 @@
 
 /* Menu ⋯ */
 .ev-menuwrap { position: relative; }
-.ev-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px; padding: .3rem;
+.ev-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 60; min-width: 220px; padding: .3rem;
     background: var(--ev-menu); border: 1px solid var(--ev-border); border-radius: 12px; box-shadow: var(--ev-shadow); }
 .ev-menu a, .ev-menu button { display: flex; align-items: center; gap: .55rem; width: 100%; padding: .45rem .65rem; border: 0; background: none;
     color: var(--ev-txt); font: inherit; font-size: .82rem; text-align: left; border-radius: 8px; cursor: pointer; }

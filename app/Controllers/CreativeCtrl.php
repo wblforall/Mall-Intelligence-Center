@@ -386,12 +386,6 @@ class CreativeCtrl extends BaseController
             $trendFoll[]   = $t['foll'];
         }
 
-        $statusCounts = [];
-        foreach ($allItems as $item) {
-            $s = $item['status'] ?? 'draft';
-            $statusCounts[$s] = ($statusCounts[$s] ?? 0) + 1;
-        }
-
         $activeStSet = array_flip(array_unique(array_merge(array_keys($sReal), array_keys($sIns))));
         $activeEvSet = array_flip(array_unique(array_merge(array_keys($eReal), array_keys($eIns))));
         $activeCount = count($activeStSet) + count($activeEvSet);
@@ -418,6 +412,13 @@ class CreativeCtrl extends BaseController
         usort($rows, fn($a, $b) =>
             $b['hasActivity'] <=> $a['hasActivity'] ?: strcmp($a['item']['tipe'], $b['item']['tipe'])
         );
+
+        // Status Item mengikuti item yang tampil di bulan ini (sama dengan kotak Tipe Item & tabel), bukan seluruh item.
+        $statusCounts = [];
+        foreach ($rows as $r) {
+            $st = $r['item']['status'] ?? 'draft';
+            $statusCounts[$st] = ($statusCounts[$st] ?? 0) + 1;
+        }
 
         $chartItems      = [];
         $chartBudget     = [];

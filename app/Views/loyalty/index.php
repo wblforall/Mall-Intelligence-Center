@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/main') ?>
+<?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/events-modul.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-modul.css') ?: 1 ?>">
 <?= $this->endSection() ?>
@@ -299,7 +299,7 @@ if ($canEdit) {
                 <tbody>
                 <?php foreach ($memberEntries as $e): ?>
                 <tr>
-                    <td class="ev-nowrap" data-l="Tanggal"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
+                    <td class="ev-nowrap" data-l="Tanggal"><?= tgl_indo_pendek($e['tanggal'], false) ?></td>
                     <td class="ev-num" data-l="Member baru"><?= number_format($e['jumlah']) ?></td>
                     <td class="ev-num" data-l="Member aktif"><?= number_format($e['member_aktif'] ?? 0) ?></td>
                     <td data-l="Catatan"><?= esc($e['catatan'] ?: '—') ?><span class="ev-who"><i class="bi bi-person"></i>oleh <?= esc($e['pengisi'] ?? '—') ?></span></td>
@@ -445,7 +445,7 @@ if ($canEdit) {
                     <tbody>
                     <?php foreach ($vr['entries'] as $er): ?>
                     <tr>
-                        <td class="ev-nowrap" data-l="Tanggal"><?= date('d M Y', strtotime($er['tanggal'])) ?></td>
+                        <td class="ev-nowrap" data-l="Tanggal"><?= tgl_indo_pendek($er['tanggal'], false) ?></td>
                         <td class="ev-num" data-l="Tersebar"><?= number_format($er['tersebar'] ?? 0) ?></td>
                         <td class="ev-num" data-l="Terpakai"><?= number_format($er['terpakai'] ?? 0) ?></td>
                         <td data-l="Penerima"><?= ! empty($er['nama_penerima']) ? '<b>' . esc($er['nama_penerima']) . '</b>' : '<span class="ev-c-mute">—</span>' ?></td>
@@ -629,7 +629,7 @@ if ($canEdit) {
                     <tbody>
                     <?php foreach ($hr['entries'] as $er): ?>
                     <tr>
-                        <td class="ev-nowrap" data-l="Tanggal"><?= date('d M Y', strtotime($er['tanggal'])) ?></td>
+                        <td class="ev-nowrap" data-l="Tanggal"><?= tgl_indo_pendek($er['tanggal'], false) ?></td>
                         <td class="ev-num" data-l="Dibagikan"><?= number_format($er['jumlah_dibagikan']) ?></td>
                         <td data-l="Penerima"><?= ! empty($er['nama_penerima']) ? '<b>' . esc($er['nama_penerima']) . '</b>' : '<span class="ev-c-mute">—</span>' ?></td>
                         <td data-l="Kode"><?= ! empty($er['kode_voucher']) ? '<code>' . esc($er['kode_voucher']) . '</code>' : '<span class="ev-c-mute">—</span>' ?></td>

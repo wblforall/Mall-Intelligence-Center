@@ -30,7 +30,10 @@
 .ct-group-h span { background: var(--ct-inner); border: 1px solid var(--ct-border); border-radius: 999px; padding: 0 .45rem; font-size: .66rem; }
 
 /* tabel padat: baris ±34px */
-.ct-table { border: 1px solid var(--ct-border); border-radius: 10px; overflow: hidden; }
+.ct-table { border: 1px solid var(--ct-border); border-radius: 10px; }
+/* tanpa overflow:hidden supaya popup Tolak/Buka kembali pada baris terbawah tidak terpotong; sudut dibulatkan di baris pertama & terakhir */
+.ct-table > :first-child { border-top-left-radius: 9px; border-top-right-radius: 9px; }
+.ct-table > :last-child { border-bottom-left-radius: 9px; border-bottom-right-radius: 9px; }
 .ct-th, .ct-row { display: grid; grid-template-columns: minmax(0, 1.7fr) 150px 110px 98px 86px 138px; gap: .5rem; align-items: center; padding: .2rem .6rem; }
 .ct-th { font-size: .62rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ct-muted); background: var(--ct-inner); padding-top: .25rem; padding-bottom: .25rem; }
 .ct-row { border-top: 1px solid var(--ct-border); min-height: 34px; font-size: .78rem; transition: background .2s; }

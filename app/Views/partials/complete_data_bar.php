@@ -2,6 +2,7 @@
 /**
  * Vars expected: $event, $module (string key), $completion (array|null), $canEdit (bool)
  */
+helper('tanggal');
 $isDone = ! empty($completion);
 ?>
 <div class="alert <?= $isDone ? 'alert-success' : 'alert-warning' ?> d-flex align-items-center justify-content-between py-2 px-3 mb-4">
@@ -9,7 +10,7 @@ $isDone = ! empty($completion);
         <?php if ($isDone): ?>
         <i class="bi bi-check-circle-fill me-1"></i>
         Data ditandai selesai oleh <strong><?= esc($completion['completed_by_name']) ?></strong>
-        pada <?= date('d M Y H:i', strtotime($completion['completed_at'])) ?>
+        pada <?= tgl_indo_pendek($completion['completed_at'], false) . ' ' . date('H:i', strtotime($completion['completed_at'])) ?>
         <?php else: ?>
         <i class="bi bi-hourglass-split me-1"></i>
         Data belum ditandai selesai untuk modul ini.

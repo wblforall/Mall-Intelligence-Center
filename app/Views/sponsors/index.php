@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/main') ?>
+<?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/events-modul.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-modul.css') ?: 1 ?>">
 <?= $this->endSection() ?>
@@ -277,7 +277,7 @@ if ($canEdit) {
                 <tbody>
                 <?php foreach ($rList as $rr): ?>
                 <tr>
-                    <td class="ev-nowrap" data-l="Tanggal"><?= $rr['tanggal'] ? date('d M Y', strtotime($rr['tanggal'])) : '—' ?></td>
+                    <td class="ev-nowrap" data-l="Tanggal"><?= $rr['tanggal'] ? tgl_indo_pendek($rr['tanggal'], false) : '—' ?></td>
                     <td class="ev-num" data-l="Nilai"><?= $rr['nilai'] ? evRp($rr['nilai']) : '—' ?></td>
                     <td data-l="Catatan"><?= esc($rr['catatan'] ?: '—') ?><span class="ev-who"><i class="bi bi-person"></i>PIC: <?= esc($rr['pengisi'] ?? '—') ?></span></td>
                     <?php foreach (['file_foto' => 'Foto', 'file_terima' => 'Tanda terima'] as $fk => $fl): ?>

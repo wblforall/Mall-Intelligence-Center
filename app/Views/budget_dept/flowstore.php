@@ -14,7 +14,7 @@ $bulanPendek = fn (string $ym) => substr($BLN[(int) substr($ym, 5, 2)], 0, 3) . 
 $qty = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
 $posAktif = array_values(array_filter($pos, fn ($p) => ! empty($p['aktif'])));
 [$_pk, $_pLabel, $_pIkon] = bdtPosisi((int) $tahun);
-$kembali = (string) current_url(true);
+$kembali = (string) strtok((string) current_url(true), '?'); // current_url sudah memuat query; buang dulu supaya tidak ganda
 if (! empty($_SERVER['QUERY_STRING'])) $kembali .= '?' . $_SERVER['QUERY_STRING'];
 $q = fn (array $x = []) => array_filter(array_replace(['tahun' => $tahun, 'status' => $status !== 'baru' ? $status : null, 'bln' => $bln ?: null, 'pos' => $posF ?: null,
     'sup' => $sup !== '' ? $sup : null, 'q' => $cari !== '' ? $cari : null, 'kep' => $kep !== '' ? $kep : null, 'kel' => $kel ? 1 : null], $x), fn ($v) => $v !== null);

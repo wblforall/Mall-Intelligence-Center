@@ -23,19 +23,6 @@
     </div>
 </div>
 
-<?php if (session()->getFlashdata('success')): ?>
-<div class="alert alert-success alert-dismissible fade show py-2">
-    <?= session()->getFlashdata('success') ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-<?php endif; ?>
-<?php if (session()->getFlashdata('error')): ?>
-<div class="alert alert-danger alert-dismissible fade show py-2">
-    <?= session()->getFlashdata('error') ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-<?php endif; ?>
-
 <?php if (empty($tenants)): ?>
 <div class="card"><div class="card-body text-center py-5 text-muted">
     <i class="bi bi-shop display-4 d-block mb-2 opacity-25"></i>

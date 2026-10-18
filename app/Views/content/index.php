@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/main') ?>
+<?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
 <?= $this->endSection() ?>
@@ -161,7 +161,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
             <?php elseif ($luarRab): ?><span class="ev-chip ev-chip-bad" title="Ditambah/berubah setelah RAB diajukan — wajib masuk revisi RAB berikutnya"><i class="bi bi-exclamation-circle"></i>Di luar RAB</span><?php endif; ?>
         </div>
         <div class="ev-row-m">
-            <?php if ($item['tanggal']): ?><span><i class="bi bi-calendar3"></i><?= date('d M Y', strtotime($item['tanggal'])) ?><?= (! $isBiaya && $waktu) ? ' · ' . $waktu : '' ?></span><?php endif; ?>
+            <?php if ($item['tanggal']): ?><span><i class="bi bi-calendar3"></i><?= tgl_indo_pendek($item['tanggal'], false) ?><?= (! $isBiaya && $waktu) ? ' · ' . $waktu : '' ?></span><?php endif; ?>
             <?php if (! $isBiaya && $item['lokasi']): ?><span><i class="bi bi-geo-alt"></i><?= esc($item['lokasi']) ?></span><?php endif; ?>
             <?php if ($item['pic']): ?><span><i class="bi bi-person"></i><?= esc($item['pic']) ?></span><?php endif; ?>
             <?php if ($rincian): ?><span><i class="bi bi-calculator"></i><?= $rincian ?></span><?php endif; ?>
@@ -227,7 +227,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
     <tbody>
     <?php foreach ($rList as $r): ?>
     <tr>
-        <td class="nw"><?= $r['tanggal'] ? date('d M Y', strtotime($r['tanggal'])) : '—' ?></td>
+        <td class="nw"><?= $r['tanggal'] ? tgl_indo_pendek($r['tanggal'], false) : '—' ?></td>
         <td class="r nw fw-semibold"><?= $r['nilai'] ? 'Rp ' . number_format($r['nilai'],0,',','.') : '—' ?></td>
         <td><?= esc($r['catatan'] ?: '—') ?></td>
         <td>

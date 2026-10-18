@@ -221,14 +221,18 @@ class WorkReportDeputyCtrl extends BaseController
         if ($judul === '') return redirect()->to('/work-report/division')->with('error', 'Judul wajib diisi.');
 
         ActivityLog::captureBefore($item);
-        $this->m->update($id, [
+        $upd = [
             'judul'               => $judul,
             'deskripsi'           => trim($this->request->getPost('deskripsi') ?? ''),
-            'pic_employee_id'     => $this->request->getPost('pic_employee_id') ?: null,
             'target_mulai'        => $this->request->getPost('target_mulai') ?: null,
             'target_selesai'      => $this->request->getPost('target_selesai') ?: null,
             'assigned_to_dept_id' => $this->request->getPost('assigned_to_dept_id') ?: null,
-        ]);
+        ];
+        // PIC hanya diubah bila formulir memang mengirim kolomnya (formulir Detail tidak punya kolom PIC).
+        if (array_key_exists('pic_employee_id', $this->request->getPost() ?? [])) {
+            $upd['pic_employee_id'] = $this->request->getPost('pic_employee_id') ?: null;
+        }
+        $this->m->update($id, $upd);
         ActivityLog::captureAfter($this->m->find($id));
         ActivityLog::write('update', 'work_initiative', (string) $id, $judul);
 

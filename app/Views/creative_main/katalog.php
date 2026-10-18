@@ -25,13 +25,6 @@ $nPaket = count($paket['bulanan']) + count($paket['event']);
     <div class="cr-head-act"><a href="<?= base_url('creative') ?>" class="cr-btn"><i class="bi bi-arrow-left"></i>Kembali</a></div>
 </div>
 
-<?php if (session()->getFlashdata('success')): ?>
-<div class="cr-flash cr-flash-ok" role="alert"><i class="bi bi-check-circle"></i><span><?= esc(session()->getFlashdata('success')) ?></span><button type="button" aria-label="Tutup" onclick="this.parentNode.remove()">&times;</button></div>
-<?php endif; ?>
-<?php if (session()->getFlashdata('error')): ?>
-<div class="cr-flash cr-flash-bad" role="alert"><i class="bi bi-exclamation-triangle"></i><span><?= esc(session()->getFlashdata('error')) ?></span><button type="button" aria-label="Tutup" onclick="this.parentNode.remove()">&times;</button></div>
-<?php endif; ?>
-
 <div class="cr-ptabs" id="katTabs" role="tablist" aria-label="Bagian">
     <button type="button" role="tab" data-kat-tab="turunan" class="<?= $tab === 'turunan' ? 'is-on' : '' ?>" aria-selected="<?= $tab === 'turunan' ? 'true' : 'false' ?>"><i class="bi bi-diagram-2"></i>Katalog Turunan <span class="n"><?= $nJenis ?></span></button>
     <button type="button" role="tab" data-kat-tab="paket" class="<?= $tab === 'paket' ? 'is-on' : '' ?>" aria-selected="<?= $tab === 'paket' ? 'true' : 'false' ?>"><i class="bi bi-boxes"></i>Paket Item Awal <span class="n"><?= $nPaket ?></span></button>

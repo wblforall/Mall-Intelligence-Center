@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/main') ?>
+<?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/events-core.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-core.css') ?: 1 ?>">
 <?= $this->endSection() ?>
@@ -28,7 +28,7 @@ $moduleTabs = [
     <a href="<?= base_url('events/'.$event['id'].'/summary') ?>" class="ev-iconbtn" aria-label="Kembali ke Summary" title="Kembali ke Summary"><i class="bi bi-arrow-left"></i></a>
     <div class="min-w-0">
         <h1 class="ev-title"><?= esc($event['name']) ?> — Galeri Foto</h1>
-        <div class="ev-subtitle"><?= date('d M Y', strtotime($startDate)) ?> – <?= date('d M Y', strtotime($endDate)) ?> &bull; <?= $totalPhotos ?> foto</div>
+        <div class="ev-subtitle"><?= tgl_indo_pendek($startDate, false) ?> – <?= tgl_indo_pendek($endDate, false) ?> &bull; <?= $totalPhotos ?> foto</div>
     </div>
 </div>
 <?= view('partials/event_tabs', ['event' => $event]) ?>

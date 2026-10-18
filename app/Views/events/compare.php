@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/main') ?>
+<?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/events-core.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-core.css') ?: 1 ?>">
 <?= $this->endSection() ?>
@@ -24,7 +24,7 @@
                 <option value="">— Pilih event —</option>
                 <?php foreach ($allEvents as $e): ?>
                 <?php $sel = in_array($e['id'], $selectedIds) && ($selectedIds[$slot] ?? null) == $e['id'] ? 'selected' : '' ?>
-                <option value="<?= $e['id'] ?>" <?= $sel ?>><?= esc($e['name']) ?> (<?= date('M Y', strtotime($e['start_date'])) ?>)</option>
+                <option value="<?= $e['id'] ?>" <?= $sel ?>><?= esc($e['name']) ?> (<?= (bulan_indo($e['start_date']) . ' ' . date('Y', strtotime($e['start_date']))) ?>)</option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -66,8 +66,8 @@ function bestIdx(array $vals, bool $higher = true): int {
             <div class="n"><?= esc($c['event']['name']) ?></div>
             <div class="s">
                 <?= $mallLabels[$c['event']['mall']] ?? esc($c['event']['mall']) ?> &bull;
-                <?= date('d M Y', strtotime($c['event']['start_date'])) ?>
-                – <?= date('d M Y', strtotime($c['endDate'])) ?>
+                <?= tgl_indo_pendek($c['event']['start_date'], false) ?>
+                – <?= tgl_indo_pendek($c['endDate'], false) ?>
                 (<?= $c['event']['event_days'] ?> hari)
             </div>
         </th>

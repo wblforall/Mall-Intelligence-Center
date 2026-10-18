@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/main') ?>
+<?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
 <?= $this->endSection() ?>
@@ -8,7 +8,7 @@
 $eventDates = [];
 for ($i = 0; $i < $event['event_days']; $i++) {
     $d = date('Y-m-d', strtotime($event['start_date'] . " +{$i} days"));
-    $eventDates[$d] = 'Hari ' . ($i + 1) . ' — ' . date('D, d M Y', strtotime($d));
+    $eventDates[$d] = 'Hari ' . ($i + 1) . ' — ' . tgl_indo_pendek($d);
 }
 ?>
 
@@ -141,7 +141,7 @@ for ($i = 0; $i < $event['event_days']; $i++) {
     </td>
     <td>
         <?php if ($fromContent): ?>
-        <span class="small text-muted">—</span>
+        <span class="small text-muted"><?= esc($r['lokasi'] ?: '—') ?></span>
         <?php else: ?>
         <input type="text" name="lokasi[]" class="form-control form-control-sm" value="<?= esc($r['lokasi']) ?>" <?= !$canEdit ? 'readonly' : '' ?>>
         <?php endif; ?>

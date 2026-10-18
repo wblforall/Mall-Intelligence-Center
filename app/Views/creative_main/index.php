@@ -159,14 +159,6 @@ $renderBulan = function (array $months) use ($shared, $rp) {
     </div>
 </div>
 
-<!-- Flash -->
-<?php if (session()->getFlashdata('success')): ?>
-<div class="cr-flash cr-flash-ok" role="alert"><i class="bi bi-check-circle"></i><span><?= esc(session()->getFlashdata('success')) ?></span><button type="button" aria-label="Tutup" onclick="this.parentNode.remove()">&times;</button></div>
-<?php endif; ?>
-<?php if (session()->getFlashdata('error')): ?>
-<div class="cr-flash cr-flash-bad" role="alert"><i class="bi bi-exclamation-triangle"></i><span><?= esc(session()->getFlashdata('error')) ?></span><button type="button" aria-label="Tutup" onclick="this.parentNode.remove()">&times;</button></div>
-<?php endif; ?>
-
 <!-- Strip KPI -->
 <div class="cr-kpis">
     <div class="cr-kpi">

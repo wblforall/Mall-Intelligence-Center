@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/main') ?>
+<?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
 <?= $this->endSection() ?>
@@ -8,7 +8,7 @@
 $mallLabels   = ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity', 'keduanya' => 'eWalk & Pentacity'];
 $mallColors   = ['ewalk' => 'primary', 'pentacity' => 'success', 'keduanya' => 'info'];
 $statusColors = ['draft' => 'secondary', 'active' => 'success', 'waiting_data' => 'warning', 'completed' => 'primary'];
-$statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Waiting Data', 'completed' => 'Completed'];
+$statusLabels = ['draft' => 'Draft', 'active' => 'Berjalan', 'waiting_data' => 'Menunggu Data', 'completed' => 'Selesai'];
 
 $idBulan    = ['January'=>'Januari','February'=>'Februari','March'=>'Maret','April'=>'April',
                'May'=>'Mei','June'=>'Juni','July'=>'Juli','August'=>'Agustus',
@@ -155,7 +155,7 @@ $chartRevenue = array_map(fn($r) => $r['revenue'], $rows);
                 </td>
                 <td><span class="ev-chip ev-chip-<?= $mlChip[$mallKey] ?? 'mute' ?>"><?= $mallLabels[$mallKey] ?? esc($mallKey) ?></span></td>
                 <td class="nw">
-                    <?= date('d M', strtotime($ev['start_date'])) ?> – <?= date('d M Y', strtotime($r['endDate'])) ?>
+                    <?= tgl_indo_dm($ev['start_date']) ?> – <?= tgl_indo_pendek($r['endDate'], false) ?>
                     <span class="ev-sub"><?= $ev['event_days'] ?> hari</span>
                 </td>
                 <td class="r nw">

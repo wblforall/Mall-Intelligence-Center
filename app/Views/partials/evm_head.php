@@ -7,6 +7,7 @@
  * Status "data selesai" + tombol Complete/Batal memakai rute yang sama dengan
  * partials/complete_data_bar (events/{id}/complete|uncomplete/{modul}).
  */
+helper('tanggal');
 $isDone = ! empty($completion);
 $isAdmin = session()->get('role_is_admin') || session()->get('user_role') === 'admin';
 
@@ -16,8 +17,8 @@ $evRange = '';
 if ($evStart) {
     $evEnd   = strtotime('+' . ($evDays - 1) . ' days', $evStart);
     $evRange = $evDays > 1
-        ? date('d M', $evStart) . ' – ' . date('d M Y', $evEnd)
-        : date('d M Y', $evStart);
+        ? tgl_indo_dm(date('Y-m-d', $evStart)) . ' – ' . tgl_indo_pendek(date('Y-m-d', $evEnd), false)
+        : tgl_indo_pendek(date('Y-m-d', $evStart), false);
 }
 $evStatusLabel = ['draft' => 'Draft', 'active' => 'Berjalan', 'completed' => 'Selesai'][$event['status'] ?? ''] ?? null;
 ?>
@@ -38,7 +39,7 @@ $evStatusLabel = ['draft' => 'Draft', 'active' => 'Berjalan', 'completed' => 'Se
         <?php if ($isDone): ?>
         <span class="ev-done" title="Data modul ini sudah ditandai selesai (dikunci)">
             <i class="bi bi-check-circle-fill"></i>Selesai
-            <span class="ev-done-by d-none d-md-inline">· <?= esc($completion['completed_by_name'] ?? '') ?>, <?= date('d M Y H:i', strtotime($completion['completed_at'])) ?></span>
+            <span class="ev-done-by d-none d-md-inline">· <?= esc($completion['completed_by_name'] ?? '') ?>, <?= tgl_indo_pendek($completion['completed_at'], false) . ' ' . date('H:i', strtotime($completion['completed_at'])) ?></span>
         </span>
         <?php if ($isAdmin): ?>
         <form method="POST" action="<?= base_url('events/' . $event['id'] . '/uncomplete/' . $module) ?>" class="ev-form-inline">

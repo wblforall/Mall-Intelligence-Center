@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/main') ?>
+<?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
 <?= $this->endSection() ?>
@@ -7,7 +7,7 @@
 <?php
 $mallLabels   = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Shopping Venue', 'keduanya' => 'eWalk Simply FUNtastic & Pentacity Shopping Venue'];
 $statusChip   = ['draft' => 'mute', 'active' => 'ok', 'waiting_data' => 'warn', 'completed' => 'blue'];
-$statusLabels = ['draft' => 'Draft', 'active' => 'Active', 'waiting_data' => 'Waiting Data', 'completed' => 'Completed'];
+$statusLabels = ['draft' => 'Draft', 'active' => 'Berjalan', 'waiting_data' => 'Menunggu Data', 'completed' => 'Selesai'];
 $rp = static fn($n) => 'Rp ' . number_format((int) $n, 0, ',', '.');
 $deptBudgetTotal = array_sum(array_column($budgetByDept, 'total'));
 $missing = array_diff(array_keys($requiredModules), array_keys($completions));
@@ -33,7 +33,7 @@ $avr = [
         <div class="ev-meta">
             <?php if ($event['tema']): ?><span><i class="bi bi-tag"></i><?= esc($event['tema']) ?></span><?php endif; ?>
             <span><i class="bi bi-building"></i><?= $mallLabels[$event['mall']] ?? esc($event['mall']) ?></span>
-            <span><i class="bi bi-calendar-range"></i><?= date('d M Y', strtotime($startDate)) ?> – <?= date('d M Y', strtotime($endDate)) ?></span>
+            <span><i class="bi bi-calendar-range"></i><?= tgl_indo_pendek($startDate, false) ?> – <?= tgl_indo_pendek($endDate, false) ?></span>
             <span><i class="bi bi-clock"></i><?= $event['event_days'] ?> hari</span>
             <?php if (!empty($eventLocations)): ?>
             <span><i class="bi bi-geo-alt"></i><?= esc(implode(', ', array_column($eventLocations, 'nama'))) ?></span>
@@ -184,7 +184,7 @@ $avr = [
             <i class="bi bi-<?= $done ? 'check-circle-fill' : ($late ? 'exclamation-circle-fill' : 'circle') ?>"></i>
             <div class="min-w-0">
                 <div class="ev-mod-n"><?= esc($label) ?></div>
-                <div class="ev-mod-s"><?= $done ? esc($completions[$key]['completed_by_name']) . ' · ' . date('d M', strtotime($completions[$key]['completed_at'])) : ($late ? 'Belum selesai — perlu dilengkapi' : 'Belum ditandai selesai') ?></div>
+                <div class="ev-mod-s"><?= $done ? esc($completions[$key]['completed_by_name']) . ' · ' . tgl_indo_dm($completions[$key]['completed_at']) : ($late ? 'Belum selesai — perlu dilengkapi' : 'Belum ditandai selesai') ?></div>
             </div>
         </a>
     <?php endforeach; ?>
@@ -391,7 +391,7 @@ $avr = [
                         </div>
                         <div class="d-flex flex-wrap gap-2 text-muted" style="font-size:.72rem">
                             <?php if ($ci['tanggal']): ?>
-                            <span><i class="bi bi-calendar me-1"></i><?= date('d M', strtotime($ci['tanggal'])) ?><?= $jam ? ' · '.$jam : '' ?></span>
+                            <span><i class="bi bi-calendar me-1"></i><?= tgl_indo_dm($ci['tanggal']) ?><?= $jam ? ' · '.$jam : '' ?></span>
                             <?php endif; ?>
                             <?php if ($ci['lokasi']): ?>
                             <span><i class="bi bi-geo-alt me-1"></i><?= esc($ci['lokasi']) ?></span>
@@ -842,7 +842,7 @@ $avr = [
                         <div class="d-flex flex-wrap gap-2 text-muted mb-1" style="font-size:.72rem">
                             <?php if ($ci['tanggal_take']): ?>
                             <span>
-                                <i class="bi bi-camera me-1"></i><?= date('d M Y', strtotime($ci['tanggal_take'])) ?>
+                                <i class="bi bi-camera me-1"></i><?= tgl_indo_pendek($ci['tanggal_take'], false) ?>
                                 <?php if ($ci['jam_take']): ?><?= substr($ci['jam_take'], 0, 5) ?><?php endif; ?>
                             </span>
                             <?php endif; ?>
@@ -923,7 +923,7 @@ $avr = [
 <div class="card-header d-flex align-items-center justify-content-between">
     <h6 class="mb-0 fw-semibold"><i class="bi bi-journal-text me-2"></i>Kesimpulan &amp; Evaluasi Post Event</h6>
     <?php if (! empty($event['eval_updated_at'])): ?>
-    <small class="text-muted">Terakhir diperbarui <?= date('d M Y H:i', strtotime($event['eval_updated_at'])) ?></small>
+    <small class="text-muted">Terakhir diperbarui <?= tgl_indo_pendek($event['eval_updated_at'], false) . ' ' . date('H:i', strtotime($event['eval_updated_at'])) ?></small>
     <?php endif; ?>
 </div>
 <div class="card-body">

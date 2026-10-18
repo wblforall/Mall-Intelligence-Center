@@ -34,13 +34,6 @@ $nGroup = count($groups);
     </div>
 </div>
 
-<?php if (session()->getFlashdata('success')): ?>
-<div class="cr-flash cr-flash-ok" role="alert"><i class="bi bi-check-circle"></i><span><?= esc(session()->getFlashdata('success')) ?></span><button type="button" aria-label="Tutup" onclick="this.parentNode.remove()">&times;</button></div>
-<?php endif; ?>
-<?php if (session()->getFlashdata('error')): ?>
-<div class="cr-flash cr-flash-bad" role="alert"><i class="bi bi-exclamation-triangle"></i><span><?= esc(session()->getFlashdata('error')) ?></span><button type="button" aria-label="Tutup" onclick="this.parentNode.remove()">&times;</button></div>
-<?php endif; ?>
-
 <?php if ($batches): ?>
 <div class="cm-card">
     <div class="cm-card-h"><h2><i class="bi bi-clock-history"></i>Riwayat pemetaan</h2><span class="cr-chip cr-chip-mute"><?= count($batches) ?> terakhir</span></div>

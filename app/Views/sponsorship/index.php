@@ -133,7 +133,7 @@ krsort($yearOpts);
 <div class="si-tools" id="siTools">
     <div class="si-search">
         <i class="bi bi-search"></i>
-        <input type="search" id="siQ" placeholder="Cari program atau nama sponsor…" autocomplete="off" aria-label="Cari program atau sponsor">
+        <input type="search" id="siQ" placeholder="Cari program / sponsor…" autocomplete="off" aria-label="Cari program atau sponsor">
     </div>
     <select class="si-select" id="siFStatus" aria-label="Filter status">
         <option value="">Semua status</option>

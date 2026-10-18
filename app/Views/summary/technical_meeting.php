@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<?php helper('tanggal'); ?><!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -108,7 +108,7 @@ $statusLabel = ['draft' => 'Draft', 'review' => 'Review', 'approved' => 'Approve
     <div class="meta">
         Dokumen: Technical Meeting<br>
         Durasi: <?= $event['event_days'] ?> hari<br>
-        Dicetak: <?= date('d M Y, H:i') ?>
+        Dicetak: <?= tgl_indo_pendek(date('Y-m-d'), false) . ', ' . date('H:i') ?>
     </div>
 </div>
 
@@ -469,7 +469,7 @@ $statusLabel = ['draft' => 'Draft', 'review' => 'Review', 'approved' => 'Approve
         </td>
         <td style="white-space:nowrap">
             <?php if ($ci['tanggal_take']): ?>
-            <?= date('d M Y', strtotime($ci['tanggal_take'])) ?>
+            <?= tgl_indo_pendek($ci['tanggal_take'], false) ?>
             <?php if ($ci['jam_take']): ?> <?= substr($ci['jam_take'], 0, 5) ?><?php endif; ?>
             <?php else: ?>—<?php endif; ?>
         </td>

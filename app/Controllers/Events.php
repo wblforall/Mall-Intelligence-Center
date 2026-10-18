@@ -135,8 +135,17 @@ class Events extends BaseController
         return redirect()->to("/events/{$id}/summary");
     }
 
+    /** Aturan sama dengan tautan "Ubah data event" di daftar event: peran admin atau manager. */
+    private function bolehUbahEvent(): bool
+    {
+        return in_array((string) (session()->get('user_role') ?? ''), ['admin', 'manager'], true);
+    }
+
     public function edit(int $id)
     {
+        if (! $this->bolehUbahEvent()) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
         $event = $this->eventModel->find($id);
         if (! $event) return redirect()->to('/events')->with('error', 'Event tidak ditemukan.');
         $locModel = new EventLocationModel();
@@ -151,6 +160,9 @@ class Events extends BaseController
 
     public function update(int $id)
     {
+        if (! $this->bolehUbahEvent()) {
+            return redirect()->to('/events')->with('error', 'Akses ditolak.');
+        }
         $event = $this->eventModel->find($id);
         if (! $event) return redirect()->to('/events')->with('error', 'Event tidak ditemukan.');
 
