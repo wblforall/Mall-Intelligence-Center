@@ -1,84 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="utf-8">
-    <title><?= lang('Errors.pageNotFound') ?></title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Halaman tidak ditemukan — Mall Intelligence Center</title>
+    <link rel="icon" type="image/png" href="<?= base_url('img/mic-logo-sm.png') ?>">
     <style>
-        div.logo {
-            height: 200px;
-            width: 155px;
-            display: inline-block;
-            opacity: 0.08;
-            position: absolute;
-            top: 2rem;
-            left: 50%;
-            margin-left: -73px;
-        }
+        * { box-sizing: border-box; }
         body {
-            height: 100%;
-            background: #fafafa;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            color: #777;
-            font-weight: 300;
-        }
-        h1 {
-            font-weight: lighter;
-            letter-spacing: normal;
-            font-size: 3rem;
-            margin-top: 0;
-            margin-bottom: 0;
-            color: #222;
+            margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 1rem; background: #0f172a; color: #cbd5e1;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
         .wrap {
-            max-width: 1024px;
-            margin: 5rem auto;
-            padding: 2rem;
-            background: #fff;
-            text-align: center;
-            border: 1px solid #efefef;
-            border-radius: 0.5rem;
-            position: relative;
+            width: 100%; max-width: 460px; text-align: center; padding: 2.25rem 1.75rem;
+            background: linear-gradient(160deg, #16264a, #0d1a33); border: 1px solid rgba(255,255,255,.1);
+            border-radius: 1.1rem; box-shadow: 0 18px 50px rgba(0,0,0,.45);
         }
-        pre {
-            white-space: normal;
-            margin-top: 1.5rem;
+        .wrap img { height: 46px; width: auto; margin-bottom: 1.25rem; }
+        .code { font-size: 3.4rem; font-weight: 800; letter-spacing: -.03em; color: #e8c872; line-height: 1; }
+        h1 { margin: .6rem 0 .4rem; font-size: 1.25rem; font-weight: 700; color: #f1f5f9; }
+        p { margin: 0 0 1.5rem; font-size: .92rem; line-height: 1.5; color: #94a3b8; }
+        .btn {
+            display: inline-block; padding: .6rem 1.3rem; border-radius: .6rem; font-weight: 600; font-size: .92rem;
+            text-decoration: none; color: #fff; background: #4f46e5;
         }
-        code {
-            background: #fafafa;
-            border: 1px solid #efefef;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            display: block;
-        }
-        p {
-            margin-top: 1.5rem;
-        }
-        .footer {
-            margin-top: 2rem;
-            border-top: 1px solid #efefef;
-            padding: 1em 2em 0 2em;
-            font-size: 85%;
-            color: #999;
-        }
-        a:active,
-        a:link,
-        a:visited {
-            color: #dd4814;
-        }
+        .btn:hover { background: #4338ca; }
+        .btn-alt { background: transparent; border: 1px solid rgba(255,255,255,.2); color: #cbd5e1; margin-left: .4rem; }
+        .btn-alt:hover { background: rgba(255,255,255,.08); }
     </style>
 </head>
 <body>
     <div class="wrap">
-        <h1>404</h1>
-
-        <p>
-            <?php if (ENVIRONMENT !== 'production') : ?>
-                <?= nl2br(esc($message)) ?>
-            <?php else : ?>
-                <?= lang('Errors.sorryCannotFind') ?>
-            <?php endif; ?>
-        </p>
+        <img src="<?= base_url('img/mic-logo.png') ?>" alt="Mall Intelligence Center">
+        <div class="code">404</div>
+        <h1>Halaman tidak ditemukan</h1>
+        <p>Alamat yang Anda buka tidak ada atau sudah dipindahkan. Periksa kembali alamatnya, atau kembali ke Dashboard.</p>
+        <a class="btn" href="<?= base_url('/') ?>">Ke Dashboard</a><a class="btn btn-alt" href="javascript:history.back()">Kembali</a>
     </div>
 </body>
 </html>

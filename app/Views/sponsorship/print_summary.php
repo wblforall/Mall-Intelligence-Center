@@ -413,6 +413,7 @@ $stMap = [
         $rz  = (int)(($realBySponsor[$sid]['total_nilai']) ?? 0);
         $st  = $stMap[$s['status_deal']] ?? [ucfirst((string)$s['status_deal']), 'netral'];
         $dbl = in_array($sid, $exP ?? [], true);
+        if ($dbl && ! ($lihatDobel ?? true)) continue;   // tanpa hak ubah: sponsor dobel tidak ditampilkan (angka sudah tanpa dobel)
         if (! $dbl) $nAktifP++;
     ?>
         <tr<?= $dbl ? ' class="baris-dobel"' : '' ?>>
@@ -428,7 +429,7 @@ $stMap = [
     <?php endforeach; ?>
     </tbody>
     <tfoot><tr>
-        <td colspan="4">Total &middot; <?= $nf($nAktifP) ?> sponsor<?= $nAktifP !== count($spList) ? ' <span class="bln-ini">(' . $nf(count($spList) - $nAktifP) . ' dikecualikan)</span>' : '' ?></td>
+        <td colspan="4">Total &middot; <?= $nf($nAktifP) ?> sponsor<?= ($lihatDobel ?? true) && $nAktifP !== count($spList) ? ' <span class="bln-ini">(' . $nf(count($spList) - $nAktifP) . ' dikecualikan)</span>' : '' ?></td>
         <td class="num"><?= $rp($komit) ?></td>
         <td class="text-center"><span class="bln-ini">bln ini <?= $now ? $rp($now) : '—' ?></span></td>
         <td class="num"><?= $cum ? $rp($cum) : '—' ?></td>
@@ -477,6 +478,7 @@ $stMap = [
         $rz  = (int)(($eventRealBySp[$eid][$sid]) ?? 0);
         $qty = (int)($s['qty'] ?? 0);
         $dbl = in_array($sid, $exE ?? [], true);
+        if ($dbl && ! ($lihatDobel ?? true)) continue;
         if (! $dbl) $nAktifE++;
     ?>
         <tr<?= $dbl ? ' class="baris-dobel"' : '' ?>>
@@ -491,7 +493,7 @@ $stMap = [
     <?php endforeach; ?>
     </tbody>
     <tfoot><tr>
-        <td colspan="4">Total &middot; <?= $nf($nAktifE) ?> sponsor<?= $nAktifE !== count($spList) ? ' <span class="bln-ini">(' . $nf(count($spList) - $nAktifE) . ' dikecualikan)</span>' : '' ?></td>
+        <td colspan="4">Total &middot; <?= $nf($nAktifE) ?> sponsor<?= ($lihatDobel ?? true) && $nAktifE !== count($spList) ? ' <span class="bln-ini">(' . $nf(count($spList) - $nAktifE) . ' dikecualikan)</span>' : '' ?></td>
         <td class="num"><?= $rp($deal) ?></td>
         <td class="num"><?= $cum ? $rp($cum) : ($now ? $rp($now) : '—') ?></td>
     </tr></tfoot>
@@ -538,7 +540,7 @@ $stMap = [
     Keterangan: <em>Nilai Deal / Komitmen</em> = nilai kontrak sponsor (cash + barang) · <em>Realisasi / Penerimaan</em> = pembayaran yang sudah masuk · <em>Capaian</em> = kumulatif terhadap target program.
     Status deal: Prospek → Negosiasi → Terkonfirmasi → Lunas (Batal = gagal).
 </div>
-<?php $nKecuali = (int)($nKecualiProg ?? 0) + (int)($nKecualiEvent ?? 0); if ($nKecuali > 0): ?>
+<?php $nKecuali = (int)($nKecualiProg ?? 0) + (int)($nKecualiEvent ?? 0); if ($nKecuali > 0 && ($lihatDobel ?? true)): ?>
 <div class="keterangan"><b><?= $nf($nKecuali) ?> sponsor dikecualikan karena dobel</b> (dicatat di event/program lain; ditampilkan dicoret pada rincian dan tidak dihitung dalam angka mana pun di laporan ini).</div>
 <?php endif; ?>
 <div class="sumber">Sumber: modul Sponsorship &amp; Event Sponsor, Mall Intelligence Center. Periode laporan: <?= $bulanLabel ?>; pembanding: <?= $prevLabel ?>. Program ditampilkan bila periodenya beririsan dengan bulan laporan atau menerima pembayaran pada bulan itu.</div>

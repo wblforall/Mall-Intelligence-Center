@@ -88,7 +88,7 @@ foreach ($rows as $r) {
         <div class="kpi-sub"><?= $activeCount ?> aktif bulan ini</div>
     </div>
     <div class="kpi-box kpi-red">
-        <div class="kpi-label">Budget &amp; Serapan</div>
+        <div class="kpi-label">Budget <?= esc($bulanLabel) ?> &amp; Serapan</div>
         <div class="kpi-num rp"><?= rp($totalBudget) ?></div>
         <div class="kpi-sub"><?= $totalBudget > 0 ? 'serapan '.$serapanPct.'%' : 'budget belum di-set' ?></div>
     </div>

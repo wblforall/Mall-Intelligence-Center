@@ -368,11 +368,12 @@ function fmtRp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); 
 
 // Strip angka kunci — selalu terlihat lintas tab MI
 $pctOrDash = fn($d) => empty($d['loading']) ? $d['pct'] . '%' : '—';
+$srcLbl = fn($k) => empty($eco[$k]['loading']) ? ($eco[$k]['sumber_label'] ?? '') : '';
 $stripItems = [
-    ['id' => 'bi_rate',   'label' => 'BI Rate',         'icon' => 'bi-bank',            'cls' => 'text-primary', 'val' => $pctOrDash($eco['bi_rate'])],
-    ['id' => 'inflation', 'label' => 'Inflasi YoY',     'icon' => 'bi-graph-up-arrow',  'cls' => 'text-info',    'val' => $pctOrDash($eco['inflation'])],
-    ['id' => 'gdp',       'label' => 'Ekonomi RI',      'icon' => 'bi-flag',            'cls' => 'text-success', 'val' => $eco['gdp']['pct'] . '%'],
-    ['id' => 'gdp_bpn',   'label' => 'PDRB Balikpapan', 'icon' => 'bi-building',        'cls' => 'text-success', 'val' => $eco['gdp_bpn']['pct'] . '%'],
+    ['id' => 'bi_rate',   'label' => 'BI Rate',         'icon' => 'bi-bank',            'cls' => 'text-primary', 'val' => $pctOrDash($eco['bi_rate']), 'src' => $srcLbl('bi_rate')],
+    ['id' => 'inflation', 'label' => 'Inflasi YoY',     'icon' => 'bi-graph-up-arrow',  'cls' => 'text-info',    'val' => $pctOrDash($eco['inflation']), 'src' => $srcLbl('inflation')],
+    ['id' => 'gdp',       'label' => 'Ekonomi RI',      'icon' => 'bi-flag',            'cls' => 'text-success', 'val' => $eco['gdp']['pct'] . '%', 'src' => $srcLbl('gdp')],
+    ['id' => 'gdp_bpn',   'label' => 'PDRB Balikpapan', 'icon' => 'bi-building',        'cls' => 'text-success', 'val' => $eco['gdp_bpn']['pct'] . '%', 'src' => $srcLbl('gdp_bpn')],
     ['id' => 'ihsg',      'label' => 'IHSG',            'icon' => 'bi-graph-up',        'cls' => 'text-warning', 'val' => empty($eco['ihsg']['loading']) ? $eco['ihsg']['pct'] : '—'],
     ['id' => 'usd',       'label' => 'USD/IDR',         'icon' => 'bi-currency-dollar', 'cls' => 'text-body',    'val' => '—'],
 ];
@@ -386,6 +387,7 @@ $stripItems = [
                 <i class="bi <?= $s['icon'] ?>"></i><?= $s['label'] ?>
             </div>
             <div class="fw-bold <?= $s['cls'] ?>" style="font-size:1.05rem" id="strip-<?= $s['id'] ?>"><?= esc($s['val']) ?></div>
+            <?php if (! empty($s['src'])): ?><div class="text-muted eco-strip-src" style="font-size:.55rem;line-height:1.1"><?= esc($s['src']) ?></div><?php endif; ?>
         </div>
         <?php endforeach; ?>
     </div>
@@ -462,6 +464,8 @@ $stripItems = [
                 <span class="badge bg-success-subtle text-success border" style="font-size:.55rem">
                     <i class="bi bi-circle-fill me-1" style="font-size:.4rem"></i>LIVE
                 </span>
+                <?php elseif (($d['sumber_jenis'] ?? '') === 'riset'): ?>
+                <span class="badge bg-primary-subtle text-primary border" style="font-size:.55rem"><i class="bi bi-stars me-1" style="font-size:.5rem"></i>RISET AI</span>
                 <?php elseif ($isStatic): ?>
                 <span class="badge bg-secondary-subtle text-secondary border" style="font-size:.55rem">MANUAL</span>
                 <?php endif; ?>
@@ -479,6 +483,9 @@ $stripItems = [
             <div class="text-muted mt-1" style="font-size:.63rem" id="macro-<?= $ind['key'] ?>-per">
                 <?php if (! $loading): ?>
                 <i class="bi bi-calendar3 me-1"></i><?= esc($d['per']) ?>
+                <?php if (! empty($d['sumber_label']) && ($d['sumber_jenis'] ?? '') !== 'live'): ?>
+                <br><i class="bi bi-info-circle me-1"></i><?= esc($d['sumber_label']) ?>
+                <?php endif; ?>
                 <?php if (! empty($d['fetched_at'])): ?>
                 <br><i class="bi bi-arrow-clockwise me-1"></i>Diambil <?= esc($d['fetched_at']) ?>
                 <?php endif; ?>

@@ -277,4 +277,22 @@ abstract class BaseController extends Controller
         ];
         return $mimeMap[$file->getMimeType()] ?? 'bin';
     }
+
+    /**
+     * URL kembali untuk halaman Stok Fisik setelah aksi POST: bawa konteks ?ret=&from=&to=
+     * dari halaman asal (Referer) supaya tombol "Kembali ke Summary" & breadcrumb tetap benar.
+     */
+    protected function stockUrl(string $path, string $hash = ''): string
+    {
+        $ref = (string) $this->request->getServer('HTTP_REFERER');
+        $qs  = [];
+        if ($ref !== '' && ($q = parse_url($ref, PHP_URL_QUERY))) {
+            parse_str($q, $in);
+            if (in_array($in['ret'] ?? '', ['summary', 'barang', 'voucher'], true)) $qs['ret'] = $in['ret'];
+            foreach (['from', 'to'] as $k) {
+                if (isset($in[$k]) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $in[$k])) $qs[$k] = $in[$k];
+            }
+        }
+        return $path . ($qs ? '?' . http_build_query($qs) : '') . $hash;
+    }
 }

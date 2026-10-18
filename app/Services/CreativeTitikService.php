@@ -692,6 +692,9 @@ class CreativeTitikService
 
         $tanggal = trim((string) $tanggal);
         if ($tanggal !== '' && (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || ! strtotime($tanggal))) return $this->gagal('Tanggal pasang tidak valid.');
+        if ($tanggal === '' && $namaBerkas === null && empty($l['tanggal_pasang']) && empty($l['bukti_pasang_file'])) {
+            return $this->gagal('Bukti belum bisa disimpan: unggah foto atau isi tanggal pasang dulu. Tanpa keduanya titik belum terhitung terpasang.');
+        }
         $data = ['updated_at' => date('Y-m-d H:i:s')];
         $data['catatan'] = trim((string) $catatan) !== '' ? mb_substr(trim((string) $catatan), 0, 500) : null;
         if ($tanggal !== '') $data['tanggal_pasang'] = $tanggal;

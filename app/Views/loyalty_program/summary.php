@@ -296,9 +296,11 @@ $kpiCard = function (string $tone, string $icon, string $label, string $value, s
         </div>
         <div class="ls-bar-title d-none d-lg-block"><?= esc($bulanLabel) ?></div>
         <div class="ls-bar-actions">
+<?php if (empty($aturanAnalisa['arsip'])): /* bulan arsip: aturan kelengkapan tidak berlaku */ ?>
             <span id="analisaWarn" class="ls-warnbadge" style="display:none" role="button" tabindex="0" title="Tampilkan program yang analisanya belum lengkap">
                 <i class="bi bi-exclamation-triangle-fill"></i><span><span id="analisaWarnCount">0</span> program analisanya belum lengkap</span>
             </span>
+            <?php endif; ?>
             <a href="<?= base_url('loyalty/summary/print?bulan=' . $bulan) ?>" target="_blank" id="btnCetak" class="ls-btn ls-btn-primary">
                 <i class="bi bi-printer" data-ico></i><span>Laporan Bulanan</span><b class="ls-lockn" hidden></b>
             </a>

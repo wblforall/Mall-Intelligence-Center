@@ -36,17 +36,6 @@ foreach ($items as $it) { $maxItem = max($maxItem, (int) $it['jumlah']); }
 </div>
 <?= view('partials/event_tabs', ['event' => $event]) ?>
 
-<?php if (session()->getFlashdata('success')): ?>
-<div class="alert alert-success alert-dismissible fade show py-2" role="alert">
-    <?= session()->getFlashdata('success') ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-<?php endif; ?>
-<?php if (session()->getFlashdata('error')): ?>
-<div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
-    <?= session()->getFlashdata('error') ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-<?php endif; ?>
-
 <?php if (empty($items)): ?>
 <div class="ev-empty">
     <i class="bi bi-receipt"></i>

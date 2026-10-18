@@ -101,13 +101,16 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                     <?php if ($isMD): ?>
                     <span class="cr-chip <?= $sCfg['chip'] ?>"><i class="bi <?= $sCfg['icon'] ?>"></i><?= $sCfg['label'] ?><?= ($item['versi'] ?? 1) > 1 ? ' · v' . (int) $item['versi'] : '' ?></span>
                     <?php endif; ?>
-                    <?php if ($tipe === 'digital' && ($item['platform'] ?? '')): ?>
-                    <span class="cr-chip cr-chip-t"><i class="bi bi-<?= $item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone') ?>"></i><?= esc($platformLabels[$item['platform']] ?? $item['platform']) ?></span>
+                    <?php // Konten Digital: platform + format digabung satu lencana (rinciannya ada di judul & panel Detail) agar baris tetap ramping
+                    $platTxt = ($tipe === 'digital' && ($item['platform'] ?? '')) ? ($platformLabels[$item['platform']] ?? $item['platform']) : '';
+                    $platIco = $platTxt !== '' ? 'bi-' . ($item['platform'] === 'ig' ? 'instagram' : ($item['platform'] === 'tiktok' ? 'tiktok' : 'phone')) : 'bi-aspect-ratio';
+                    $platFmt = trim($platTxt . (($isDig && $fmtLbl !== '') ? ($platTxt !== '' ? ' · ' : '') . $fmtLbl : ''));
+                    if ($platFmt !== ''): ?>
+                    <span class="cr-chip cr-chip-t cr-sec" title="<?= esc(trim('Platform: ' . $platTxt . ($fmtJ . $fmtU !== '' ? ' · Format · ukuran: ' . trim($fmtJ . ' ' . $fmtU) : '')), 'attr') ?>"><i class="bi <?= $platIco ?>"></i><?= esc($platFmt) ?></span>
                     <?php endif; ?>
-                    <?php if ($isDig && $fmtLbl !== ''): ?><span class="cr-chip cr-chip-blue" title="Format konten · ukuran: <?= esc(trim($fmtJ . ' ' . $fmtU), 'attr') ?>"><i class="bi bi-aspect-ratio"></i><?= esc($fmtLbl) ?></span><?php endif; ?>
                     <?php if ($isDig && !$rencana): ?><span class="cr-chip <?= $knChip[$kn['key']] ?><?= $kn['turunan'] ? ' is-turunan' : '' ?>" title="<?= $kn['diatur'] ? 'Status konten: ' . $kn['label'] : ($kn['turunan'] ? 'Ada insight, jadi ditampilkan Dilaporkan. Status belum tersimpan; gunakan Atur status.' : 'Status konten belum diatur (item lama). Gunakan Atur status.') ?>"><i class="bi <?= $knIcon[$kn['key']] ?>"></i><?= $kn['label'] ?></span><?php endif; ?>
-                    <?php if (!$isS): ?><span class="cr-chip cr-chip-gold" title="Dikerjakan di tab Creative event"><i class="bi bi-eye"></i>Baca-saja</span><?php endif; ?>
-                    <?php if ($closed): ?><span class="cr-chip cr-chip-mute"><i class="bi bi-check2-circle"></i>Selesai</span><?php endif; ?>
+                    <?php if (!$isS): ?><span class="cr-chip cr-chip-gold cr-sec" title="Dikerjakan di tab Creative event"><i class="bi bi-eye"></i>Baca-saja</span><?php endif; ?>
+                    <?php if ($closed): ?><span class="cr-chip cr-chip-mute cr-sec"><i class="bi bi-check2-circle"></i>Selesai</span><?php endif; ?>
                     <?php if ($dl['key'] === 'done'): ?>
                     <span class="cr-chip cr-chip-ok" title="Deadline: <?= $fTgl($item['deadline']) ?>"><i class="bi bi-check-circle"></i>Tepat waktu</span>
                     <?php elseif ($dl['key'] === 'late'): ?>
@@ -119,8 +122,8 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                     <?php endif; ?>
                     <?php if ($perluTinjau): ?><span class="cr-chip cr-chip-warn"><i class="bi bi-clipboard-check"></i>Perlu ditinjau</span><?php endif; ?>
                     <?php if ($iDobel): ?><span class="cr-chip cr-chip-warn" title="Item ini punya realisasi manual di bulan yang sama dengan biaya FlowStore tertaut (<?= esc(implode(', ', $iDobel), 'attr') ?>). Periksa agar tidak terhitung dua kali; angka tidak diubah."><i class="bi bi-files"></i>Kemungkinan dobel</span><?php endif; ?>
-                    <?php if ($temaTutup): ?><span class="cr-chip cr-chip-mute" title="Tema sudah ditutup; buka kembali Tema untuk mengubah"><i class="bi bi-lock-fill"></i>Tema ditutup</span>
-                    <?php elseif ($terkunci && $canEdit): ?><span class="cr-chip cr-chip-mute" title="Buka kembali materi di panel Opsi &amp; Persetujuan bila perlu diubah"><i class="bi bi-lock-fill"></i>Terkunci</span><?php endif; ?>
+                    <?php if ($temaTutup): ?><span class="cr-chip cr-chip-mute cr-sec" title="Tema sudah ditutup; buka kembali Tema untuk mengubah"><i class="bi bi-lock-fill"></i>Tema ditutup</span>
+                    <?php elseif ($terkunci && $canEdit): ?><span class="cr-chip cr-chip-mute cr-sec" title="Hanya lead Creative atau admin yang dapat membuka kembali materi ini"><i class="bi bi-lock-fill"></i>Terkunci</span><?php endif; ?>
                 </div>
                 <div class="cr-item-meta">
                     <?php if ($itgl && !($isDig && $itgl === ($item['tanggal_take'] ?? ''))): ?><span><i class="bi bi-calendar3"></i><?= $fTgl($itgl) ?></span><?php endif; ?>
@@ -149,7 +152,7 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                     <?php if ($tipe === 'digital'): ?>
                     <div data-l="Reach"><b class="<?= $actReach > 0 ? '' : 'cr-nil' ?>"><?= $actReach > 0 ? number_format($actReach, 0, ',', '.') : '—' ?></b><?php if ($tgtReach > 0): ?> <span class="cr-fig-s">/ <?= number_format($tgtReach, 0, ',', '.') ?></span><?php endif; ?></div>
                     <?php else: ?>
-                    <div data-l="Serapan"><b class="<?= $iPct !== null && $adaReal ? '' : 'cr-nil' ?>"><?= $iPct !== null && $adaReal ? $iPct . '%' : '—' ?></b></div>
+                    <div data-l="Serapan"><b class="<?= $iPct !== null && $adaReal && $iTotal > 0 ? '' : 'cr-nil' ?>"><?= $iPct !== null && $adaReal && $iTotal > 0 ? $iPct . '%' : '—' ?></b></div>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>

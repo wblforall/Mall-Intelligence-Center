@@ -50,7 +50,7 @@ foreach (($grouped ?? []) as $divName => $deptGroups) {
         <?php foreach ($divisis as $dv): ?><option value="<?= $dv['id'] ?>" <?= (int) $filterDiv === (int) $dv['id'] ? 'selected' : '' ?>><?= esc($dv['nama']) ?></option><?php endforeach; ?>
     </select>
     <select name="dept_id" class="wr-select" aria-label="Departemen" onchange="this.form.submit()">
-        <option value="">Semua Departemen</option>
+        <option value="">Semua Dept.</option>
         <?php foreach ($depts as $d): ?><option value="<?= $d['id'] ?>" <?= (int) $filterDept === (int) $d['id'] ? 'selected' : '' ?>><?= esc($d['name']) ?></option><?php endforeach; ?>
     </select>
     <noscript><button type="submit" class="wr-btn wr-btn-sm">Filter</button></noscript>

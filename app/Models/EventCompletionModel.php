@@ -12,12 +12,12 @@ class EventCompletionModel extends Model
     protected $useTimestamps = false;
 
     public const REQUIRED_MODULES = [
-        'content'    => 'Content & Rundown',
+        'content'    => 'Rundown',     // label = nama tab di partials/event_tabs.php
         'loyalty'    => 'Program Loyalty',
         'vm'         => 'Dekorasi & VM',
         'creative'   => 'Creative & Design',
-        'exhibitors' => 'Exhibitor',
-        'sponsors'   => 'Sponsor',
+        'exhibitors' => 'Exhibition',
+        'sponsors'   => 'Sponsorship',
     ];
 
     public function getByEvent(int $eventId): array

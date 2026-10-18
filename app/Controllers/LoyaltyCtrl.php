@@ -707,6 +707,8 @@ class LoyaltyCtrl extends BaseController
         foreach ($hadiahItems as $hi) { (new LoyaltyHadiahRealisasiModel())->where('item_id', $hi['id'])->delete(); }
         (new LoyaltyHadiahItemModel())->where('program_id', $id)->delete();
         (new LoyaltyProgramModel())->delete($id);
+        // analisa bulanan milik program ini (source 's') ikut dihapus; milik program lain tidak disentuh
+        (new LoyaltySummaryAnalysisModel())->where('source', 's')->where('program_id', $id)->delete();
         ActivityLog::write('delete', 'loyalty_program', (string)$id, $prog['nama_program'] ?? '');
         return redirect()->to('/loyalty')->with('success', 'Program berhasil dihapus.');
     }

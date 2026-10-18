@@ -332,7 +332,22 @@ class CreativeCtrl extends BaseController
 
         $allItems = array_merge($standaloneItems, $eventItems);
 
-        $totalBudget    = array_sum(array_column($allItems, 'budget'));
+        // Budget & serapan mengikuti BULAN yang dilihat: hanya item yang Tema-nya (event/tema bulanan) jatuh di bulan ini;
+        // item tanpa Tema memakai bulan tanggal itemnya. Realisasi kumulatif dibatasi ke himpunan item yang sama.
+        $dbm = db_connect();
+        $temaBln = []; foreach ($dbm->table('creative_tema')->select('id,bulan')->get()->getResultArray() as $t) $temaBln[(int) $t['id']] = (string) $t['bulan'];
+        $evBln = []; foreach ($dbm->table('events')->select('id,start_date')->get()->getResultArray() as $e) $evBln[(int) $e['id']] = substr((string) $e['start_date'], 0, 7);
+        $budgetIds = ['s' => [], 'e' => []];
+        $totalBudget = 0;
+        foreach ($allItems as $it) {
+            if ($it['_source'] === 'e') $bi = $evBln[(int) $it['event_id']] ?? '';
+            elseif (! empty($it['tema_id'])) $bi = $temaBln[(int) $it['tema_id']] ?? '';
+            elseif (! empty($it['event_id'])) $bi = $evBln[(int) $it['event_id']] ?? '';
+            else $bi = substr((string) (($it['tanggal'] ?? '') ?: ($it['tanggal_take'] ?? '')), 0, 7);
+            if ($bi !== $bulan) continue;
+            $totalBudget += (int) $it['budget'];
+            $budgetIds[$it['_source']][] = (int) $it['id'];
+        }
         $totalRealisasi = array_sum(array_map(fn($g) => $g['total'] ?? 0, array_merge($sReal, $eReal)));
         $totalReach     = array_sum(array_map(fn($g) => $g['max_reach'] ?? 0, array_merge($sIns, $eIns)));
         $totalImpr      = array_sum(array_map(fn($g) => $g['max_impressions'] ?? 0, array_merge($sIns, $eIns)));
@@ -348,9 +363,9 @@ class CreativeCtrl extends BaseController
         $costPerReach    = $totalReach > 0 ? (int) round($totalRealisasi / $totalReach) : 0;
 
         // Serapan budget kumulatif (realisasi s/d bulan ini ÷ total budget)
-        $realCumulative = (new CreativeRealisasiModel())->getTotalUpTo($bulan, $standaloneIds)
-                        + (new EventCreativeRealisasiModel())->getTotalUpTo($bulan, $eventItemIds)
-                        + $biayaFs->total('standalone', $standaloneIds, $bulan) + $biayaFs->total('event', $eventItemIds, $bulan);
+        $realCumulative = (new CreativeRealisasiModel())->getTotalUpTo($bulan, $budgetIds['s'])
+                        + (new EventCreativeRealisasiModel())->getTotalUpTo($bulan, $budgetIds['e'])
+                        + $biayaFs->total('standalone', $budgetIds['s'], $bulan) + $biayaFs->total('event', $budgetIds['e'], $bulan);
         $serapanPct     = $totalBudget > 0 ? round($realCumulative / $totalBudget * 100, 1) : 0;
 
         // Delta vs bulan sebelumnya
@@ -635,9 +650,9 @@ class CreativeCtrl extends BaseController
             'tipe'         => $post['tipe'],
             'nama'         => $post['nama'],
             'platform'     => $isDigital ? ($post['platform'] ?? null) : null,
-            'tanggal_take' => $isDigital ? ($post['tanggal_take'] ?: null) : null,
-            'jam_take'     => $isDigital ? ($post['jam_take'] ?: null) : null,
-            'pic'          => $isDigital ? ($post['pic'] ?: null) : null,
+            'tanggal_take' => $isDigital ? (($post['tanggal_take'] ?? '') ?: null) : null,
+            'jam_take'     => $isDigital ? (($post['jam_take'] ?? '') ?: null) : null,
+            'pic'          => $isDigital ? (($post['pic'] ?? '') ?: null) : null,
             'deskripsi'    => $post['deskripsi'] ?? null,
             'tanggal'      => ($post['tanggal'] ?? '') ?: null,
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
@@ -697,9 +712,9 @@ class CreativeCtrl extends BaseController
             'tipe'         => $post['tipe'],
             'nama'         => $post['nama'],
             'platform'     => $isDigital ? ($post['platform'] ?? null) : null,
-            'tanggal_take' => $isDigital ? ($post['tanggal_take'] ?: null) : null,
-            'jam_take'     => $isDigital ? ($post['jam_take'] ?: null) : null,
-            'pic'          => $isDigital ? ($post['pic'] ?: null) : null,
+            'tanggal_take' => $isDigital ? (($post['tanggal_take'] ?? '') ?: null) : null,
+            'jam_take'     => $isDigital ? (($post['jam_take'] ?? '') ?: null) : null,
+            'pic'          => $isDigital ? (($post['pic'] ?? '') ?: null) : null,
             'deskripsi'    => $post['deskripsi'] ?? null,
             'tanggal'      => ($post['tanggal'] ?? '') ?: null,
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
@@ -754,7 +769,7 @@ class CreativeCtrl extends BaseController
         if (! $pakai) return redirect()->to('/creative')->with('error', 'Tidak ada item yang dipilih.');
         $h = (new CreativeKontenService())->terapkan($pakai, $this->scopeStatusBoleh());
         $msg = $h['diterapkan'] . ' konten digital diatur statusnya.';
-        if ($h['dilewati']) $msg .= ' ' . count($h['dilewati']) . ' dilewati: ' . implode('; ', array_slice($h['dilewati'], 0, 3)) . (count($h['dilewati']) > 3 ? ', dst.' : '.');
+        if ($h['dilewati']) $msg .= ' ' . count($h['dilewati']) . ' dilewati: ' . implode('; ', array_map(fn($x) => rtrim((string) $x, '. '), array_slice($h['dilewati'], 0, 3))) . (count($h['dilewati']) > 3 ? ', dst.' : '.');
         return redirect()->to('/creative')->with($h['diterapkan'] > 0 ? 'success' : 'error', $msg);
     }
 
@@ -1014,8 +1029,8 @@ class CreativeCtrl extends BaseController
     /** Membuka kembali materi yang sudah disetujui agar bisa diubah. */
     public function buka(int $id)
     {
-        if (! $this->canEditMenu('creative_main') && ! $this->canApproveCreative()) {
-            return redirect()->to('/creative')->with('error', 'Akses ditolak.');
+        if (! $this->canApproveCreative()) {
+            return redirect()->to('/creative')->with('error', 'Hanya lead Creative atau admin yang dapat membuka kembali materi yang sudah disetujui.');
         }
 
         return $this->hasilApproval(

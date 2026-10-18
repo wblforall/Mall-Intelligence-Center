@@ -1,0 +1,44 @@
+/* Halaman akun sederhana (lupa / reset / ganti password): tema gelap navy, seragam dengan halaman login. */
+body.auth-simple {
+    background: radial-gradient(120% 80% at 10% 0%, #1b2a55 0%, #0f172a 55%, #091528 100%) fixed;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem 16px;
+}
+.auth-simple .auth-brand { color: #f8fafc; }
+.auth-simple .auth-brand .fw-bold { letter-spacing: -.01em; }
+.auth-simple .auth-brand .text-muted { color: #e8c872 !important; letter-spacing: .06em; font-size: .72rem !important; }
+.auth-simple .card {
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 1.4rem;
+    background: linear-gradient(150deg, rgba(30,41,75,.72), rgba(15,23,42,.85));
+    color: #e2e8f0;
+    box-shadow: 0 30px 90px rgba(2,6,23,.6), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.auth-simple h5 { color: #f8fafc; }
+.auth-simple .text-muted { color: #94a3b8 !important; }
+.auth-simple .text-primary { color: #93c5fd !important; }
+.auth-simple .form-label { color: #cbd5e1; font-size: .85rem; }
+.auth-simple .form-control, .auth-simple .input-group .btn {
+    background: rgba(15,23,42,.65); border-color: rgba(255,255,255,.14); color: #f1f5f9; padding-top: .7rem; padding-bottom: .7rem;
+}
+.auth-simple .form-control::placeholder { color: #64748b; }
+.auth-simple .form-control:focus { background: rgba(15,23,42,.8); border-color: #60a5fa; box-shadow: 0 0 0 .2rem rgba(96,165,250,.2); color: #fff; }
+.auth-simple .input-group .btn:hover { background: rgba(255,255,255,.08); color: #fff; }
+.auth-simple .bg-light { background: rgba(15,23,42,.55) !important; border-color: rgba(255,255,255,.12) !important; }
+.auth-simple .btn-primary {
+    border: 0; border-radius: 14px; font-weight: 600; min-height: 2.9rem;
+    background: linear-gradient(110deg, #2563eb, #4f46e5, #7c3aed);
+    box-shadow: 0 12px 28px rgba(79,70,229,.35);
+}
+.auth-simple .btn-primary:disabled { opacity: .45; box-shadow: none; }
+.auth-simple a.text-muted:hover { color: #e2e8f0 !important; }
+.auth-simple .alert { border-radius: .8rem; border: 1px solid transparent; }
+.auth-simple .alert-success { background: rgba(34,197,94,.14); border-color: rgba(34,197,94,.35); color: #bbf7d0; }
+.auth-simple .alert-danger  { background: rgba(239,68,68,.14);  border-color: rgba(239,68,68,.4);  color: #fecaca; }
+.auth-simple .req-item { font-size: .85rem; color: #94a3b8; }
+.auth-simple .req-item.ok   { color: #4ade80; }
+.auth-simple .req-item.fail { color: #f87171; }
+.auth-simple #matchMsg.text-success { color: #4ade80 !important; }
+.auth-simple #matchMsg.text-danger  { color: #f87171 !important; }

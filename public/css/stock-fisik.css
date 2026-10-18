@@ -166,6 +166,14 @@ button.sf-kpi.is-on { border-color: var(--sf-kc); box-shadow: 0 0 0 1px var(--sf
 /* ── Print (Mutasi) ─────────────────────────────────────────────────── */
 @media print {
     .page-sf .sf-tools, .page-sf .sf-head-actions, .page-sf .sf-back, .page-sf form.sf-filter { display: none !important; }
+    /* Tabel tak boleh terpotong di tepi kertas: kolom boleh turun baris, baris tidak terbelah. */
+    .page-sf .sf-panel, .page-sf .sf-scroll { overflow: visible !important; }
+    .page-sf .sf-tbl { font-size: .78rem; }
+    .page-sf .sf-tbl th { letter-spacing: 0; padding-left: .35rem; padding-right: .35rem; overflow-wrap: normal; }
+    .page-sf .sf-tbl td { padding-left: .35rem; padding-right: .35rem; }
+    .page-sf .sf-tbl th:first-child, .page-sf .sf-tbl td:first-child { padding-left: .6rem; }
+    .page-sf .sf-tbl th:last-child, .page-sf .sf-tbl td:last-child { padding-right: .6rem; }
+    .page-sf .sf-tbl tr { break-inside: avoid; page-break-inside: avoid; }
 }
 
 /* ── Responsif ──────────────────────────────────────────────────────── */

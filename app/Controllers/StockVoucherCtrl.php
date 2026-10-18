@@ -56,7 +56,7 @@ class StockVoucherCtrl extends BaseController
     public function store()
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Akses ditolak.');
         }
 
         $post   = $this->request->getPost();
@@ -74,13 +74,13 @@ class StockVoucherCtrl extends BaseController
         ]);
 
         ActivityLog::write('create', 'stock_voucher_batch', (string)$id, $post['nama_voucher']);
-        return redirect()->to('/stock/voucher')->with('success', 'Batch voucher berhasil dibuat.');
+        return redirect()->to($this->stockUrl('/stock/voucher'))->with('success', 'Batch voucher berhasil dibuat.');
     }
 
     public function update(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Akses ditolak.');
         }
 
         $post       = $this->request->getPost();
@@ -97,18 +97,18 @@ class StockVoucherCtrl extends BaseController
         ActivityLog::captureAfter($batchData);
 
         ActivityLog::write('update', 'stock_voucher_batch', (string)$id, $post['nama_voucher']);
-        return redirect()->to('/stock/voucher#batch-' . $id)->with('success', 'Batch voucher diupdate.');
+        return redirect()->to($this->stockUrl('/stock/voucher', '#batch-' . $id))->with('success', 'Batch voucher diupdate.');
     }
 
     public function importKode(int $batchId)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Akses ditolak.');
         }
 
         $batchModel = new StockVoucherBatchModel();
         $batch      = $batchModel->find($batchId);
-        if (! $batch) return redirect()->to('/stock/voucher')->with('error', 'Batch tidak ditemukan.');
+        if (! $batch) return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Batch tidak ditemukan.');
 
         $post     = $this->request->getPost();
         $raw      = $post['kodes'] ?? '';
@@ -130,21 +130,21 @@ class StockVoucherCtrl extends BaseController
         ActivityLog::captureAfter($importData);
 
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Import {$inserted} kode ke batch {$batch['nama_voucher']}");
-        return redirect()->to('/stock/voucher#batch-' . $batchId)->with('success', "{$inserted} kode berhasil diimport.");
+        return redirect()->to($this->stockUrl('/stock/voucher', '#batch-' . $batchId))->with('success', "{$inserted} kode berhasil diimport.");
     }
 
     public function deleteKode(int $batchId, int $kodeId)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Akses ditolak.');
         }
 
         $kode = (new StockVoucherKodeModel())->find($kodeId);
         if (! $kode || $kode['batch_id'] != $batchId) {
-            return redirect()->to('/stock/voucher')->with('error', 'Kode tidak ditemukan.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Kode tidak ditemukan.');
         }
         if ($kode['status'] === 'assigned') {
-            return redirect()->to('/stock/voucher')->with('error', 'Kode sudah diassign, tidak bisa dihapus.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Kode sudah diassign, tidak bisa dihapus.');
         }
 
         $batchModel  = new StockVoucherBatchModel();
@@ -160,22 +160,22 @@ class StockVoucherCtrl extends BaseController
         (new StockVoucherLogModel())->record($batchId, 'keluar', 1, $sisaSebelum, 'delete', $kodeId, $this->currentUser()['id'], "Hapus kode {$kode['kode']}");
         ActivityLog::write('delete', 'stock_voucher', (string) $batchId, 'Hapus kode ' . $kode['kode']);
 
-        return redirect()->to('/stock/voucher#batch-' . $batchId)->with('success', 'Kode dihapus.');
+        return redirect()->to($this->stockUrl('/stock/voucher', '#batch-' . $batchId))->with('success', 'Kode dihapus.');
     }
 
     public function distributeKode(int $batchId, int $kodeId)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Akses ditolak.');
         }
 
         $kodeModel = new StockVoucherKodeModel();
         $kode      = $kodeModel->find($kodeId);
         if (! $kode || (int)$kode['batch_id'] !== $batchId) {
-            return redirect()->to('/stock/voucher')->with('error', 'Kode tidak ditemukan.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Kode tidak ditemukan.');
         }
         if ($kode['status'] !== 'available') {
-            return redirect()->to('/stock/voucher')->with('error', 'Kode sudah digunakan.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Kode sudah digunakan.');
         }
 
         $namaPenerima = trim($this->request->getPost('nama_penerima') ?? '');
@@ -189,23 +189,23 @@ class StockVoucherCtrl extends BaseController
         ActivityLog::captureBefore(['status' => $kode['status'], 'nama_penerima' => $kode['nama_penerima'] ?? '']);
         ActivityLog::captureAfter(['status'  => 'assigned',      'nama_penerima' => $namaPenerima]);
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Distribusi manual kode {$kode['kode']}");
-        return redirect()->to('/stock/voucher#batch-' . $batchId)->with('success', "Kode {$kode['kode']} berhasil didistribusikan.");
+        return redirect()->to($this->stockUrl('/stock/voucher', '#batch-' . $batchId))->with('success', "Kode {$kode['kode']} berhasil didistribusikan.");
     }
 
     // Batalkan distribusi MANUAL — kode kembali ke stok tersedia (mis. mau dialokasikan via program)
     public function deassignKode(int $batchId, int $kodeId)
     {
         if (! $this->can('can_deassign_voucher')) {
-            return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak. Anda tidak memiliki izin membatalkan distribusi voucher.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Akses ditolak. Anda tidak memiliki izin membatalkan distribusi voucher.');
         }
 
         $kodeModel = new StockVoucherKodeModel();
         $kode      = $kodeModel->find($kodeId);
         if (! $kode || (int)$kode['batch_id'] !== $batchId) {
-            return redirect()->to('/stock/voucher')->with('error', 'Kode tidak ditemukan.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Kode tidak ditemukan.');
         }
         if ($kode['status'] !== 'assigned' || $kode['program_type'] !== 'manual') {
-            return redirect()->to('/stock/voucher')->with('error', 'Hanya distribusi manual yang bisa dibatalkan di sini. Untuk kode dari program, batalkan lewat realisasi program terkait.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Hanya distribusi manual yang bisa dibatalkan di sini. Untuk kode dari program, batalkan lewat realisasi program terkait.');
         }
 
         $batchModel  = new StockVoucherBatchModel();
@@ -217,28 +217,44 @@ class StockVoucherCtrl extends BaseController
         ActivityLog::captureBefore(['status' => 'assigned',  'nama_penerima' => $kode['nama_penerima'] ?? '']);
         ActivityLog::captureAfter(['status'  => 'available', 'nama_penerima' => '']);
         ActivityLog::write('update', 'stock_voucher_batch', (string)$batchId, "Batal distribusi manual kode {$kode['kode']}");
-        return redirect()->to('/stock/voucher#batch-' . $batchId)->with('success', "Distribusi kode {$kode['kode']} dibatalkan — kembali ke stok tersedia.");
+        return redirect()->to($this->stockUrl('/stock/voucher', '#batch-' . $batchId))->with('success', "Distribusi kode {$kode['kode']} dibatalkan — kembali ke stok tersedia.");
     }
 
     public function deleteBatch(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/voucher')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Akses ditolak.');
         }
 
         $batch = (new StockVoucherBatchModel())->find($id);
-        if (! $batch) return redirect()->to('/stock/voucher')->with('error', 'Batch tidak ditemukan.');
+        if (! $batch) return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Batch tidak ditemukan.');
 
         $assigned = db_connect()->table('stock_voucher_kode')->where('batch_id', $id)->where('status', 'assigned')->countAllResults();
         if ($assigned > 0) {
-            return redirect()->to('/stock/voucher')->with('error', 'Batch masih memiliki kode yang sudah diassign.');
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Batch masih memiliki kode yang sudah diassign.');
         }
 
+        // batch masih ditautkan ke item voucher program/event -> jangan putus tautannya
+        $db = db_connect();
+        $dipakai = 0;
+        foreach (['loyalty_voucher_items', 'event_loyalty_voucher_items', 'loyalty_hadiah_items', 'event_loyalty_hadiah_items'] as $tb) {
+            $dipakai += $db->table($tb)->where('batch_id', $id)->countAllResults();
+        }
+        if ($dipakai > 0) {
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Batch masih dipakai oleh ' . $dipakai . ' item hadiah/voucher program atau event. Lepaskan tautannya dulu.');
+        }
+
+        $db->transStart();
         (new StockVoucherKodeModel())->where('batch_id', $id)->delete();
+        (new StockVoucherLogModel())->where('batch_id', $id)->delete();   // riwayat gerak stok batch ini
         (new StockVoucherBatchModel())->delete($id);
+        $db->transComplete();
+        if (! $db->transStatus()) {
+            return redirect()->to($this->stockUrl('/stock/voucher'))->with('error', 'Gagal menghapus batch. Silakan coba lagi.');
+        }
 
         ActivityLog::write('delete', 'stock_voucher_batch', (string)$id, $batch['nama_voucher']);
-        return redirect()->to('/stock/voucher')->with('success', 'Batch voucher dihapus.');
+        return redirect()->to($this->stockUrl('/stock/voucher'))->with('success', 'Batch voucher dihapus.');
     }
 
     public function getAvailableKodes(int $batchId)

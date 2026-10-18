@@ -35,6 +35,7 @@ $mallLabels = ['ewalk' => 'eWalk Simply FUNtastic', 'pentacity' => 'Pentacity Sh
 $startDate  = $event['start_date'];
 $endDate    = date('Y-m-d', strtotime($startDate . ' +' . ($event['event_days'] - 1) . ' days'));
 $sameDay    = $startDate === $endDate;
+helper('tanggal');
 ?>
 <button class="dk-tombol no-print" onclick="window.print()">Cetak / Simpan PDF</button>
 
@@ -52,8 +53,10 @@ $sameDay    = $startDate === $endDate;
     <div><dt>Lokasi</dt><dd><?= $mallLabels[$event['mall']] ?? esc($event['mall']) ?></dd></div>
     <div><dt>Tanggal</dt><dd>
         <?= $sameDay
-            ? date('d F Y', strtotime($startDate))
-            : date('d', strtotime($startDate)) . '–' . date('d F Y', strtotime($endDate)) ?>
+            ? tgl_indo($startDate)
+            : (date('Y-m', strtotime($startDate)) === date('Y-m', strtotime($endDate))
+                ? date('j', strtotime($startDate)) . '–' . tgl_indo($endDate)
+                : tgl_indo($startDate) . ' – ' . tgl_indo($endDate)) ?>
     </dd></div>
     <div><dt>Durasi</dt><dd><?= $event['event_days'] ?> hari</dd></div>
     <?php if ($event['tema']): ?>
@@ -71,7 +74,7 @@ foreach ($grouped as $hariKe => $rows):
 ?>
 <div class="day-header">
     <span class="hari">Hari <?= $hariKe ?></span>
-    <?php if ($tanggalHari): ?><span><?= date('l, d F Y', strtotime($tanggalHari)) ?></span><?php endif; ?>
+    <?php if ($tanggalHari): ?><span><?= tgl_indo_hari($tanggalHari) ?></span><?php endif; ?>
 </div>
 <table class="dk-tabel">
 <thead>
@@ -112,7 +115,7 @@ foreach ($grouped as $hariKe => $rows):
 <?php endif; ?>
 
 <footer class="dk-kaki">
-    <span><b>Mall Intelligence Center</b> · dicetak <?= date('d F Y, H:i') ?></span>
+    <span><b>Mall Intelligence Center</b> · dicetak <?= tgl_indo(date('Y-m-d H:i:s'), true) ?></span>
     <span>Rundown — <?= esc($event['name']) ?></span>
 </footer>
 

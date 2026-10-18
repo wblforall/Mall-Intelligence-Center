@@ -9,6 +9,7 @@
 
     function $(s, c) { return (c || root).querySelector(s); }
     function $$(s, c) { return Array.prototype.slice.call((c || root).querySelectorAll(s)); }
+    function tglID(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); if (!m) return d || ''; return parseInt(m[3], 10) + ' ' + ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][parseInt(m[2], 10) - 1] + ' ' + m[1]; }
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function modal(id) { return bootstrap.Modal.getOrCreateInstance(document.getElementById(id)); }
     function parse(a) { try { return JSON.parse(a); } catch (e) { return null; } }
@@ -332,7 +333,7 @@
                 $('#detailNamaMateri').textContent = u.nama_materi;
                 $('#detailDeskripsi').textContent = u.deskripsi_materi || '—';
                 $('#detailDept').textContent = u.dept + (u.requested_by ? ' · ' + u.requested_by : '');
-                $('#detailPeriode').textContent = u.tanggal_mulai + ' s/d ' + u.tanggal_selesai;
+                $('#detailPeriode').textContent = tglID(u.tanggal_mulai) + ' s/d ' + tglID(u.tanggal_selesai);
                 $('#detailSumber').textContent = sl[u.sumber] || u.sumber;
                 $('#detailBerbayar').textContent = u.is_berbayar == 1 ? 'Ya' : 'Tidak';
                 $('#detailCatatan').textContent = u.catatan_pemohon || '—';
@@ -490,7 +491,7 @@
             h += row('Dept', esc(u.dept || '–') + (u.requested_by ? ' · ' + esc(u.requested_by) : ''));
             h += row('Materi', '<strong>' + esc(u.nama_materi || '–') + '</strong>');
             if (u.deskripsi_materi) h += row('Keterangan', esc(u.deskripsi_materi));
-            h += row('Periode', esc(u.tanggal_mulai || '') + (u.tanggal_selesai ? ' s/d ' + esc(u.tanggal_selesai) : ''));
+            h += row('Periode', esc(tglID(u.tanggal_mulai)) + (u.tanggal_selesai ? ' s/d ' + esc(tglID(u.tanggal_selesai)) : ''));
             h += row('Sumber', esc(SUMBER[u.sumber] || u.sumber || '–') + ' · ' + (u.is_berbayar == 1 ? 'Berbayar' : 'Gratis'));
             if (u.catatan_pemohon) h += row('Catatan', esc(u.catatan_pemohon));
             if (u.rejection_reason) h += row('Ditolak', esc(u.rejection_reason), true);

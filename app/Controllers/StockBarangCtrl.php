@@ -32,7 +32,7 @@ class StockBarangCtrl extends BaseController
     public function store()
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/barang')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Akses ditolak.');
         }
 
         $post   = $this->request->getPost();
@@ -56,13 +56,13 @@ class StockBarangCtrl extends BaseController
         }
 
         ActivityLog::write('create', 'stock_barang', (string)$id, $post['nama_barang']);
-        return redirect()->to('/stock/barang')->with('success', 'Barang berhasil ditambahkan.');
+        return redirect()->to($this->stockUrl('/stock/barang'))->with('success', 'Barang berhasil ditambahkan.');
     }
 
     public function update(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/barang')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Akses ditolak.');
         }
 
         $post  = $this->request->getPost();
@@ -80,24 +80,24 @@ class StockBarangCtrl extends BaseController
         ActivityLog::captureAfter($barangData);
 
         ActivityLog::write('update', 'stock_barang', (string)$id, $post['nama_barang']);
-        return redirect()->to('/stock/barang')->with('success', 'Barang berhasil diupdate.');
+        return redirect()->to($this->stockUrl('/stock/barang'))->with('success', 'Barang berhasil diupdate.');
     }
 
     public function tambahStok(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/barang')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Akses ditolak.');
         }
 
         $post   = $this->request->getPost();
         $jumlah = (int)($post['jumlah'] ?? 0);
         if ($jumlah <= 0) {
-            return redirect()->to('/stock/barang')->with('error', 'Jumlah harus lebih dari 0.');
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Jumlah harus lebih dari 0.');
         }
 
         $model  = new StockBarangModel();
         $barang = $model->find($id);
-        if (! $barang) return redirect()->to('/stock/barang')->with('error', 'Barang tidak ditemukan.');
+        if (! $barang) return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Barang tidak ditemukan.');
 
         $userId   = $this->currentUser()['id'];
         $stokAwal = (int)$barang['stok_tersedia'];
@@ -107,27 +107,27 @@ class StockBarangCtrl extends BaseController
         ActivityLog::captureBefore(['stok_tersedia' => $stokAwal]);
         ActivityLog::captureAfter(['stok_tersedia'  => $stokAwal + $jumlah]);
         ActivityLog::write('update', 'stock_barang', (string)$id, "Tambah stok {$barang['nama_barang']} +{$jumlah}", ['jumlah_masuk' => $jumlah, 'catatan' => $post['catatan'] ?? null]);
-        return redirect()->to('/stock/barang')->with('success', "Stok {$barang['nama_barang']} berhasil ditambah {$jumlah} {$barang['satuan']}.");
+        return redirect()->to($this->stockUrl('/stock/barang'))->with('success', "Stok {$barang['nama_barang']} berhasil ditambah {$jumlah} {$barang['satuan']}.");
     }
 
     public function storeRealisasi(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/barang')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Akses ditolak.');
         }
 
         $post   = $this->request->getPost();
         $jumlah = (int)($post['jumlah'] ?? 0);
         if ($jumlah <= 0) {
-            return redirect()->to('/stock/barang')->with('error', 'Jumlah harus lebih dari 0.');
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Jumlah harus lebih dari 0.');
         }
 
         $model  = new StockBarangModel();
         $barang = $model->find($id);
-        if (! $barang) return redirect()->to('/stock/barang')->with('error', 'Barang tidak ditemukan.');
+        if (! $barang) return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Barang tidak ditemukan.');
 
         if ($jumlah > (int)$barang['stok_tersedia']) {
-            return redirect()->to('/stock/barang')->with('error', 'Jumlah melebihi stok tersedia.');
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Jumlah melebihi stok tersedia.');
         }
 
         $userId  = $this->currentUser()['id'];
@@ -141,7 +141,7 @@ class StockBarangCtrl extends BaseController
         ActivityLog::captureBefore(['stok_tersedia' => $stokAwal]);
         ActivityLog::captureAfter(['stok_tersedia'  => $stokAwal - $jumlah]);
         ActivityLog::write('update', 'stock_barang', (string)$id, "Distribusi manual {$barang['nama_barang']} -{$jumlah}", ['jumlah_keluar' => $jumlah, 'catatan' => $catatan]);
-        return redirect()->to('/stock/barang')->with('success', "{$jumlah} {$barang['satuan']} {$barang['nama_barang']} berhasil dikeluarkan.");
+        return redirect()->to($this->stockUrl('/stock/barang'))->with('success', "{$jumlah} {$barang['satuan']} {$barang['nama_barang']} berhasil dikeluarkan.");
     }
 
     public function mutasi()
@@ -150,7 +150,12 @@ class StockBarangCtrl extends BaseController
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
-        $bulan = $this->request->getGet('bulan') ?: date('Y-m');
+        $bulan = $this->request->getGet('bulan');
+        if (! $bulan || ! preg_match('/^\d{4}-\d{2}$/', (string)$bulan)) {
+            // Tanpa ?bulan= ikuti periode Summary yang dibawa (?from=), bukan bulan berjalan.
+            $from  = (string)$this->request->getGet('from');
+            $bulan = preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) ? substr($from, 0, 7) : date('Y-m');
+        }
         $barangId = (int)($this->request->getGet('barang_id') ?? 0) ?: null;
 
         [$tahun, $bln] = explode('-', $bulan);
@@ -187,17 +192,26 @@ class StockBarangCtrl extends BaseController
     public function delete(int $id)
     {
         if (! $this->canEditMenu('loyalty_main')) {
-            return redirect()->to('/stock/barang')->with('error', 'Akses ditolak.');
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Akses ditolak.');
         }
 
         $model  = new StockBarangModel();
         $barang = $model->find($id);
-        if (! $barang) return redirect()->to('/stock/barang')->with('error', 'Barang tidak ditemukan.');
+        if (! $barang) return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Barang tidak ditemukan.');
+
+        // barang masih dipakai item hadiah program / event -> tolak (jangan memutus tautan hadiah)
+        $db = db_connect();
+        $nProg = $db->table('loyalty_hadiah_items')->where('barang_id', $id)->countAllResults();
+        $nEv   = $db->table('event_loyalty_hadiah_items')->where('barang_id', $id)->countAllResults();
+        if ($nProg + $nEv > 0) {
+            $rinci = array_filter([$nProg ? $nProg . ' item hadiah program' : '', $nEv ? $nEv . ' item hadiah event' : '']);
+            return redirect()->to($this->stockUrl('/stock/barang'))->with('error', 'Barang "' . $barang['nama_barang'] . '" tidak bisa dihapus: masih dipakai ' . implode(' dan ', $rinci) . '. Lepaskan dari hadiah itu dulu.');
+        }
 
         (new StockBarangLogModel())->where('barang_id', $id)->delete();
         $model->delete($id);
 
         ActivityLog::write('delete', 'stock_barang', (string)$id, $barang['nama_barang']);
-        return redirect()->to('/stock/barang')->with('success', 'Barang dihapus.');
+        return redirect()->to($this->stockUrl('/stock/barang'))->with('success', 'Barang dihapus.');
     }
 }

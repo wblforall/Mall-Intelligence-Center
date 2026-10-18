@@ -5,6 +5,7 @@
 .sec-toggle .sec-chevron { transition: transform .25s ease; transform: rotate(-90deg); }
 .sec-toggle.sec-open .sec-chevron { transform: rotate(0deg); }
 .sec-body { overflow: hidden; transition: height .3s cubic-bezier(.4,0,.2,1); }
+.min-w-0 { min-width: 0; }   /* kolom teks boleh menyusut: tombol ⋯ tidak mendorong halaman melebar di ponsel */
 .loy-actions .dropdown-menu { min-width: 160px; }
 .loy-actions .dropdown-item { font-size: .82rem; padding: .35rem .9rem; }
 </style>

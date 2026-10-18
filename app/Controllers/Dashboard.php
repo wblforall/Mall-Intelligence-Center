@@ -92,6 +92,8 @@ class Dashboard extends BaseController
             'bbm_per'   => $this->getBbmPer(),
         ];
 
+        $economicData = $this->terapkanRisetAi($economicData);
+
         $themePeriods = (new ThemePeriodModel())->getTodayPeriods();
 
         return view('dashboard/index', [
@@ -634,6 +636,47 @@ class Dashboard extends BaseController
         $row = db_connect()->table('economic_indicators')
             ->where('key', 'bbm_per')->get()->getRowArray();
         return $row ? $row['value'] : date('M Y');
+    }
+
+    /**
+     * Strip & kartu indikator makro: pakai HASIL RISET AI (snapshot web_* di eco_snapshots) bila ada, angkanya valid, dan
+     * tidak basi; selain itu tetap nilai lama (input manual admin / cache live). Tidak menulis apa pun ke DB.
+     * Setiap indikator diberi 'sumber_jenis' (riset|manual|live) dan 'sumber_label' ("Riset AI · 17 Okt" / "Input manual · 27 Mei").
+     */
+    private function terapkanRisetAi(array $eco): array
+    {
+        $bln = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        $pendek = static function (?string $waktu) use ($bln): string {
+            $t = $waktu ? strtotime($waktu) : false;
+            return $t ? date('j', $t) . ' ' . $bln[(int) date('n', $t) - 1] : '';
+        };
+        $peta = ['bi_rate' => 'bi_rate', 'inflation' => 'inflasi', 'gdp' => 'pdb', 'gdp_bpn' => 'pdrb_bpn'];
+        $manual = [];
+        try {
+            foreach (db_connect()->table('economic_indicators')->select('key,updated_at')->whereIn('key', ['gdp', 'gdp_bpn'])->get()->getResultArray() as $r) $manual[$r['key']] = $r['updated_at'];
+        } catch (\Throwable $e) {
+        }
+        foreach ($peta as $kunci => $idAi) {
+            $w = null;
+            try { $w = \App\Libraries\AiEkonomi::ambilWeb($idAi); } catch (\Throwable $e) { }
+            $p = $w['payload'] ?? [];
+            $angka = \App\Libraries\AiEkonomi::angkaValid(str_replace(['.', ','], ['', '.'], (string) ($p['nilai'] ?? '')));
+            $umur = $w ? (time() - (strtotime((string) $w['diambil_pada']) ?: 0)) / 86400 : 9999;
+            if ($w && $angka !== null && trim((string) ($p['periode'] ?? '')) !== '' && $umur <= \App\Libraries\AiEkonomi::BASI_HARI) {
+                $eco[$kunci] = [
+                    'pct' => (string) $p['nilai'], 'per' => (string) $p['periode'], 'live' => false, 'loading' => false,
+                    'sumber_jenis' => 'riset', 'sumber_label' => 'Riset AI · ' . $pendek($w['diambil_pada']),
+                ];
+                continue;
+            }
+            $d = $eco[$kunci];
+            if (! empty($d['live'])) { $eco[$kunci]['sumber_jenis'] = 'live'; $eco[$kunci]['sumber_label'] = 'Live'; }
+            elseif (empty($d['loading'])) {
+                $eco[$kunci]['sumber_jenis'] = 'manual';
+                $eco[$kunci]['sumber_label'] = 'Input manual' . (isset($manual[$kunci]) ? ' · ' . $pendek($manual[$kunci]) : '');
+            }
+        }
+        return $eco;
     }
 
     private function getMacroIndicator(string $key, string $defaultPct, string $defaultPer): array

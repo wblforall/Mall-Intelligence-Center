@@ -219,7 +219,7 @@ $marginPct = $totalRevenue > 0 ? round($profit / $totalRevenue * 100, 1) : 0;
     <div class="kpi-box <?= $profitPos ? 'kpi-blue' : 'kpi-red' ?>">
         <div class="kpi-label">Margin Profit</div>
         <div class="kpi-num <?= $profitPos ? 'text-blue' : 'text-red' ?>"><?= $profitPos ? '' : '−' ?>Rp <?= number_format(abs($profit), 0, ',', '.') ?></div>
-        <div class="kpi-sub"><span class="<?= $profitPos ? 'delta-up' : 'delta-down' ?>"><?= ($marginPct >= 0 ? '+' : '') ?><?= $marginPct ?>%</span> margin · Revenue − Realisasi</div>
+        <div class="kpi-sub"><?php if ($totalRevenue > 0): ?><span class="<?= $profitPos ? 'delta-up' : 'delta-down' ?>"><?= ($marginPct >= 0 ? '+' : '') ?><?= $marginPct ?>%</span> margin<?php else: ?>margin —<?php endif; ?> · Revenue − Realisasi</div>
     </div>
 </div>
 

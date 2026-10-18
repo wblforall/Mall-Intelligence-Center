@@ -53,14 +53,18 @@ class CreativeTurunanOtomatis
 
         $butuh   = self::kumpulkan($sumber, $kind, $tid);
         $designs = self::designs($kind, $tid);
-        if ($butuh && ! $designs) $designs = [self::buatDesign($kind, $tid, $uid)];
+        $default = self::designInduk($designs, $kind, $tid);
+        if ($butuh && ! $default) {
+            $default = self::buatDesign($kind, $tid, $uid);
+            $designs[] = $default;
+        }
 
         // ── kelompokkan: (design, jenis, ukuran) -> satu kebutuhan ──
         $grup = [];
         $byRef = [];
         foreach ($designs as $d) $byRef[$d['scope'] . ':' . $d['id']] = $d;
         foreach ($butuh as $b) {
-            $d  = $byRef[$b['design_ref'] ?? ''] ?? ($designs[0] ?? null);
+            $d  = $byRef[$b['design_ref'] ?? ''] ?? $default;
             if (! $d) continue;
             $nu = CreativeTitikService::normUkuran($b['ukuran']);
             $nj = mb_strtolower(trim(preg_replace('/\s+/', ' ', $b['jenis'])));
@@ -108,8 +112,12 @@ class CreativeTurunanOtomatis
             }
             $tanda = 'Tidak lagi dipakai ' . (self::LABEL[$sumber] ?? $sumber) . ($alasan !== '' ? ' (' . $alasan . ')' : '');
             if ((string) $r['penanda'] === '') {   // penanda pertama (alasan awal) dipertahankan
-                $db->table('creative_turunan')->where('id', (int) $r['id'])->update(['penanda' => mb_substr($tanda, 0, 160), 'updated_at' => $now]);
+                // keterangan "Dipakai di N ..." sudah basi -> dikosongkan (penanda menjelaskan keadaannya)
+                $db->table('creative_turunan')->where('id', (int) $r['id'])->update(['penanda' => mb_substr($tanda, 0, 160), 'keterangan' => '', 'updated_at' => $now]);
                 $hasil['ditandai']++;
+            } elseif (strncmp((string) $r['keterangan'], 'Dipakai di', 10) === 0) {
+                $db->table('creative_turunan')->where('id', (int) $r['id'])->update(['keterangan' => '', 'updated_at' => $now]);
+                $hasil['diubah']++;
             }
         }
 
@@ -164,14 +172,34 @@ class CreativeTurunanOtomatis
         $db = db_connect();
         $out = [];
         if ($kind === 'e') {
-            foreach ($db->table('event_creative_items')->select('id,nama')->where('event_id', $tid)->where('tipe', 'master_design')->orderBy('urutan')->orderBy('id')->get()->getResultArray() as $r) {
-                $out[] = ['scope' => 'event', 'id' => (int) $r['id'], 'nama' => $r['nama']];
+            foreach ($db->table('event_creative_items')->select('id,nama,dari_paket')->where('event_id', $tid)->where('tipe', 'master_design')->orderBy('urutan')->orderBy('id')->get()->getResultArray() as $r) {
+                $out[] = ['scope' => 'event', 'id' => (int) $r['id'], 'nama' => $r['nama'], 'rencana' => ! empty($r['dari_paket'])];
             }
         }
-        $b = $db->table('creative_items')->select('id,nama')->where('tipe', 'master_design')->orderBy('urutan')->orderBy('id');
+        $b = $db->table('creative_items')->select('id,nama,dari_paket')->where('tipe', 'master_design')->orderBy('urutan')->orderBy('id');
         $kind === 'e' ? $b->where('event_id', $tid) : $b->where('tema_id', $tid);
-        foreach ($b->get()->getResultArray() as $r) $out[] = ['scope' => 'standalone', 'id' => (int) $r['id'], 'nama' => $r['nama']];
+        foreach ($b->get()->getResultArray() as $r) $out[] = ['scope' => 'standalone', 'id' => (int) $r['id'], 'nama' => $r['nama'], 'rencana' => ! empty($r['dari_paket'])];
         return $out;
+    }
+
+    /**
+     * Design induk bawaan yang STABIL: (1) Design yang sudah dipakai turunan otomatis Tema ini (dari sumber mana pun)
+     * dan masih ada; (2) kalau belum ada, Design non-Rencana pertama (bila hanya ada Design Rencana, yang pertama). Tidak pindah otomatis bila Design baru ditambah;
+     * pindah hanya bila induk lama dihapus.
+     */
+    private static function designInduk(array $designs, string $kind, int $tid): ?array
+    {
+        $byRef = [];
+        foreach ($designs as $d) $byRef[$d['scope'] . ':' . $d['id']] = $d;
+        $like = [];
+        foreach ([self::SUMBER_CETAK, self::SUMBER_DIGITAL] as $sb) $like[] = $sb . ':' . $kind . $tid;
+        $rows = db_connect()->table('creative_turunan')->select('scope,item_id')->where('sumber', 'otomatis')->whereIn('sumber_ref', $like)->orderBy('id')->get()->getResultArray();
+        foreach ($rows as $r) {
+            $k = $r['scope'] . ':' . $r['item_id'];
+            if (isset($byRef[$k])) return $byRef[$k];
+        }
+        foreach ($designs as $d) if (empty($d['rencana'])) return $d;
+        return $designs[0] ?? null;   // hanya ada Design "Rencana": dipakai seperti semula (lencana Rencana hilang setelah turunan dibuat)
     }
 
     /** Daftar Design induk Tema untuk pilihan di formulir. */

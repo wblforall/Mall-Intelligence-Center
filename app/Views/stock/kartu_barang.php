@@ -34,7 +34,8 @@ $kartuNama = 'barang';
     </div>
 </div>
 
-<div class="card mb-3"><div class="card-body py-2">
+<div class="d-none d-print-block small mb-2">Periode: <?= date('d M Y', strtotime($from)) ?> – <?= date('d M Y', strtotime($to)) ?></div>
+<div class="card mb-3 no-print"><div class="card-body py-2">
 <form method="GET" class="row g-2 align-items-end">
     <input type="hidden" name="ret" value="<?= esc($ret) ?>">
     <div class="col-auto"><label class="form-label small fw-semibold mb-1">Dari</label>
@@ -48,7 +49,7 @@ $kartuNama = 'barang';
 
 <div class="card">
 <div class="table-responsive">
-<table class="table table-sm table-hover mb-0 align-middle">
+<table class="table table-sm table-hover mb-0 align-middle kb-tbl">
     <thead class="table-light"><tr>
         <th class="ps-3" style="width:110px">Tanggal</th>
         <th style="width:90px">Jenis</th>
@@ -61,7 +62,7 @@ $kartuNama = 'barang';
     </tr></thead>
     <tbody>
     <?php if (empty($entries)): ?>
-    <tr><td colspan="8" class="text-center text-muted py-4">Belum ada mutasi pada periode ini.</td></tr>
+    <tr><td colspan="8" class="text-center text-muted py-4 kb-empty">Belum ada mutasi pada periode ini.</td></tr>
     <?php endif; ?>
     <?php foreach ($entries as $e):
         $masuk = $e['tipe'] === 'masuk';
@@ -106,6 +107,25 @@ $kartuNama = 'barang';
 .kb-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .kb-miss { opacity: .55; }
 a.kb-thumb { cursor: zoom-in; }
+/* Ponsel (<576px): tiap mutasi jadi kartu ringkas; 'Penerima & Bukti' pindah ke baris kedua di bawah baris mutasi, tanpa geser horizontal. */
+@media (max-width: 575.98px) {
+    .kb-tbl, .kb-tbl tbody { display: block; width: 100%; }
+    .kb-tbl thead { display: none; }
+    .kb-tbl tr { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .75rem; padding: .6rem .75rem; border-bottom: 1px solid var(--bs-border-color); }
+    .kb-tbl td { display: block; width: auto; padding: 0 !important; border: 0 !important; text-align: left !important; background: transparent !important; box-shadow: none !important; }
+    .kb-tbl td.kb-empty { width: 100%; text-align: center !important; padding: 1.5rem 0 !important; }
+    .kb-tbl td:nth-child(1) { order: 1; font-weight: 600; }
+    .kb-tbl td:nth-child(2) { order: 2; }
+    .kb-tbl td:nth-child(3) { order: 3; }
+    .kb-tbl td:nth-child(4) { order: 4; margin-left: auto; text-align: right !important; }
+    .kb-tbl td:nth-child(4)::before { content: 'Saldo '; color: var(--bs-secondary-color); font-size: .75rem; }
+    .kb-tbl td:nth-child(5) { order: 5; }
+    .kb-tbl td.kb-rec { order: 6; flex: 0 0 100%; min-width: 0; padding-top: .35rem !important; }
+    .kb-tbl td.kb-rec:empty, .kb-tbl td.kb-rec:not(:has(*)) { display: none; }
+    .kb-tbl td:nth-child(7) { order: 7; flex: 0 0 100%; }
+    .kb-tbl td:nth-child(7):empty { display: none; }
+    .kb-tbl td:nth-child(8) { order: 8; flex: 0 0 100%; }
+}
 @media print { .btn, form, .modal { display: none !important; } .kb-thumb { width: 26px; height: 26px; } }
 </style>
 
@@ -118,6 +138,14 @@ a.kb-thumb { cursor: zoom-in; }
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
+<script>
+/* Cetak selalu di kertas terang: tema gelap membuat teks nyaris putih di atas kertas putih. */
+(function () {
+    var h = document.documentElement, t = null;
+    window.addEventListener('beforeprint', function () { t = [h.getAttribute('data-theme'), h.getAttribute('data-bs-theme')]; h.setAttribute('data-theme', 'light'); h.setAttribute('data-bs-theme', 'light'); });
+    window.addEventListener('afterprint', function () { if (t) { h.setAttribute('data-theme', t[0]); h.setAttribute('data-bs-theme', t[1]); t = null; } });
+})();
+</script>
 <script>
 document.addEventListener('click', function (e) {
     var a = e.target.closest('a[data-kb-img]');

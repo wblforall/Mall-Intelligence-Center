@@ -80,8 +80,8 @@ $serapanCls = $serapanPct > 100 ? 'cr-c-bad' : ($serapanPct >= 80 ? 'cr-c-warn' 
         <div class="cr-kpi-v"><?= $totalItems ?></div>
         <div class="cr-kpi-s"><?= $activeCount ?> aktif bulan ini</div>
     </div>
-    <div class="cr-kpi" title="Realisasi s/d bulan ini <?= $rp($realCumulative) ?> dari budget <?= $rp($totalBudget) ?>">
-        <div class="cr-kpi-l">Budget &amp; Serapan</div>
+    <div class="cr-kpi" title="Budget item Tema <?= esc($bulanLabel, 'attr') ?>. Realisasi item itu s/d bulan ini <?= $rp($realCumulative) ?> dari budget <?= $rp($totalBudget) ?>">
+        <div class="cr-kpi-l">Budget <?= esc($bulanLabel) ?> &amp; Serapan</div>
         <div class="cr-kpi-v"><?= $rp($totalBudget) ?></div>
         <div class="cr-kpi-s"><?php if ($totalBudget > 0): ?>serapan <b class="<?= $serapanCls ?>"><?= $serapanPct ?>%</b><?php else: ?>budget belum di-set<?php endif; ?></div>
         <?php if ($totalBudget > 0): ?><div class="cr-bar <?= $serapanPct > 100 ? 'cr-bar-over' : 'cr-bar-ok' ?>"><i style="width:<?= min(100, $serapanPct) ?>%"></i></div><?php endif; ?>

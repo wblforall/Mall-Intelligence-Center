@@ -1,29 +1,23 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Buat Password Baru — Mall Intelligence Center</title>
+<title>Create New Password — Mall Intelligence Center</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<style>
-body { background:#f0f2f5; min-height:100vh; display:flex; align-items:center; justify-content:center; }
-.card { border:none; border-radius:1rem; box-shadow:0 8px 32px rgba(0,0,0,.10); }
-.req-item { font-size:.85rem; }
-.req-item.ok  { color:#16a34a; }
-.req-item.fail { color:#dc2626; }
-</style>
+<link rel="stylesheet" href="<?= base_url('css/auth-simple.css') ?>?v=<?= @filemtime(FCPATH . 'css/auth-simple.css') ?>">
 </head>
-<body>
+<body class="auth-simple">
 <div class="container" style="max-width:460px">
-    <div class="text-center mb-4">
+    <div class="text-center mb-4 auth-brand">
         <div class="fw-bold fs-5">Mall Intelligence Center</div>
         <div class="text-muted small">PT. Wulandari Bangun Laksana Tbk.</div>
     </div>
     <div class="card p-4">
         <div class="mb-3">
-            <h5 class="fw-bold mb-1"><i class="bi bi-shield-lock me-2 text-primary"></i>Buat Password Baru</h5>
-            <div class="text-muted small">Password default Anda perlu diganti sebelum melanjutkan. Pastikan password memenuhi standar keamanan di bawah.</div>
+            <h5 class="fw-bold mb-1"><i class="bi bi-shield-lock me-2 text-primary"></i>Create a new password</h5>
+            <div class="text-muted small">Your default password must be changed before you continue. Make sure it meets the security requirements below.</div>
         </div>
 
         <?php if (session()->getFlashdata('error')): ?>
@@ -43,14 +37,14 @@ body { background:#f0f2f5; min-height:100vh; display:flex; align-items:center; j
         <form method="post" action="<?= base_url('change-password') ?>" id="pwForm">
             <?= csrf_field() ?>
             <div class="mb-3">
-                <label class="form-label fw-semibold">Password Baru</label>
+                <label class="form-label fw-semibold">New password</label>
                 <div class="input-group">
                     <input type="password" name="password" id="password" class="form-control" required autofocus>
                     <button type="button" class="btn btn-outline-secondary" id="togglePw"><i class="bi bi-eye"></i></button>
                 </div>
             </div>
             <div class="mb-3">
-                <label class="form-label fw-semibold">Konfirmasi Password</label>
+                <label class="form-label fw-semibold">Confirm password</label>
                 <div class="input-group">
                     <input type="password" name="password_confirm" id="password_confirm" class="form-control" required>
                     <button type="button" class="btn btn-outline-secondary" id="togglePw2"><i class="bi bi-eye"></i></button>
@@ -59,16 +53,16 @@ body { background:#f0f2f5; min-height:100vh; display:flex; align-items:center; j
             </div>
 
             <div class="border rounded p-2 mb-3 bg-light">
-                <div class="small fw-semibold mb-1 text-muted">Syarat password:</div>
-                <div class="req-item" id="req-len"><i class="bi bi-circle me-1"></i>Minimal 8 karakter</div>
-                <div class="req-item" id="req-upper"><i class="bi bi-circle me-1"></i>Minimal 1 huruf kapital (A–Z)</div>
-                <div class="req-item" id="req-lower"><i class="bi bi-circle me-1"></i>Minimal 1 huruf kecil (a–z)</div>
-                <div class="req-item" id="req-num"><i class="bi bi-circle me-1"></i>Minimal 1 angka (0–9)</div>
-                <div class="req-item" id="req-sym"><i class="bi bi-circle me-1"></i>Minimal 1 simbol (!@#$%^&* dll)</div>
+                <div class="small fw-semibold mb-1 text-muted">Password requirements:</div>
+                <div class="req-item" id="req-len"><i class="bi bi-circle me-1"></i>At least 8 characters</div>
+                <div class="req-item" id="req-upper"><i class="bi bi-circle me-1"></i>At least 1 uppercase letter (A–Z)</div>
+                <div class="req-item" id="req-lower"><i class="bi bi-circle me-1"></i>At least 1 lowercase letter (a–z)</div>
+                <div class="req-item" id="req-num"><i class="bi bi-circle me-1"></i>At least 1 number (0–9)</div>
+                <div class="req-item" id="req-sym"><i class="bi bi-circle me-1"></i>At least 1 symbol (!@#$%^&* etc.)</div>
             </div>
 
             <button type="submit" class="btn btn-primary w-100" id="submitBtn" disabled>
-                <i class="bi bi-check-circle me-1"></i>Simpan Password
+                <i class="bi bi-check-circle me-1"></i>Save password
             </button>
         </form>
     </div>
@@ -105,7 +99,7 @@ function checkMatch(rulesOk) {
     const ok = pw.value && pw.value === pw2.value;
     if (pw2.value) {
         matchMsg.classList.remove('d-none');
-        matchMsg.textContent = ok ? '✓ Password cocok' : '✗ Password tidak cocok';
+        matchMsg.textContent = ok ? '✓ Passwords match' : '✗ Passwords do not match';
         matchMsg.className = 'small mt-1 ' + (ok ? 'text-success' : 'text-danger');
     } else {
         matchMsg.classList.add('d-none');

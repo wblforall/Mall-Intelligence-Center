@@ -311,6 +311,19 @@ class BudgetFsSinkron
             }
             return;
         }
+        // "Perlu ditinjau" yang feed-nya kini normal lagi (BTB tidak batal, ada di feed, nilai sama dengan realisasi):
+        // status TIDAK diubah otomatis; hanya catatannya diganti agar tidak basi. Peninjau tetap yang memutuskan.
+        if ($p['status'] === 'perlu_ditinjau' && ! empty($p['realisasi_id']) && ! $hilang) {
+            $r = $this->db->table('budget_realisasi')->select('nilai')->where('id', $p['realisasi_id'])->get()->getRowArray();
+            if ($r && abs((float) $r['nilai'] - (float) $fs['nilai_diterima']) <= 0.5) {
+                $cat = mb_substr('Sudah pulih di feed: BTB ' . ($fs['no_btb'] ?? '') . ' normal lagi dan nilainya (Rp ' . number_format((float) $fs['nilai_diterima'], 0, ',', '.')
+                    . ') sama dengan realisasi. Tandai sudah ditinjau bila sudah dicek.', 0, 255);
+                if ((string) $p['catatan_tinjau'] !== $cat) {
+                    $this->db->table('budget_fs_pemetaan')->where('id', $p['id'])->update(['catatan_tinjau' => $cat, 'updated_at' => $now]);
+                }
+            }
+            return;
+        }
         if (in_array($p['status'], ['baru', 'diabaikan'], true)) {
             $upd = ['updated_at' => $now];
             if (! $dept) { $this->db->table('budget_fs_pemetaan')->where('id', $p['id'])->delete(); return; }   // divisinya tak lagi dipetakan

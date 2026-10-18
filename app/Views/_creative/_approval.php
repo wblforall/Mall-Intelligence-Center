@@ -25,7 +25,7 @@ $terpilih = array_values(array_filter($opsi, fn($f) => (int) ($f['is_terpilih'] 
 
 $bisaAjukan  = $canEdit    && in_array($status, ['draft', 'revision'], true);
 $bisaPutus   = $canApprove && $status === 'review';
-$bisaBuka    = ($canEdit || $canApprove) && $status === 'approved';
+$bisaBuka    = $canApprove && $status === 'approved';   // buka kembali: hanya lead/admin
 $bisaUnggah  = $canEdit    && $status !== 'approved';
 // Opsi hanya boleh dihapus selagi materi masih digarap; file pendukung
 // tetap bisa dirapikan sampai materi disetujui. Lihat

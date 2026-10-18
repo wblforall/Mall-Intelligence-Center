@@ -382,7 +382,7 @@ class CreativePemetaanService
     public function usulanUkuran(): array
     {
         $rows = db_connect()->table('creative_items')->select('id,nama,deskripsi,catatan,ukuran,jenis_media')
-            ->where('tipe', 'cetak')->groupStart()->where('ukuran', null)->orWhere('ukuran', '')->groupEnd()
+            ->where('tipe', 'cetak')->where('dari_paket', 0)->groupStart()->where('ukuran', null)->orWhere('ukuran', '')->groupEnd()
             ->orderBy('id')->get()->getResultArray();
         foreach ($rows as &$r) {
             $r['saran'] = self::ekstrakUkuran($r['nama']) ?? self::ekstrakUkuran((string) $r['deskripsi']) ?? self::ekstrakUkuran((string) $r['catatan']);
@@ -397,8 +397,8 @@ class CreativePemetaanService
         foreach ($pairs as $id => $uk) {
             $uk = trim((string) $uk);
             if ($uk === '') continue;
-            $row = $db->table('creative_items')->select('id,nama,ukuran')->where('id', (int) $id)->where('tipe', 'cetak')->get()->getRowArray();
-            if (! $row || trim((string) $row['ukuran']) !== '') continue;
+            $row = $db->table('creative_items')->select('id,nama,ukuran')->where('id', (int) $id)->where('tipe', 'cetak')->where('dari_paket', 0)->get()->getRowArray();
+            if (! $row || trim((string) $row['ukuran']) !== '') continue;   // (usulan tidak pernah memuat item Rencana)
             $db->table('creative_items')->where('id', $row['id'])->update(['ukuran' => mb_substr($uk, 0, 80), 'updated_at' => date('Y-m-d H:i:s')]);
             ActivityLog::write('update', 'creative_standalone', (string) $row['id'], $row['nama'], ['aksi' => 'ukuran_dari_usulan', 'ukuran' => $uk]);
             $n++;

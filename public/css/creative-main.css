@@ -605,7 +605,7 @@ tr.cm-quiet td { opacity: .78; }
 .page-cre .cr-tema.k-none.is-open .cr-tema-head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .page-cre .cr-tema.k-none .cr-tema-head { min-height: 36px; padding: .15rem .6rem; }
 .page-cre .cr-tema.k-none .cr-tema-name { font-size: .82rem; font-weight: 600; color: var(--cr-muted); }
-.page-cre .cr-tema.k-none .cr-chip { display: none; }
+.page-cre .cr-tema.k-none .cr-tema-head .cr-chip { display: none; }   /* hanya di kepala 'Tanpa Tema'; lencana status item tetap tampil */
 .page-cre .cr-tema.k-none .cr-tema-fig { opacity: .8; }
 .page-cre .cr-tema.k-none .cr-tema-fig b { font-weight: 500; }
 /* kosong, kaki */
@@ -652,4 +652,16 @@ tr.cm-quiet td { opacity: .78; }
 @media (max-width: 575px) {
     .page-cre .cr-tema.k-none .cr-item-main { flex-wrap: wrap; }
     .page-cre .cr-tema.k-none .cr-tema-prog { white-space: normal; }
+}
+.cr-bar[hidden]{display:none}
+@media (max-width: 575.98px) { .page-cre .cr-tools-end { flex-wrap: wrap; max-width: 100%; } .page-cre .cr-tools-end .cr-count { min-width: 0; } }
+
+/* Baris item ramping (≥992px, hanya baris ITEM — kepala Tema tidak disentuh): lencana tetap satu baris; yang sekunder (.cr-sec)
+   diurutkan terakhir dan terpotong lebih dulu, nama item memendek dengan elipsis; meta (tanggal/PIC) turun ke baris bawah bila
+   tak muat. Isi lengkap ada di judul lencana & panel Detail. Tinggi baris ≤ ~44px walau lencananya banyak. */
+@media (min-width: 992px) {
+    .page-cre .cr-item .cr-item-main > .cr-item-line { flex-wrap: nowrap; max-width: 100%; min-width: 0; overflow: hidden; }
+    .page-cre .cr-item .cr-item-line .cr-chip { flex: none; }
+    .page-cre .cr-item .cr-item-line .cr-chip.cr-sec { order: 5; }
+    .page-cre .cr-item .cr-item-line .cr-item-name { flex: 0 1 auto; min-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }

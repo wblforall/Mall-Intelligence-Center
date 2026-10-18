@@ -310,7 +310,7 @@ class BudgetFlowstore extends BudgetDept
     {
         $bagian = [];
         $kep = trim((string) ($f['keperluan'] ?? ''));
-        if ($kep !== '') $bagian[] = 'Untuk: ' . mb_strimwidth(preg_replace('/\s+/u', ' ', $kep), 0, 600, '…');
+        if ($kep !== '') { $k = mb_strimwidth(preg_replace('/\s+/u', ' ', $kep), 0, 600, '…'); $bagian[] = preg_match('/^untuk\b/iu', $k) ? $k : 'Untuk: ' . $k; }
         $sup = trim((string) ($f['nama_supplier'] ?? ''));
         if ($sup !== '') $bagian[] = 'Supplier: ' . $sup;
         $mr = trim((string) ($f['no_mr'] ?? ''));
@@ -460,11 +460,14 @@ class BudgetFlowstore extends BudgetDept
             if (isset($peta[$i]) && (int) $peta[$i] !== $deptId) return $back->with('error', 'Divisi "' . esc($sah[$i]) . '" sudah dipetakan ke departemen lain; lepaskan dulu di sana.');
         }
         $lama = array_keys(array_filter($peta, fn ($d) => (int) $d === $deptId));
+        // Diff: hanya hapus yang dilepas dan tambah yang baru; baris yang tetap tidak disentuh (id / created_at stabil).
+        $lepas = array_values(array_diff($lama, $ids));
+        $baru  = array_values(array_diff($ids, $lama));
         $db->transStart();
-        $db->table('budget_fs_divisi_map')->where('dept_id', $deptId)->delete();
-        foreach ($ids as $i) $db->table('budget_fs_divisi_map')->insert(['dept_id' => $deptId, 'id_divisi_fs' => $i, 'created_at' => date('Y-m-d H:i:s')]);
+        if ($lepas) $db->table('budget_fs_divisi_map')->where('dept_id', $deptId)->whereIn('id_divisi_fs', $lepas)->delete();
+        foreach ($baru as $i) $db->table('budget_fs_divisi_map')->insert(['dept_id' => $deptId, 'id_divisi_fs' => $i, 'created_at' => date('Y-m-d H:i:s')]);
         $db->transComplete();
-        (new BudgetFsSinkron())->selaraskan();
+        if ($lepas || $baru) (new BudgetFsSinkron())->selaraskan();
         ActivityLog::captureBefore(['divisi' => $lama]); ActivityLog::captureAfter(['divisi' => $ids]);
         ActivityLog::write('update', 'budget_fs', (string) $deptId, 'Pemetaan divisi FlowStore ' . $dept['name']);
         return $back->with('success', 'Pemetaan divisi disimpan (' . count($ids) . ' divisi). Jalankan sinkron untuk menarik datanya.');

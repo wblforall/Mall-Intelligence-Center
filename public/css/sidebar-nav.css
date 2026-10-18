@@ -338,3 +338,6 @@ html:not(.sb-ready) #sidebar.sidebar, html:not(.sb-ready) #sidebar *, html:not(.
 /* Lencana tidak tertimpa bintang saat baris di-hover / disematkan */
 #sidebar .sb-row:hover .sb-badge, #sidebar .sb-row:focus-within .sb-badge, #sidebar .sb-row:has(.sb-star.on) .sb-badge { margin-right: 26px; }
 @media (min-width: 992px) { html.sb-mini #sidebar .sb-row .sb-badge { margin-right: 0 !important; } }
+
+/* Laci mobile (<992px): tombol Minimize tidak berlaku. */
+@media (max-width: 991.98px) { #sidebar .sb-bottom { display: none; } }

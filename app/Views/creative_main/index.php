@@ -183,15 +183,15 @@ $renderBulan = function (array $months) use ($shared, $rp) {
         </div>
     </div>
     <div class="cr-kpi">
-        <div class="cr-kpi-l">Total Budget</div>
-        <div class="cr-kpi-v"><?= $rp($totalBudget) ?></div>
-        <div class="cr-kpi-s">standalone + event</div>
+        <div class="cr-kpi-l" id="crKpiBL">Total Budget</div>
+        <div class="cr-kpi-v" id="crKpiBV"><?= $rp($totalBudget) ?></div>
+        <div class="cr-kpi-s" id="crKpiBS">standalone + event</div>
     </div>
     <div class="cr-kpi">
-        <div class="cr-kpi-l">Total Realisasi</div>
-        <div class="cr-kpi-v <?= $overBudget ? 'cr-c-bad' : 'cr-c-ok' ?>"><?= $rp($totalRealisasi) ?></div>
-        <div class="cr-kpi-s"><?= $realPct !== null ? $realPct . '% dari budget' : 'standalone only' ?></div>
-        <?php if ($realPct !== null): ?><div class="cr-bar <?= $overBudget ? 'cr-bar-over' : 'cr-bar-ok' ?>"><i style="width:<?= $realPct ?>%"></i></div><?php endif; ?>
+        <div class="cr-kpi-l" id="crKpiRL">Total Realisasi</div>
+        <div class="cr-kpi-v <?= $overBudget ? 'cr-c-bad' : 'cr-c-ok' ?>" id="crKpiRV"><?= $rp($totalRealisasi) ?></div>
+        <div class="cr-kpi-s" id="crKpiRS"><?= $realPct !== null ? $realPct . '% dari budget' : 'standalone only' ?></div>
+        <div class="cr-bar <?= $overBudget ? 'cr-bar-over' : 'cr-bar-ok' ?>" id="crKpiBar" <?= $realPct === null ? 'hidden' : '' ?>><i style="width:<?= (int) $realPct ?>%"></i></div>
     </div>
 </div>
 
@@ -210,6 +210,17 @@ $renderBulan = function (array $months) use ($shared, $rp) {
         <button type="button" data-tab="review"><i class="bi bi-hourglass-split"></i>Review <span class="n"><?= (int) ($tabCounts['review'] ?? 0) ?></span></button>
         <button type="button" data-tab="realisasi"><i class="bi bi-receipt-cutoff"></i>Realisasi <span class="n"><?= (int) ($tabCounts['realisasi'] ?? 0) ?></span></button>
     </div>
+    <select class="cr-select" id="crFBulan" aria-label="Filter bulan">
+        <option value="">Semua bulan</option>
+        <?php // bulan = bulan Tema; item "Tanpa Tema" memakai bulan tanggal itemnya
+        $bulanOps = [];
+        foreach (array_merge($tema['aktif'] ?? [], $tema['terkunci'] ?? []) as $mb) if (preg_match('/^\d{4}-\d{2}$/', (string) $mb['bulan'])) $bulanOps[$mb['bulan']] = 1;
+        foreach (($tema['none']['items'] ?? []) as $nit) { $nb = substr((string) (($nit['tanggal'] ?? '') ?: ($nit['tanggal_take'] ?? '')), 0, 7); if (preg_match('/^\d{4}-\d{2}$/', $nb)) $bulanOps[$nb] = 1; }
+        krsort($bulanOps);
+        foreach (array_keys($bulanOps) as $bo): $bl = \App\Services\CreativeTemaService::bulanLabel($bo); ?>
+        <option value="<?= esc($bo, 'attr') ?>" data-label="<?= esc($bl, 'attr') ?>"><?= esc($bl) ?></option>
+        <?php endforeach; ?>
+    </select>
     <select class="cr-select" id="crFTipe" aria-label="Filter jenis">
         <option value="">Semua jenis</option>
         <?php foreach ($tipeConfig as $tp => $tc): ?><option value="<?= $tp ?>"><?= $tc['label'] ?></option><?php endforeach; ?>

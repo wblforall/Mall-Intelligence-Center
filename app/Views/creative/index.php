@@ -362,7 +362,7 @@ if ($canEdit) {
                 <span class="ev-chip ev-chip-warn" title="Menunggu keputusan Anda di panel Opsi Desain"><i class="bi bi-clipboard-check"></i>Perlu ditinjau</span>
                 <?php endif; ?>
                 <?php if ($terkunci && $canEdit): ?>
-                <span class="ev-chip ev-chip-mute" title="Buka kembali materi di panel Opsi Desain bila perlu diubah"><i class="bi bi-lock-fill"></i>Terkunci</span>
+                <span class="ev-chip ev-chip-mute" title="Hanya lead Creative atau admin yang dapat membuka kembali materi ini"><i class="bi bi-lock-fill"></i>Terkunci</span>
                 <?php endif; ?>
             </div>
             <div class="ev-card-meta">

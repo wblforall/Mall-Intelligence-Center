@@ -316,8 +316,21 @@ class PromoMediaUsageCtrl extends BaseController
         if (! $usage || $usage['created_by'] != $this->currentUser()['id']) {
             return redirect()->to('/creative/media-promo/my')->with('error', 'Request tidak ditemukan.');
         }
-        if (in_array($usage['status'], ['approved', 'done'])) {
-            return redirect()->to('/creative/media-promo/my')->with('error', 'Request yang sudah approved tidak bisa dibatalkan.');
+        if ($usage['status'] === 'approved') {
+            // Pemesanan disetujui: hanya milik sendiri, BELUM mulai, dan bukan buatan Creative (tautan ke Creative tidak boleh diputus).
+            $db = db_connect();
+            if (! empty($usage['creative_ref']) || $db->table('creative_cetak_titik')->where('usage_id', $id)->countAllResults() > 0) {
+                return redirect()->to('/creative/media-promo/my')->with('error', 'Pemesanan ini dibuat dari Creative. Batalkan lewat Creative (lepas titik / ubah periode pasang di item Media Cetak atau Konten Digital terkait).');
+            }
+            if ($usage['tanggal_mulai'] <= date('Y-m-d')) {
+                return redirect()->to('/creative/media-promo/my')->with('error', 'Pemesanan yang sudah disetujui hanya bisa dibatalkan sebelum tanggal mulai.');
+            }
+            $usageModel->delete($id);
+            ActivityLog::write('delete', 'promo_media_usage', (string)$id, "Cancel (approved, belum mulai): {$usage['nama_materi']}", ['status' => 'approved', 'mulai' => $usage['tanggal_mulai']]);
+            return redirect()->to('/creative/media-promo/my')->with('success', 'Pemesanan yang sudah disetujui dibatalkan. Slot kembali tersedia.');
+        }
+        if ($usage['status'] === 'done') {
+            return redirect()->to('/creative/media-promo/my')->with('error', 'Request yang sudah selesai tidak bisa dibatalkan.');
         }
 
         $usageModel->delete($id);

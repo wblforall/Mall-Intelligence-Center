@@ -124,6 +124,8 @@ class EventLoyaltyCtrl extends BaseController
         (new EventLoyaltyVoucherItemModel())->where('program_id', $id)->delete();
 
         (new EventLoyaltyModel())->delete($id);
+        // analisa bulanan program event ini (source 'e') ikut dihapus
+        (new \App\Models\LoyaltySummaryAnalysisModel())->where('source', 'e')->where('program_id', $id)->delete();
 
         $db->transComplete();
 

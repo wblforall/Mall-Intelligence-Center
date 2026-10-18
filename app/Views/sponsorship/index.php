@@ -530,7 +530,8 @@ krsort($yearOpts);
 <?php endif; ?>
 </div><!-- /.page-spon-idx -->
 
-<!-- ── Modals ── -->
+<!-- ── Modals (hanya untuk yang berhak mengubah) ── -->
+<?php if ($canEdit): ?>
 
 <!-- Add Program -->
 <div class="modal fade" id="addProgramModal" tabindex="-1">
@@ -898,6 +899,8 @@ krsort($yearOpts);
     </div>
 </div>
 
+<?php endif; /* $canEdit: modal */ ?>
+
 <?= $this->section('scripts') ?>
 <script src="<?= base_url('js/sponsorship-index.js') ?>?v=<?= @filemtime(FCPATH . 'js/sponsorship-index.js') ?: 1 ?>"></script>
 <script>
@@ -919,6 +922,7 @@ document.addEventListener('input', function(e) {
     el.setSelectionRange(pos + diff, pos + diff);
 });
 
+<?php if ($canEdit): ?>
 // Edit Program modal
 document.getElementById('editProgramModal').addEventListener('show.bs.modal', function(e) {
     const b = e.relatedTarget;
@@ -1029,6 +1033,7 @@ document.getElementById('lockProgramModal').addEventListener('show.bs.modal', fu
     form.querySelector('#lp_eval_kendala').value = '';
     form.querySelector('#lp_eval_rekomendasi').value = '';
 });
+<?php endif; /* $canEdit: skrip modal */ ?>
 </script>
 <?= $this->endSection() ?>
 

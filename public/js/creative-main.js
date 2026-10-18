@@ -104,7 +104,7 @@
         });
     }
     if (ptabs) ptabs.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-cr-ptab]'); if (b) showPaneWrap(b.dataset.crPtab);
+        var b = e.target.closest('[data-cr-ptab]'); if (b) { showPaneWrap(b.dataset.crPtab); if (window.CRE_APPLY) window.CRE_APPLY(false); }
     });
 
     root.addEventListener('click', function (e) {
@@ -273,19 +273,24 @@
     });
 
     // ── Filter, cari, urut ────────────────────────────────────────────
-    var q = $('#crQ'), fTipe = $('#crFTipe'), fStatus = $('#crFStatus'), fDl = $('#crFDl'), fSrc = $('#crFSrc'), fKonten = $('#crFKonten') || { value: '' }, fPic = $('#crFPic') || { value: '' },
+    var q = $('#crQ'), fTipe = $('#crFTipe'), fStatus = $('#crFStatus'), fDl = $('#crFDl'), fSrc = $('#crFSrc'), fKonten = $('#crFKonten') || { value: '' }, fPic = $('#crFPic') || { value: '' }, fBulan = $('#crFBulan') || { value: '' },
         sortSel = $('#crSort'), countEl = $('#crCount'), noMatch = $('#crNoMatch'), seg = $('#creativeTabs');
     if (!q) return;
     var fase = '';
     var isRen = function (c) { return c.dataset.rencana === '1'; };
     var total = cards.filter(function (c) { return !isRen(c); }).length;   // item "Rencana" dihitung terpisah
 
+    function monthOf(c) {   // bulan Tema; item tanpa Tema: bulan tanggal item
+        var mb = c.closest('.cr-monthbox'), m = mb ? mb.dataset.month : '';
+        return m && m !== 'none' ? m : (c.dataset.tgl || '').slice(0, 7);
+    }
     function matches(c) {
         var d = c.dataset, term = q.value.trim().toLowerCase();
         if (term && d.search.indexOf(term) < 0 && d.name.toLowerCase().indexOf(term) < 0) return false;
         // item Rencana (paket awal, belum dikerjakan) tidak ikut filter fase / status / tenggat / sumber
         if (d.rencana === '1' && (fase || fStatus.value || fDl.value || fSrc.value || fKonten.value || fPic.value)) return false;
         if (fase && d.tab !== fase) return false;
+        if (fBulan.value && monthOf(c) !== fBulan.value) return false;
         if (fTipe.value && d.tipe !== fTipe.value) return false;
         if (fSrc.value && d.src !== fSrc.value) return false;
         if (fKonten.value && d.konten !== fKonten.value) return false;   // status konten / PIC hanya ada pada Konten Digital
@@ -301,8 +306,48 @@
         }
         return true;
     }
-    function itemFilterOn() { return !!(fase || fTipe.value || fStatus.value || fDl.value || fSrc.value || fKonten.value || fPic.value); }
+    function itemFilterOn() { return !!(fase || fBulan.value || fTipe.value || fStatus.value || fDl.value || fSrc.value || fKonten.value || fPic.value); }
     function isFiltered() { return !!(q.value.trim() || itemFilterOn()); }
+
+    // ── KPI Budget & Serapan mengikuti tampilan (bulan / filter / fase / tab Aktif-Terkunci) ──
+    // Tanpa filter di tab Aktif nilai tetap total semula dari server. Item Rencana tidak dihitung.
+    var kp = { bl: $('#crKpiBL'), bv: $('#crKpiBV'), bs: $('#crKpiBS'), rl: $('#crKpiRL'), rv: $('#crKpiRV'), rs: $('#crKpiRS'), bar: $('#crKpiBar') };
+    var kp0 = kp.bv ? { bl: kp.bl.textContent, bv: kp.bv.textContent, bs: kp.bs.textContent, rl: kp.rl.textContent, rv: kp.rv.textContent, rs: kp.rs.textContent,
+                        rvc: kp.rv.className, barc: kp.bar.className, barw: kp.bar.firstElementChild.style.width, barh: kp.bar.hidden } : null;
+    function rpf(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+    function updateKpi(filtered) {
+        if (!kp0) return;
+        var pane = curPane !== 'aktif';
+        if (!filtered && !pane) {
+            kp.bl.textContent = kp0.bl; kp.bv.textContent = kp0.bv; kp.bs.textContent = kp0.bs; kp.rl.textContent = kp0.rl;
+            kp.rv.textContent = kp0.rv; kp.rv.className = kp0.rvc; kp.rs.textContent = kp0.rs;
+            kp.bar.className = kp0.barc; kp.bar.firstElementChild.style.width = kp0.barw; kp.bar.hidden = kp0.barh;
+            return;
+        }
+        var b = 0, bs = 0, r = 0, n = 0;
+        cards.forEach(function (c) {
+            if (isRen(c) || c.dataset.match !== '1') return;
+            var w = c.closest('[data-cr-pane-wrap]'); if (w && w.dataset.crPaneWrap !== curPane) return;
+            n++; b += +c.dataset.budget || 0;
+            if (c.dataset.src === 's') { bs += +c.dataset.budget || 0; r += +c.dataset.real || 0; }
+        });
+        var opt = fBulan.options && fBulan.options[fBulan.selectedIndex];
+        var ctx = fBulan.value ? (opt ? (opt.dataset.label || opt.textContent) : '') : '';
+        var lain = !!(q.value.trim() || fase || fTipe.value || fStatus.value || fDl.value || fSrc.value || fKonten.value || fPic.value);
+        var extra = ctx && lain ? ' (terfilter)' : '';
+        if (!ctx) ctx = pane ? 'Tema Terkunci' : 'tampilan ini';
+        kp.bl.textContent = 'Budget ' + ctx + extra;
+        kp.bv.textContent = rpf(b);
+        kp.bs.textContent = n + ' item · standalone + event';
+        kp.rl.textContent = 'Realisasi ' + ctx + extra;
+        kp.rv.textContent = rpf(r);
+        var over = bs > 0 && r > bs, pct = bs > 0 ? Math.min(100, Math.round(r / bs * 100)) : null;
+        kp.rv.className = kp0.rvc.replace(/cr-c-(bad|ok)/, over ? 'cr-c-bad' : 'cr-c-ok');
+        kp.rs.textContent = pct !== null ? pct + '% dari budget standalone' : 'standalone only';
+        kp.bar.hidden = pct === null;
+        kp.bar.className = kp0.barc.replace(/cr-bar-(over|ok)/, over ? 'cr-bar-over' : 'cr-bar-ok');
+        if (pct !== null) kp.bar.firstElementChild.style.width = pct + '%';
+    }
 
     function apply(resetLimit) {
         if (resetLimit !== false) groups.forEach(function (g) { limit[g.dataset.gid] = STEP; });
@@ -347,6 +392,7 @@
         var nRenAll = cards.filter(isRen).length, nRenHit = filtered ? matchedAll - matched : nRenAll;
         countEl.textContent = (filtered ? matched + ' dari ' + total + ' item' : total + ' item') + (nRenHit > 0 ? ' · ' + nRenHit + ' rencana' : '');
         noMatch.hidden = matchedAll > 0 || (total === 0 && nRenAll === 0) || !filtered;
+        updateKpi(filtered);
         cards.forEach(function (c) { c.classList.toggle('is-hit', !!term && c.dataset.name.toLowerCase().indexOf(term) > -1 && c.dataset.match === '1'); });
     }
 
@@ -373,9 +419,10 @@
         apply();
     }
 
+    window.CRE_APPLY = apply;
     var tmr;
     q.addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(apply, 120); });
-    [fTipe, fStatus, fDl, fSrc, fKonten, fPic].forEach(function (el) { if (el.addEventListener) el.addEventListener('change', apply); });
+    [fBulan, fTipe, fStatus, fDl, fSrc, fKonten, fPic].forEach(function (el) { if (el.addEventListener) el.addEventListener('change', apply); });
     sortSel.addEventListener('change', sortCards);
     $$('button', seg).forEach(function (b) {
         b.addEventListener('click', function () {
@@ -385,7 +432,7 @@
         });
     });
     function reset() {
-        q.value = ''; fTipe.value = fStatus.value = fDl.value = fSrc.value = fKonten.value = fPic.value = ''; fase = '';
+        q.value = ''; fBulan.value = fTipe.value = fStatus.value = fDl.value = fSrc.value = fKonten.value = fPic.value = ''; fase = '';
         $$('button', seg).forEach(function (x) { x.classList.toggle('is-on', x.dataset.tab === ''); });
         apply();
     }

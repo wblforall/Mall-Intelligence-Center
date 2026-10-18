@@ -23,6 +23,11 @@ body { min-height: 100vh; }
 .main-content { min-height: 100vh; position: relative; }   /* margin-left sidebar: public/css/sidebar-nav.css */
 .topbar { padding: .6rem 1.5rem; position: sticky; top: 0; z-index: 999; }
 .page-content { padding: 1.5rem; }
+/* Pesan galat/peringatan tetap terlihat walau halaman diarahkan ke jangkar (#program-…) di bawahnya. */
+.page-content > .alert-danger.flash-pin  { background: linear-gradient(rgba(220,53,69,.14), rgba(220,53,69,.14)) #fff !important; }
+.page-content > .alert-warning.flash-pin { background: linear-gradient(rgba(255,193,7,.16), rgba(255,193,7,.16)) #fff !important; }
+[data-theme="dark"] .page-content > .alert.flash-pin { background-color: #131d38 !important; }
+.page-content > .alert.flash-pin { position: sticky; top: var(--flash-top, 3.9rem); z-index: 990; box-shadow: 0 4px 14px rgba(0,0,0,.15); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
 
 /* ── KPI cards (always colored) ── */
 .kpi-card { border-radius: .75rem; padding: 1.25rem; color: #fff; }
@@ -899,6 +904,22 @@ if (typeof Chart !== 'undefined') {
 })();
 </script>
 <?= $this->renderSection('scripts') ?>
+<script>
+/* Pesan galat/peringatan setelah redirect berjangkar (…#program-…): halaman melompat ke jangkar sehingga pesan di atas tak terlihat.
+   Hanya dalam kasus itu pesan "disematkan" di bawah topbar beberapa detik; halaman lain tidak berubah. */
+(function () {
+    if (!location.hash) return;
+    var a = document.querySelector('.page-content > .alert-danger, .page-content > .alert-warning');
+    if (!a) return;
+    var tb = document.querySelector('.topbar');
+    a.style.setProperty('--flash-top', ((tb ? tb.offsetHeight : 56) + 8) + 'px');
+    var pin = function () { if (a.getBoundingClientRect().bottom < 0) a.classList.add('flash-pin'); };
+    // lompatan ke jangkar terjadi sesudah load (kadang tertunda): cek beberapa kali + saat menggulir, selama 12 dtk
+    window.addEventListener('load', function () { [60, 300, 800, 1600].forEach(function (t) { setTimeout(pin, t); }); });
+    window.addEventListener('scroll', pin, { passive: true });
+    setTimeout(function () { window.removeEventListener('scroll', pin); a.classList.remove('flash-pin'); }, 12000);
+})();
+</script>
 
 <style>
 #themeBanner { animation: none; }

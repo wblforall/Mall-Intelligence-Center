@@ -147,15 +147,15 @@ class Auth extends Controller
         $confirm     = $this->request->getPost('password_confirm');
 
         if ($password !== $confirm) {
-            return redirect()->back()->with('error', 'Konfirmasi password tidak cocok.');
+            return redirect()->back()->with('error', 'Password confirmation does not match.');
         }
 
         $errors = [];
-        if (strlen($password) < 8)                          $errors[] = 'Minimal 8 karakter.';
-        if (! preg_match('/[A-Z]/', $password))             $errors[] = 'Minimal 1 huruf kapital.';
-        if (! preg_match('/[a-z]/', $password))             $errors[] = 'Minimal 1 huruf kecil.';
-        if (! preg_match('/[0-9]/', $password))             $errors[] = 'Minimal 1 angka.';
-        if (! preg_match('/[\W_]/', $password))             $errors[] = 'Minimal 1 karakter simbol (!@#$% dll).';
+        if (strlen($password) < 8)                          $errors[] = 'At least 8 characters.';
+        if (! preg_match('/[A-Z]/', $password))             $errors[] = 'At least 1 uppercase letter.';
+        if (! preg_match('/[a-z]/', $password))             $errors[] = 'At least 1 lowercase letter.';
+        if (! preg_match('/[0-9]/', $password))             $errors[] = 'At least 1 number.';
+        if (! preg_match('/[\W_]/', $password))             $errors[] = 'At least 1 symbol (!@#$% etc.).';
 
         if ($errors) {
             return redirect()->back()->with('pw_errors', $errors);
@@ -184,7 +184,7 @@ class Auth extends Controller
         if ($lastRequest && (time() - $lastRequest) < 300) {
             $sisaDetik = 300 - (time() - $lastRequest);
             return redirect()->to('/forgot-password')
-                ->with('success', 'Permintaan sudah dikirim. Tunggu ' . ceil($sisaDetik / 60) . ' menit sebelum mencoba lagi.');
+                ->with('success', 'A request was already sent. Please wait ' . ceil($sisaDetik / 60) . ' minute(s) before trying again.');
         }
         session()->set('reset_last_request', time());
 
@@ -205,7 +205,7 @@ class Auth extends Controller
 
         // Selalu tampilkan pesan sukses untuk keamanan (tidak bocorkan apakah email terdaftar)
         return redirect()->to('/forgot-password')
-            ->with('success', 'Jika email terdaftar, link reset password telah dikirim. Cek inbox (dan folder spam) Anda.');
+            ->with('success', 'If the email is registered, a password reset link has been sent. Please check your inbox (and spam folder).');
     }
 
     public function resetPassword(string $token)
@@ -229,15 +229,15 @@ class Auth extends Controller
         $confirm  = $this->request->getPost('password_confirm');
 
         if ($password !== $confirm) {
-            return redirect()->back()->with('error', 'Konfirmasi password tidak cocok.');
+            return redirect()->back()->with('error', 'Password confirmation does not match.');
         }
 
         $errors = [];
-        if (strlen($password) < 8)                $errors[] = 'Minimal 8 karakter.';
-        if (! preg_match('/[A-Z]/', $password))   $errors[] = 'Minimal 1 huruf kapital.';
-        if (! preg_match('/[a-z]/', $password))   $errors[] = 'Minimal 1 huruf kecil.';
-        if (! preg_match('/[0-9]/', $password))   $errors[] = 'Minimal 1 angka.';
-        if (! preg_match('/[\W_]/', $password))   $errors[] = 'Minimal 1 karakter simbol.';
+        if (strlen($password) < 8)                $errors[] = 'At least 8 characters.';
+        if (! preg_match('/[A-Z]/', $password))   $errors[] = 'At least 1 uppercase letter.';
+        if (! preg_match('/[a-z]/', $password))   $errors[] = 'At least 1 lowercase letter.';
+        if (! preg_match('/[0-9]/', $password))   $errors[] = 'At least 1 number.';
+        if (! preg_match('/[\W_]/', $password))   $errors[] = 'At least 1 symbol.';
 
         if ($errors) {
             return redirect()->back()->with('pw_errors', $errors);
@@ -264,12 +264,12 @@ class Auth extends Controller
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px">
             <div style="font-size:11pt;color:#6b7280;margin-bottom:4px">Mall Intelligence Center</div>
             <h2 style="margin:0 0 16px;font-size:16pt;color:#111827">Reset Password</h2>
-            <p style="color:#374151">Halo <strong>{$name}</strong>,</p>
-            <p style="color:#374151">Kami menerima permintaan reset password untuk akun Anda. Klik tombol di bawah untuk membuat password baru:</p>
+            <p style="color:#374151">Hello <strong>{$name}</strong>,</p>
+            <p style="color:#374151">We received a request to reset the password for your account. Click the button below to create a new password:</p>
             <div style="text-align:center;margin:28px 0">
                 <a href="{$url}" style="background:#2563eb;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:11pt">Reset Password</a>
             </div>
-            <p style="color:#6b7280;font-size:9.5pt">Link ini berlaku selama <strong>1 jam</strong>. Jika Anda tidak meminta reset password, abaikan email ini.</p>
+            <p style="color:#6b7280;font-size:9.5pt">This link is valid for <strong>1 hour</strong>. If you did not request a password reset, you can ignore this email.</p>
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0">
             <p style="color:#9ca3af;font-size:8.5pt;margin:0">PT. Wulandari Bangun Laksana Tbk.</p>
         </div>

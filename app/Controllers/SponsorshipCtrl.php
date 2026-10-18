@@ -878,6 +878,7 @@ class SponsorshipCtrl extends BaseController
         ));
 
         return view('sponsorship/print_summary', [
+            'lihatDobel'     => $this->canEditMenu('sponsorship_main'),   // penanda dobel hanya untuk yang berhak mengubah
             'bulan'          => $bulan,
             'prevBulan'      => $prevBulan,
             'programs'       => $programs,

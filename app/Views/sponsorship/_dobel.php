@@ -58,6 +58,7 @@ $batalUrl = base_url('sponsorship/dobel/batal');
         Berikut sponsor yang <strong>kemungkinan diinput dua kali</strong>. Angka belum diubah — tim yang memutuskan.
         <strong>Konfirmasi dobel</strong> mengecualikan satu sisi dari semua total gabungan (data tidak dihapus);
         <strong>Bukan dobel</strong> menyembunyikan pasangan itu dari pendeteksi.
+        <span class="ss-hint d-block mt-1">Pasangan lain dengan nama sama dari sponsor berbeda dapat muncul setelah Bukan dobel.</span>
     </div>
     <div class="ss-dbl-list">
         <?php foreach ($perlu as $gi => $g):

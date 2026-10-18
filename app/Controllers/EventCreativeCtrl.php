@@ -209,9 +209,9 @@ class EventCreativeCtrl extends BaseController
             'tipe'         => $post['tipe'],
             'nama'         => $post['nama'],
             'platform'     => $isDigital ? ($post['platform'] ?? null) : null,
-            'tanggal_take' => $isDigital ? ($post['tanggal_take'] ?: null) : null,
-            'jam_take'     => $isDigital ? ($post['jam_take'] ?: null) : null,
-            'pic'          => $isDigital ? ($post['pic'] ?: null) : null,
+            'tanggal_take' => $isDigital ? (($post['tanggal_take'] ?? '') ?: null) : null,
+            'jam_take'     => $isDigital ? (($post['jam_take'] ?? '') ?: null) : null,
+            'pic'          => $isDigital ? (($post['pic'] ?? '') ?: null) : null,
             'deskripsi'    => $post['deskripsi'] ?? null,
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'      => $post['catatan'] ?? null,
@@ -257,9 +257,9 @@ class EventCreativeCtrl extends BaseController
         $eventCreativeData = [
             'nama'         => $post['nama'],
             'platform'     => $isDigital ? ($post['platform'] ?? null) : null,
-            'tanggal_take' => $isDigital ? ($post['tanggal_take'] ?: null) : null,
-            'jam_take'     => $isDigital ? ($post['jam_take'] ?: null) : null,
-            'pic'          => $isDigital ? ($post['pic'] ?: null) : null,
+            'tanggal_take' => $isDigital ? (($post['tanggal_take'] ?? '') ?: null) : null,
+            'jam_take'     => $isDigital ? (($post['jam_take'] ?? '') ?: null) : null,
+            'pic'          => $isDigital ? (($post['pic'] ?? '') ?: null) : null,
             'deskripsi'    => $post['deskripsi'] ?? null,
             'budget'       => (int)str_replace([',', '.', ' '], '', $post['budget'] ?? 0),
             'catatan'      => $post['catatan'] ?? null,
@@ -482,8 +482,8 @@ class EventCreativeCtrl extends BaseController
     public function buka(int $eventId, int $id)
     {
         if ($r = $this->tolakBilaTemaTutup($eventId)) return $r;
-        if (! $this->canEditMenu('creative') && ! $this->canApproveCreative(true)) {
-            return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
+        if (! $this->canApproveCreative(true)) {
+            return redirect()->to("/events/{$eventId}/creative")->with('error', 'Hanya lead Creative atau admin yang dapat membuka kembali materi yang sudah disetujui.');
         }
 
         return $this->hasilApproval(

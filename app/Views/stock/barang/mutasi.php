@@ -182,5 +182,13 @@ $totMasuk = array_sum(array_column($rekap, 'masuk')); $totKeluar = array_sum(arr
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
+<script>
+/* Cetak selalu di kertas terang: tema gelap membuat teks nyaris putih di atas kertas putih. */
+(function () {
+    var h = document.documentElement, t = null;
+    window.addEventListener('beforeprint', function () { t = [h.getAttribute('data-theme'), h.getAttribute('data-bs-theme')]; h.setAttribute('data-theme', 'light'); h.setAttribute('data-bs-theme', 'light'); });
+    window.addEventListener('afterprint', function () { if (t) { h.setAttribute('data-theme', t[0]); h.setAttribute('data-bs-theme', t[1]); t = null; } });
+})();
+</script>
 <script src="<?= base_url('js/stock-fisik.js') ?>?v=<?= @filemtime(FCPATH . 'js/stock-fisik.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

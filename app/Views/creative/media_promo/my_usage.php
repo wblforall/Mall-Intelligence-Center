@@ -102,14 +102,27 @@ ob_start(); ?>
                 <button type="submit" class="mp-btn mp-btn-xs mp-btn-primary" title="Kirim untuk approval"><i class="bi bi-send"></i>Kirim</button>
             </form>
             <?php endif; ?>
-            <?php if ($isSubmittable || ! in_array($u['status'], ['approved', 'done'])): ?>
+            <?php
+            $batalApproved = $u['status'] === 'approved' && $u['tanggal_mulai'] > $today;
+            $dariCreativeAp = $batalApproved && ! empty($u['creative_ref']);
+            ?>
+            <?php if ($isSubmittable || ! in_array($u['status'], ['approved', 'done']) || $batalApproved): ?>
             <div class="dropdown">
                 <button class="mp-iconbtn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi request"><i class="bi bi-three-dots-vertical"></i></button>
                 <ul class="dropdown-menu dropdown-menu-end mp-menu">
                     <?php if ($isSubmittable): ?>
                     <li><button type="button" class="dropdown-item" data-mp-edit-req="<?= esc(json_encode($u), 'attr') ?>"><i class="bi bi-pencil"></i>Edit request</button></li>
                     <?php endif; ?>
-                    <?php if (! in_array($u['status'], ['approved', 'done'])): ?>
+                    <?php if ($dariCreativeAp): ?>
+                    <li class="dropdown-item-text small text-muted" style="max-width:240px;white-space:normal"><i class="bi bi-info-circle me-1"></i>Dibuat dari Creative. Batalkan lewat Creative (item Media Cetak / Konten Digital terkait).</li>
+                    <?php elseif ($batalApproved): ?>
+                    <li>
+                        <form method="POST" action="<?= base_url('creative/media-promo/usage/' . $u['id'] . '/cancel') ?>" data-mp-confirm="Batalkan pemesanan yang sudah disetujui? Slot akan kembali tersedia.">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-x-octagon"></i>Batalkan pemesanan</button>
+                        </form>
+                    </li>
+                    <?php elseif (! in_array($u['status'], ['approved', 'done'])): ?>
                     <li>
                         <form method="POST" action="<?= base_url('creative/media-promo/usage/' . $u['id'] . '/cancel') ?>" data-mp-confirm="Batalkan request ini?">
                             <?= csrf_field() ?>
