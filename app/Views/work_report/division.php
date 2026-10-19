@@ -93,6 +93,7 @@ $statusLabel = [
         </select>
         <div class="form-text" style="font-size:.68rem">Jika di-assign, Dept Head dept tersebut bisa melihat dan mengupdate.</div>
     </div>
+    <?= view('work_report/_pic_select', ['employees' => $employees ?? [], 'selectedPic' => 0, 'formId' => 'wrAdd']) ?>
     <div class="row g-2">
         <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold">Target Mulai</label>

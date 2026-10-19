@@ -145,6 +145,7 @@ class WorkReportDeputyCtrl extends BaseController
             'items'           => $items,
             'grouped'         => $grouped,
             'depts'           => $depts,
+            'employees'       => $this->karyawanDivisi((int) $emp['divisi_id'], $depts),
             'divisi'          => $divisi,
             'emp'             => $emp,
             'gmUnread' => $gmUnread,
@@ -155,6 +156,35 @@ class WorkReportDeputyCtrl extends BaseController
             'scopeCounts' => $scopeCounts,
             'tabAlerts'   => $tabAlerts,
         ]);
+    }
+
+
+    /** Karyawan aktif di divisi Deputy (semua dept divisi + yang langsung di divisi), untuk pilihan PIC. */
+    private function karyawanDivisi(int $divisiId, array $depts, int $picSaatIni = 0): array
+    {
+        $deptIds = array_map('intval', array_column($depts, 'id'));
+        $b = \Config\Database::connect()->table('employees')
+            ->select('employees.id, employees.nama, employees.dept_id, d.name AS dept_name')
+            ->join('departments d', 'd.id = employees.dept_id', 'left')
+            ->where('employees.status', 'aktif')
+            ->groupStart()
+                ->where('employees.division_id', $divisiId);
+        if ($deptIds) $b->orWhereIn('employees.dept_id', $deptIds);
+        $list = $b->groupEnd()->orderBy('d.name')->orderBy('employees.nama')->get()->getResultArray();
+
+        // PIC yang sudah tersimpan tapi tak masuk daftar (non-aktif / di luar divisi) tetap ditawarkan,
+        // supaya menyimpan Edit tidak diam-diam menghapus PIC-nya.
+        if ($picSaatIni > 0 && ! in_array($picSaatIni, array_map('intval', array_column($list, 'id')), true)) {
+            $cur = \Config\Database::connect()->table('employees')
+                ->select('employees.id, employees.nama, employees.dept_id, d.name AS dept_name')
+                ->join('departments d', 'd.id = employees.dept_id', 'left')
+                ->where('employees.id', $picSaatIni)->get()->getRowArray();
+            if ($cur) {
+                $cur['dept_name'] = trim(($cur['dept_name'] ?? '') . ' (saat ini)');
+                $list[] = $cur;
+            }
+        }
+        return $list;
     }
 
     // ── Store inisiatif oleh Deputy ───────────────────────────────────────
@@ -394,6 +424,7 @@ class WorkReportDeputyCtrl extends BaseController
             'isFlagged'    => $isFlagged,
             'emp'          => $emp,
             'depts'        => $depts,
+            'employees'    => $this->karyawanDivisi((int) $emp['divisi_id'], $depts, (int) ($item['pic_employee_id'] ?? 0)),
             'canFlag'      => $this->isCurator($emp),
         ]);
     }

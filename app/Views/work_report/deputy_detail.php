@@ -174,6 +174,7 @@ $gmN = count($gmThread ?? []); $dN = count($deptComments ?? []);
             <?php endforeach; ?>
         </select>
     </div>
+    <?= view('work_report/_pic_select', ['employees' => $employees ?? [], 'selectedPic' => (int) ($item['pic_employee_id'] ?? 0), 'formId' => 'wrEdit']) ?>
     <div class="row g-2">
         <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold">Target Mulai</label>
