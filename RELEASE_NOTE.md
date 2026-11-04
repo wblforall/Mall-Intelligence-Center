@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.31.0** (November 2026)
+> Versi saat ini: **v2.31.1** (November 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,22 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.31.1
+
+**Tanggal Rilis:** 4 November 2026
+
+### Perubahan dari v2.31.0
+
+#### Pest Control dinonaktifkan di MIC
+
+- Pencatatan Pest Control sudah pindah ke **OpsJobs** (riwayat MIC diimpor ke sana 20 Oktober 2026).
+- Menu Pest Control dan Master Item Pest dihapus dari sidebar, dan hak menu *Pest Control*
+  tidak lagi muncul di pengaturan hak akses.
+- Alamat lama (`/pest…`, `/pest-items`) diarahkan ke Laporan Pest di opsjobs.id.
+- Data pest lama di MIC tetap tersimpan, tidak dihapus.
 
 ---
 

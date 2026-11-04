@@ -328,42 +328,6 @@ body { min-height: 100vh; }
         <?php endif; ?>
 
         <?php
-        // Pest Control — dimiliki dept Operational & Building Maintenance,
-        // dept yang sama dengan pemilik Daily Traffic.
-        $canViewPest = $navCanView('pest_control');
-        $canEditPest = $navCanEdit('pest_control');
-        if ($canViewPest || $canEditPest):
-        ?>
-        <div class="nav-label">Pest Control</div>
-        <?php if ($canViewPest): ?>
-        <a href="<?= base_url('pest') ?>" class="nav-link <?= uri_string() === 'pest' ? 'active' : '' ?>">
-            <i class="bi bi-bug"></i> Tren Mingguan
-        </a>
-        <a href="<?= base_url('pest/kunjungan') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/kunjungan') ? 'active' : '' ?>">
-            <i class="bi bi-calendar-check"></i> Kunjungan
-        </a>
-        <a href="<?= base_url('pest/rekap') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/rekap') ? 'active' : '' ?>">
-            <i class="bi bi-bar-chart-line-fill"></i> Rekap Periode
-        </a>
-        <a href="<?= base_url('pest/compare') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/compare') ? 'active' : '' ?>">
-            <i class="bi bi-arrow-left-right"></i> Compare
-        </a>
-        <a href="<?= base_url('pest/summary') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/summary') ? 'active' : '' ?>">
-            <i class="bi bi-bar-chart"></i> Rekap Tahunan
-        </a>
-        <?php endif; ?>
-        <?php if ($canEditPest): ?>
-        <?php // Dipisah per mall, sama seperti tombol input Daily Traffic. ?>
-        <a href="<?= base_url('pest/input/ewalk/' . date('Y-m-d')) ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/input/ewalk') ? 'active' : '' ?>">
-            <i class="bi bi-pencil-square"></i> Input eWalk
-        </a>
-        <a href="<?= base_url('pest/input/pentacity/' . date('Y-m-d')) ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest/input/pentacity') ? 'active' : '' ?>">
-            <i class="bi bi-pencil-square"></i> Input Pentacity
-        </a>
-        <?php endif; ?>
-        <?php endif; ?>
-
-        <?php
         // Pemantauan AI — pemakaian Claude Code tim, terbuka. Satu link ke
         // rekap; akses diatur lewat hak menu 'ai_monitor'.
         if ($navCanView('ai_monitor')):
@@ -613,9 +577,6 @@ body { min-height: 100vh; }
         <a href="<?= base_url('traffic-doors') ?>" class="nav-link <?= str_starts_with(uri_string(), 'traffic-doors') ? 'active' : '' ?>">
             <i class="bi bi-door-open-fill"></i> Master Pintu
         </a>
-        <a href="<?= base_url('pest-items') ?>" class="nav-link <?= str_starts_with(uri_string(), 'pest-items') ? 'active' : '' ?>">
-            <i class="bi bi-bug-fill"></i> Master Item Pest
-        </a>
         <a href="<?= base_url('event-locations') ?>" class="nav-link <?= str_starts_with(uri_string(), 'event-locations') ? 'active' : '' ?>">
             <i class="bi bi-geo-alt-fill"></i> Master Lokasi Event
         </a>
@@ -658,7 +619,7 @@ body { min-height: 100vh; }
         </a>
     </div>
     <div class="sb-versi">
-        v2.31.0 &nbsp;·&nbsp; © 2026 IT Dept WBL
+        v2.31.1 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
 </div>

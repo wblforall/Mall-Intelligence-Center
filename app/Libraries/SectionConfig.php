@@ -23,7 +23,7 @@ class SectionConfig
         'parking_live'       => 'Parkir — Live (real-time)',
         'parking_vehicles'   => 'Parkir — Traffic Kendaraan',
         'parking_revenue'    => 'Parkir — Revenue',
-        'pest_control'       => 'Pest Control',
+        // pest_control dicabut 4 Nov 2026 — modul pindah ke OpsJobs.
         'legal'              => 'Legal',
         'work_report'        => 'Progress Report',
         // Catatan internal budget & realisasi tiap departemen (bukan anggaran

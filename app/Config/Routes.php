@@ -387,28 +387,13 @@ $routes->get('parking/occupancy',        'ParkingOccupancy::index',  ['filter' =
 $routes->get('parking/recon',            'ParkingRecon::index',      ['filter' => 'auth']); // analisa: rekaman vs SPI final
 $routes->post('parking/sync',            'ParkingSync::run',         ['filter' => 'auth']); // tarik data SPI manual
 
-// Pest Control — temuan pest per kunjungan bertanggal (mingguan dihitung saat
-// tampil, lihat PESTCARE_DESIGN.md §2). Rute statis didaftarkan SEBELUM rute
-// ber-placeholder agar 'pest/kunjungan' tidak tertelan 'pest/(:alpha)'.
-$routes->get('pest',                      'PestCtrl::index',           ['filter' => 'auth']);
-$routes->get('pest/kunjungan',            'PestCtrl::kunjungan',       ['filter' => 'auth']);
-$routes->get('pest/summary',              'PestCtrl::summary',         ['filter' => 'auth']);
-$routes->get('pest/laporan-bulanan',      'PestCtrl::laporanBulanan',  ['filter' => 'auth']);
-// Rekap rentang tanggal bebas + cetak + Excel, dan Compare 2–3 periode (pola Traffic).
-$routes->get('pest/rekap',                'PestCtrl::rekap',           ['filter' => 'auth']);
-$routes->get('pest/rekap/print',          'PestCtrl::printRekap',      ['filter' => 'auth']);
-$routes->get('pest/rekap/export',         'PestCtrl::exportRekap',     ['filter' => 'auth']);
-$routes->get('pest/compare',              'PestCtrl::compare',         ['filter' => 'auth']);
-$routes->get('pest/compare/print',        'PestCtrl::printCompare',    ['filter' => 'auth']);
-$routes->get('pest/input',                'PestCtrl::form',            ['filter' => 'auth']);
-$routes->get('pest/input/(:alpha)',       'PestCtrl::form/$1',         ['filter' => 'auth']);
-$routes->get('pest/input/(:alpha)/(:any)','PestCtrl::form/$1/$2',      ['filter' => 'auth']);
-$routes->post('pest/save-cell',           'PestCtrl::saveCell',        ['filter' => 'auth']);
-$routes->post('pest/nihil',               'PestCtrl::nihil',           ['filter' => 'auth']);
-$routes->post('pest/foto',                'PestCtrl::unggahFoto',      ['filter' => 'auth']);
-$routes->post('pest/foto/(:num)/hapus',   'PestCtrl::hapusFoto/$1',    ['filter' => 'auth']);
-$routes->get('pest/foto-list/(:num)',     'PestCtrl::daftarFoto/$1',   ['filter' => 'auth']);
-$routes->post('pest/delete/(:num)',       'PestCtrl::hapusKunjungan/$1', ['filter' => 'auth']);
+// Pest Control — dinonaktifkan 4 Nov 2026: pencatatan pindah ke OpsJobs
+// (riwayat MIC sudah diimpor ke sana 20 Okt). Semua alamat lama diarahkan ke
+// Laporan Pest OpsJobs. Controller, view, dan tabel pest_* sengaja tidak
+// dihapus; untuk menghidupkan lagi, pulihkan rute dari riwayat git.
+$routes->get('pest',          static fn () => redirect()->to('https://opsjobs.id/pest/laporan'), ['filter' => 'auth']);
+$routes->get('pest/(:any)',   static fn () => redirect()->to('https://opsjobs.id/pest/laporan'), ['filter' => 'auth']);
+$routes->get('pest-items',    static fn () => redirect()->to('https://opsjobs.id/pest/laporan'), ['filter' => 'auth']);
 
 // Pemantauan AI — halaman lihat (rekap per karyawan, sesi, transkrip). Akses
 // diatur lewat menu 'ai_monitor' di dalam controller; filter auth menjaga
@@ -437,12 +422,6 @@ $routes->post('ai-monitor/perangkat/hapus',         'AiMonitor::hapusPerangkat',
 $routes->post('ai-monitor/perangkat/ubah-label',    'AiMonitor::ubahLabel',            ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/regen-enroll-key',  'AiMonitor::regenEnrollKey',       ['filter' => 'auth']);
 $routes->post('ai-monitor/perangkat/set-copot-password','AiMonitor::setCopotPassword',     ['filter' => 'auth']);
-
-// Pest — master item (admin only). Master area menyusul di Fase 2.
-$routes->get('pest-items',                'PestItems::index',   ['filter' => 'auth:admin']);
-$routes->post('pest-items/add',           'PestItems::store',   ['filter' => 'auth:admin']);
-$routes->post('pest-items/(:num)/edit',   'PestItems::update/$1',  ['filter' => 'auth:admin']);
-$routes->post('pest-items/(:num)/delete', 'PestItems::delete/$1',  ['filter' => 'auth:admin']);
 
 // Event Locations master (admin only)
 $routes->get('event-locations', 'EventLocations::index', ['filter' => 'auth:admin']);
