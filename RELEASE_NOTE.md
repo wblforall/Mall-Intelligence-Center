@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.29.0** (Oktober 2026)
+> Versi saat ini: **v2.31.0** (November 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,49 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.31.0
+
+**Tanggal Rilis:** 4 November 2026
+
+### Perubahan dari v2.30.0
+
+**Susun RAB**: RAB Event & Promotion kini bisa disusun dalam bentuk yang biasa dipakai tim,
+satu lembar kerja per mal dan bulan. Datanya tetap tersimpan rinci per event.
+
+#### Susun RAB (Budget Departemen → RAB → draf → Susun RAB)
+
+- Tab per **mal × bulan** periode RAB, misalnya eWalk November, Pentacity November, dan seterusnya.
+- **Program** = satu event. Kegiatan rutin bulanan menjadi satu program berjenis *Rutin*.
+  Program baru otomatis dibuat sebagai event di modul Events dan menunggu persetujuan seperti biasa.
+  Event yang sudah ada otomatis muncul di tab bulan yang disentuh jadwalnya.
+- **Kelompok** (Opening Ceremony, Competition, Pintu Lobby Utama, …) dan **baris biaya**
+  qty × freq × harga satuan. Total dihitung otomatis.
+- **Pos budget** dipilih di program; baris ikut pos program kecuali dipilih lain.
+- Ringkasan **budget / terisi / sisa per pos** untuk tab yang dibuka, diperbarui saat mengetik.
+- Baris dibebankan ke bulan tab tempat ia diketik, termasuk event lintas bulan.
+  Jadwal rinci (daftar tanggal, hadiah lomba) ditulis di Remark.
+- Event yang belum pasti boleh tanpa baris biaya dan tercetak sebagai info/tbc.
+- Pengaman: hanya RAB berstatus draf yang bisa disusun; baris yang tercantum di RAB aktif
+  terkunci; baris yang sudah punya realisasi tidak bisa dihapus; dua orang yang menyimpan tab
+  yang sama tidak saling menghapus baris baru. Data event (nama, tanggal, lokasi) hanya bisa
+  diubah dari sini oleh pembuatnya selama belum disetujui, atau oleh admin/manager.
+- Kegiatan *Rutin* tidak mendapat paket item awal Creative; event biasa tetap mendapatkannya.
+
+#### Proyeksi income event di RAB
+
+- Nilai dealing exhibitor (tab **Exhibitor** event, diketik manual) tampil sebagai
+  **proyeksi income** di samping biaya event: di lembar kerja, halaman RAB, dan PDF.
+- Hanya informasi; tidak mengurangi budget. Nilainya ikut dibekukan saat RAB diajukan.
+- Dept Event & Promotion kini bisa mengisi tab Exhibitor.
+
+#### PDF RAB
+
+- Event diurutkan seperti RAB tim: kegiatan rutin dulu, lalu menurut tanggal mulai.
+- Kolom Pos tidak lagi terlipat; PDF lebih ringkas.
+- Ringkasan mencatat pos yang melebihi budget walau total bulan itu masih cukup.
 
 ---
 
