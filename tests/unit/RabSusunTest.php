@@ -167,4 +167,40 @@ final class RabSusunTest extends CIUnitTestCase
         $this->assertSame('November 2026', R::labelPeriode('2026-11', '2026-11'));
         $this->assertSame(['2026-12', '2027-01'], R::daftarBulan('2026-12', '2027-01'));
     }
+    public function testTanggalBarisTabMembebankanKeTabTempatDiketik(): void
+    {
+        $natal = ['start_date' => '2026-12-07'];
+        $this->assertNull(R::tanggalBarisTab('', $natal, '2026-12'));                       // bulan mulai event → ikut event
+        $this->assertSame('2027-01-01', R::tanggalBarisTab('', $natal, '2027-01'));        // tab Januari → 1 Jan
+        $this->assertSame('2026-12-18', R::tanggalBarisTab('2026-12-18', $natal, '2026-12'));
+        $this->assertSame('2027-01-01', R::tanggalBarisTab('2026-12-18', $natal, '2027-01')); // tanggal di luar tab diabaikan
+        $this->assertSame('2026-11-04', R::tanggalBarisTab(null, ['start_date' => '2026-11-04'], '2026-11') ?? '2026-11-04');
+        // Event yang dimulai sebelum bulan tab: hari pertama bulan tab
+        $this->assertSame('2026-11-01', R::tanggalBarisTab(null, ['start_date' => '2026-10-28'], '2026-11'));
+        foreach (['2026-12', '2027-01'] as $b) {
+            $t = R::tanggalBarisTab('', $natal, $b);
+            $this->assertSame($b, R::bulanItem(['tanggal' => $t], $natal));
+        }
+    }
+
+    public function testSnapshotMengurutkanRutinDuluLaluTanggalMulai(): void
+    {
+        $events = [
+            ['id' => 30, 'name' => 'Pengundian 12.12', 'jenis' => 'event', 'mall' => 'ewalk', 'start_date' => '2026-12-10', 'event_days' => 5, 'pos_id' => 2],
+            ['id' => 31, 'name' => 'Christmas is Calling', 'jenis' => 'event', 'mall' => 'ewalk', 'start_date' => '2026-12-07', 'event_days' => 28, 'pos_id' => 2],
+            ['id' => 32, 'name' => 'Regular Event eWalk Desember', 'jenis' => 'rutin', 'mall' => 'ewalk', 'start_date' => '2026-12-01', 'event_days' => 31, 'pos_id' => 1],
+        ];
+        $it = fn ($id, $ev) => ['id' => $id, 'event_id' => $ev, 'nama' => 'x', 'tanggal' => null, 'qty' => 1, 'freq' => 1, 'harga_satuan' => 1000, 'pos_id' => null, 'mall' => null, 'urutan' => 1];
+        $s = R::snapshot($this->pos, [], $events, [$it(1, 30), $it(2, 31), $it(3, 32)], '2026-12', '2026-12');
+        $this->assertSame([32, 31, 30], array_column($s['items'], 'event_id'));
+    }
+
+    public function testSnapshotMembekukanProyeksiIncomeEvent(): void
+    {
+        $events = [['id' => 40, 'name' => 'BSB Wedding Expo', 'jenis' => 'event', 'mall' => 'pentacity', 'start_date' => '2026-11-04', 'event_days' => 5, 'pos_id' => 2, 'income' => '133319819'],
+                   ['id' => 41, 'name' => 'Bazar (tbc)', 'jenis' => 'event', 'mall' => 'pentacity', 'start_date' => '2026-11-09', 'event_days' => 14, 'pos_id' => null]];
+        $s = R::snapshot($this->pos, [], $events, [], '2026-11', '2026-11');
+        $this->assertSame(133319819.0, $s['events'][40]['income']);
+        $this->assertSame(0.0, $s['events'][41]['income']);                        // tanpa exhibitor
+    }
 }

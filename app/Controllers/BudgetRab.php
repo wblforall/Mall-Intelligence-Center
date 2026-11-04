@@ -27,7 +27,7 @@ class BudgetRab extends BudgetDept
     const DIR      = WRITEPATH . 'uploads/rab/';
 
     /** Dept yang dibuka, hanya bila terhubung ke Events. */
-    private function deptRab(): ?array
+    protected function deptRab(): ?array
     {
         if (! $this->canViewMenu(self::MENU)) return null;
         $dept = $this->dept();
@@ -55,7 +55,7 @@ class BudgetRab extends BudgetDept
     // ── Pengumpul data ───────────────────────────────────────────────
 
     /** Bahan snapshot periode ini dari data hidup. */
-    private function kumpul(array $dept, string $mulai, string $selesai): array
+    protected function kumpul(array $dept, string $mulai, string $selesai): array
     {
         $db    = db_connect();
         $awal  = $mulai . '-01';
@@ -65,7 +65,8 @@ class BudgetRab extends BudgetDept
         $events = $db->query(
             "SELECT e.id, e.name, e.jenis, e.pos_id, e.mall, e.start_date, e.event_days,
                     (SELECT GROUP_CONCAT(l.nama ORDER BY l.nama SEPARATOR ', ')
-                       FROM event_location_map m JOIN event_locations l ON l.id = m.location_id WHERE m.event_id = e.id) AS lokasi
+                       FROM event_location_map m JOIN event_locations l ON l.id = m.location_id WHERE m.event_id = e.id) AS lokasi,
+                    (SELECT COALESCE(SUM(x.nilai_dealing), 0) FROM event_exhibitors x WHERE x.event_id = e.id) AS income
                FROM events e
               WHERE (e.start_date <= ? AND DATE_ADD(e.start_date, INTERVAL (e.event_days - 1) DAY) >= ?)
                  OR e.id IN (SELECT event_id FROM event_content_items WHERE tanggal BETWEEN ? AND ?)
@@ -83,7 +84,7 @@ class BudgetRab extends BudgetDept
         return [(new BudgetPosModel())->milikDept((int) $dept['id']), $budget, $events, $items];
     }
 
-    private function snapshotHidup(array $dept, string $mulai, string $selesai): array
+    protected function snapshotHidup(array $dept, string $mulai, string $selesai): array
     {
         return RabSusun::snapshot(...[...$this->kumpul($dept, $mulai, $selesai), $mulai, $selesai]);
     }
@@ -101,7 +102,7 @@ class BudgetRab extends BudgetDept
         ];
     }
 
-    private function dokumen(int $id, array $dept): ?array
+    protected function dokumen(int $id, array $dept): ?array
     {
         $d = (new RabDokumenModel())->find($id);
         return $d && (int) $d['dept_id'] === (int) $dept['id'] ? $d : null;

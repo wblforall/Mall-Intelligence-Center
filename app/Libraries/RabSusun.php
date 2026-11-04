@@ -58,6 +58,26 @@ class RabSusun
         return (float) ($item['budget'] ?? 0);
     }
 
+    /**
+     * Tanggal yang disimpan untuk baris yang diketik di tab bulan $bulan (Susun RAB).
+     * Tanggal isian dipakai bila jatuh di bulan itu. Tanpa tanggal: kosong bila event
+     * mulai di bulan itu (bulan beban = bulan mulai event), selain itu hari pertama
+     * event di bulan itu — supaya baris event lintas bulan tetap dibebankan ke tab tempat ia diketik.
+     */
+    public static function tanggalBarisTab(?string $isian, array $event, string $bulan): ?string
+    {
+        $isian = trim((string) $isian);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $isian) && strtotime($isian) && substr($isian, 0, 7) === $bulan) return $isian;
+        if (substr((string) $event['start_date'], 0, 7) === $bulan) return null;
+        return max($bulan . '-01', (string) $event['start_date']);
+    }
+
+    /** Kunci urut event di RAB: kegiatan rutin dulu, lalu menurut tanggal mulai — seperti RAB yang biasa disusun tim. */
+    public static function kunciUrutEvent(?array $event, int $id): array
+    {
+        return [($event['jenis'] ?? 'event') === 'rutin' ? 0 : 1, (string) ($event['mulai'] ?? $event['start_date'] ?? ''), $id];
+    }
+
     /** ['2026-11', '2026-12'] */
     public static function daftarBulan(string $mulai, string $selesai): array
     {
@@ -129,8 +149,9 @@ class RabSusun
             if ($baris['pos_id'] !== null && ! in_array($baris['pos_id'], $posIds, true)) continue;   // pos dept lain → bukan RAB dept ini
             $isi[] = $baris;
         }
-        usort($isi, fn ($a, $b) => [$a['bulan'], $a['mall'], $a['event_id'], $a['urutan'], $a['id']]
-                               <=> [$b['bulan'], $b['mall'], $b['event_id'], $b['urutan'], $b['id']]);
+        $urut = fn ($x) => self::kunciUrutEvent($evById[$x['event_id']] ?? null, (int) $x['event_id']);
+        usort($isi, fn ($a, $b) => [$a['bulan'], $a['mall'], $urut($a), $a['urutan'], $a['id']]
+                               <=> [$b['bulan'], $b['mall'], $urut($b), $b['urutan'], $b['id']]);
 
         $dipakai = array_unique(array_column($isi, 'event_id'));
         $ev = [];
@@ -148,6 +169,8 @@ class RabSusun
                 'akhir'  => $akhir,
                 'lokasi' => (string) ($e['lokasi'] ?? ''),
                 'pos_id' => (int) ($e['pos_id'] ?? 0) ?: null,
+                // Proyeksi income = nilai dealing exhibitor event (diketik manual di tab Exhibitor). Info, bukan bagian budget.
+                'income' => (float) ($e['income'] ?? 0),
             ];
         }
 

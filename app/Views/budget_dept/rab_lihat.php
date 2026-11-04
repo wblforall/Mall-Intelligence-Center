@@ -26,6 +26,8 @@ $bulanP  = RabSusun::daftarBulan($snap['periode']['mulai'], $snap['periode']['se
 // Kelompokkan item: bulan → mal → event.
 $grup = [];
 foreach ($snap['items'] as $it) $grup[$it['bulan']][$it['mall']][$it['event_id']][] = $it;
+$biayaEv = [];
+foreach ($snap['items'] as $it) $biayaEv[$it['event_id']] = ($biayaEv[$it['event_id']] ?? 0) + $it['total'];
 $draf = $d['status'] === 'draf';
 ?>
 
@@ -40,6 +42,7 @@ $draf = $d['status'] === 'draf';
         <a href="<?= $url('rab/' . $d['id'] . '/cetak') ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-printer me-1"></i><?= $draf ? 'Pratinjau PDF' : 'Cetak PDF untuk e-Sign' ?></a>
         <?php if ($draf && $canEdit): ?>
+        <a href="<?= $url('rab/' . $d['id'] . '/susun') ?>" class="btn btn-sm btn-success"><i class="bi bi-grid-3x3-gap me-1"></i>Susun RAB</a>
         <form method="POST" action="<?= $url('rab/' . $d['id'] . '/ajukan') ?>" onsubmit="return confirm('Ajukan RAB ini? Isinya dibekukan; angka item yang tercantum terkunci sampai ada revisi.')">
             <?= csrf_field() ?>
             <button class="btn btn-sm btn-primary" <?= $periksa['halang'] ? 'disabled title="Selesaikan dulu hal yang menghalangi"' : '' ?>><i class="bi bi-send me-1"></i>Ajukan</button>
@@ -74,7 +77,7 @@ $draf = $d['status'] === 'draf';
 <div class="alert alert-light border small py-2"><i class="bi bi-chat-left-text me-1"></i><strong>Alasan revisi:</strong> <?= esc($d['catatan']) ?></div>
 <?php endif; ?>
 <?php if ($draf): ?>
-<div class="alert alert-info small py-2"><i class="bi bi-arrow-repeat me-1"></i>Draf ini <strong>pratinjau hidup</strong> dari Event Content — ubah item di halaman event-nya, lalu muat ulang halaman ini.</div>
+<div class="alert alert-info small py-2"><i class="bi bi-arrow-repeat me-1"></i>Draf ini <strong>pratinjau hidup</strong> dari Event Content. Isi atau ubah lewat <a href="<?= $url('rab/' . $d['id'] . '/susun') ?>"><strong>Susun RAB</strong></a> (lembar kerja per mal &amp; bulan), atau di halaman event-nya.</div>
 <?php if ($periksa['halang']): ?>
 <div class="alert alert-danger small">
     <strong><i class="bi bi-x-octagon me-1"></i>Belum bisa diajukan:</strong>
@@ -135,6 +138,7 @@ $draf = $d['status'] === 'draf';
             <?php if ($draf): ?><a href="<?= base_url('events/' . $evId . '/content') ?>"><?= esc($ev['nama'] ?? 'Event #' . $evId) ?></a><?php else: ?><?= esc($ev['nama'] ?? 'Event #' . $evId) ?><?php endif; ?>
             <?php if (($ev['jenis'] ?? '') === 'rutin'): ?><span class="badge text-bg-secondary ms-1">Rutin</span><?php endif; ?>
             <span class="fw-normal text-muted ms-2"><?= $ev ? date('j M', strtotime($ev['mulai'])) . ' – ' . date('j M Y', strtotime($ev['akhir'])) : '' ?><?= ! empty($ev['lokasi']) ? ' · ' . esc($ev['lokasi']) : '' ?></span>
+            <?php if (! empty($ev['income'])): ?><span class="badge text-bg-success ms-2" title="Nilai dealing exhibitor (tab Exhibitor event) — informasi, bukan bagian budget">Proyeksi income Rp <?= $rp($ev['income']) ?> · biaya di RAB Rp <?= $rp($biayaEv[$evId] ?? 0) ?></span><?php endif; ?>
         </td></tr>
         <?php foreach ($rows as $it): $sub += $it['total'];
             if ($it['kelompok'] !== '' && $it['kelompok'] !== $kel): $kel = $it['kelompok']; ?>
@@ -171,7 +175,7 @@ $draf = $d['status'] === 'draf';
 <?php endif; ?>
 
 <?php if (! $snap['items']): ?>
-<div class="card"><div class="card-body text-center text-muted py-4">Belum ada item biaya di periode ini. Tambahkan program/biaya di <a href="<?= base_url('events') ?>">modul Events</a> → Content.</div></div>
+<div class="card"><div class="card-body text-center text-muted py-4">Belum ada item biaya di periode ini. Mulai lewat <a href="<?= $url('rab/' . $d['id'] . '/susun') ?>">Susun RAB</a>, atau tambahkan biaya di <a href="<?= base_url('events') ?>">modul Events</a> → Content.</div></div>
 <?php endif; ?>
 
 <?php if ($terbaru && $canEdit): ?>

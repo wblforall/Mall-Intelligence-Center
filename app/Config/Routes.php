@@ -879,6 +879,8 @@ $routes->post('budget-dept/rab/(:num)/revisi',            'BudgetRab::revisi/$1'
 $routes->post('budget-dept/rab/(:num)/hapus',             'BudgetRab::hapus/$1',        ['filter' => 'auth']);
 $routes->post('budget-dept/rab/(:num)/unggah',            'BudgetRab::unggah/$1',       ['filter' => 'auth']);
 $routes->get ('budget-dept/rab/(:num)/berkas',            'BudgetRab::berkas/$1',       ['filter' => 'auth']);
+$routes->get ('budget-dept/rab/(:num)/susun',             'BudgetRabSusun::lembar/$1',  ['filter' => 'auth']);
+$routes->post('budget-dept/rab/(:num)/susun',             'BudgetRabSusun::simpan/$1',  ['filter' => 'auth']);
 
 $routes->get ('work-report',                              'WorkReportCtrl::index',                    ['filter' => 'auth']);
 $routes->get ('work-report/admin',                        'WorkReportCtrl::admin',                    ['filter' => 'auth']);

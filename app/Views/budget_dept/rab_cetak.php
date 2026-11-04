@@ -9,6 +9,9 @@ $periode = RabSusun::labelPeriode($snap['periode']['mulai'], $snap['periode']['s
 $draf    = $d['status'] === 'draf';
 $grup = [];
 foreach ($snap['items'] as $it) $grup[$it['bulan']][$it['mall']][$it['event_id']][] = $it;
+$biayaEv = [];
+foreach ($snap['items'] as $it) $biayaEv[$it['event_id']] = ($biayaEv[$it['event_id']] ?? 0) + $it['total'];
+$evIncome = array_filter($snap['events'], fn ($e) => ! empty($e['income']));
 $tglDok = $d['diajukan_at'] ? strtotime($d['diajukan_at']) : time();
 $BLN = RabSusun::BLN;
 ?>
@@ -26,6 +29,7 @@ $BLN = RabSusun::BLN;
 .main-table.rab tr.kel td { font-style: italic; color: var(--redup); background: #fff !important; }
 .main-table.rab tr.sub td { font-weight: 700; background: #fdf6e3 !important; }
 .main-table.rab tr.var td { font-weight: 700; }
+.main-table.rab td.pos { white-space: nowrap; }
 .lewat { color: #b91c1c; font-weight: 700; }
 /* Nomor dokumen di kop gelap: <b> berwarna tinta (gelap) di tema cetak → tak terbaca. */
 .doc-header .meta .nomor-dok { color: #fff; font-weight: 700; }
@@ -67,6 +71,15 @@ $temuan = [];
 if ($tot['budget'] > 0) $temuan[] = 'Total RAB Rp ' . $rp($tot['rab']) . ' = ' . $pakai . ' dari budget Rp ' . $rp($tot['budget']) . ($selisih < 0 ? ' — MELEBIHI budget Rp ' . $rp(-$selisih) . '.' : '; variant (sisa) Rp ' . $rp($selisih) . '.');
 else $temuan[] = 'Total RAB Rp ' . $rp($tot['rab']) . '; budget periode ini belum ditetapkan.';
 foreach ($bulanP as $b) foreach (['ewalk', 'pentacity'] as $m) { $v = $ringkas['perBulanMal'][$b][$m] ?? null; if ($v && $v['rab'] > $v['budget'] + 0.5) $temuan[] = RabSusun::labelBulan($b) . ' ' . RabSusun::MAL[$m] . ': RAB Rp ' . $rp($v['rab']) . ' melebihi budget Rp ' . $rp($v['budget']) . '.'; }
+foreach ($bulanP as $b) foreach (['ewalk', 'pentacity'] as $m) foreach ($snap['pos'] as $p) {
+    $v = $ringkas['sel'][$b][$m][$p['id']] ?? null;
+    if ($v && $v['rab'] > $v['budget'] + 0.5 && ($ringkas['perBulanMal'][$b][$m]['rab'] ?? 0) <= ($ringkas['perBulanMal'][$b][$m]['budget'] ?? 0)) {
+        $temuan[] = RabSusun::labelBulan($b) . ' ' . RabSusun::MAL[$m] . ' · ' . $p['nama'] . ': RAB Rp ' . $rp($v['rab']) . ' melebihi budget pos Rp ' . $rp($v['budget']) . ' (total bulan itu masih dalam budget).';
+    }
+}
+foreach ($evIncome as $e) {
+    $temuan[] = $e['nama'] . ': proyeksi income (nilai dealing exhibitor) Rp ' . $rp($e['income']) . ' terhadap biaya di RAB ini Rp ' . $rp($biayaEv[$e['id']] ?? 0) . ' — informasi, tidak mengurangi budget.';
+}
 if ($tanpaPos > 0) $temuan[] = 'Rincian senilai Rp ' . $rp($tanpaPos) . ' belum dipetakan ke pos budget.';
 ?>
 <div class="kpi-row">
@@ -112,7 +125,7 @@ if ($tanpaPos > 0) $temuan[] = 'Rincian senilai Rp ' . $rp($tanpaPos) . ' belum 
     <tbody>
     <?php foreach ($grup[$b][$m] as $evId => $rows): $ev = $snap['events'][$evId] ?? []; $no++; $kel = null; ?>
     <tr class="ev"><td><?= $no ?></td><td colspan="9"><?= esc($ev['nama'] ?? '') ?>
-        <span style="font-weight:400;color:var(--redup)"> · <?= ! empty($ev['mulai']) ? date('j', strtotime($ev['mulai'])) . ' ' . $BLN[(int) date('n', strtotime($ev['mulai']))] . ' s.d. ' . date('j', strtotime($ev['akhir'])) . ' ' . $BLN[(int) date('n', strtotime($ev['akhir']))] . ' ' . date('Y', strtotime($ev['akhir'])) : '' ?><?= ! empty($ev['lokasi']) ? ' · ' . esc($ev['lokasi']) : '' ?></span></td></tr>
+        <span style="font-weight:400;color:var(--redup)"> · <?= ! empty($ev['mulai']) ? date('j', strtotime($ev['mulai'])) . ' ' . $BLN[(int) date('n', strtotime($ev['mulai']))] . ' s.d. ' . date('j', strtotime($ev['akhir'])) . ' ' . $BLN[(int) date('n', strtotime($ev['akhir']))] . ' ' . date('Y', strtotime($ev['akhir'])) : '' ?><?= ! empty($ev['lokasi']) ? ' · ' . esc($ev['lokasi']) : '' ?><?= ! empty($ev['income']) ? ' · <b style="color:#15803d">Proyeksi income Rp ' . $rp($ev['income']) . '</b>' : '' ?></span></td></tr>
     <?php foreach ($rows as $it): $sub += $it['total'];
         if ($it['kelompok'] !== '' && $it['kelompok'] !== $kel): $kel = $it['kelompok']; ?>
     <tr class="kel"><td></td><td colspan="9"><?= esc($kel) ?></td></tr>
@@ -123,7 +136,7 @@ if ($tanpaPos > 0) $temuan[] = 'Rincian senilai Rp ' . $rp($tanpaPos) . ' belum 
         <td class="num"><?= $num($it['freq']) ?></td><td><?= esc($it['satuan_freq']) ?></td>
         <td class="num"><?= $it['harga_satuan'] !== null ? $rp($it['harga_satuan']) : '' ?></td>
         <td class="num"><?= $rp($it['total']) ?></td>
-        <td><?= esc($posNama[$it['pos_id']] ?? '(tanpa pos)') ?></td>
+        <td class="pos"><?= esc(preg_replace('/^Biaya\s+/i', '', $posNama[$it['pos_id']] ?? '(tanpa pos)')) ?></td>
         <td><?= esc(implode(' — ', array_filter([$it['tanggal'] ? date('j/n', strtotime($it['tanggal'])) : '', $it['keterangan']]))) ?></td></tr>
     <?php endforeach; endforeach;
     $bud = $m === 'both' ? null : ($ringkas['perBulanMal'][$b][$m]['budget'] ?? 0); ?>
