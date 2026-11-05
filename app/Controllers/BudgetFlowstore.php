@@ -127,7 +127,7 @@ class BudgetFlowstore extends BudgetDept
         $halMaks = max(1, (int) ceil($total / $perHal));
         $hal = min($hal, $halMaks);
         $rows = $db->query("SELECT f.*, p.id AS pem_id, p.status AS pem_status, p.pos_id AS pem_pos, p.bulan_beban, p.mall AS pem_mall, p.realisasi_id,
-                    p.alasan_abaikan, p.catatan_tinjau, p.creative_scope, p.creative_item_id, x.tanggal AS real_tanggal
+                    p.alasan_abaikan, p.catatan_tinjau, p.creative_scope, p.creative_item_id, p.tautan_modul, p.tautan_id, x.tanggal AS real_tanggal
                FROM budget_fs_pemetaan p JOIN fs_btb_item f ON f.id_btb_item = p.id_btb_item
                LEFT JOIN budget_realisasi x ON x.id = p.realisasi_id
               WHERE $where ORDER BY " . ($kel ? "COALESCE(f.keperluan,'') , f.no_mr, " : '') . "f.tanggal_diterima DESC, f.id_btb_item DESC LIMIT " . $perHal . ' OFFSET ' . (($hal - 1) * $perHal), $arg)->getResultArray();
@@ -142,6 +142,7 @@ class BudgetFlowstore extends BudgetDept
             $r['bln_bawaan'] = substr((string) $r['tanggal_diterima'], 0, 4) === (string) $tahun ? substr((string) $r['tanggal_diterima'], 0, 7) : $tahun . '-01';
         }
         unset($r);
+        $this->tautanModul($rows, $db);
 
         // Dept CCD: kolom "Untuk Creative" (pemilih Tema -> item + usulan). Tautan hanya MEMBACA modul Creative; angkanya tetap dari BTB.
         $creative = null;
@@ -169,6 +170,31 @@ class BudgetFlowstore extends BudgetDept
             'divisiDept' => array_keys($sink->petaDivisi($deptId)),
             'url' => fn (string $p, array $q = []) => $this->url($p, $dept, $q),
         ]);
+    }
+
+    /** Baris yang ditautkan dari realisasi Content Event / Dekorasi & VM: sisipkan 'tautan' = [label, url entri]. */
+    private function tautanModul(array &$rows, $db): void
+    {
+        $per = [];
+        foreach ($rows as $r) if (! empty($r['tautan_modul']) && $r['tautan_id']) $per[$r['tautan_modul']][] = (int) $r['tautan_id'];
+        $url = [];
+        if (! empty($per['content'])) {
+            foreach ($db->table('event_content_realisasi')->select('id, event_id, content_item_id')->whereIn('id', $per['content'])->get()->getResultArray() as $e) {
+                $url['content'][(int) $e['id']] = base_url('events/' . $e['event_id'] . '/content#item-' . $e['content_item_id']);
+            }
+        }
+        if (! empty($per['vm'])) {
+            foreach ($db->table('event_vm_realisasi')->select('id, event_id, vm_item_id')->whereIn('id', $per['vm'])->get()->getResultArray() as $e) {
+                $url['vm'][(int) $e['id']] = $e['event_id'] ? base_url('events/' . $e['event_id'] . '/vm#item-' . $e['vm_item_id']) : base_url('vm#item-' . $e['vm_item_id']);
+            }
+        }
+        foreach ($rows as &$r) {
+            $r['tautan'] = null;
+            if (! empty($r['tautan_modul']) && isset(\App\Libraries\EventFsPo::MODUL[$r['tautan_modul']])) {
+                $r['tautan'] = ['label' => \App\Libraries\EventFsPo::MODUL[$r['tautan_modul']]['label'], 'url' => $url[$r['tautan_modul']][(int) $r['tautan_id']] ?? null];
+            }
+        }
+        unset($r);
     }
 
     /**
@@ -378,7 +404,7 @@ class BudgetFlowstore extends BudgetDept
         $back = $this->kembali($dept);
         $id = (int) $this->request->getPost('id');
         $db = db_connect();
-        $db->table('budget_fs_pemetaan')->where('dept_id', (int) $dept['id'])->where('status', 'perlu_ditinjau')->where('id_btb_item', $id)->where('realisasi_id IS NOT NULL')
+        $db->table('budget_fs_pemetaan')->where('dept_id', (int) $dept['id'])->where('status', 'perlu_ditinjau')->where('id_btb_item', $id)->groupStart()->where('realisasi_id IS NOT NULL')->orWhere('tautan_id IS NOT NULL')->groupEnd()
             ->update(['status' => 'dicatat', 'catatan_tinjau' => null, 'diperbarui_oleh' => (int) session()->get('user_id'), 'updated_at' => date('Y-m-d H:i:s')]);
         $n = $db->affectedRows();
         if ($n) ActivityLog::write('update', 'budget_fs', (string) $dept['id'], 'Item FlowStore #' . $id . ' ditandai sudah ditinjau (realisasi dipertahankan)');

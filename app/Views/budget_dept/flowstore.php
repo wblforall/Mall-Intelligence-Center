@@ -340,7 +340,11 @@ $potong = fn (string $t, int $n) => mb_strlen($t) > $n ? mb_substr($t, 0, $n - 1
             <button type="button" class="bfs-btn bfs-btn-xs bfs-abaikan" title="Bukan beban departemen ini / sudah dicatat manual"><i class="bi bi-slash-circle"></i>Abaikan</button>
             <span class="bfs-simpan" hidden><i class="bi bi-check2"></i> draf tersimpan</span>
             <?php elseif ($st === 'dicatat'): ?>
+            <?php if ($r['tautan']): ?>
+            <a class="bfs-btn bfs-btn-xs" href="<?= esc($r['tautan']['url'] ?? '#', 'attr') ?>" title="Ditautkan dari realisasi <?= esc($r['tautan']['label'], 'attr') ?>"><i class="bi bi-link-45deg"></i><?= esc($r['tautan']['label']) ?></a>
+            <?php else: ?>
             <a class="bfs-btn bfs-btn-xs" href="<?= $url('realisasi', ['tahun' => $tahun, 'q' => $r['no_btb']]) ?>" title="Lihat di tab Realisasi"><i class="bi bi-receipt"></i>Realisasi</a>
+            <?php endif; ?>
             <?php elseif ($st === 'diabaikan'): ?>
             <span class="bfs-sub" title="Alasan diabaikan"><i class="bi bi-chat-left-text"></i> <?= esc($r['alasan_abaikan']) ?></span>
             <?php if ($canEdit): ?>
@@ -350,7 +354,11 @@ $potong = fn (string $t, int $n) => mb_strlen($t) > $n ? mb_substr($t, 0, $n - 1
             <?php endif; ?>
             <?php else: ?>
             <span class="bfs-sub bfs-warn"><i class="bi bi-flag"></i> <?= esc($r['catatan_tinjau']) ?></span>
+            <?php if ($r['tautan']): ?>
+            <a class="bfs-btn bfs-btn-xs" href="<?= esc($r['tautan']['url'] ?? '#', 'attr') ?>"><i class="bi bi-link-45deg"></i><?= esc($r['tautan']['label']) ?></a>
+            <?php else: ?>
             <a class="bfs-btn bfs-btn-xs" href="<?= $url('realisasi', ['tahun' => $tahun, 'q' => $r['no_btb']]) ?>"><i class="bi bi-receipt"></i>Realisasi</a>
+            <?php endif; ?>
             <?php if ($canEdit): ?>
             <form method="POST" action="<?= $url('flowstore/tinjau') ?>" class="d-inline"><?= csrf_field() ?>
                 <input type="hidden" name="id" value="<?= (int) $r['id_btb_item'] ?>"><input type="hidden" name="tahun" value="<?= (int) $tahun ?>"><input type="hidden" name="dept" value="<?= (int) $dept['id'] ?>"><input type="hidden" name="kembali" value="<?= esc($kembali) ?>">

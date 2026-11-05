@@ -316,6 +316,11 @@ class Events extends BaseController
         (new \App\Libraries\CreativeFsPo($db))->lepasEntri('event',
             array_column($db->table('event_creative_realisasi')->select('id')->where('event_id', $id)->get()->getResultArray(), 'id'),
             (int) session()->get('user_id'));
+        // 3e. Realisasi Content & VM ber-PO FlowStore: baris BTB kembali ke antrean.
+        $fsPo = new \App\Libraries\EventFsPo($db);
+        foreach (['content' => 'event_content_realisasi', 'vm' => 'event_vm_realisasi'] as $modul => $tabel) {
+            $fsPo->lepas($modul, array_column($db->table($tabel)->select('id')->where('event_id', $id)->get()->getResultArray(), 'id'), (int) session()->get('user_id'));
+        }
 
         // 4. Semua tabel anak ber-event_id.
         foreach ([

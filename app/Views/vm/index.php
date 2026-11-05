@@ -1,5 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/creative-po-fs.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-po-fs.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/events-modul.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-modul.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -204,6 +205,7 @@ if ($canEdit) {
             <div class="ev-panel" id="real-<?= $iid ?>" hidden>
                 <form method="POST" action="<?= base_url('events/' . $event['id'] . '/vm/' . $iid . '/realisasi/add') ?>" enctype="multipart/form-data">
                     <?= csrf_field() ?>
+                    <?= view('_creative/_po_fs', ['antrean' => 'vm/antrean-po', 'dept' => 'VM', 'ket' => 'Pilih barang yang sudah diterima dari PO FlowStore VM. Nilai dan tanggal realisasi mengikuti BTB, dan barang yang dipilih keluar dari antrean FlowStore sehingga tidak dicatat dua kali.'], ['saveData' => false]) ?>
                     <div class="row g-2 align-items-end">
                         <div class="col-md-2 col-6">
                             <label class="form-label">Tanggal</label>
@@ -238,7 +240,7 @@ if ($canEdit) {
                 <?php foreach ($rData['entries'] as $re): ?>
                 <tr>
                     <td class="ev-nowrap" data-l="Tanggal"><?= date('d M Y', strtotime($re['tanggal'])) ?></td>
-                    <td data-l="Keterangan"><?= esc($re['catatan'] ?: '—') ?></td>
+                    <td data-l="Keterangan"><?= esc($re['catatan'] ?: (empty($re['po']) ? '—' : '')) ?><?= view('_creative/_po_entri', ['po' => $re['po'] ?? [], 'rp' => fn ($n) => evRp($n)], ['saveData' => false]) ?></td>
                     <td data-l="Foto">
                         <?php if (! empty($re['foto_file_name'])): $furl = base_url($vmBase . $re['foto_file_name']); ?>
                         <a class="ev-thumb" href="<?= $furl ?>" target="_blank" title="Foto bukti"><img src="<?= $furl ?>" alt="Foto bukti" loading="lazy"></a>
@@ -247,7 +249,7 @@ if ($canEdit) {
                     <td class="ev-num" data-l="Jumlah"><?= evRp($re['jumlah']) ?></td>
                     <?php if ($canEdit): ?>
                     <td class="ev-act-cell">
-                        <form method="POST" action="<?= base_url('events/' . $event['id'] . '/vm/' . $iid . '/realisasi/' . $re['id'] . '/delete') ?>" class="ev-form-inline" onsubmit="return confirm('Hapus entri ini?')">
+                        <form method="POST" action="<?= base_url('events/' . $event['id'] . '/vm/' . $iid . '/realisasi/' . $re['id'] . '/delete') ?>" class="ev-form-inline" onsubmit="return confirm('<?= empty($re['po']) ? 'Hapus entri ini?' : 'Hapus entri ini? Barang PO FlowStore-nya kembali ke antrean.' ?>')">
                             <?= csrf_field() ?>
                             <button class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad" title="Hapus entri" aria-label="Hapus entri realisasi"><i class="bi bi-trash"></i></button>
                         </form>
@@ -346,5 +348,6 @@ document.querySelectorAll('.currency-input').forEach(inp => {
     inp.addEventListener('input', function() { let n = parseInt(this.value.replace(/[^0-9]/g,''))||0; this.value=n.toLocaleString('id-ID'); });
 });
 </script>
+<?php if ($canEdit): ?><script src="<?= base_url('js/creative-po-fs.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-po-fs.js') ?: 1 ?>"></script><?php endif; ?>
 <script src="<?= base_url('js/events-modul.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-modul.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

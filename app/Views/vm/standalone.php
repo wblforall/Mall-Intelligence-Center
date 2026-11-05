@@ -1,5 +1,6 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/creative-po-fs.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-po-fs.css') ?: 1 ?>">
 <style>
 </style>
 <?= $this->endSection() ?>
@@ -109,6 +110,7 @@ $renderItem = function(array $it, array $realisasi, bool $canEdit) {
         <div id="real-<?= $it['id'] ?>" class="d-none mb-2">
         <form method="POST" action="<?= base_url('vm/'.$it['id'].'/realisasi/add') ?>" enctype="multipart/form-data">
         <?= csrf_field() ?>
+        <?= view('_creative/_po_fs', ['antrean' => 'vm/antrean-po', 'dept' => 'VM', 'ket' => 'Pilih barang yang sudah diterima dari PO FlowStore VM. Nilai dan tanggal realisasi mengikuti BTB, dan barang yang dipilih keluar dari antrean FlowStore sehingga tidak dicatat dua kali.'], ['saveData' => false]) ?>
         <div class="row g-2 align-items-end">
             <div class="col-auto">
                 <label class="form-label small mb-1">Tanggal</label>
@@ -151,7 +153,7 @@ $renderItem = function(array $it, array $realisasi, bool $canEdit) {
         ?>
         <tr>
             <td class="small"><?= date('d/m/Y', strtotime($re['tanggal'])) ?></td>
-            <td class="small text-muted"><?= esc($re['catatan'] ?? '—') ?></td>
+            <td class="small text-muted"><?= esc($re['catatan'] ?: (empty($re['po']) ? '—' : '')) ?><?= view('_creative/_po_entri', ['po' => $re['po'] ?? [], 'rp' => fn ($n) => 'Rp ' . number_format((float) $n, 0, ',', '.')], ['saveData' => false]) ?></td>
             <td>
                 <?php if (!empty($re['foto_file_name'])): ?>
                 <a href="<?= $fotoUrl ?>" target="_blank">
@@ -164,7 +166,7 @@ $renderItem = function(array $it, array $realisasi, bool $canEdit) {
             <td class="text-end small">Rp <?= number_format($re['jumlah'],0,',','.') ?></td>
             <?php if ($canEdit && ! $isEvent): ?>
             <td>
-                <form method="POST" action="<?= base_url('vm/'.$it['id'].'/realisasi/'.$re['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus entri ini?')">
+                <form method="POST" action="<?= base_url('vm/'.$it['id'].'/realisasi/'.$re['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('<?= empty($re['po']) ? 'Hapus entri ini?' : 'Hapus entri ini? Barang PO FlowStore-nya kembali ke antrean.' ?>')">
                     <?= csrf_field() ?>
                     <button class="btn btn-sm btn-link text-danger p-0" title="Hapus"><i class="bi bi-x-circle"></i></button>
                 </form>
@@ -268,6 +270,7 @@ $renderItem = function(array $it, array $realisasi, bool $canEdit) {
 
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<?php if ($canEdit): ?><script src="<?= base_url('js/creative-po-fs.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-po-fs.js') ?: 1 ?>"></script><?php endif; ?>
 <script>
 <?php if ($canEdit): ?>
 document.querySelectorAll('.edit-btn').forEach(btn => {

@@ -1,5 +1,6 @@
 <?php helper('tanggal'); ?><?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
+<link rel="stylesheet" href="<?= base_url('css/creative-po-fs.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-po-fs.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/events-summary.css') ?>?v=<?= @filemtime(FCPATH . 'css/events-summary.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -229,7 +230,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
     <tr>
         <td class="nw"><?= $r['tanggal'] ? tgl_indo_pendek($r['tanggal'], false) : '—' ?></td>
         <td class="r nw fw-semibold"><?= $r['nilai'] ? 'Rp ' . number_format($r['nilai'],0,',','.') : '—' ?></td>
-        <td><?= esc($r['catatan'] ?: '—') ?></td>
+        <td><?= esc($r['catatan'] ?: (empty($r['po']) ? '—' : '')) ?><?= view('_creative/_po_entri', ['po' => $r['po'] ?? [], 'rp' => fn ($n) => 'Rp ' . number_format((float) $n, 0, ',', '.')], ['saveData' => false]) ?></td>
         <td>
             <?php if ($r['file_foto']): $ext = strtolower(pathinfo($r['file_foto'], PATHINFO_EXTENSION)); ?>
             <?php if (in_array($ext, ['jpg','jpeg','png','webp'])): ?>
@@ -255,7 +256,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
         <?php if ($canEdit): ?>
         <td>
             <?php if (! $realKunci): ?>
-            <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/realisasi/'.$r['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('Hapus realisasi ini?')">
+            <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/realisasi/'.$r['id'].'/delete') ?>" class="d-inline" onsubmit="return confirm('<?= empty($r['po']) ? 'Hapus realisasi ini?' : 'Hapus realisasi ini? Barang PO FlowStore-nya kembali ke antrean.' ?>')">
                 <?= csrf_field() ?>
                 <button class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad" title="Hapus realisasi" aria-label="Hapus realisasi"><i class="bi bi-trash"></i></button>
             </form>
@@ -280,6 +281,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
     <form method="POST" action="<?= base_url('events/'.$event['id'].'/content/'.$item['id'].'/realisasi/add') ?>"
           enctype="multipart/form-data" class="ev-formreal">
     <?= csrf_field() ?>
+    <?= view('_creative/_po_fs', ['antrean' => 'content/antrean-po', 'dept' => 'E&P', 'ket' => 'Pilih barang yang sudah diterima dari PO FlowStore E&P. Nilai dan tanggal realisasi mengikuti BTB; realisasi tetap masuk Budget Departemen E&P lewat pos item ini, dan barang yang dipilih keluar dari antrean tab FlowStore.'], ['saveData' => false]) ?>
     <div class="row g-2 mb-2">
         <div class="col-md-3">
             <label class="form-label small fw-semibold">Tanggal</label>
@@ -594,6 +596,7 @@ function renderItemCard(array $item, array $rList, array $realisasi, array $loca
 </div><!-- /page-evs -->
 <?= $this->endSection() ?>
 <?= $this->section('scripts') ?>
+<?php if ($canEdit): ?><script src="<?= base_url('js/creative-po-fs.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-po-fs.js') ?: 1 ?>"></script><?php endif; ?>
 <script src="<?= base_url('js/events-summary.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-summary.js') ?: 1 ?>"></script>
 <script>
 document.querySelectorAll('.currency-input').forEach(inp => {

@@ -123,6 +123,7 @@ $routes->post('events/(:num)/other-cost/(:num)/edit', 'EventOtherCost::update/$1
 $routes->post('events/(:num)/other-cost/(:num)/delete', 'EventOtherCost::delete/$1/$2', ['filter' => 'auth']);
 
 // Content Event
+$routes->get('content/antrean-po', 'EventContent::antreanPo', ['filter' => 'auth']);
 $routes->get('events/(:num)/content', 'EventContent::index/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/content/save-content', 'EventContent::saveContent/$1', ['filter' => 'auth']);
 $routes->post('events/(:num)/content/add-item', 'EventContent::addItem/$1', ['filter' => 'auth']);
@@ -344,6 +345,7 @@ $routes->post('sponsorship/dobel/putuskan', 'SponsorshipCtrl::putuskanDobel', ['
 $routes->post('sponsorship/dobel/batal', 'SponsorshipCtrl::batalkanDobel', ['filter' => 'auth']);
 
 // VM Standalone (non-event)
+$routes->get('vm/antrean-po', 'VMStandalone::antreanPo', ['filter' => 'auth']);
 $routes->get('vm/monthly-summary', 'VMStandalone::monthly', ['filter' => 'auth']);
 $routes->get('vm', 'VMStandalone::index', ['filter' => 'auth']);
 $routes->post('vm/add', 'VMStandalone::store', ['filter' => 'auth']);

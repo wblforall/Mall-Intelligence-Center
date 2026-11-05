@@ -1,6 +1,7 @@
-/* MIC — Creative: pemilih "Tautkan PO FlowStore" di form realisasi (lihat app/Views/_creative/_po_fs.php).
+/* MIC — pemilih "Tautkan PO FlowStore" di form realisasi Creative, Content Event, dan Dekorasi & VM (lihat app/Views/_creative/_po_fs.php).
    Barang yang dipilih dikirim sebagai JSON [{id,pos,mall}] di input fs_po. Nilai & tanggal form mengikuti BTB (dikunci);
-   server menghitung ulang dari FlowStore, jadi angka di layar hanya pratinjau. */
+   server menghitung ulang dari FlowStore, jadi angka di layar hanya pratinjau. Antrean ber-tanpa_pos (Content/VM) tidak
+   meminta pos: pos & bulan mengikuti item realisasinya. */
 (function () {
     'use strict';
     const rp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
@@ -16,7 +17,7 @@
         const daftar = box.querySelector('[data-po-fs-daftar]');
         const cari = box.querySelector('[data-po-fs-q]');
         const ringkas = box.querySelector('[data-po-fs-ringkas]');
-        const inNilai = form.querySelector('input[name="nilai"]');
+        const inNilai = form.querySelector('input[name="nilai"], input[name="jumlah"]');
         const inTgl = form.querySelector('input[name="tanggal"]');
         let data = null, dimuat = false, timer = null;
         const pilihan = new Map();   // id -> {id,pos,mall,nilai,tanggal}
@@ -34,7 +35,7 @@
             const per = new Map();
             data.baris.forEach(b => { const k = b.no_po || '(tanpa PO)'; if (!per.has(k)) per.set(k, []); per.get(k).push(b); });
             // Barang yang sudah dipilih tetap terpilih walau tidak muncul di hasil pencarian (ringkasan di tombol tetap menghitungnya)
-            if (!per.size && !pilihan.size) { daftar.innerHTML = '<div class="po-fs-kosong">Tidak ada barang FlowStore CCD yang belum diproses' + (cari.value ? ' untuk pencarian ini' : '') + '.</div>'; return; }
+            if (!per.size && !pilihan.size) { daftar.innerHTML = '<div class="po-fs-kosong">Tidak ada barang FlowStore ' + esc(box.dataset.dept || '') + ' yang belum diproses' + (cari.value ? ' untuk pencarian ini' : '') + '.</div>'; return; }
             const opsiPos = sel => '<option value="">— pilih pos —</option>' + data.pos.map(p => '<option value="' + p.id + '"' + (p.id === sel ? ' selected' : '') + '>' + esc(p.nama) + '</option>').join('');
             const opsiMal = sel => Object.entries(data.mal).map(([k, v]) => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
             let html = '';
@@ -49,7 +50,7 @@
                     html += '<div class="po-fs-brs" data-id="' + b.id + '"><input type="checkbox" class="form-check-input" data-po-brs aria-label="Pilih ' + esc(b.barang) + '"' + (p ? ' checked' : '') + '>'
                         + '<div><span class="po-fs-brg">' + esc(b.barang) + '</span><span class="po-fs-sub">diterima ' + esc(tgl(b.tanggal)) + ' · BTB ' + esc(b.no_btb) + ' · ' + esc(b.qty) + ' ' + esc(b.satuan) + '</span></div>'
                         + '<span class="po-fs-nilai">' + rp(b.nilai) + '</span>'
-                        + (p ? '<div class="po-fs-pilih"><select class="form-select form-select-sm' + (p.pos ? '' : ' is-invalid') + '" data-po-pos aria-label="Pos budget CCD">' + opsiPos(p.pos) + '</select>'
+                        + (p && !data.tanpa_pos ? '<div class="po-fs-pilih"><select class="form-select form-select-sm' + (p.pos ? '' : ' is-invalid') + '" data-po-pos aria-label="Pos budget ' + esc(box.dataset.dept || '') + '">' + opsiPos(p.pos) + '</select>'
                             + (data.pisah ? '<select class="form-select form-select-sm" data-po-mal aria-label="Mal">' + opsiMal(p.mall) + '</select>' : '') + '</div>' : '')
                         + '</div>';
                 });
@@ -110,11 +111,11 @@
             segarkan();
         });
         form.addEventListener('submit', e => {
-            const kurang = [...pilihan.values()].filter(p => !p.pos);
+            const kurang = data && data.tanpa_pos ? [] : [...pilihan.values()].filter(p => !p.pos);
             if (kurang.length) {
                 e.preventDefault();
                 panel.hidden = false; tombol.setAttribute('aria-expanded', 'true');
-                alert('Pilih pos budget CCD untuk ' + kurang.length + ' barang PO yang belum berpos.');
+                alert('Pilih pos budget ' + (box.dataset.dept || '') + ' untuk ' + kurang.length + ' barang PO yang belum berpos.');
                 const s = daftar.querySelector('select.is-invalid'); if (s) s.focus();
             }
         });

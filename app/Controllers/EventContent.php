@@ -9,6 +9,7 @@ use App\Models\EventCompletionModel;
 use App\Models\EventLocationModel;
 use App\Models\EventContentRealisasiModel;
 use App\Libraries\ActivityLog;
+use App\Libraries\EventFsPo;
 use App\Libraries\RabSusun;
 use App\Models\BudgetPosModel;
 use App\Models\RabDokumenModel;
@@ -81,8 +82,10 @@ class EventContent extends BaseController
         $locModel  = new EventLocationModel();
         $locations = $locModel->getEventLocations($eventId) ?: $locModel->getByMall($event['mall']);
         $realisasi = (new EventContentRealisasiModel())->getGroupedByEvent($eventId);
+        $po = (new EventFsPo())->poEntri('content', array_merge([], ...array_map(fn ($g) => array_column($g, 'id'), array_values($realisasi))));
+        foreach ($realisasi as $k => $g) foreach ($g as $i => $r) if (isset($po[(int) $r['id']])) $realisasi[$k][$i]['po'] = $po[(int) $r['id']];
 
-        $programs       = array_filter($items, fn($i) => ($i['tipe'] ?? 'program') === 'program');
+        $programs      = array_filter($items, fn($i) => ($i['tipe'] ?? 'program') === 'program');
         $biayaItems     = array_filter($items, fn($i) => ($i['tipe'] ?? 'program') === 'biaya');
         $budgetProgram  = array_sum(array_column(array_values($programs), 'budget'));
         $budgetBiaya    = array_sum(array_column(array_values($biayaItems), 'budget'));
@@ -289,6 +292,15 @@ class EventContent extends BaseController
         return redirect()->to("/events/{$eventId}/content")->with('success', 'Item berhasil dihapus.');
     }
 
+    /** JSON antrean PO FlowStore E&P untuk pemilih di form realisasi. */
+    public function antreanPo()
+    {
+        if (! $this->canEditMenu('content')) {
+            return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'pesan' => 'Akses ditolak.']);
+        }
+        return $this->response->setJSON((new EventFsPo())->antrean('content', (string) $this->request->getGet('q')));
+    }
+
     public function storeRealisasi(int $eventId, int $itemId)
     {
         if (! $this->canEditMenu('content')) return redirect()->to("/events/{$eventId}/content")->with('error', 'Akses ditolak.');
@@ -301,6 +313,11 @@ class EventContent extends BaseController
         }
 
         $post      = $this->request->getPost();
+        // PO FlowStore E&P (opsional): nilai & tanggal mengikuti BTB yang dipilih; barisnya keluar dari antrean FlowStore.
+        $fsPo = new EventFsPo();
+        [$errPo, $siapPo, $nilaiPo, $tglPo] = $fsPo->siapkan('content', $post['fs_po'] ?? null);
+        if ($errPo !== null) return redirect()->back()->withInput()->with('error', $errPo);
+
         $uploadDir = FCPATH . 'uploads/content-realisasi/' . $eventId . '/';
         if (! is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
@@ -329,18 +346,35 @@ class EventContent extends BaseController
             $fileTerima = $name;
         }
 
-        $nilai = (int) str_replace([',', '.', ' '], '', $post['nilai'] ?? 0);
-        (new EventContentRealisasiModel())->insert([
+        $nilai   = $siapPo ? $nilaiPo : (int) str_replace([',', '.', ' '], '', $post['nilai'] ?? 0);
+        $tanggal = $siapPo ? $tglPo : ($post['tanggal'] ?: null);
+        $uid     = (int) $this->currentUser()['id'];
+        $db = db_connect();
+        $db->transBegin();
+        $rid = (new EventContentRealisasiModel())->insert([
             'event_id'        => $eventId,
             'content_item_id' => $itemId,
-            'tanggal'         => $post['tanggal'] ?: null,
+            'tanggal'         => $tanggal,
             'nilai'           => $nilai,
             'catatan'         => $post['catatan'] ?? null,
             'file_foto'       => $fileFoto,
             'file_terima'     => $fileTerima,
-            'created_by'      => $this->currentUser()['id'],
+            'created_by'      => $uid,
         ]);
-        ActivityLog::write('create', 'content_realisasi', (string)$itemId, 'Realisasi Content', ['event_id' => $eventId, 'tanggal' => $post['tanggal'] ?? null, 'nilai' => $nilai]);
+        $err = $rid ? ($siapPo ? $fsPo->tautkan('content', $siapPo, (int) $rid, $uid, [
+            'pos_id' => $item['pos_id'] ?: ($event['pos_id'] ?? null),
+            'bulan'  => RabSusun::bulanItem($item, $event),
+            'mall'   => RabSusun::mallItem($item, $event),
+        ]) : null) : 'Gagal menyimpan realisasi.';
+        if ($err === null && ! $db->transStatus()) $err = 'Gagal menyimpan realisasi.';
+        if ($err !== null) {
+            $db->transRollback();
+            foreach ([$fileFoto, $fileTerima] as $f) if ($f && is_file($uploadDir . $f)) @unlink($uploadDir . $f);
+            return redirect()->back()->withInput()->with('error', $siapPo ? 'Realisasi tidak disimpan: ' . $err : $err);
+        }
+        $db->transCommit();
+        ActivityLog::write('create', 'content_realisasi', (string)$itemId, 'Realisasi Content', ['event_id' => $eventId, 'tanggal' => $tanggal, 'nilai' => $nilai]
+            + ($siapPo ? ['po_fs' => array_column($siapPo, 'id')] : []));
 
         return redirect()->to("/events/{$eventId}/content#item-{$itemId}")->with('success', 'Realisasi berhasil ditambahkan.');
     }
@@ -360,7 +394,11 @@ class EventContent extends BaseController
             $dir = FCPATH . 'uploads/content-realisasi/' . $eventId . '/';
             if ($row['file_foto']   && file_exists($dir . $row['file_foto']))   unlink($dir . $row['file_foto']);
             if ($row['file_terima'] && file_exists($dir . $row['file_terima'])) unlink($dir . $row['file_terima']);
+            $db = db_connect();
+            $db->transStart();
+            (new EventFsPo($db))->lepas('content', [$id], (int) $this->currentUser()['id']);
             $model->delete($id);
+            $db->transComplete();
             ActivityLog::write('delete', 'content_realisasi', (string)$id, 'Realisasi Content', ['event_id' => $eventId, 'item_id' => $itemId]);
         }
 
