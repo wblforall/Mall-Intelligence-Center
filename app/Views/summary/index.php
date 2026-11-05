@@ -221,6 +221,24 @@ $avr = [
             </tr></tfoot>
         </table>
         </div>
+        <?php if (! empty($penanggung)): ?>
+        <div class="ev-panel-h" style="border-top:1px solid var(--ev-border)"><h3 class="ev-panel-t" style="font-size:.85rem"><i class="bi bi-diagram-3"></i>Pengeluaran per penanggung</h3></div>
+        <div class="ev-tablewrap">
+        <table class="ev-table">
+            <thead><tr><th>Penanggung</th><th>Pos budget</th><th class="r">Realisasi</th></tr></thead>
+            <tbody>
+            <?php foreach ($penanggung as $pg): ?>
+            <tr>
+                <td><b><?= esc($pg['penanggung']) ?></b><span class="ev-sub"><?= esc($pg['sumber']) ?></span></td>
+                <td><?= $pg['pos'] !== null ? esc($pg['pos']) : '<span class="ev-mute">—</span>' ?></td>
+                <td class="r ev-nw"><?= $rp($pg['nilai']) ?></td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+            <tfoot><tr><td colspan="2">Total</td><td class="r ev-nw"><?= $rp(array_sum(array_column($penanggung, 'nilai'))) ?></td></tr></tfoot>
+        </table>
+        </div>
+        <?php endif; ?>
     </div>
     <div class="ev-panel">
         <div class="ev-panel-h"><h2 class="ev-panel-t"><i class="bi bi-bullseye"></i>Hasil vs Target</h2>

@@ -64,7 +64,8 @@ class CreativeBiayaFs
                 ->join('budget_realisasi x', 'x.id = p.realisasi_id')
                 ->join('fs_btb_item f', 'f.id_btb_item = p.id_btb_item')
                 ->join('budget_pos bp', 'bp.id = x.pos_id', 'left')
-                ->where('p.creative_scope', $scope)->whereIn('p.creative_item_id', $ids)->whereIn('p.status', self::STATUS_ADA);
+                ->where('p.creative_scope', $scope)->whereIn('p.creative_item_id', $ids)->whereIn('p.status', self::STATUS_ADA)
+                ->where('p.creative_realisasi_id', null);   // bagian realisasi Creative ber-PO sudah terhitung lewat entrinya
             if ($dari !== null) $q->where('x.tanggal >=', $dari);
             if ($sampai !== null) $q->where('x.tanggal <=', $sampai);
             $rows = $q->orderBy('x.tanggal', 'ASC')->orderBy('f.id_btb_item', 'ASC')->get()->getResultArray();
@@ -83,6 +84,7 @@ class CreativeBiayaFs
      */
     public function gabung(array $grouped, string $scope, array $ids): array
     {
+        $grouped = $this->tandaiPo($grouped, $scope);
         foreach ($this->baris($scope, $ids) as $id => $rows) {
             $g = $grouped[$id] ?? ['entries' => [], 'total' => 0];
             $fsTotal = 0; $bulanFs = [];
@@ -93,6 +95,7 @@ class CreativeBiayaFs
             }
             $dobel = [];
             foreach (($g['entries'] ?? []) as $e) {
+                if (! empty($e['po'])) continue;   // entri ber-PO = BTB-nya sendiri, bukan dobel
                 $m = substr((string) $e['tanggal'], 0, 7);
                 if (isset($bulanFs[$m])) $dobel[$m] = 1;
             }
@@ -104,6 +107,56 @@ class CreativeBiayaFs
             $grouped[$id]  = $g;
         }
         return $grouped;
+    }
+
+    /**
+     * Baris BTB milik realisasi Creative ber-PO.
+     * @return array<int,list<array>> [realisasi_id => [baris: id_btb_item, no_po, no_btb, nama_barang, nama_supplier, jumlah_diterima,
+     *                                satuan, tanggal_diterima, nilai, pos_nama, status, catatan_tinjau]]
+     */
+    public function poEntri(string $scope, array $entryIds): array
+    {
+        $entryIds = array_values(array_unique(array_filter(array_map('intval', $entryIds))));
+        if (! $entryIds) return [];
+        try {
+            $rows = $this->db->table('budget_fs_pemetaan p')
+                ->select('p.creative_realisasi_id AS rid, p.status, p.catatan_tinjau, x.nilai, bp.nama AS pos_nama,
+                          f.id_btb_item, f.no_btb, f.no_po, f.nama_supplier, f.nama_barang, f.tanggal_diterima, f.jumlah_diterima, f.satuan')
+                ->join('budget_realisasi x', 'x.id = p.realisasi_id')
+                ->join('fs_btb_item f', 'f.id_btb_item = p.id_btb_item')
+                ->join('budget_pos bp', 'bp.id = x.pos_id', 'left')
+                ->where('p.creative_scope', $scope)->whereIn('p.creative_realisasi_id', $entryIds)
+                ->orderBy('f.no_po')->orderBy('f.id_btb_item')->get()->getResultArray();
+        } catch (\Throwable $e) {
+            return [];
+        }
+        $out = [];
+        foreach ($rows as $r) $out[(int) $r['rid']][] = $r;
+        return $out;
+    }
+
+    /** Sisipkan 'po' (baris BTB) ke tiap entri realisasi yang bertaut PO, pada hasil getGroupedByItems()/getMonthlyGrouped(). */
+    public function tandaiPo(array $grouped, string $scope): array
+    {
+        $ids = [];
+        foreach ($grouped as $g) foreach (($g['entries'] ?? []) as $e) $ids[] = (int) $e['id'];
+        $po = $this->poEntri($scope, $ids);
+        if (! $po) return $grouped;
+        foreach ($grouped as $k => $g) {
+            foreach (($g['entries'] ?? []) as $i => $e) if (isset($po[(int) $e['id']])) $grouped[$k]['entries'][$i]['po'] = $po[(int) $e['id']];
+        }
+        return $grouped;
+    }
+
+    /** Biaya FlowStore tertaut langsung (tanpa realisasi Creative) ke item Creative sebuah event — pelengkap getTotalByEvent(). */
+    public function totalEvent(int $eventId): int
+    {
+        try {
+            $ids = array_column($this->db->table('event_creative_items')->select('id')->where('event_id', $eventId)->get()->getResultArray(), 'id');
+        } catch (\Throwable $e) {
+            return 0;
+        }
+        return $this->total('event', $ids);
     }
 
     /** Tambahkan biaya FlowStore bulan $bulan ('YYYY-MM') ke hasil getMonthlyGrouped(). */
@@ -129,7 +182,8 @@ class CreativeBiayaFs
         try {
             $q = $this->db->table('budget_fs_pemetaan p')->selectSum('x.nilai', 't')
                 ->join('budget_realisasi x', 'x.id = p.realisasi_id')
-                ->where('p.creative_scope', $scope)->whereIn('p.creative_item_id', $ids)->whereIn('p.status', self::STATUS_ADA);
+                ->where('p.creative_scope', $scope)->whereIn('p.creative_item_id', $ids)->whereIn('p.status', self::STATUS_ADA)
+                ->where('p.creative_realisasi_id', null);
             if ($bulan !== null) $q->where('x.tanggal <=', date('Y-m-t', strtotime($bulan . '-01')));
             return (int) round((float) ($q->get()->getRowArray()['t'] ?? 0));
         } catch (\Throwable $e) {
@@ -284,7 +338,7 @@ class CreativeBiayaFs
         $t = strtoupper($teks);
         if (! preg_match('/(\d+(?:[.,]\d+)?)\s*(CM|M)?\s*[X×]\s*(\d+(?:[.,]\d+)?)\s*(CM|M)?\b/u', $t, $m)) return null;
         $a = (float) str_replace(',', '.', $m[1]); $b = (float) str_replace(',', '.', $m[3]);
-        $unit = $m[4] ?: ($m[2] ?: '');
+        $unit = ($m[4] ?? '') ?: ($m[2] ?? '');   // grup satuan yang opsional bisa tidak ada di $m
         $meter = $unit === 'M' || ($unit === '' && max($a, $b) < 20);
         if ($meter) { $a *= 100; $b *= 100; }
         $d = [round(min($a, $b)), round(max($a, $b))];

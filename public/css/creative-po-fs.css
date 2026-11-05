@@ -1,0 +1,58 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   MIC — Creative: pemilih "Tautkan PO FlowStore" di form realisasi + rincian PO di entri.
+   Dipakai di Creative (token --cr-*) dan tab Creative event (token --ev-*).
+   ═══════════════════════════════════════════════════════════════════════ */
+.po-fs, .po-entri {
+    --po-txt: var(--cr-txt, var(--ev-txt, inherit));
+    --po-muted: var(--cr-muted, var(--ev-muted, #6b7280));
+    --po-border: var(--cr-border, var(--ev-border, rgba(148,170,220,.25)));
+    --po-inner: var(--cr-inner, var(--ev-inner, rgba(59,130,246,.06)));
+    --po-blue: var(--cr-blue, var(--ev-blue, #2563eb));
+    --po-blue-bg: var(--cr-blue-bg, var(--ev-blue-bg, rgba(37,99,235,.12)));
+    --po-warn: var(--cr-warn, var(--ev-warn, #b45309));
+    --po-warn-bg: var(--cr-warn-bg, var(--ev-warn-bg, rgba(217,119,6,.13)));
+}
+.po-fs { width: 100%; margin: 0 0 .65rem; }
+.po-fs-buka { display: inline-flex; align-items: center; gap: .45rem; padding: .38rem .75rem; border-radius: 9px; font-size: .8rem; font-weight: 700;
+    border: 1px dashed var(--po-blue); background: var(--po-blue-bg); color: var(--po-blue); cursor: pointer; }
+.po-fs-buka:focus-visible { outline: 2px solid var(--po-blue); outline-offset: 2px; }
+.po-fs-buka[aria-expanded="true"] { border-style: solid; }
+.po-fs-ringkas:not(:empty) { font-weight: 600; color: var(--po-txt); padding-left: .45rem; border-left: 1px solid var(--po-border); }
+.po-fs-panel { margin-top: .55rem; padding: .7rem; border: 1px solid var(--po-border); border-radius: 12px; background: var(--po-inner); }
+.po-fs-ket { margin: 0 0 .55rem; font-size: .75rem; color: var(--po-muted); }
+.po-fs-cari { margin-bottom: .55rem; max-width: 420px; }
+.po-fs-daftar { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: .55rem; }
+.po-fs-kosong { padding: .9rem; text-align: center; font-size: .78rem; color: var(--po-muted); }
+.po-fs-po { flex: none; border: 1px solid var(--po-border); border-radius: 10px; overflow: hidden; }
+.po-fs-po-h { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; padding: .45rem .65rem; font-size: .78rem; border-bottom: 1px solid var(--po-border); }
+.po-fs-po-h label { display: inline-flex; align-items: center; gap: .45rem; font-weight: 800; color: var(--po-txt); cursor: pointer; margin: 0; }
+.po-fs-po-h .po-fs-sub { color: var(--po-muted); }
+.po-fs-po-h .po-fs-kep { flex-basis: 100%; color: var(--po-muted); font-size: .72rem; }
+.po-fs-brs { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .2rem .6rem; align-items: start; padding: .5rem .65rem; font-size: .78rem; }
+.po-fs-brs + .po-fs-brs { border-top: 1px solid var(--po-border); }
+.po-fs-brs input[type="checkbox"] { margin-top: .2rem; }
+.po-fs-brg { color: var(--po-txt); font-weight: 600; overflow-wrap: anywhere; }
+.po-fs-brs .po-fs-sub { display: block; font-size: .7rem; color: var(--po-muted); font-weight: 400; }
+.po-fs-nilai { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--po-txt); white-space: nowrap; text-align: right; }
+.po-fs-pilih { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: .4rem; }
+.po-fs-pilih select { width: auto; min-width: 0; max-width: 100%; font-size: .75rem; }
+.po-fs-pilih select.is-invalid { border-color: var(--po-warn); }
+.po-fs-kunci { font-size: .72rem; color: var(--po-blue); margin-top: .25rem; display: block; }
+input.po-fs-terkunci { background: var(--po-blue-bg) !important; }
+
+.po-entri { margin-top: .3rem; font-size: .74rem; }
+.po-entri summary { cursor: pointer; display: inline-flex; align-items: center; gap: .35rem; color: var(--po-blue); font-weight: 700; }
+.po-entri summary:focus-visible { outline: 2px solid var(--po-blue); outline-offset: 2px; border-radius: 4px; }
+.po-entri ul { list-style: none; margin: .35rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.po-entri li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 .6rem; }
+.po-entri-brg { color: var(--po-txt); font-weight: 600; overflow-wrap: anywhere; }
+.po-entri-sub { grid-column: 1; color: var(--po-muted); font-size: .7rem; }
+.po-entri-nilai { grid-column: 2; grid-row: 1; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.po-entri-tinjau { grid-column: 1 / -1; justify-self: start; padding: .05rem .4rem; border-radius: 6px; font-size: .66rem; font-weight: 700; background: var(--po-warn-bg); color: var(--po-warn); }
+@media (max-width: 575px) {
+    .po-fs-buka { width: 100%; flex-wrap: wrap; text-align: left; }
+    .po-fs-ringkas:not(:empty) { flex-basis: 100%; padding-left: 1.45rem; border-left: 0; }
+    .po-fs-brs { grid-template-columns: auto minmax(0, 1fr); }
+    .po-fs-nilai { grid-column: 2; text-align: left; }
+    .po-fs-pilih select { flex: 1 1 100%; }
+}

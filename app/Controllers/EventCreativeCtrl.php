@@ -10,6 +10,8 @@ use App\Models\EventCreativeInsightModel;
 use App\Models\EventCompletionModel;
 use App\Models\CreativeReviewModel;
 use App\Libraries\ActivityLog;
+use App\Libraries\CreativeBiayaFs;
+use App\Libraries\CreativeFsPo;
 use App\Services\CreativeApprovalService;
 use App\Services\CreativeTemaService;
 use App\Services\CreativeTurunanService;
@@ -110,7 +112,7 @@ class EventCreativeCtrl extends BaseController
 
         $files     = (new EventCreativeFileModel())->getGroupedByItems($itemIds);
         $reviews   = (new CreativeReviewModel())->getGroupedByItems(CreativeApprovalService::SCOPE_EVENT, $itemIds);
-        $realisasi = (new EventCreativeRealisasiModel())->getGroupedByItems($itemIds);
+        $realisasi = (new CreativeBiayaFs())->gabung((new EventCreativeRealisasiModel())->getGroupedByItems($itemIds), 'event', $itemIds);
         $insights  = (new EventCreativeInsightModel())->getGroupedByItems($itemIds);
 
         $byTipe         = [];
@@ -307,6 +309,7 @@ class EventCreativeCtrl extends BaseController
         $db->transStart();
         $fileModel->where('creative_item_id', $id)->delete();
         (new EventCreativeInsightModel())->where('creative_item_id', $id)->delete();
+        (new CreativeFsPo($db))->lepasEntri('event', array_column((new EventCreativeRealisasiModel())->select('id')->where('creative_item_id', $id)->findAll(), 'id'), (int) $this->currentUser()['id']);
         (new EventCreativeRealisasiModel())->where('creative_item_id', $id)->delete();
         (new EventCreativeItemModel())->delete($id);
         $db->transComplete();
@@ -547,11 +550,20 @@ class EventCreativeCtrl extends BaseController
             $pendingMoves[] = [$btFile, $this->uploadDir($eventId), $btFileName];
         }
 
+        // PO FlowStore (opsional): nilai & tanggal diambil dari BTB yang dipilih; baris BTB ikut tercatat di Budget Departemen CCD.
+        $fsPo = new CreativeFsPo();
+        [$galatPo, $siapPo, $nilaiPo, $tglPo] = $fsPo->siapkan($post['fs_po'] ?? null);
+        if ($galatPo !== null) return redirect()->back()->withInput()->with('error', $galatPo);
+        $citem = (new EventCreativeItemModel())->where('event_id', $eventId)->find($id);
+        if (! $citem) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Item tidak ditemukan.');
+
+        $db = db_connect();
+        $db->transBegin();
         $rid = (new EventCreativeRealisasiModel())->insert([
             'event_id'                      => $eventId,
             'creative_item_id'              => $id,
-            'tanggal'                       => $post['tanggal'],
-            'nilai'                         => (int)str_replace([',', '.', ' '], '', $post['nilai'] ?? 0),
+            'tanggal'                       => $siapPo ? $tglPo : $post['tanggal'],
+            'nilai'                         => $siapPo ? $nilaiPo : (int)str_replace([',', '.', ' '], '', $post['nilai'] ?? 0),
             'nama_influencer'               => $post['nama_influencer'] ?? null,
             'file_name'                     => $fileName,
             'original_name'                 => $origName,
@@ -562,17 +574,23 @@ class EventCreativeCtrl extends BaseController
             'catatan'                       => $post['catatan'] ?? null,
             'created_by'                    => $this->currentUser()['id'],
         ]);
-        if (! $rid) {
-            return redirect()->back()->with('error', 'Gagal menyimpan realisasi.');
+        $galat = $rid ? ($siapPo ? $fsPo->catat($siapPo, 'event', $id, (int) $rid, (int) $this->currentUser()['id']) : null) : 'Gagal menyimpan realisasi.';
+        if ($galat === null && ! $db->transStatus()) $galat = 'Gagal menyimpan realisasi.';
+        if ($galat !== null) {
+            $db->transRollback();
+            return redirect()->back()->withInput()->with('error', $siapPo ? 'Realisasi tidak disimpan: ' . $galat : $galat);
         }
+        $db->transCommit();
         foreach ($pendingMoves as [$f, $dir, $name]) {
             $f->move($dir, $name);
             \App\Libraries\ImageCompressor::compress($dir . '/' . $name);
         }
 
         CreativeTemaService::tandaiDikerjakan('event', $id);
-        ActivityLog::write('update', 'creative', (string) $eventId, 'Tambah realisasi creative');
-        return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Realisasi berhasil ditambahkan.');
+        ActivityLog::write('update', 'creative', (string) $eventId, 'Tambah realisasi creative', $siapPo ? ['realisasi_id' => $rid, 'btb' => array_column($siapPo, 'id')] : []);
+        return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', $siapPo
+            ? 'Realisasi disimpan dengan ' . count($siapPo) . ' baris PO FlowStore; baris itu sudah tercatat di Budget Departemen CCD.'
+            : 'Realisasi berhasil ditambahkan.');
     }
 
     public function deleteRealisasi(int $eventId, int $id, int $rid)
@@ -581,8 +599,14 @@ class EventCreativeCtrl extends BaseController
         if (! $this->canEditMenu('creative')) return redirect()->to("/events/{$eventId}/creative")->with('error', 'Akses ditolak.');
 
         $model = new EventCreativeRealisasiModel();
-        $row   = $model->find($rid);
+        $row   = $model->where('creative_item_id', $id)->find($rid);
+        if (! $row) return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Entri tidak ditemukan.');
+        $db = db_connect();
+        $db->transStart();
+        $nPo = (new CreativeFsPo($db))->lepasEntri('event', [$rid], (int) $this->currentUser()['id']);
         $model->delete($rid);
+        $db->transComplete();
+        if (! $db->transStatus()) return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('error', 'Gagal menghapus entri.');
         if ($row) {
             $dir = $this->uploadDir($eventId);
             foreach (['file_name', 'serah_terima_file_name', 'bukti_terpasang_file_name'] as $col) {
@@ -590,8 +614,10 @@ class EventCreativeCtrl extends BaseController
             }
         }
 
-        ActivityLog::write('delete', 'creative', (string) $eventId, 'Hapus realisasi creative');
-        return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', 'Realisasi berhasil dihapus.');
+        ActivityLog::write('delete', 'creative', (string) $eventId, 'Hapus realisasi creative', $nPo ? ['realisasi_id' => $rid, 'btb_dilepas' => $nPo] : []);
+        return redirect()->to("/events/{$eventId}/creative#item-{$id}")->with('success', $nPo
+            ? 'Realisasi dihapus; ' . $nPo . ' baris PO FlowStore kembali ke antrean dan realisasinya di Budget Departemen CCD ikut terhapus.'
+            : 'Realisasi berhasil dihapus.');
     }
 
     public function storeInsight(int $eventId, int $id)

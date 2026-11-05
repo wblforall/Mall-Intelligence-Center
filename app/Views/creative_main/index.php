@@ -4,6 +4,7 @@
 <link rel="stylesheet" href="<?= base_url('css/creative-turunan.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-turunan.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-titik.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-titik.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-biaya-fs.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-biaya-fs.css') ?: 1 ?>">
+<link rel="stylesheet" href="<?= base_url('css/creative-po-fs.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-po-fs.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-digital.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-digital.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -615,4 +616,5 @@ $renderBulan = function (array $months) use ($shared, $rp) {
 <script src="<?= base_url('js/creative-turunan.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-turunan.js') ?: 1 ?>"></script>
 <script src="<?= base_url('js/creative-titik.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-titik.js') ?: 1 ?>"></script>
 <script src="<?= base_url('js/creative-digital.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-digital.js') ?: 1 ?>"></script>
+<script src="<?= base_url('js/creative-po-fs.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-po-fs.js') ?: 1 ?>"></script>
 <?= $this->endSection() ?>

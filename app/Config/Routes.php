@@ -184,6 +184,7 @@ $routes->post('events/(:num)/creative/(:num)/insight/(:num)/delete', 'EventCreat
 $routes->get('creative/monthly-summary',       'CreativeCtrl::monthly',       ['filter' => 'auth']);
 $routes->get('creative/monthly-summary/print', 'CreativeCtrl::printMonthly',  ['filter' => 'auth']);
 $routes->get('creative', 'CreativeCtrl::index', ['filter' => 'auth']);
+$routes->get('creative/antrean-po', 'CreativeCtrl::antreanPo', ['filter' => 'auth']);
 // Tema Creative (induk item): Tema Bulanan, tutup/buka, pemetaan data lama
 $routes->get('creative/pemetaan',                  'CreativeTemaCtrl::pemetaan',  ['filter' => 'auth']);
 $routes->post('creative/pemetaan/terapkan',        'CreativeTemaCtrl::terapkan',  ['filter' => 'auth']);

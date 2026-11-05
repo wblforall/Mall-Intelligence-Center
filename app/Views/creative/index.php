@@ -4,6 +4,7 @@
 <link rel="stylesheet" href="<?= base_url('css/creative-turunan.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-turunan.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-titik.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-titik.css') ?: 1 ?>">
 <link rel="stylesheet" href="<?= base_url('css/creative-digital.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-digital.css') ?: 1 ?>">
+<link rel="stylesheet" href="<?= base_url('css/creative-po-fs.css') ?>?v=<?= @filemtime(FCPATH . 'css/creative-po-fs.css') ?: 1 ?>">
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 
@@ -515,6 +516,7 @@ if ($canEdit) {
                 <form method="POST" action="<?= base_url('events/' . $event['id'] . '/creative/' . $iid . '/realisasi/add') ?>"
                       <?= in_array($tipe, ['influencer', 'cetak', 'media_prescon']) ? 'enctype="multipart/form-data"' : '' ?>>
                     <?= csrf_field() ?>
+                    <?= view('_creative/_po_fs', [], ['saveData' => false]) ?>
                     <div class="row g-2 align-items-end">
                         <div class="col-md-2 col-6">
                             <label class="form-label">Tanggal</label>
@@ -584,7 +586,7 @@ if ($canEdit) {
                     <td class="ev-nowrap" data-l="Tanggal"><?= date('d M Y', strtotime($e['tanggal'])) ?></td>
                     <?php if ($tipe === 'influencer'): ?><td data-l="Influencer"><b><?= esc($e['nama_influencer'] ?? '—') ?></b></td><?php endif; ?>
                     <td class="ev-num ev-c-ok" data-l="Nilai"><?= evRp($e['nilai']) ?></td>
-                    <td data-l="Catatan"><?= esc($e['catatan'] ?: '—') ?></td>
+                    <td data-l="Catatan"><?= esc($e['catatan'] ?: (empty($e['po']) ? '—' : '')) ?><?= view('_creative/_po_entri', ['po' => $e['po'] ?? [], 'rp' => fn ($n) => evRp($n)], ['saveData' => false]) ?></td>
                     <?php if ($tipe === 'influencer'): ?>
                     <td data-l="Insight"><?= evFileThumb($e['file_name'], $e['original_name'], base_url($cbase . $e['file_name']), $imageExts) ?></td>
                     <td data-l="Serah terima"><?= evFileThumb($e['serah_terima_file_name'], $e['serah_terima_original_name'], base_url($cbase . $e['serah_terima_file_name']), $imageExts) ?></td>
@@ -595,7 +597,7 @@ if ($canEdit) {
                     <?php endif; ?>
                     <?php if ($canEdit): ?>
                     <td class="ev-act-cell">
-                        <form method="POST" action="<?= base_url('events/' . $event['id'] . '/creative/' . $iid . '/realisasi/' . $e['id'] . '/delete') ?>" class="ev-form-inline" onsubmit="return confirm('Hapus entri ini?')">
+                        <form method="POST" action="<?= base_url('events/' . $event['id'] . '/creative/' . $iid . '/realisasi/' . $e['id'] . '/delete') ?>" class="ev-form-inline" onsubmit="return confirm('<?= empty($e['po']) ? 'Hapus entri ini?' : 'Hapus entri ini? Barang PO FlowStore-nya kembali ke antrean dan realisasinya di Budget Departemen CCD ikut terhapus.' ?>')">
                             <?= csrf_field() ?>
                             <button type="submit" class="ev-iconbtn ev-iconbtn-sm ev-iconbtn-bad" title="Hapus entri" aria-label="Hapus entri realisasi"><i class="bi bi-trash"></i></button>
                         </form>
@@ -984,6 +986,7 @@ document.querySelectorAll('.currency-input').forEach(inp => {
 </script>
 <script>window.CRE_DIGITAL = <?= json_encode($digitalKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_CETAK = <?= json_encode($cetakKatalog ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_TITIKJENIS = <?= json_encode($jenisMaster ?? [], JSON_UNESCAPED_UNICODE) ?>; window.CRE_DESIGNS = <?= json_encode(['e' . (int) $event['id'] => $designs ?? []], JSON_UNESCAPED_UNICODE) ?>;</script>
 <script src="<?= base_url('js/creative-turunan.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-turunan.js') ?: 1 ?>"></script>
+<?php if ($canEdit): ?><script src="<?= base_url('js/creative-po-fs.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-po-fs.js') ?: 1 ?>"></script><?php endif; ?>
 <script src="<?= base_url('js/creative-titik.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-titik.js') ?: 1 ?>"></script>
 <script src="<?= base_url('js/creative-digital.js') ?>?v=<?= @filemtime(FCPATH . 'js/creative-digital.js') ?: 1 ?>"></script>
 <script src="<?= base_url('js/events-modul.js') ?>?v=<?= @filemtime(FCPATH . 'js/events-modul.js') ?: 1 ?>"></script>

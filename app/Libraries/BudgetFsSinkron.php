@@ -373,7 +373,7 @@ class BudgetFsSinkron
         } else {
             $this->db->table('budget_fs_pemetaan')->where('id', $p['id'])->update([
                 'status' => 'baru', 'realisasi_id' => null, 'catatan_tinjau' => null, 'alasan_abaikan' => null,
-                'creative_scope' => null, 'creative_item_id' => null,   // tautan item Creative ikut lepas (biayanya hilang dari item)
+                'creative_scope' => null, 'creative_item_id' => null, 'creative_realisasi_id' => null,   // tautan item & realisasi Creative ikut lepas
                 'diperbarui_oleh' => $oleh, 'updated_at' => date('Y-m-d H:i:s'),
             ]);
         }

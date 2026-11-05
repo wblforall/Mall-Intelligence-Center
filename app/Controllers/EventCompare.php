@@ -99,7 +99,7 @@ class EventCompare extends BaseController
         $vmRealTotal     = array_sum(array_map(fn($r) => $r['total'] ?? 0,
             (new EventVMRealisasiModel())->getGroupedByEvent($eventId)));
         $contentReal     = (new EventContentRealisasiModel())->getTotalByEvent($eventId);
-        $creativeReal    = (new EventCreativeRealisasiModel())->getTotalByEvent($eventId);
+        $creativeReal    = (new EventCreativeRealisasiModel())->getTotalByEvent($eventId) + (new \App\Libraries\CreativeBiayaFs())->totalEvent($eventId);
         $totalBudgetReal = $loyaltyReal + $vmRealTotal + $contentReal + $creativeReal;
 
         // Traffic

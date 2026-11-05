@@ -312,6 +312,11 @@ class Events extends BaseController
             \App\Services\CreativeTitikService::forEvent((int) $id)->lepasUntukItem((int) $ci['id']);
         }
 
+        // 3d. Realisasi Creative ber-PO FlowStore: baris BTB kembali ke antrean, realisasi budget CCD-nya dihapus.
+        (new \App\Libraries\CreativeFsPo($db))->lepasEntri('event',
+            array_column($db->table('event_creative_realisasi')->select('id')->where('event_id', $id)->get()->getResultArray(), 'id'),
+            (int) session()->get('user_id'));
+
         // 4. Semua tabel anak ber-event_id.
         foreach ([
             'event_loyalty_realisasi', 'event_loyalty_programs',

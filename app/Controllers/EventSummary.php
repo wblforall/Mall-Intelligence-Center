@@ -216,16 +216,19 @@ class EventSummary extends BaseController
         $creativeItemModel    = new EventCreativeItemModel();
         $creativeItems        = $creativeItemModel->getByEvent($eventId, true);
         $creativeItemIds      = array_column($creativeItems, 'id');
-        $creativeRealisasi      = (new EventCreativeRealisasiModel())->getGroupedByItems($creativeItemIds);
+        // Realisasi Creative = entri (termasuk yang menautkan PO FlowStore) + BTB FlowStore yang tertaut langsung ke item
+        $biayaFs                = new \App\Libraries\CreativeBiayaFs();
+        $creativeRealisasi      = $biayaFs->gabung((new EventCreativeRealisasiModel())->getGroupedByItems($creativeItemIds), 'event', $creativeItemIds);
         $creativeInsights       = (new EventCreativeInsightModel())->getGroupedByItems($creativeItemIds);
         $creativeBudget         = $creativeItemModel->getTotalBudget($eventId);
-        $creativeRealisasiTotal = (new EventCreativeRealisasiModel())->getTotalByEvent($eventId);
+        $creativeRealisasiTotal = (new EventCreativeRealisasiModel())->getTotalByEvent($eventId) + $biayaFs->totalEvent($eventId);
 
         $vmRealisasi     = (new EventVMRealisasiModel())->getGroupedByEvent($eventId);
         $vmRealTotal     = array_sum(array_map(fn($r) => $r['total'] ?? 0, $vmRealisasi));
 
         $totalBudget     = EventFinanceService::getBudgetTotal($eventId);
         $totalBudgetReal = $loyaltyBudgetReal + $contentRealisasi + $creativeRealisasiTotal + $vmRealTotal;
+        $penanggung      = \App\Libraries\RealisasiPenanggung::untuk($eventId, (int) $loyaltyBudgetReal, (int) $vmRealTotal);
 
         // KPI derived values
         // Margin pakai biaya REALISASI (aktual), konsisten dgn Laporan Post Event.
@@ -376,6 +379,7 @@ class EventSummary extends BaseController
             'creativeInsights'      => $creativeInsights,
             'creativeBudget'        => $creativeBudget,
             'creativeRealisasiTotal'=> $creativeRealisasiTotal,
+            'penanggung'            => $penanggung ?? [],
             'completions'           => $completions,
             'totalEwalk'            => $totalEwalk,
             'totalPenta'            => $totalPenta,
@@ -548,7 +552,7 @@ class EventSummary extends BaseController
             }
         }
         $contentRealisasiTotal  = array_sum(array_map(fn($g) => array_sum(array_column($g, 'nilai')), $contentRealisasiByItem));
-        $creativeRealisasiTotal = (new EventCreativeRealisasiModel())->getTotalByEvent($eventId);
+        $creativeRealisasiTotal = (new EventCreativeRealisasiModel())->getTotalByEvent($eventId) + (new \App\Libraries\CreativeBiayaFs())->totalEvent($eventId);
         // Realisasi VM/dekorasi — sebelumnya terlewat dari total (Total Budget sudah termasuk VM).
         $vmRealisasiTotal       = array_sum(array_map(fn($r) => (int) ($r['total'] ?? 0), $vmRealisasi));
         $totalBudgetReal        = $loyaltyBudgetReal + $contentRealisasiTotal + $creativeRealisasiTotal + $vmRealisasiTotal;

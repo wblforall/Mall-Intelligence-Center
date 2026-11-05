@@ -12,6 +12,7 @@ use App\Models\EventCreativeRealisasiModel;
 use App\Models\EventCreativeInsightModel;
 use App\Libraries\ActivityLog;
 use App\Libraries\CreativeBiayaFs;
+use App\Libraries\CreativeFsPo;
 use App\Services\CreativeApprovalService;
 use App\Services\CreativeTemaService;
 use App\Services\CreativeTurunanService;
@@ -839,6 +840,7 @@ class CreativeCtrl extends BaseController
         $db->transStart();
         (new CreativeInsightModel())->where('creative_item_id', $id)->delete();
         (new CreativeFileModel())->where('creative_item_id', $id)->delete();
+        (new CreativeFsPo($db))->lepasEntri('standalone', array_column($realisasiRows, 'id'), (int) $this->currentUser()['id']);
         (new CreativeRealisasiModel())->where('creative_item_id', $id)->delete();
         (new CreativeItemModel())->delete($id);
         $db->transComplete();
@@ -1050,6 +1052,15 @@ class CreativeCtrl extends BaseController
             ->with($hasil['ok'] ? 'success' : 'error', $hasil['message']);
     }
 
+    /** JSON antrean BTB FlowStore CCD untuk pemilih "Tautkan PO FlowStore" di form realisasi (Creative event & non-event). */
+    public function antreanPo()
+    {
+        if (! $this->canEditMenu('creative_main') && ! $this->canEditMenu('creative')) {
+            return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'pesan' => 'Akses ditolak.']);
+        }
+        return $this->response->setJSON((new CreativeFsPo())->antrean((string) $this->request->getGet('q')));
+    }
+
     public function storeRealisasi(int $id)
     {
         if (!$this->canEditMenu('creative_main')) {
@@ -1095,10 +1106,17 @@ class CreativeCtrl extends BaseController
             $pendingMoves[] = [$btFile, $dir, $btFileName];
         }
 
+        // PO FlowStore (opsional): nilai & tanggal diambil dari BTB yang dipilih; baris BTB ikut tercatat di Budget Departemen CCD.
+        $fsPo = new CreativeFsPo();
+        [$galatPo, $siapPo, $nilaiPo, $tglPo] = $fsPo->siapkan($post['fs_po'] ?? null);
+        if ($galatPo !== null) return redirect()->back()->withInput()->with('error', $galatPo);
+
+        $db = db_connect();
+        $db->transBegin();
         $rid = (new CreativeRealisasiModel())->insert([
             'creative_item_id'              => $id,
-            'tanggal'                       => $post['tanggal'],
-            'nilai'                         => (int)str_replace([',', '.', ' '], '', $post['nilai'] ?? 0),
+            'tanggal'                       => $siapPo ? $tglPo : $post['tanggal'],
+            'nilai'                         => $siapPo ? $nilaiPo : (int)str_replace([',', '.', ' '], '', $post['nilai'] ?? 0),
             'nama_influencer'               => $post['nama_influencer'] ?? null,
             'file_name'                     => $fileName,
             'original_name'                 => $origName,
@@ -1109,13 +1127,21 @@ class CreativeCtrl extends BaseController
             'catatan'                       => $post['catatan'] ?? null,
             'created_by'                    => $this->currentUser()['id'],
         ]);
-        if (! $rid) return redirect()->back()->with('error', 'Gagal menyimpan realisasi.');
+        $galat = $rid ? ($siapPo ? $fsPo->catat($siapPo, 'standalone', $id, (int) $rid, (int) $this->currentUser()['id']) : null) : 'Gagal menyimpan realisasi.';
+        if ($galat === null && ! $db->transStatus()) $galat = 'Gagal menyimpan realisasi.';
+        if ($galat !== null) {
+            $db->transRollback();
+            return redirect()->back()->withInput()->with('error', $siapPo ? 'Realisasi tidak disimpan: ' . $galat : $galat);
+        }
+        $db->transCommit();
         foreach ($pendingMoves as [$f, $d, $n]) { $f->move($d, $n); \App\Libraries\ImageCompressor::compress($d . '/' . $n); }
 
         CreativeTemaService::tandaiDikerjakan('standalone', $id);
-        ActivityLog::write('create', 'creative_standalone_realisasi', (string)$id, $post['tanggal'], []);
+        ActivityLog::write('create', 'creative_standalone_realisasi', (string)$id, $siapPo ? $tglPo : $post['tanggal'], $siapPo ? ['realisasi_id' => $rid, 'btb' => array_column($siapPo, 'id')] : []);
 
-        return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Realisasi berhasil ditambahkan.');
+        return redirect()->to('/creative#item-' . $id . '-s')->with('success', $siapPo
+            ? 'Realisasi disimpan dengan ' . count($siapPo) . ' baris PO FlowStore; baris itu sudah tercatat di Budget Departemen CCD.'
+            : 'Realisasi berhasil ditambahkan.');
     }
 
     public function deleteRealisasi(int $id, int $rid)
@@ -1127,10 +1153,12 @@ class CreativeCtrl extends BaseController
         if ($r = $this->tolakBilaTemaTutup($id)) return $r;
 
         $model = new CreativeRealisasiModel();
-        $row   = $model->find($rid);
+        $row   = $model->where('creative_item_id', $id)->find($rid);
+        if (! $row) return redirect()->to('/creative#item-' . $id . '-s')->with('error', 'Entri tidak ditemukan.');
 
         $db = db_connect();
         $db->transStart();
+        $nPo = (new CreativeFsPo($db))->lepasEntri('standalone', [$rid], (int) $this->currentUser()['id']);
         $model->delete($rid);
         $db->transComplete();
 
@@ -1141,9 +1169,11 @@ class CreativeCtrl extends BaseController
             }
         }
 
-        ActivityLog::write('delete', 'creative_standalone_realisasi', (string)$rid, '', []);
+        ActivityLog::write('delete', 'creative_standalone_realisasi', (string)$rid, '', $nPo ? ['btb_dilepas' => $nPo] : []);
 
-        return redirect()->to('/creative#item-' . $id . '-s')->with('success', 'Realisasi berhasil dihapus.');
+        return redirect()->to('/creative#item-' . $id . '-s')->with('success', $nPo
+            ? 'Realisasi dihapus; ' . $nPo . ' baris PO FlowStore kembali ke antrean dan realisasinya di Budget Departemen CCD ikut terhapus.'
+            : 'Realisasi berhasil dihapus.');
     }
 
     public function storeInsight(int $id)

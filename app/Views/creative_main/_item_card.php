@@ -324,9 +324,10 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                 <?php if ($isS): ?>
                 <?php if ($canEditI): ?>
                 <div id="add-realisasi-<?= $iid ?>" class="cr-formbox" hidden>
-                    <p class="cr-note cr-fs-catatan"><i class="bi bi-box-seam"></i>Biaya baru diambil dari FlowStore (tab FlowStore Budget Departemen CCD); isi manual hanya untuk biaya di luar FlowStore.<?php if ($fsBuka !== ''): ?> <a href="<?= esc($fsBuka, 'attr') ?>">Buka antrean FlowStore</a><?php endif; ?></p>
+                    <p class="cr-note cr-fs-catatan"><i class="bi bi-box-seam"></i>Pembelian lewat FlowStore: tautkan PO-nya di bawah, maka nilai mengikuti BTB dan langsung tercatat di Budget Departemen CCD. Isi manual hanya untuk biaya di luar FlowStore.<?php if ($fsBuka !== ''): ?> <a href="<?= esc($fsBuka, 'attr') ?>">Buka antrean FlowStore</a><?php endif; ?></p>
                     <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/add') ?>" <?= in_array($tipe, ['influencer', 'cetak', 'media_prescon']) ? 'enctype="multipart/form-data"' : '' ?>>
                         <?= csrf_field() ?>
+                        <?= view('_creative/_po_fs', [], ['saveData' => false]) ?>
                         <div class="cr-fgrid">
                             <div class="cr-f w2"><label>Tanggal</label><input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
                             <div class="cr-f w3"><label>Nilai (Rp) <span class="req">*</span></label><input type="text" name="nilai" class="form-control currency-input" placeholder="0" required></div>
@@ -365,7 +366,7 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                         <td class="nw"><?= $fTgl($e['tanggal']) ?></td>
                         <?php if ($tipe === 'influencer'): ?><td class="fw-semibold"><?= esc($e['nama_influencer'] ?? '—') ?></td><?php endif; ?>
                         <td class="r nw cr-c-ok fw-bold"><?= $rp($e['nilai']) ?></td>
-                        <td class="cr-note-cell"><?= esc($e['catatan'] ?? '') ?></td>
+                        <td class="cr-note-cell"><?= esc($e['catatan'] ?? '') ?><?= view('_creative/_po_entri', ['po' => $e['po'] ?? [], 'rp' => $rp], ['saveData' => false]) ?></td>
                         <?php if ($tipe === 'influencer'): ?>
                         <td><?= $fileCell($e['file_name'] ?? null, $e['original_name'] ?? null, $iid) ?></td>
                         <td><?= $fileCell($e['serah_terima_file_name'] ?? null, $e['serah_terima_original_name'] ?? null, $iid) ?></td>
@@ -376,7 +377,7 @@ $temaTutup = !empty($item['_temaTutup']);   // Tema ditutup: seluruh materi terk
                         <?php endif; ?>
                         <?php if ($canEditI): ?>
                         <td>
-                            <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/' . $e['id'] . '/delete') ?>" onsubmit="return confirm('Hapus entri ini?')">
+                            <form method="POST" action="<?= base_url('creative/' . $iid . '/realisasi/' . $e['id'] . '/delete') ?>" onsubmit="return confirm('<?= empty($e['po']) ? 'Hapus entri ini?' : 'Hapus entri ini? Barang PO FlowStore-nya kembali ke antrean dan realisasinya di Budget Departemen CCD ikut terhapus.' ?>')">
                                 <?= csrf_field() ?>
                                 <button type="submit" class="cr-iconbtn cr-iconbtn-sm" title="Hapus entri" aria-label="Hapus entri"><i class="bi bi-trash"></i></button>
                             </form>

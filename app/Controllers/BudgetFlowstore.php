@@ -3,13 +3,13 @@
 namespace App\Controllers;
 
 use App\Libraries\ActivityLog;
+use App\Libraries\BudgetFsCatat;
 use App\Libraries\BudgetFsRekomendasi;
 use App\Libraries\BudgetFsSinkron;
 use App\Libraries\BudgetRekap;
 use App\Libraries\CreativeBiayaFs;
 use App\Models\BudgetDeptSettingModel;
 use App\Models\BudgetPosModel;
-use App\Models\BudgetRealisasiModel;
 
 /**
  * Penautan FlowStore — tab "FlowStore" di Budget Departemen.
@@ -321,26 +321,11 @@ class BudgetFlowstore extends BudgetDept
     /** @return array{0:bool,1:string} */
     private function catatSatu(array $dept, int $tahun, array $x): array
     {
-        $deptId = (int) $dept['id'];
         $id = (int) ($x['id'] ?? 0);
-        $uid = (int) session()->get('user_id');
         $db = db_connect();
-        $pisah = (new BudgetDeptSettingModel())->pisahMal($deptId);
-
-        $posId = (int) ($x['pos'] ?? 0);
-        $pos = $posId ? (new BudgetPosModel())->milik($posId, $deptId) : null;
-        if (! $pos) return [false, '#' . $id . ': pilih pos dulu.'];
-        if (empty($pos['aktif'])) return [false, '#' . $id . ': pos "' . $pos['nama'] . '" nonaktif.'];
-        $bulan = (string) ($x['bulan'] ?? '');
-        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $bulan)) return [false, '#' . $id . ': bulan pembebanan tidak sah.'];
-        if ((int) substr($bulan, 0, 4) !== $tahun) return [false, '#' . $id . ': bulan pembebanan harus di tahun budget ' . $tahun . '.'];
-        if ($tahun < $this->tahunMulai($dept)) return [false, '#' . $id . ': tahun ' . $tahun . ' belum dibuka untuk dept ini.'];
-        $mal = (string) ($x['mall'] ?? '');
-        if ($pisah && ! isset(BudgetRekap::MAL_REALISASI[$mal])) return [false, '#' . $id . ': mal tidak sah.'];
-        if (! $pisah) $mal = '';
         // Tautan Creative (hanya dept CCD). Tidak membuat realisasi Creative baru — biayanya dibaca dari BTB ini.
         $cref = null;
-        if ($deptId === CreativeBiayaFs::deptCcdId()) {
+        if ((int) $dept['id'] === CreativeBiayaFs::deptCcdId()) {
             $cr = trim((string) ($x['creative'] ?? ''));
             if ($cr !== '') {
                 $galat = (new CreativeBiayaFs($db))->periksa($cr);
@@ -348,50 +333,8 @@ class BudgetFlowstore extends BudgetDept
                 $cref = CreativeBiayaFs::urai($cr);
             }
         }
-
-        $db->transStart();
-        // Kunci baris pemetaan: klik ganda / POST ulang menunggu di sini lalu mendapati status sudah 'dicatat'.
-        $p = $db->query('SELECT * FROM budget_fs_pemetaan WHERE id_btb_item = ? AND dept_id = ? FOR UPDATE', [$id, $deptId])->getRowArray();
-        $f = $p ? $db->table('fs_btb_item')->where('id_btb_item', $id)->get()->getRowArray() : null;
-        $galat = null;
-        if (! $p || ! $f) $galat = '#' . $id . ': tidak ada di antrean departemen ini.';
-        elseif ($p['status'] !== 'baru') $galat = '#' . $id . ': sudah ' . strtolower(self::STATUS[$p['status']]) . ', tidak dicatat ulang.';
-        elseif ($f['status_btb'] === 'batal') $galat = '#' . $id . ': BTB dibatalkan di FlowStore.';
-        elseif ((float) $f['nilai_diterima'] <= 0) $galat = '#' . $id . ' ' . $f['nama_barang'] . ': nilai Rp 0 — gunakan Abaikan.';
-
-        if ($galat === null) {
-            $terima = (string) ($f['tanggal_diterima'] ?: $f['tanggal_btb']);
-            $bulanTerima = substr($terima, 0, 7);
-            $tanggal = $bulan === $bulanTerima ? $terima : date('Y-m-t', strtotime($bulan . '-01'));
-            $qty = rtrim(rtrim(number_format((float) $f['jumlah_diterima'], 2, ',', ''), '0'), ',');
-            $akhiran = ' ×' . $qty . ($f['satuan'] ? ' ' . $f['satuan'] : '') . ' — BTB ' . $f['no_btb'] . ' / PO ' . $f['no_po'];
-            $uraian = mb_substr($f['nama_barang'], 0, max(20, 255 - mb_strlen($akhiran))) . $akhiran;
-            $data = [
-                'dept_id' => $deptId, 'pos_id' => (int) $pos['id'], 'tanggal' => $tanggal,
-                'periode_asal' => $bulanTerima !== $bulan ? $bulanTerima : null,
-                'uraian' => mb_substr($uraian, 0, 255), 'keterangan' => self::keteranganCatat($f),
-                'nilai' => $f['nilai_diterima'], 'mall' => $mal,
-                'referensi' => mb_substr('FlowStore BTB ' . $f['no_btb'] . ' #' . $id, 0, 100),
-                'created_by' => $uid, 'updated_by' => $uid,
-            ];
-            $rek = (new BudgetFsRekomendasi($db))->untuk($deptId, $f);
-            $rid = (new BudgetRealisasiModel())->insert($data);
-            $db->table('budget_fs_pemetaan')->where('id', $p['id'])->update([
-                'status' => 'dicatat', 'pos_id' => (int) $pos['id'], 'bulan_beban' => $bulan, 'mall' => $mal !== '' ? $mal : self::malDariSkema($f['id_skema'] !== null ? (int) $f['id_skema'] : null, $f['skema']),
-                'realisasi_id' => $rid, 'catatan_tinjau' => null, 'alasan_abaikan' => null, 'diperbarui_oleh' => $uid, 'dibuat_oleh' => $p['dibuat_oleh'] ?: $uid,
-                'rekomendasi_pos_id' => $rek['pos_id'], 'rekomendasi_sumber' => $rek['sumber'], 'rekomendasi_skor' => $rek['skor'],
-                'rekomendasi_alasan' => mb_substr($rek['alasan'], 0, 255), 'updated_at' => date('Y-m-d H:i:s'),
-                'creative_scope' => $cref[0] ?? null, 'creative_item_id' => $cref[1] ?? null,
-            ]);
-            (new BudgetFsRekomendasi($db))->ingat($deptId, $f, (int) $pos['id']);
-        }
-        $db->transComplete();
-        if ($galat === null && ! $db->transStatus()) $galat = '#' . $id . ': gagal menyimpan.';
-        if ($galat !== null) return [false, $galat];
-
-        ActivityLog::captureAfter($data);
-        ActivityLog::write('create', 'budget_realisasi', (string) $rid, $data['uraian'], ['sumber' => 'flowstore', 'id_btb_item' => $id] + ($cref ? ['creative' => CreativeBiayaFs::ref($cref[0], $cref[1])] : []));
-        return [true, ''];
+        [$ok, $pesan] = (new BudgetFsCatat($db))->satu($dept, $tahun, $x, (int) session()->get('user_id'), $cref);
+        return [$ok, $pesan];
     }
 
     // ── Abaikan / pulihkan / tinjau ──────────────────────────────────

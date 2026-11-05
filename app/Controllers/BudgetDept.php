@@ -537,6 +537,12 @@ class BudgetDept extends BaseController
         if (! $row) return $back->with('error', 'Transaksi tidak ditemukan.');
 
         $db = db_connect();
+        // Bagian realisasi Creative ber-PO: dilepas dari Creative (hapus entrinya), supaya nilai Creative & budget tetap sama.
+        try {
+            $milikCr = $db->table('budget_fs_pemetaan')->where('realisasi_id', $id)->where('creative_realisasi_id IS NOT NULL')->countAllResults();
+        } catch (\Throwable $e) { $milikCr = 0; }
+        if ($milikCr) return $back->with('error', 'Transaksi ini bagian dari realisasi Creative yang menautkan PO FlowStore. Hapus entri realisasinya di modul Creative; transaksi ini ikut terhapus.');
+
         $db->transStart();
         $model->delete($id);
         // Realisasi hasil "Catat" tab FlowStore → item kembali ke antrean (lihat BudgetFsSinkron::lepasRealisasi).
