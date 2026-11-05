@@ -1,6 +1,6 @@
 # Release Note — Mall Intelligence Center
 
-> Versi saat ini: **v2.31.1** (November 2026)
+> Versi saat ini: **v2.32.0** (November 2026)
 
 **Dikembangkan oleh:**
 IT Department — PT. Wulandari Bangun Laksana Tbk.
@@ -10,6 +10,39 @@ IT Department — PT. Wulandari Bangun Laksana Tbk.
 | Head Developer | Ahmad Affan Ridha |
 | Developer | Mochamad Sa'adillah Effendi |
 | Implementor | Riky Akbar |
+
+---
+
+## Versi 2.32.0
+
+**Tanggal Rilis:** 5 November 2026
+
+### Perubahan dari v2.31.1
+
+#### Realisasi Creative bisa menautkan PO FlowStore
+
+- Form **Input realisasi** di tab Creative event dan modul Creative punya tombol **Tautkan PO FlowStore**.
+  Isinya barang CCD yang sudah diterima di FlowStore dan belum diproses, dikelompokkan per nomor PO.
+- Barang bisa dipilih satu per satu atau satu PO sekaligus. Pos budget tiap barang terisi dari rekomendasi
+  dan bisa diganti.
+- Nilai dan tanggal realisasi mengikuti BTB (tidak bisa diubah). Catatan dan bukti tetap diisi seperti biasa.
+- Saat disimpan, barang tersebut langsung tercatat di Budget Departemen CCD sesuai posnya dan keluar dari
+  antrean tab FlowStore, tanpa menekan Catat lagi.
+- Entri realisasi menampilkan rincian PO-nya (barang, BTB, pos, nilai).
+- Menghapus entri mengembalikan barang PO ke antrean dan menghapus realisasinya di Budget Departemen CCD.
+  Transaksi seperti ini tidak bisa dihapus dari Budget Departemen; hapus dari Creative.
+
+#### Summary event: pengeluaran per penanggung
+
+- Realisasi Creative di Summary, Laporan Post Event, dan Perbandingan Event ikut menghitung biaya FlowStore
+  yang tertaut ke item Creative event.
+- Tabel baru **Pengeluaran per penanggung** di bawah Anggaran vs Realisasi: seluruh pengeluaran event
+  dipecah per departemen dan pos budget yang menanggungnya. Budget Departemen tiap dept tetap hanya
+  menghitung posnya sendiri, jadi tidak ada angka yang terhitung dua kali.
+
+#### Perbaikan
+
+- Tab FlowStore CCD tidak lagi error saat ada item Creative yang ukurannya ditulis tanpa satuan di akhir.
 
 ---
 

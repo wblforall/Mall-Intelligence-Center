@@ -619,7 +619,7 @@ body { min-height: 100vh; }
         </a>
     </div>
     <div class="sb-versi">
-        v2.31.1 &nbsp;·&nbsp; © 2026 IT Dept WBL
+        v2.32.0 &nbsp;·&nbsp; © 2026 IT Dept WBL
     </div>
 
 </div>
