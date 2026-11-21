@@ -736,3 +736,7 @@
     .page-dash .ag-cols { grid-template-columns: 1fr; }
     .page-dash .ag-col + .ag-col { border-left: 0; border-top: 1px solid var(--cc-card-border); }
 }
+
+/* ── HP: baris Event di Dashboard — .min-w-0 tak ada di Bootstrap, nama event tak mau mengecil sehingga halaman melebar ── */
+.page-dash .min-w-0 { min-width: 0; }
+@media (max-width: 575.98px) { .page-dash .event-row { gap: .6rem !important; } .page-dash .event-row .text-end { min-width: 0; } }

@@ -247,7 +247,7 @@ html.ada-sambut.buka .sambut-isi { transform: scale(1.04); opacity: 0; }
 .sambut-tgl   { margin-top: 1.1rem; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: rgba(226,234,250,.55); animation-delay: .85s !important; }
 .sambut-bar   { position: absolute; left: 50%; bottom: 2.2rem; width: 160px; height: 3px; margin-left: -80px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
 .sambut-bar i { display: block; height: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #3d8bff, var(--s-aksen)); animation: sBar 3.4s linear .2s forwards; }
-.sambut-lewati{ position: absolute; right: 1.5rem; bottom: 1.6rem; font-size: .75rem; color: rgba(226,234,250,.45); }
+.sambut-lewati{ position: absolute; left: 0; right: 0; bottom: .9rem; text-align: center; font-size: .72rem; color: rgba(226,234,250,.45); }
 @keyframes sNaik { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 @keyframes sBar  { to { transform: scaleX(1); } }
 /* langit sesuai waktu: bulan + bintang (malam) atau matahari (pagi/siang/sore) */
