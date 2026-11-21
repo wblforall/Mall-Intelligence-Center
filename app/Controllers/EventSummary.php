@@ -104,7 +104,42 @@ class EventSummary extends BaseController
         $monthTrafficPenta = $trafficModel->getPeriodTotal($monthStart, $monthEnd, 'pentacity');
         $monthVehicle      = $vehicleModel->getPeriodTotals($monthStart, $monthEnd);
 
+        // ── Pengunjung harian per mal + dampak tiap event (per mal tempat event) ──
+        $harian   = $trafficModel->getDailyByBothMalls($monthStart, $monthEnd);   // [tgl => [mall => n]]
+        $mallSet  = static fn (string $m): array => $m === 'keduanya' ? ['ewalk', 'pentacity'] : [$m];
+        $nilaiHari = static function (string $tgl, array $malls) use ($harian): ?int {
+            if (! isset($harian[$tgl])) return null;
+            $ada = false; $n = 0;
+            foreach ($malls as $m) { if (isset($harian[$tgl][$m])) { $ada = true; $n += $harian[$tgl][$m]; } }
+            return $ada ? $n : null;
+        };
+        $hariBulan = [];
+        for ($t = strtotime($monthStart); $t <= strtotime($monthEnd); $t += 86400) $hariBulan[] = date('Y-m-d', $t);
+
+        foreach ($rows as &$r) {
+            $ev     = $r['event'];
+            $malls  = $mallSet((string) ($ev['mall'] ?? 'keduanya'));
+            $s      = max($ev['start_date'], $monthStart);
+            $e      = min($r['endDate'], $monthEnd);
+            $selama = []; $lain = [];
+            foreach ($hariBulan as $tgl) {
+                $v = $nilaiHari($tgl, $malls);
+                if ($v === null) continue;
+                if ($tgl >= $s && $tgl <= $e) $selama[] = $v; else $lain[] = $v;
+            }
+            $avgSelama = $selama ? array_sum($selama) / count($selama) : null;
+            $avgLain   = $lain   ? array_sum($lain)   / count($lain)   : null;
+            $r['pengunjung']    = array_sum($selama);
+            $r['avgSelama']     = $avgSelama !== null ? (int) round($avgSelama) : null;
+            $r['avgLain']       = $avgLain   !== null ? (int) round($avgLain)   : null;
+            $r['uplift']        = ($avgSelama !== null && $avgLain) ? round(($avgSelama / $avgLain - 1) * 100, 1) : null;
+            $r['hariData']      = count($selama);
+        }
+        unset($r);
+
         return view('summary/monthly', [
+            'harian'            => $harian,
+            'hariBulan'         => $hariBulan,
             'user'              => $this->currentUser(),
             'bulan'             => $bulan,
             'year'              => $year,
