@@ -14,7 +14,7 @@
 
 /* ── Variabel tema ─────────────────────────────────────────── */
 html #sidebar.sidebar {
-    --sbn-bg: linear-gradient(168deg, #091528 0%, #0c2040 55%, #0f2a4f 100%);
+    --sbn-bg: linear-gradient(168deg, #071230 0%, #0a1d48 55%, #0d265c 100%);
     --sbn-border: rgba(120, 170, 255, .16);
     --sbn-shadow: 0 18px 48px rgba(2, 8, 20, .55), 0 0 0 1px rgba(2, 8, 20, .4);
     --sbn-text: #dde8f8;
@@ -25,17 +25,17 @@ html #sidebar.sidebar {
     --sbn-tile-fg: #9fc4ff;
     --sbn-panel: rgba(255, 255, 255, .05);
     --sbn-panel-line: rgba(255, 255, 255, .06);
-    --sbn-fly-bg: #0f2547;
-    --sbn-active: #d9b13e;
-    --sbn-active-fg: #1b1403;
-    --sbn-active-tile: rgba(27, 20, 3, .16);
-    --sbn-has-active-fg: #f0d067;
-    --sbn-has-active-tile: rgba(212, 175, 55, .18);
+    --sbn-fly-bg: #0d2252;
+    --sbn-active: #f2c14e;
+    --sbn-active-fg: #1a1203;
+    --sbn-active-tile: rgba(26, 18, 3, .16);
+    --sbn-has-active-fg: #f6cf6a;
+    --sbn-has-active-tile: rgba(242, 193, 78, .18);
     --sbn-focus: #6db3ff;
     --sbn-input-bg: rgba(255, 255, 255, .07);
     --sbn-input-border: rgba(255, 255, 255, .12);
-    --sbn-mark: rgba(212, 175, 55, .38);
-    --sbn-star: #e8c552;
+    --sbn-mark: rgba(242, 193, 78, .38);
+    --sbn-star: #f2c14e;
     --sbn-tip-bg: #f4f7ff;
     --sbn-tip-fg: #0b1d38;
 }
@@ -249,8 +249,18 @@ html.sb-mini .sb-toggle i { transform: scaleX(-1); }
 html[data-theme="light"] .sb-tip { --sbn-tip-bg: #1c1917; --sbn-tip-fg: #fff7ed; }
 html:not([data-theme="light"]) .sb-tip { --sbn-tip-bg: #f4f7ff; --sbn-tip-fg: #0b1d38; }
 
+/* ── Logo One WBL ERP: lebar penuh; mode rail pakai tanda "O" ── */
+#sidebar .sb-brand { justify-content: center; }
+#sidebar .sb-logo-full { display: block; width: 196px; max-width: 100%; height: auto; margin: 2px auto 0; }
+/* Huruf "One" biru tua tenggelam di sidebar navy: beri pendar seperti logo aslinya */
+html:not([data-theme="light"]) #sidebar .sb-logo-full,
+html:not([data-theme="light"]) #sidebar .sb-logo-mark { filter: drop-shadow(0 0 1px rgba(170, 210, 255, .9)) drop-shadow(0 0 8px rgba(80, 150, 255, .55)); }
+#sidebar .sb-logo-mark { display: none; flex: 0 0 auto; width: 32px; height: 32px; object-fit: contain; }
+
 /* ═══ MODE RAIL (desktop ≥ 992px) ═══════════════════════════════ */
 @media (min-width: 992px) {
+    html.sb-mini #sidebar .sb-logo-full { display: none; }
+    html.sb-mini #sidebar .sb-logo-mark { display: block; margin: .35rem auto .15rem; }
     html.sb-mini .main-content { margin-left: calc(var(--sidebar-mini) + var(--sb-gap) * 2); }
     html.sb-mini #sidebar.sidebar { width: var(--sidebar-mini); }
     html.sb-mini #sidebar .sb-brand { padding: .9rem 0 .7rem; justify-content: center; }
@@ -341,3 +351,47 @@ html:not(.sb-ready) #sidebar.sidebar, html:not(.sb-ready) #sidebar *, html:not(.
 
 /* Laci mobile (<992px): tombol Minimize tidak berlaku. */
 @media (max-width: 991.98px) { #sidebar .sb-bottom { display: none; } }
+
+/* ═══ Gerak halus (elegan): kurva melambat, durasi lebih panjang, isi submenu muncul bertahap ═══
+   Aturan prefers-reduced-motion & :not(.sb-ready) di atas memakai !important, jadi tetap menang. */
+:root { --sb-ease: cubic-bezier(.22, 1, .36, 1); }
+html #sidebar.sidebar { transition: width .5s var(--sb-ease), transform .45s var(--sb-ease); }
+.main-content { transition: margin-left .5s var(--sb-ease); }
+#sidebar .sb-row { transition: background .35s var(--sb-ease), box-shadow .35s var(--sb-ease); }
+#sidebar .sb-link, #sidebar .sb-head { transition: color .3s ease, background .35s var(--sb-ease); }
+#sidebar .sb-ico { transition: background .3s ease, color .3s ease, transform .45s var(--sb-ease); }
+#sidebar .sb-text { transition: transform .45s var(--sb-ease), opacity .3s ease; }
+#sidebar .sb-row:hover .sb-ico, #sidebar .sb-head:hover .sb-ico { transform: scale(1.08); }
+#sidebar .sb-row:not(.is-active):hover .sb-text, #sidebar .sb-head:hover .sb-text { transform: translateX(2px); }
+#sidebar .sb-caret { transition: transform .5s var(--sb-ease); }
+#sidebar .sb-row.is-active { box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--sbn-active) 80%, transparent); }
+
+/* buka/tutup submenu */
+#sidebar .sb-panel { transition: grid-template-rows .5s var(--sb-ease), visibility 0s linear .5s; }
+#sidebar .sb-group.is-open > .sb-panel, #sidebar .sb-searching .sb-group.sb-hit > .sb-panel { transition: grid-template-rows .5s var(--sb-ease), visibility 0s; }
+#sidebar .sb-panel-box { transition: opacity .4s ease, transform .5s var(--sb-ease); }
+html:not(.sb-mini) #sidebar .sb-group:not(.is-open) > .sb-panel .sb-panel-box { opacity: 0; transform: translateY(-6px); }
+/* isi submenu: muncul bertahap (hanya mode lebar; mode rail memakai flyout) */
+html:not(.sb-mini) #sidebar .sb-panel .sb-row { opacity: 0; transform: translateY(-4px); transition: opacity .35s ease, transform .45s var(--sb-ease), background .35s var(--sb-ease); }
+html:not(.sb-mini) #sidebar .sb-group.is-open > .sb-panel .sb-row,
+html:not(.sb-mini) #sidebar .sb-searching .sb-group.sb-hit > .sb-panel .sb-row { opacity: 1; transform: none; }
+html:not(.sb-mini) #sidebar .sb-group.is-open > .sb-panel .sb-row:nth-child(1) { transition-delay: .05s; }
+html:not(.sb-mini) #sidebar .sb-group.is-open > .sb-panel .sb-row:nth-child(2) { transition-delay: .08s; }
+html:not(.sb-mini) #sidebar .sb-group.is-open > .sb-panel .sb-row:nth-child(3) { transition-delay: .11s; }
+html:not(.sb-mini) #sidebar .sb-group.is-open > .sb-panel .sb-row:nth-child(4) { transition-delay: .14s; }
+html:not(.sb-mini) #sidebar .sb-group.is-open > .sb-panel .sb-row:nth-child(5) { transition-delay: .17s; }
+html:not(.sb-mini) #sidebar .sb-group.is-open > .sb-panel .sb-row:nth-child(6) { transition-delay: .2s; }
+html:not(.sb-mini) #sidebar .sb-group.is-open > .sb-panel .sb-row:nth-child(n+7) { transition-delay: .23s; }
+
+/* flyout mode rail: geser masuk lembut */
+@media (min-width: 992px) {
+    html.sb-mini #sidebar .sb-panel { transition: opacity .3s ease, visibility 0s linear .3s; }
+    html.sb-mini #sidebar .sb-panel-box { transform: translateX(-6px); transition: transform .4s var(--sb-ease); }
+    html.sb-mini #sidebar .sb-group:hover > .sb-panel, html.sb-mini #sidebar .sb-group:focus-within > .sb-panel,
+    html.sb-mini #sidebar .sb-group.is-fly > .sb-panel { transition: opacity .3s ease, visibility 0s; }
+    html.sb-mini #sidebar .sb-group:hover > .sb-panel .sb-panel-box, html.sb-mini #sidebar .sb-group:focus-within > .sb-panel .sb-panel-box,
+    html.sb-mini #sidebar .sb-group.is-fly > .sb-panel .sb-panel-box { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #sidebar .sb-panel .sb-row, #sidebar .sb-panel-box { opacity: 1 !important; transform: none !important; }
+}

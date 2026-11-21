@@ -1,6 +1,17 @@
 <!DOCTYPE html>
-<html lang="id" data-bs-theme="<?= session('user_theme') === 'light' ? 'light' : 'dark' ?>" data-theme="<?= session('user_theme') === 'light' ? 'light' : 'dark' ?>">
+<?php
+// Tema: dark | light | executive. Executive = tema terang + kulit kaca & foto kawasan (gaya Dashboard Direksi).
+$_tema     = (string) (session('user_theme') ?? 'dark');
+$_temaDasar = in_array($_tema, ['light', 'executive'], true) ? 'light' : 'dark';   // 'auto' → ditentukan skrip di awal head
+?>
+<html lang="id" data-bs-theme="<?= $_temaDasar ?>" data-theme="<?= $_temaDasar ?>"<?= $_tema === 'executive' ? ' data-skin="executive"' : '' ?>>
 <head>
+<?php if ($_tema === 'auto'): ?>
+<script>/* Tema Otomatis: ikuti pengaturan terang/gelap perangkat, sebelum halaman dilukis */
+(function () { var d = document.documentElement, m = window.matchMedia('(prefers-color-scheme: light)');
+  function pasang() { var t = m.matches ? 'light' : 'dark'; d.setAttribute('data-theme', t); d.setAttribute('data-bs-theme', t); }
+  pasang(); if (m.addEventListener) m.addEventListener('change', pasang); })();</script>
+<?php endif; ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= $pageTitle ?? 'Mall Intelligence Center' ?></title>
@@ -15,13 +26,98 @@
 <link rel="apple-touch-icon" href="<?= base_url('img/apple-touch-icon.png') ?>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link href="<?= base_url('css/theme.css') ?>?v=2.24.1" rel="stylesheet">
+<link href="<?= base_url('css/theme.css') ?>?v=<?= @filemtime(FCPATH.'css/theme.css') ?: 1 ?>" rel="stylesheet">
 <link href="<?= base_url('css/sidebar-nav.css') ?>?v=<?= @filemtime(FCPATH.'css/sidebar-nav.css') ?: 1 ?>" rel="stylesheet">
+<?php if ($_tema === 'executive'): ?>
+<link href="<?= base_url('css/skin-executive.css') ?>?v=<?= @filemtime(FCPATH.'css/skin-executive.css') ?: 1 ?>" rel="stylesheet">
+<?php endif; ?>
 <style>
 body { min-height: 100vh; }
 
 .main-content { min-height: 100vh; position: relative; }   /* margin-left sidebar: public/css/sidebar-nav.css */
 .topbar { padding: .6rem 1.5rem; position: sticky; top: 0; z-index: 999; }
+/* Bar atas melayang (selaras sidebar melayang): berjarak dari tepi, sudut bulat, garis di keempat sisi */
+.topbar { top: 12px; margin: 12px 1.5rem 0; padding: .55rem .7rem .55rem .8rem; border-radius: 20px;
+          border: 1px solid var(--tb-line) !important; box-shadow: 0 10px 30px -18px rgba(2,8,20,.55) !important; }
+[data-theme="light"] .topbar { box-shadow: 0 10px 30px -20px rgba(15,23,42,.35) !important; }
+@media (max-width: 991.98px) { .topbar { margin: 8px 8px 0; top: 8px; } }
+.tb-tema { width: 384px; max-width: calc(100vw - 24px); padding: 14px; border-radius: 18px; }
+.tb-tema-h { display: flex; flex-direction: column; gap: 2px; margin: 0 2px 12px; }
+.tb-tema-h b { font-size: .9rem; color: var(--txt); }
+.tb-tema-h small { font-size: .74rem; color: var(--txt-muted); line-height: 1.35; }
+.tb-tema-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tb-tema-card { position: relative; width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 14px;
+    border: 1.5px solid var(--tb-line, rgba(140,180,255,.16)); background: color-mix(in srgb, var(--txt) 4%, transparent); color: var(--txt);
+    transition: border-color .25s, transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s; }
+.tb-tema-card:hover { transform: translateY(-2px); border-color: rgba(242,193,78,.55); box-shadow: 0 10px 22px -14px rgba(0,0,0,.5); }
+.tb-tema-card.on { border-color: #f2c14e; box-shadow: 0 0 0 3px rgba(242,193,78,.18); }
+.tb-tema-card:focus-visible { outline: 2px solid #f2c14e; outline-offset: 2px; }
+.tb-tema-nm { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: .8rem; font-weight: 600; }
+.tb-tema-ok { position: absolute; top: -7px; right: -7px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    background: #f2c14e; color: #0a1534; font-size: .85rem; box-shadow: 0 4px 10px rgba(0,0,0,.25); animation: tbPop .35s cubic-bezier(.34,1.56,.64,1); }
+/* pratinjau mini */
+.tb-prev { position: relative; display: block; aspect-ratio: 16 / 10; border-radius: 9px; overflow: hidden; border: 1px solid rgba(127,140,170,.25); }
+.tb-prev i { position: absolute; display: block; font-style: normal; }
+.tb-prev .pv-side { left: 6%; top: 8%; bottom: 8%; width: 18%; border-radius: 6px; }
+.tb-prev .pv-side i { position: static; height: 4px; margin: 18% 14% 0; border-radius: 2px; }
+.tb-prev .pv-side i:first-child { margin-top: 30%; }
+.tb-prev .pv-hero { left: 29%; right: 6%; top: 8%; height: 24%; border-radius: 5px; }
+.tb-prev .pv-card { top: 38%; height: 30%; border-radius: 5px; }
+.tb-prev .pv-card.a { left: 29%; width: 31%; } .tb-prev .pv-card.b { left: 63%; right: 6%; }
+.tb-prev .pv-bar { left: 29%; right: 6%; bottom: 10%; height: 12%; border-radius: 4px; }
+.tb-prev-dark { background: #0a1534; } .tb-prev-dark .pv-side { background: #071230; } .tb-prev-dark .pv-side i { background: rgba(159,196,255,.35); }
+.tb-prev-dark .pv-side i:first-child { background: #f2c14e; } .tb-prev-dark .pv-hero { background: #13254f; }
+.tb-prev-dark .pv-card { background: #12224a; } .tb-prev-dark .pv-bar { background: linear-gradient(90deg, #2b6fd6 55%, #1a2c57 55%); }
+.tb-prev-light { background: #f3f1ec; } .tb-prev-light .pv-side { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); } .tb-prev-light .pv-side i { background: #e5e1da; }
+.tb-prev-light .pv-side i:first-child { background: #f59e0b; } .tb-prev-light .pv-hero { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.tb-prev-light .pv-card { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); } .tb-prev-light .pv-bar { background: linear-gradient(90deg, #f97316 45%, #ece7df 45%); }
+.tb-prev-executive { background: linear-gradient(rgba(244,245,248,.45), rgba(244,245,248,.7)), url("<?= base_url('img/latar-bsb.jpg') ?>") center 40% / cover; }
+.tb-prev-executive .pv-side { background: rgba(255,255,255,.72); } .tb-prev-executive .pv-side i { background: rgba(10,42,110,.18); }
+.tb-prev-executive .pv-side i:first-child { background: #0A2A6E; } .tb-prev-executive .pv-hero { background: linear-gradient(135deg, #0A2A6E, #1F4E8C); }
+.tb-prev-executive .pv-card { background: rgba(255,255,255,.9); } .tb-prev-executive .pv-bar { background: linear-gradient(90deg, #E0A000 40%, rgba(255,255,255,.85) 40%); }
+.tb-prev-auto { background: #f3f1ec; }
+.tb-prev-auto .pv-split { inset: 0; background: #0a1534; clip-path: polygon(62% 0, 100% 0, 100% 100%, 38% 100%); }
+.tb-prev-auto .pv-ico { left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; color: #f2c14e; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+
+/* ── Animasi halus tombol topbar ── */
+.tb-btn, .tb-user { transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s ease, border-color .25s, color .25s, background .25s; }
+.tb-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -12px rgba(242,193,78,.6); }
+.tb-user:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -14px rgba(242,193,78,.55); }
+.tb-btn:active, .tb-user:active { transform: translateY(0) scale(.95); transition-duration: .12s; }
+.tb-btn i, .tb-avatar, .tb-user::after { transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .3s; }
+#notifBell:hover i { animation: tbRing .9s cubic-bezier(.36,.07,.19,.97); transform-origin: 50% 8%; }
+.tb-btn-tema:hover i { transform: rotate(-22deg) scale(1.08); }
+.tb-btn-tema[aria-expanded="true"] i { transform: rotate(-22deg); }
+.sb-toggle:hover i { transform: scaleX(-1); }
+.tb-user:hover .tb-avatar { box-shadow: 0 0 0 3px rgba(242,193,78,.28); transform: scale(1.04); }
+.tb-user[aria-expanded="true"]::after { transform: rotate(180deg); }
+.topbar .dropdown-menu.show { animation: tbDrop .18s cubic-bezier(.22,1,.36,1); transform-origin: top right; }
+/* pakai properti translate/scale terpisah, BUKAN transform: transform dipakai Popper (Bootstrap) untuk posisi menu → menu sempat lompat */
+@keyframes tbDrop { from { opacity: 0; scale: .97; } to { opacity: 1; scale: 1; } }
+@keyframes tbRing { 0%,100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } }
+@keyframes tbPop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+    .tb-btn, .tb-user, .tb-btn i, .tb-avatar, .tb-tema-card, .topbar .dropdown-menu.show, .tb-tema-ok { animation: none !important; transition: none !important; transform: none !important; }
+}
+/* ── Tombol topbar (One WBL ERP) ── */
+.topbar { --tb-bg: rgba(255,255,255,.04); --tb-line: rgba(140,180,255,.16); }
+[data-theme="light"] .topbar { --tb-bg: #fff; --tb-line: rgba(15,23,42,.12); }
+.tb-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0;
+          border-radius: 12px; border: 1px solid var(--tb-line); background: var(--tb-bg); color: var(--txt); font-size: 1.05rem;
+          transition: border-color .15s, color .15s, background .15s; }
+.tb-btn:hover, .tb-btn[aria-expanded="true"] { border-color: rgba(242,193,78,.55); color: #f2c14e; }
+[data-theme="light"] .tb-btn:hover { color: #a16207; }
+.tb-btn:focus-visible, .tb-user:focus-visible { outline: 2px solid #f2c14e; outline-offset: 2px; }
+.tb-btn #notifBadge { font-size: .6rem; }
+.tb-user { display: inline-flex; align-items: center; gap: .6rem; height: 44px; padding: 0 .8rem 0 .3rem; border-radius: 999px;
+           border: 1px solid var(--tb-line); background: var(--tb-bg); color: var(--txt); transition: border-color .15s; }
+.tb-user:hover, .tb-user[aria-expanded="true"] { border-color: rgba(242,193,78,.55); }
+.tb-user::after { margin-left: .15rem; opacity: .6; }
+.tb-avatar { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+             background: linear-gradient(135deg, #f6d47a, #e2a92b); color: #0a1534; font-weight: 800; font-size: .86rem; }
+.tb-user-txt { flex-direction: column; align-items: flex-start; line-height: 1.15; text-align: left; }
+.tb-user-txt b { font-size: .84rem; font-weight: 700; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-user-txt small { font-size: .68rem; color: var(--txt-muted); }
 .page-content { padding: 1.5rem; }
 /* Pesan galat/peringatan tetap terlihat walau halaman diarahkan ke jangkar (#program-…) di bawahnya. */
 .page-content > .alert-danger.flash-pin  { background: linear-gradient(rgba(220,53,69,.14), rgba(220,53,69,.14)) #fff !important; }
@@ -77,8 +173,156 @@ body { min-height: 100vh; }
 </style>
 <?= $this->renderSection('styles') ?>
 <script>try { if (localStorage.getItem('micSidebarMini') === '1') document.documentElement.classList.add('sb-mini'); } catch (e) {}</script>
+<?php
+// Sambutan setelah login (flash show_greeting dari Auth): layar penuh yang sekaligus jadi transisi masuk.
+$_sambut = (bool) session()->getFlashdata('show_greeting');
+if ($_sambut) {
+    $_jam = (int) date('G');   // zona waktu aplikasi = Asia/Makassar (WITA)
+    $_waktu = $_jam < 5 ? 'malam' : ($_jam < 11 ? 'pagi' : ($_jam < 15 ? 'siang' : ($_jam < 18 ? 'sore' : 'malam')));
+    $_kata  = explode(' ', trim((string) session('user_name')));
+    $_nama  = trim(($_kata[0] ?? '') . ' ' . ($_kata[1] ?? ''));
+    $_hari  = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][(int) date('w')];
+    $_bln   = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][(int) date('n') - 1];
+}
+?>
+<script>/* Transisi dari halaman Login: tanda dipasang saat tombol Login diklik, dipakai sekali di halaman pertama setelah login */
+(function () { var d = document.documentElement, gerak = true;
+  try { gerak = !matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  try { if (sessionStorage.getItem('oneLoginTransit') === '1') { sessionStorage.removeItem('oneLoginTransit'); if (gerak) d.classList.add('trans-masuk'); } } catch (e) {}
+  <?php if ($_sambut): ?>if (gerak) d.classList.add('trans-masuk', 'ada-sambut');<?php endif; ?>
+})();</script>
+<style>
+/* ══ Transisi masuk aplikasi ══════════════════════════════════════════════════════════
+   Isi halaman ditahan (paused) sampai <html> diberi kelas .buka — dipicu saat tirai/sambutan
+   selesai, jadi tidak pernah ada dua animasi yang bertabrakan. Hanya opacity/transform (mulus). */
+html.trans-masuk #sidebar   { animation: masukKiri .9s cubic-bezier(.22,1,.36,1) backwards; }
+html.trans-masuk .topbar    { animation: masukAtas .8s .08s cubic-bezier(.22,1,.36,1) backwards; }
+html.trans-masuk .page-content { animation: masukPudar .5s .1s ease backwards; }   /* opacity saja: tak mengurung modal */
+html.trans-masuk .page-content > :not(.modal) { animation: masukNaik .9s cubic-bezier(.22,1,.36,1) backwards; }
+html.trans-masuk .page-content > :nth-child(2) { animation-delay: .16s; }
+html.trans-masuk .page-content > :nth-child(3) { animation-delay: .22s; }
+html.trans-masuk .page-content > :nth-child(n+4) { animation-delay: .28s; }
+html.trans-masuk:not(.buka) #sidebar, html.trans-masuk:not(.buka) .topbar,
+html.trans-masuk:not(.buka) .page-content, html.trans-masuk:not(.buka) .page-content > * { animation-play-state: paused; }
+@keyframes masukPudar { from { opacity: 0; } to { opacity: 1; } }
+@keyframes masukKiri { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+@keyframes masukAtas { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
+@keyframes masukNaik { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+
+/* Tirai logo (tanpa sambutan) */
+.trans-tirai, .sambut { display: none; }
+html.trans-masuk:not(.ada-sambut) .trans-tirai {
+    display: grid; place-items: center; position: fixed; inset: 0; z-index: 10000; pointer-events: none;
+    background: radial-gradient(60% 50% at 50% 45%, #0d265c 0%, #071230 55%, #030817 100%);
+    animation: layarPergi .7s .75s cubic-bezier(.65,0,.35,1) forwards;
+}
+.trans-tirai img { width: min(300px, 60vw); height: auto; animation: logoMasuk .7s cubic-bezier(.22,1,.36,1) both; }
+@keyframes logoMasuk { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes layarPergi { to { opacity: 0; visibility: hidden; } }
+
+/* ══ Sambutan ══ */
+html.ada-sambut .sambut {
+    display: grid; place-items: center; position: fixed; inset: 0; z-index: 10000; overflow: hidden; cursor: pointer;
+    color: #fff; text-align: center; padding: 1.5rem;
+    background: radial-gradient(70% 60% at 50% 110%, var(--s-glow) 0%, transparent 60%),
+                radial-gradient(60% 50% at 50% 40%, #0d265c 0%, #071230 55%, #030817 100%);
+    transition: opacity .8s cubic-bezier(.65,0,.35,1), visibility 0s .8s;
+}
+html.ada-sambut.buka .sambut { opacity: 0; visibility: hidden; pointer-events: none; }
+html.ada-sambut.buka .sambut-isi { transform: scale(1.04); opacity: 0; }
+.sambut[data-waktu="pagi"]  { --s-glow: rgba(245,158,11,.38); --s-aksen: #fbbf24; }
+.sambut[data-waktu="siang"] { --s-glow: rgba(56,189,248,.34); --s-aksen: #7dd3fc; }
+.sambut[data-waktu="sore"]  { --s-glow: rgba(236,72,153,.32); --s-aksen: #f9a8d4; }
+.sambut[data-waktu="malam"] { --s-glow: rgba(99,102,241,.30); --s-aksen: #f2c14e; }
+.sambut-isi { display: grid; justify-items: center; gap: .35rem; max-width: 640px; transition: transform .8s cubic-bezier(.65,0,.35,1), opacity .6s ease; }
+.sambut-isi > * { opacity: 0; animation: sNaik .8s cubic-bezier(.22,1,.36,1) forwards; }
+.sambut-logo  { width: 150px; height: auto; margin-bottom: 1.6rem; animation-delay: .05s !important; }
+.sambut-langit{ position: relative; width: 92px; height: 92px; margin-bottom: 1.1rem; animation-delay: .2s !important; }
+.sambut-salam { font-size: clamp(1.05rem, 2.2vw, 1.35rem); font-weight: 500; color: rgba(226,234,250,.82); animation-delay: .4s !important; }
+.sambut-nama  { font-size: clamp(2.4rem, 6.5vw, 4rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; animation-delay: .52s !important;
+    background: linear-gradient(100deg, #fff 30%, var(--s-aksen)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; padding: 0 .06em .08em; }
+.sambut-pesan { min-height: 2.4rem; margin-top: .9rem; display: inline-flex; align-items: center; gap: .55rem; padding: .55rem 1.1rem; border-radius: 999px;
+    font-size: .95rem; color: #e2eafa; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); animation-delay: .75s !important; }
+.sambut-pesan:empty { visibility: hidden; }
+.sambut-tgl   { margin-top: 1.1rem; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: rgba(226,234,250,.55); animation-delay: .85s !important; }
+.sambut-bar   { position: absolute; left: 50%; bottom: 2.2rem; width: 160px; height: 3px; margin-left: -80px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
+.sambut-bar i { display: block; height: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #3d8bff, var(--s-aksen)); animation: sBar 3.4s linear .2s forwards; }
+.sambut-lewati{ position: absolute; right: 1.5rem; bottom: 1.6rem; font-size: .75rem; color: rgba(226,234,250,.45); }
+@keyframes sNaik { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes sBar  { to { transform: scaleX(1); } }
+/* langit sesuai waktu: bulan + bintang (malam) atau matahari (pagi/siang/sore) */
+.l-bulan { position: absolute; inset: 10px; border-radius: 50%; box-shadow: inset -18px 8px 0 0 #f6d47a; filter: drop-shadow(0 0 18px rgba(246,212,122,.55)); animation: sAyun 6s ease-in-out infinite; }
+.l-bintang { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px 1px rgba(255,255,255,.8); animation: sKelip 2.4s ease-in-out infinite; }
+.l-matahari { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff7d6, var(--s-aksen) 60%, #f59e0b); box-shadow: 0 0 40px 8px color-mix(in srgb, var(--s-aksen) 55%, transparent); }
+.l-sinar { position: absolute; inset: 0; border-radius: 50%; background: repeating-conic-gradient(color-mix(in srgb, var(--s-aksen) 70%, transparent) 0 6deg, transparent 6deg 30deg);
+    -webkit-mask: radial-gradient(circle, transparent 42%, #000 44%, #000 60%, transparent 62%); mask: radial-gradient(circle, transparent 42%, #000 44%, #000 60%, transparent 62%); animation: sPutar 18s linear infinite; }
+.sambut[data-waktu="sore"] .l-matahari, .sambut[data-waktu="pagi"] .l-matahari { inset: 30px 22px 14px; }
+@keyframes sAyun  { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes sKelip { 0%,100% { opacity: .25; transform: scale(.7); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes sPutar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sambut *, .trans-tirai * { animation-duration: .01s !important; animation-delay: 0s !important; } }
+</style>
 </head>
 <body>
+<div class="trans-tirai" aria-hidden="true"><img src="<?= base_url('img/onewbl-logo-lg.webp') ?>" alt=""></div>
+<?php if ($_sambut): ?>
+<div class="sambut" data-waktu="<?= $_waktu ?>" role="dialog" aria-label="Sambutan">
+    <div class="sambut-isi">
+        <img class="sambut-logo" src="<?= base_url('img/onewbl-logo-lg.webp') ?>" alt="One WBL ERP">
+        <div class="sambut-langit" aria-hidden="true">
+            <?php if ($_waktu === 'malam'): ?>
+            <span class="l-bulan"></span>
+            <i class="l-bintang" style="left:2px;top:12px;animation-delay:.2s"></i>
+            <i class="l-bintang" style="right:0;top:4px;animation-delay:1.1s"></i>
+            <i class="l-bintang" style="right:6px;bottom:10px;animation-delay:.6s;width:3px;height:3px"></i>
+            <?php else: ?>
+            <span class="l-sinar"></span><span class="l-matahari"></span>
+            <?php endif; ?>
+        </div>
+        <div class="sambut-salam">Selamat <?= $_waktu ?>,</div>
+        <div class="sambut-nama"><?= esc($_nama) ?></div>
+        <div class="sambut-pesan" id="sambutPesan"></div>
+        <div class="sambut-tgl"><?= $_hari . ', ' . (int) date('j') . ' ' . $_bln . ' ' . date('Y') ?></div>
+    </div>
+    <div class="sambut-bar"><i></i></div>
+    <div class="sambut-lewati">Klik untuk lanjut</div>
+</div>
+<?php endif; ?>
+<script>
+/* Kapan isi halaman boleh masuk: tirai biasa 0,75 dtk; sambutan 3,6 dtk atau saat diklik/tombol ditekan */
+(function () {
+    var d = document.documentElement;
+    if (!d.classList.contains('trans-masuk')) return;
+    var sudah = false;
+    function buka() { if (sudah) return; sudah = true; d.classList.add('buka');
+        setTimeout(function () { d.classList.remove('trans-masuk', 'ada-sambut', 'buka'); var s = document.querySelector('.sambut'); if (s) s.remove(); }, 2200); }
+    if (!d.classList.contains('ada-sambut')) { setTimeout(buka, 800); return; }
+    setTimeout(buka, 3600);
+    document.querySelector('.sambut').addEventListener('click', buka);
+    document.addEventListener('keydown', buka, { once: true });
+    <?php if ($_sambut): ?>
+    // Pesan cuaca Balikpapan (Open-Meteo, maks 1,5 dtk); bila gagal pakai pesan umum
+    var waktu = <?= json_encode($_waktu) ?>, el = document.getElementById('sambutPesan');
+    function pesanCuaca(c, t) { t = Math.round(t);
+        if (c === 0) return ['bi-sun', 'Cerah ' + t + '°C di Balikpapan — semangat!'];
+        if (c <= 3)  return ['bi-cloud-sun', 'Berawan ' + t + '°C, semangat tetap cerah'];
+        if (c <= 48) return ['bi-cloud-fog2', 'Berkabut ' + t + '°C, hati-hati di jalan'];
+        if (c <= 55) return ['bi-cloud-drizzle', 'Gerimis ' + t + '°C, pas kerja sambil ngopi'];
+        if (c <= 82) return ['bi-cloud-rain-heavy', 'Hujan ' + t + '°C, aman kerja di dalam ya'];
+        if (c >= 95) return ['bi-cloud-lightning-rain', 'Ada petir ' + t + '°C di luar, stay safe'];
+        return ['bi-thermometer-half', t + '°C di Balikpapan hari ini'];
+    }
+    var umum = { pagi: 'Awali hari dengan yang terbaik', siang: 'Tetap fokus, hari masih panjang', sore: 'Sedikit lagi, tuntaskan dengan baik', malam: 'Terima kasih sudah bekerja keras hari ini' };
+    function tulis(ikon, teks) { el.innerHTML = '<i class="bi ' + ikon + '"></i>'; el.appendChild(document.createTextNode(teks)); }
+    var selesai = false;
+    var batas = setTimeout(function () { if (!selesai) { selesai = true; tulis('bi-stars', umum[waktu]); } }, 1500);
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=-1.2654&longitude=116.8312&current=weathercode,temperature_2m&timezone=Asia%2FMakassar')
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (selesai || !j || !j.current) return; selesai = true; clearTimeout(batas); var p = pesanCuaca(j.current.weathercode, j.current.temperature_2m); tulis(p[0], p[1]); })
+        .catch(function () {});
+    <?php endif; ?>
+})();
+</script>
 
 <?php $currentUser = session()->get('user_name') ?? ''; $currentRole = session()->get('user_role') ?? ''; ?>
 
@@ -86,13 +330,8 @@ body { min-height: 100vh; }
 
     <!-- Brand -->
     <div class="sb-brand d-flex align-items-center gap-2">
-        <img src="<?= base_url('img/mic-logo-sm.png') ?>" alt="MIC Logo"
-             width="36" height="36"
-             style="object-fit:contain;flex-shrink:0;border-radius:8px;background:var(--c-logo-bg);padding:2px">
-        <div class="sb-brand-text">
-            <div class="sb-brand-name">Mall Intelligence Center</div>
-            <div class="sb-brand-sub">eWalk &amp; Pentacity</div>
-        </div>
+        <img class="sb-logo-full" src="<?= base_url('img/onewbl-logo.png') ?>" alt="One WBL ERP" width="188" height="84">
+        <img class="sb-logo-mark" src="<?= base_url('img/onewbl-mark.png') ?>?v=<?= @filemtime(FCPATH . 'img/onewbl-mark.png') ?>" alt="One WBL ERP" width="40" height="40">
     </div>
 
     <!-- Cari menu (Ctrl+K atau /) -->
@@ -631,10 +870,10 @@ body { min-height: 100vh; }
     <canvas id="themeCanvas" style="position:absolute;top:0;left:0;width:100%;height:220px;pointer-events:none;z-index:9;opacity:0;transition:opacity .6s"></canvas>
     <nav class="topbar d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-sm btn-light d-lg-none" id="sbBurger" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
+            <button type="button" class="tb-btn d-lg-none" id="sbBurger" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
                 <i class="bi bi-list"></i>
             </button>
-            <button type="button" class="btn btn-sm btn-light d-none d-lg-inline-block sb-toggle" id="sbToggle" title="Minimize / Expand Sidebar" aria-label="Minimize or Expand Sidebar" aria-pressed="false">
+            <button type="button" class="tb-btn d-none d-lg-inline-flex sb-toggle" id="sbToggle" title="Minimize / Expand Sidebar" aria-label="Minimize or Expand Sidebar" aria-pressed="false">
                 <i class="bi bi-layout-sidebar-inset"></i>
             </button>
             <?php if (isset($event)): ?>
@@ -656,7 +895,7 @@ body { min-height: 100vh; }
             } catch (\Throwable $e) { /* tabel belum ada (pre-migrate) — abaikan */ }
             ?>
             <div class="dropdown" id="notifBellWrap">
-                <button class="btn btn-sm btn-light position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="notifBell" aria-label="Notifikasi">
+                <button type="button" class="tb-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="notifBell" aria-label="Notifikasi">
                     <i class="bi bi-bell"></i>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifBadge" style="font-size:.6rem; <?= $_notifUnread > 0 ? '' : 'display:none' ?>"><?= $_notifUnread ?></span>
                 </button>
@@ -670,24 +909,39 @@ body { min-height: 100vh; }
                     </div>
                 </div>
             </div>
-            <span class="badge bg-secondary d-none d-sm-inline-block"><?= ucfirst($currentRole) ?></span>
+            <?php $_temaOpsi = ['auto' => ['Otomatis', 'circle-half'], 'light' => ['Terang', 'sun'], 'dark' => ['Gelap', 'moon-stars'], 'executive' => ['WBL', 'buildings']]; ?>
             <div class="dropdown">
-                <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown">
-                    <i class="bi bi-person-circle me-1"></i><?= esc($currentUser) ?>
+                <button type="button" class="tb-btn tb-btn-tema" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Tema: <?= esc($_temaOpsi[$_tema][0] ?? 'Gelap', 'attr') ?>" title="Tema">
+                    <i class="bi bi-<?= $_temaOpsi[$_tema][1] ?? 'moon-stars' ?>"></i>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end tb-tema">
+                    <div class="tb-tema-h"><b>Tema tampilan</b><small>Pilih Otomatis untuk mengikuti pengaturan terang/gelap perangkat.</small></div>
+                    <div class="tb-tema-grid">
+                        <?php foreach ($_temaOpsi as $_tk => [$_tl, $_ti]): $_on = $_tema === $_tk; ?>
+                        <form method="POST" action="<?= base_url('profile/theme') ?>" class="m-0">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="theme" value="<?= $_tk ?>">
+                            <button type="submit" class="tb-tema-card<?= $_on ? ' on' : '' ?>" aria-pressed="<?= $_on ? 'true' : 'false' ?>">
+                                <span class="tb-prev tb-prev-<?= $_tk ?>" aria-hidden="true">
+                                    <?php if ($_tk === 'auto'): ?><i class="pv-split"></i><i class="bi bi-arrow-repeat pv-ico"></i>
+                                    <?php else: ?><i class="pv-side"><i></i><i></i><i></i></i><i class="pv-hero"></i><i class="pv-card a"></i><i class="pv-card b"></i><i class="pv-bar"></i><?php endif; ?>
+                                </span>
+                                <span class="tb-tema-nm"><i class="bi bi-<?= $_ti ?>"></i><?= $_tl ?></span>
+                                <?php if ($_on): ?><span class="tb-tema-ok"><i class="bi bi-check-lg"></i></span><?php endif; ?>
+                            </button>
+                        </form>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="dropdown">
+                <?php $_tbInit = strtoupper(mb_substr(trim((string) $currentUser) ?: '?', 0, 1)); ?>
+                <button type="button" class="tb-user dropdown-toggle" data-bs-toggle="dropdown" aria-label="Menu akun <?= esc($currentUser, 'attr') ?>">
+                    <span class="tb-avatar" aria-hidden="true"><?= esc($_tbInit) ?></span>
+                    <span class="tb-user-txt d-none d-sm-flex"><b><?= esc($currentUser) ?></b><small><?= esc(ucfirst(str_replace('_', ' ', (string) $currentRole))) ?></small></span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="<?= base_url('profile') ?>"><i class="bi bi-person me-2"></i>Profil</a></li>
-                    <li>
-                        <?php $uiTheme = session('user_theme') ?? 'dark'; ?>
-                        <form method="POST" action="<?= base_url('profile/theme') ?>" class="px-3 py-1">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="theme" value="<?= $uiTheme === 'dark' ? 'light' : 'dark' ?>">
-                            <button type="submit" class="btn btn-sm w-100 text-start p-0 border-0 dropdown-item">
-                                <i class="bi bi-<?= $uiTheme === 'dark' ? 'sun' : 'moon-stars' ?> me-2"></i>
-                                <?= $uiTheme === 'dark' ? 'Light Mode' : 'Dark Mode' ?>
-                            </button>
-                        </form>
-                    </li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger" href="<?= base_url('logout') ?>"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                 </ul>

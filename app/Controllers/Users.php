@@ -944,7 +944,7 @@ class Users extends BaseController
     public function updateTheme()
     {
         $theme = $this->request->getPost('theme');
-        if (! in_array($theme, ['dark', 'light'], true)) {
+        if (! in_array($theme, ['dark', 'light', 'executive', 'auto'], true)) {
             $theme = 'dark';
         }
         $id = session()->get('user_id');

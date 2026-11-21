@@ -3,7 +3,7 @@
    Semua aturan di-scope ke .page-evc. Selaras dengan Sponsorship & Stok.
    ═══════════════════════════════════════════════════════════════════════ */
 .page-evc {
-    --ev-accent: var(--bs-primary, #e8415a);
+    --ev-accent: var(--bs-primary, #2b6fd6);
     --ev-blue: #3b82f6; --ev-gold: #e8c872; --ev-cyan: #22d3ee;
     --ev-ok: #34d399; --ev-warn: #fbbf24; --ev-bad: #fb7185;
     --ev-ok-bg: rgba(52,211,153,.15); --ev-warn-bg: rgba(251,191,36,.15); --ev-bad-bg: rgba(251,113,133,.16);

@@ -1,0 +1,167 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Tema ke-3 "WBL" (kunci: executive) — gaya Dashboard Direksi:
+   foto udara asli kawasan BSB di latar, kaca putih buram, navy + emas,
+   Huruf TIDAK diubah: sama dengan tema Gelap/Terang (keputusan user 21 Nov).
+   Dibangun DI ATAS tema terang (data-theme="light"), hanya aktif bila
+   <html data-skin="executive">.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+html[data-skin="executive"] {
+    --x-navy: #0A2A6E; --x-navy-2: #1F4E8C; --x-emas: #E0A000; --x-emas-tua: #9A6B00;
+    --x-teks: #1B2433; --x-teks-2: #4E5A70; --x-garis: rgba(217, 222, 232, .9);
+    --x-kaca: rgba(255, 255, 255, .74); --x-kaca-kuat: rgba(255, 255, 255, .88);
+    --x-bayang: 0 1px 2px rgba(27, 36, 51, .06), 0 10px 28px -18px rgba(10, 42, 110, .35);
+
+    /* token MIC (tema terang bawaan bernuansa oranye) → navy/emas */
+    --html-bg: #F4F5F8;
+    --card-bg: var(--x-kaca-kuat);
+    --card-border: var(--x-garis);
+    --txt: var(--x-teks);
+    --txt-muted: var(--x-teks-2);
+    --topbar-bg: rgba(255, 255, 255, .55);
+    --sidebar-active-bg: rgba(10, 42, 110, .10);
+    --sidebar-active-color: var(--x-navy);
+    --accent-primary: var(--x-navy-2);
+    --accent-violet: var(--x-navy-2);
+    --c-avatar-bg: rgba(224, 160, 0, .16);
+    --c-avatar-fg: var(--x-emas-tua);
+    --bs-primary: #1F4E8C;
+    --bs-primary-rgb: 31, 78, 140;
+    --bs-primary-bg-subtle: rgba(31, 78, 140, .10);
+    --bs-primary-border-subtle: rgba(31, 78, 140, .25);
+    --bs-primary-text-emphasis: var(--x-navy);
+    --bs-link-color: var(--x-navy-2);
+    --bs-link-hover-color: var(--x-navy);
+    --bs-body-color: var(--x-teks);
+    /* kartu Dashboard (dashboard-cc.css) */
+    --cc-card-solid: var(--x-kaca-kuat);
+    --cc-card-border: var(--x-garis);
+    --cc-sheen: rgba(31, 78, 140, .05);
+    --cc-sheen2: rgba(224, 160, 0, .05);
+}
+
+/* ── Latar: foto udara kawasan BSB, dipudarkan agar tabel tetap terbaca ── */
+html[data-skin="executive"] { background: #F4F5F8 !important; }
+/* body transparan: lapisan foto (body::before, z-index -1) ada di antara latar <html> dan isi */
+html[data-skin="executive"] body {
+    background: transparent !important;
+    color: var(--x-teks);
+}
+html[data-skin="executive"] body::before {
+    content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(244,245,248,.40) 0%, rgba(244,245,248,.74) 30%, rgba(244,245,248,.86) 100%),
+        linear-gradient(120deg, rgba(10,42,110,.38) 0%, rgba(10,42,110,.06) 50%, rgba(224,160,0,.20) 100%),
+        image-set(url("../img/latar-bsb.webp") type("image/webp"), url("../img/latar-bsb.jpg") type("image/jpeg")) center 38% / cover no-repeat;
+    filter: saturate(.9);
+}
+
+/* ── Sidebar kaca ── */
+html[data-skin="executive"] #sidebar.sidebar {
+    --sbn-bg: rgba(255, 255, 255, .55);
+    --sbn-border: rgba(255, 255, 255, .85);
+    --sbn-shadow: 0 24px 60px -24px rgba(10, 42, 110, .40), 0 2px 6px rgba(27, 36, 51, .06), inset 0 1px 0 #fff;
+    --sbn-text: var(--x-teks);
+    --sbn-text-2: var(--x-teks-2);
+    --sbn-muted: #6b768c;
+    --sbn-hover: rgba(255, 255, 255, .75);
+    --sbn-tile: rgba(10, 42, 110, .07);
+    --sbn-tile-fg: var(--x-navy-2);
+    --sbn-panel: rgba(255, 255, 255, .45);
+    --sbn-panel-line: rgba(10, 42, 110, .08);
+    --sbn-fly-bg: #ffffff;
+    --sbn-active: var(--x-navy);
+    --sbn-active-fg: #ffffff;
+    --sbn-active-tile: rgba(255, 255, 255, .16);
+    --sbn-has-active-fg: var(--x-navy);
+    --sbn-has-active-tile: rgba(10, 42, 110, .10);
+    --sbn-focus: var(--x-emas);
+    --sbn-input-bg: rgba(255, 255, 255, .7);
+    --sbn-input-border: rgba(10, 42, 110, .14);
+    --sbn-mark: rgba(224, 160, 0, .35);
+    --sbn-star: var(--x-emas);
+    --sbn-tip-bg: var(--x-navy);
+    --sbn-tip-fg: #ffffff;
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    backdrop-filter: blur(22px) saturate(170%);
+}
+html[data-skin="executive"] .sb-tip { --sbn-tip-bg: #0A2A6E; --sbn-tip-fg: #fff; }
+
+/* ── Topbar kaca ── */
+html[data-skin="executive"] .topbar {
+    background: rgba(255, 255, 255, .42) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+    backdrop-filter: blur(18px) saturate(160%) !important;
+    border-bottom: 1px solid rgba(10, 42, 110, .08) !important;
+    --tb-bg: rgba(255, 255, 255, .7);
+    --tb-line: rgba(10, 42, 110, .14);
+}
+html[data-skin="executive"] .tb-btn:hover, html[data-skin="executive"] .tb-user:hover { border-color: var(--x-emas); color: var(--x-navy); }
+
+/* ── Kartu: kaca putih ── */
+html[data-skin="executive"] .card,
+html[data-skin="executive"] .page-dash .card {
+    background: var(--x-kaca-kuat) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid var(--x-garis) !important;
+    box-shadow: var(--x-bayang) !important;
+    color: var(--x-teks);
+}
+html[data-skin="executive"] .card-header { background: rgba(244, 245, 248, .7) !important; border-bottom-color: var(--x-garis) !important; }
+html[data-skin="executive"] .modal-content, html[data-skin="executive"] .dropdown-menu { background: #fff; border-color: var(--x-garis); }
+
+/* ── Tabel: kepala bergaya Dashboard Direksi ── */
+html[data-skin="executive"] .table > thead th,
+html[data-skin="executive"] .ev-table thead th {
+    color: var(--x-navy) !important;
+    background: rgba(31, 78, 140, .06) !important;
+}
+
+
+/* ── Tombol utama: navy; aksen emas ── */
+html[data-skin="executive"] .btn-primary {
+    background: linear-gradient(135deg, var(--x-navy), var(--x-navy-2)) !important; border-color: var(--x-navy) !important; color: #fff !important;
+    box-shadow: 0 8px 20px -10px rgba(10, 42, 110, .7) !important;
+}
+html[data-skin="executive"] .btn-outline-primary { color: var(--x-navy) !important; border-color: rgba(10, 42, 110, .35) !important; }
+html[data-skin="executive"] .btn-outline-primary:hover { background: var(--x-navy) !important; color: #fff !important; }
+html[data-skin="executive"] .nav-tabs .nav-link.active { color: var(--x-navy) !important; border-bottom-color: var(--x-emas) !important; }
+html[data-skin="executive"] :focus-visible { outline-color: var(--x-emas); }
+
+/* ── Kepala Dashboard: kartu navy seperti "Mall Executive Summary" ── */
+html[data-skin="executive"] .page-dash .dash-hero,
+html[data-skin="executive"] .page-dash .dash-hero2 {
+    background:
+        radial-gradient(420px 200px at 100% 0%, rgba(224,160,0,.18), transparent 70%),
+        linear-gradient(135deg, #0A2A6E 0%, #12306b 55%, #1F4E8C 100%) !important;
+    border: 1px solid rgba(255, 255, 255, .25) !important;
+    box-shadow: 0 24px 50px -24px rgba(10, 42, 110, .65) !important;
+    --txt: #ffffff;
+    --txt-muted: rgba(226, 234, 250, .78);
+    --cc-card-border: rgba(255, 255, 255, .24);
+    color: #fff;
+}
+html[data-skin="executive"] .page-dash .dh-eyebrow { color: #F2C14E; }
+html[data-skin="executive"] .page-dash .dh-greet b { color: #F2C14E; }
+html[data-skin="executive"] .page-dash .dh-weather .bi { color: #F2C14E; }
+
+/* ── Halaman kerja tetap terbaca di atas foto ── */
+html[data-skin="executive"] .page-content > h4, html[data-skin="executive"] .page-content > .d-flex h4 { color: var(--x-navy); }
+html[data-skin="executive"] .text-muted { color: var(--x-teks-2) !important; }
+
+/* ── Banner & catatan: di tema terang warnanya tipis (alpha .12–.18) → tembus foto. Pekatkan. ── */
+html[data-skin="executive"] .alert,
+html[data-skin="executive"] .ev-note {
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    backdrop-filter: blur(12px) saturate(150%);
+    box-shadow: var(--x-bayang);
+}
+html[data-skin="executive"] .alert-info,    html[data-skin="executive"] .ev-note-info    { background: rgba(236, 246, 255, .94) !important; border-color: rgba(31, 78, 140, .22) !important; color: #0b3a6e !important; }
+html[data-skin="executive"] .alert-primary                                               { background: rgba(232, 240, 252, .94) !important; border-color: rgba(31, 78, 140, .25) !important; color: #0A2A6E !important; }
+html[data-skin="executive"] .alert-danger                                                { background: rgba(254, 238, 236, .95) !important; border-color: rgba(201, 56, 56, .28) !important; color: #8f1f1f !important; }
+html[data-skin="executive"] .alert-warning, html[data-skin="executive"] .ev-note-warn    { background: rgba(253, 245, 225, .95) !important; border-color: rgba(178, 107, 0, .28) !important; color: #6b4300 !important; }
+html[data-skin="executive"] .alert-success                                               { background: rgba(232, 247, 238, .95) !important; border-color: rgba(20, 128, 79, .25) !important; color: #0f5a37 !important; }
+
+/* ── Judul & subjudul halaman yang langsung di atas foto: beri kontras ── */
+html[data-skin="executive"] .page-content .text-muted { text-shadow: 0 1px 0 rgba(255, 255, 255, .6); }

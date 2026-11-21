@@ -30,8 +30,8 @@
 .ev-tab i { font-size: .92rem; }
 .ev-tab:hover { background: var(--ev-hover, rgba(96,165,250,.09)); color: var(--ev-txt, #e3ecfb); text-decoration: none; }
 .ev-tab.is-active {
-    background: var(--ev-accent, var(--bs-primary, #e8415a)); color: #fff;
-    box-shadow: 0 6px 16px -8px var(--ev-accent, var(--bs-primary, #e8415a));
+    background: var(--ev-accent, var(--bs-primary, #2b6fd6)); color: #fff;
+    box-shadow: 0 6px 16px -8px var(--ev-accent, var(--bs-primary, #2b6fd6));
 }
 .ev-tab:focus-visible { outline: 2px solid var(--ev-blue, #3b82f6); outline-offset: 1px; }
 .ev-tab-dot {
