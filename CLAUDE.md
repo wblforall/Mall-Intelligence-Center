@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Mall Intelligence Center — sistem manajemen event untuk dual-mall PT. Wulandari Bangun Laksana Tbk. Versi saat ini: **v2.32.0** (November 2026).
 
-Stack: CodeIgniter 4 (v4.4.x), MySQL (XAMPP), Bootstrap 5.3, Chart.js, Apache.  
+Stack: CodeIgniter 4 (v4.7.x, butuh PHP ≥ 8.2 + ext-intl), MySQL (XAMPP), Bootstrap 5.3, Chart.js, Apache.  
+Catatan lokal: Apache XAMPP di Mac ini masih PHP 8.0, jadi tidak bisa menjalankan CI 4.7. Jalankan CLI/tes dengan `/opt/homebrew/opt/php@8.3/bin/php` (spark, phpunit).  
 Base URL: `http://localhost/mall-intelligence-center/public/`
 
 ---
