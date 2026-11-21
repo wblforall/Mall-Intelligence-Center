@@ -106,11 +106,21 @@ class Auth extends Controller
         // Grant menu tambahan per-user (override) — additive di atas akses dept.
         $userMenus = $rolePerms['is_admin'] ? [] : (new \App\Models\UserMenuModel())->getMenuMap((int)$user['id']);
 
+        // Nama lengkap untuk sambutan: nama di data karyawan bila akun tertaut, selain itu nama akun.
+        $namaLengkap = $user['name'];
+        try {
+            $emp = db_connect()->table('employees')->select('nama')->where('user_id', $user['id'])->get()->getRowArray();
+            if (! empty($emp['nama']) && mb_strlen(trim($emp['nama'])) >= mb_strlen(trim((string) $user['name']))) {
+                $namaLengkap = trim($emp['nama']);
+            }
+        } catch (\Throwable $e) { /* tabel/kolom tak tersedia: pakai nama akun */ }
+
         session()->regenerate(true);
         session()->set([
             'logged_in'      => true,
             'user_id'        => $user['id'],
             'user_name'      => $user['name'],
+            'user_fullname'  => $namaLengkap,
             'user_email'     => $user['email'],
             'user_role'      => $user['role'],
             'role_is_admin'  => $rolePerms['is_admin'],

@@ -179,8 +179,10 @@ $_sambut = (bool) session()->getFlashdata('show_greeting');
 if ($_sambut) {
     $_jam = (int) date('G');   // zona waktu aplikasi = Asia/Makassar (WITA)
     $_waktu = $_jam < 5 ? 'malam' : ($_jam < 11 ? 'pagi' : ($_jam < 15 ? 'siang' : ($_jam < 18 ? 'sore' : 'malam')));
-    $_kata  = explode(' ', trim((string) session('user_name')));
-    $_nama  = trim(($_kata[0] ?? '') . ' ' . ($_kata[1] ?? ''));
+    // Nama LENGKAP (dari data karyawan bila tertaut). Huruf kapital dirapikan hanya bila semuanya kecil/besar.
+    $_nama  = trim((string) (session('user_fullname') ?: session('user_name')));
+    if ($_nama === mb_strtolower($_nama) || $_nama === mb_strtoupper($_nama)) { $_nama = mb_convert_case($_nama, MB_CASE_TITLE, 'UTF-8'); }
+    $_namaPanjang = mb_strlen($_nama) > 18;
     $_hari  = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][(int) date('w')];
     $_bln   = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][(int) date('n') - 1];
 }
@@ -241,6 +243,8 @@ html.ada-sambut.buka .sambut-isi { transform: scale(1.04); opacity: 0; }
 .sambut-salam { font-size: clamp(1.05rem, 2.2vw, 1.35rem); font-weight: 500; color: rgba(226,234,250,.82); animation-delay: .4s !important; }
 .sambut-nama  { font-size: clamp(2.4rem, 6.5vw, 4rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; animation-delay: .52s !important;
     background: linear-gradient(100deg, #fff 30%, var(--s-aksen)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; padding: 0 .06em .08em; }
+.sambut-nama.panjang { font-size: clamp(1.55rem, 4.8vw, 2.9rem); line-height: 1.12; text-wrap: balance; overflow-wrap: anywhere; }
+.sambut-isi { width: min(640px, 100%); }
 .sambut-pesan { min-height: 2.4rem; margin-top: .9rem; display: inline-flex; align-items: center; gap: .55rem; padding: .55rem 1.1rem; border-radius: 999px;
     font-size: .95rem; color: #e2eafa; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); animation-delay: .75s !important; }
 .sambut-pesan:empty { visibility: hidden; }
@@ -280,7 +284,7 @@ html.ada-sambut.buka .sambut-isi { transform: scale(1.04); opacity: 0; }
             <?php endif; ?>
         </div>
         <div class="sambut-salam">Selamat <?= $_waktu ?>,</div>
-        <div class="sambut-nama"><?= esc($_nama) ?></div>
+        <div class="sambut-nama<?= $_namaPanjang ? ' panjang' : '' ?>"><?= esc($_nama) ?></div>
         <div class="sambut-pesan" id="sambutPesan"></div>
         <div class="sambut-tgl"><?= $_hari . ', ' . (int) date('j') . ' ' . $_bln . ' ' . date('Y') ?></div>
     </div>
