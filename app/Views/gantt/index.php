@@ -2,363 +2,293 @@
 
 <?= $this->section('styles') ?>
 <style>
-/* ── Bar colours ─────────────────────────────────────────── */
-.gantt .bar-wrapper.task-events .bar        { fill: #2563eb; }
-.gantt .bar-wrapper.task-people .bar        { fill: #16a34a; }
-.gantt .bar-wrapper.task-sponsorship .bar   { fill: #9333ea; }
-.gantt .bar-wrapper.task-loyalty .bar       { fill: #ea580c; }
-.gantt .bar-wrapper.task-vm .bar            { fill: #0891b2; }
-.gantt .bar-wrapper .bar-label              { fill: #fff; font-size: 11px; font-family: inherit; }
-/* ── Grid chrome ─────────────────────────────────────────── */
-.gantt .grid-header                         { fill: var(--c-surface-2, #1e293b); }
-.gantt .tick                                { stroke: rgba(255,255,255,.08); }
-/* ── Text (exclude our injected overlay texts) ───────────── */
-.gantt :not(.mic-overlay) > text            { fill: var(--c-text-muted, #94a3b8); font-family: inherit; }
-.gantt .lower-text, .gantt .upper-text      { fill: var(--c-text-muted, #94a3b8); font-size: 11px; }
-/* ── Misc ────────────────────────────────────────────────── */
-.gantt-container   { overflow-x: auto; border-radius: 4px; }
-.gantt-legend-dot  { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+/* ═══ Gantt Timeline — dibangun sendiri (tanpa Frappe Gantt) ═══════════════
+   Satu wadah gulir: baris judul menempel di atas, kolom nama menempel di kiri,
+   nama di dalam bar ikut menempel sehingga program panjang tetap terbaca. */
+.gx-page { --gx-label: 260px; --gx-bg: #0b1736; --gx-line: rgba(255,255,255,.06); --gx-head: #091430;
+           --gx-muted: var(--txt-muted, #8fa3c4); --gx-txt: var(--txt, #e3ecfa); --gx-wk: rgba(148,163,184,.07); }
+[data-theme="light"] .gx-page { --gx-bg: #ffffff; --gx-line: rgba(15,23,42,.07); --gx-head: #f5f7fb;
+           --gx-muted: #64748b; --gx-txt: #0f172a; --gx-wk: rgba(100,116,139,.07); }
+
+.gx-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.gx-seg { display: inline-flex; border: 1px solid var(--bs-border-color); border-radius: 10px; overflow: hidden; }
+.gx-seg button { border: 0; background: transparent; color: var(--gx-muted); font-size: .8rem; font-weight: 600; padding: .4rem .8rem; }
+.gx-seg button + button { border-left: 1px solid var(--bs-border-color); }
+.gx-seg button.on { background: var(--bs-primary); color: #fff; }
+.gx-chip { display: inline-flex; align-items: center; gap: .4rem; border: 1px solid var(--bs-border-color); border-radius: 999px;
+           background: transparent; color: var(--gx-txt); font-size: .78rem; font-weight: 600; padding: .3rem .75rem; }
+.gx-chip i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.gx-chip b { font-weight: 700; color: var(--gx-muted); font-variant-numeric: tabular-nums; }
+.gx-chip.off { opacity: .45; text-decoration: line-through; }
+.gx-key { display: inline-flex; align-items: center; gap: .35rem; font-size: .74rem; color: var(--gx-muted); }
+.gx-key i { width: 12px; height: 10px; border-radius: 2px; display: inline-block; }
+
+.gx-wrap { position: relative; overflow: auto; max-height: calc(100vh - 230px); min-height: 320px;
+           border: 1px solid var(--gx-line); border-radius: 12px; background: var(--gx-bg); }
+.gx-grid { position: relative; }
+.gx-head { position: sticky; top: 0; z-index: 6; display: flex; background: var(--gx-head); border-bottom: 1px solid var(--gx-line); }
+.gx-corner { position: sticky; left: 0; z-index: 7; flex: 0 0 var(--gx-label); width: var(--gx-label); background: var(--gx-head);
+             border-right: 1px solid var(--gx-line); display: flex; align-items: flex-end; padding: 0 12px 8px;
+             font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gx-muted); }
+.gx-scale { position: relative; flex: 0 0 auto; }
+.gx-month { position: absolute; top: 0; height: 26px; display: flex; align-items: center; padding-left: 8px; font-size: .78rem; font-weight: 700;
+            color: var(--gx-txt); border-left: 1px solid var(--gx-line); white-space: nowrap; overflow: hidden; }
+.gx-day { position: absolute; top: 26px; height: 34px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+          font-size: .68rem; color: var(--gx-muted); line-height: 1.15; font-variant-numeric: tabular-nums; }
+.gx-day small { font-size: .6rem; opacity: .8; }
+.gx-day.red { color: #f87171; }
+.gx-day.now { color: #fff; }
+.gx-day.now span { background: #ef4444; border-radius: 6px; padding: 0 4px; }
+
+.gx-body { position: relative; }
+.gx-bgl { position: absolute; top: 0; bottom: 0; pointer-events: none; z-index: 0; }
+.gx-bgl .wk   { position: absolute; top: 0; bottom: 0; background: var(--gx-wk); }
+.gx-bgl .hol  { position: absolute; top: 0; bottom: 0; background: rgba(239,68,68,.12); }
+.gx-bgl .mon  { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--gx-line); }
+.gx-bgl .thm  { position: absolute; top: 0; bottom: 0; background: rgba(245,158,11,.07); border-left: 1px dashed rgba(245,158,11,.45); }
+.gx-bgl .today{ position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+
+.gx-group { position: relative; z-index: 2; display: flex; height: 34px; border-bottom: 1px solid var(--gx-line); }
+.gx-group .lab { position: sticky; left: 0; z-index: 3; flex: 0 0 var(--gx-label); width: var(--gx-label); background: var(--gx-head);
+                 display: flex; align-items: center; gap: .5rem; padding: 0 12px; font-size: .76rem; font-weight: 800; letter-spacing: .04em;
+                 text-transform: uppercase; color: var(--gx-txt); border-right: 1px solid var(--gx-line); }
+.gx-group .lab i { width: 10px; height: 10px; border-radius: 3px; }
+.gx-group .lab b { margin-left: auto; font-weight: 700; color: var(--gx-muted); }
+.gx-group .fill { flex: 1 0 auto; background: color-mix(in srgb, var(--gx-head) 60%, transparent); }
+
+.gx-row { position: relative; z-index: 1; display: flex; height: 34px; border-bottom: 1px solid var(--gx-line); }
+.gx-row:hover { background: rgba(255,255,255,.03); }
+[data-theme="light"] .gx-row:hover { background: rgba(15,23,42,.025); }
+.gx-row .lab { position: sticky; left: 0; z-index: 3; flex: 0 0 var(--gx-label); width: var(--gx-label); background: var(--gx-bg);
+               display: flex; align-items: center; padding: 0 12px 0 28px; font-size: .8rem; color: var(--gx-txt);
+               border-right: 1px solid var(--gx-line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gx-row .lab span { overflow: hidden; text-overflow: ellipsis; }
+.gx-track { position: relative; flex: 0 0 auto; }
+.gx-bar { position: absolute; top: 6px; height: 22px; border-radius: 6px; display: flex; align-items: center; overflow: visible;
+          font-size: .72rem; font-weight: 600; color: #fff; cursor: pointer; border: 0; padding: 0; text-align: left;
+          box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.gx-bar:focus-visible { outline: 2px solid #f2c14e; outline-offset: 2px; }
+.gx-bar.cut-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.gx-bar.cut-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.gx-bar .nm { position: sticky; left: calc(var(--gx-label) + 8px); padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.gx-bar.tiny .nm { position: absolute; left: 100%; color: var(--gx-txt); padding-left: 6px; max-width: none; }
+.gx-bar.tbc { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.18) 0 6px, transparent 6px 12px); }
+
+.gx-tip { position: fixed; z-index: 1080; max-width: 280px; background: #0d1f4a; color: #e3ecfa; border: 1px solid rgba(120,170,255,.25);
+          border-radius: 10px; padding: 10px 12px; font-size: .78rem; line-height: 1.5; box-shadow: 0 12px 30px rgba(0,0,0,.4); }
+[data-theme="light"] .gx-tip { background: #fff; color: #0f172a; border-color: #dbe2ee; }
+.gx-tip .t { font-weight: 700; margin-bottom: 2px; }
+.gx-tip .m { color: #9fb2d4; }
+[data-theme="light"] .gx-tip .m { color: #64748b; }
+.gx-tip a { display: inline-block; margin-top: 6px; font-weight: 600; }
+.gx-empty { padding: 3rem 1rem; text-align: center; color: var(--gx-muted); }
+
+@media (max-width: 767.98px) { .gx-page { --gx-label: 150px; } .gx-row .lab { padding-left: 14px; } }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.css">
 <?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
+<div class="gx-page">
 
-<div class="d-flex align-items-center gap-3 mb-4 flex-wrap fade-up" style="animation-delay:.05s">
+<div class="d-flex align-items-center gap-3 mb-3 flex-wrap fade-up" style="animation-delay:.05s">
     <div>
         <h4 class="mb-0 fw-bold"><i class="bi bi-bar-chart-steps me-2"></i>Gantt Timeline</h4>
         <div class="text-muted" style="font-size:.8rem">Program, event, dan milestone dengan rentang tanggal</div>
     </div>
-    <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
-        <select id="yearSelect" class="form-select form-select-sm" style="width:auto">
+    <div class="ms-auto gx-toolbar">
+        <select id="yearSelect" class="form-select form-select-sm" style="width:auto" aria-label="Tahun">
             <?php for ($y = date('Y') - 1; $y <= date('Y') + 2; $y++): ?>
             <option value="<?= $y ?>" <?= $y == $year ? 'selected' : '' ?>><?= $y ?></option>
             <?php endfor; ?>
         </select>
-        <select id="viewMode" class="form-select form-select-sm" style="width:auto">
-            <option value="Month">Bulanan</option>
-            <option value="Week">Mingguan</option>
-            <option value="Day" selected>Harian</option>
-        </select>
+        <div class="gx-seg" role="group" aria-label="Rentang waktu">
+            <button type="button" data-range="3" class="on">3 bulan</button>
+            <button type="button" data-range="6">6 bulan</button>
+            <button type="button" data-range="12">Setahun</button>
+        </div>
     </div>
 </div>
 
-<!-- Legend -->
-<div class="d-flex flex-wrap gap-3 mb-3 align-items-center fade-up" style="font-size:.78rem;animation-delay:.1s">
-    <span class="d-flex align-items-center gap-1"><span class="gantt-legend-dot" style="background:#2563eb"></span> Events</span>
-    <span class="d-flex align-items-center gap-1"><span class="gantt-legend-dot" style="background:#16a34a"></span> People (TNA / PIP / Training / EEI)</span>
-    <span class="d-flex align-items-center gap-1"><span class="gantt-legend-dot" style="background:#9333ea"></span> Sponsorship</span>
-    <span class="d-flex align-items-center gap-1"><span class="gantt-legend-dot" style="background:#ea580c"></span> Loyalty</span>
-    <span class="d-flex align-items-center gap-1"><span class="gantt-legend-dot" style="background:#0891b2"></span> VM Deadline</span>
-    <span class="d-flex align-items-center gap-1 ms-2">
-        <span style="display:inline-block;width:14px;height:10px;background:#f59e0b;opacity:.5;border-radius:2px"></span>
-        Tema Periode
-    </span>
-    <span class="d-flex align-items-center gap-1">
-        <span style="display:inline-block;width:12px;height:12px;background:#ef4444;opacity:.4;border-radius:2px"></span> Hari Libur
-    </span>
-    <span class="d-flex align-items-center gap-1">
-        <span style="display:inline-block;width:12px;height:12px;background:#22c55e;opacity:.4;border-radius:2px"></span> Hari Ini
-    </span>
-</div>
-
-<!-- Chart -->
-<div class="card border-0 fade-up" style="background:var(--c-surface-1,#0f172a);animation-delay:.15s">
-    <div class="card-body p-3">
-        <div id="gantt-spinner" class="text-center py-5">
-            <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
-            <div class="text-muted mt-2" style="font-size:.8rem">Memuat data…</div>
-        </div>
-        <div id="gantt-empty" class="text-center py-5 text-muted" style="display:none">
-            <i class="bi bi-calendar-x fs-2 d-block mb-2"></i>
-            Tidak ada data di tahun ini yang dapat Anda akses.
-        </div>
-        <div id="gantt"></div>
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3 fade-up" style="animation-delay:.1s">
+    <div id="gx-chips" class="d-flex flex-wrap gap-2"></div>
+    <div class="ms-auto d-flex flex-wrap gap-3">
+        <span class="gx-key"><i style="background:#ef4444;width:3px"></i> Hari ini</span>
+        <span class="gx-key"><i style="background:rgba(239,68,68,.35)"></i> Hari libur</span>
+        <span class="gx-key"><i style="background:rgba(245,158,11,.35)"></i> Tema periode</span>
+        <span class="gx-key"><i style="background:repeating-linear-gradient(135deg,#94a3b8 0 3px,transparent 3px 6px)"></i> Masih tbc</span>
     </div>
 </div>
 
+<div class="gx-wrap fade-up" id="gx-wrap" style="animation-delay:.15s">
+    <div class="gx-empty" id="gx-msg">
+        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+        <div class="mt-2" style="font-size:.8rem">Memuat data…</div>
+    </div>
+    <div class="gx-grid" id="gx-grid" hidden></div>
+</div>
+<div class="text-muted mt-2" style="font-size:.74rem" id="gx-foot"></div>
+
+</div>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.js"></script>
 <script>
 (function () {
-    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const GROUPS = [
+        { key: 'task-events',      label: 'Events',      color: '#3d8bff' },
+        { key: 'task-people',      label: 'People',      color: '#22a06b' },
+        { key: 'task-sponsorship', label: 'Sponsorship', color: '#9b5de5' },
+        { key: 'task-loyalty',     label: 'Loyalty',     color: '#ea580c' },
+        { key: 'task-vm',          label: 'VM Deadline', color: '#0891b2' },
+    ];
+    const EVENT_URL = <?= json_encode(rtrim(base_url('events'), '/') . '/') ?>;
+    const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const HARI  = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+    const DAY = 86400000;
 
-    const BAR_COLORS = {
-        'task-events':      '#2563eb',
-        'task-people':      '#16a34a',
-        'task-sponsorship': '#9333ea',
-        'task-loyalty':     '#ea580c',
-        'task-vm':          '#0891b2',
-    };
-    const GROUP_LABEL = {
-        'task-events':      'Events',
-        'task-people':      'People',
-        'task-sponsorship': 'Sponsorship',
-        'task-loyalty':     'Loyalty',
-        'task-vm':          'VM',
-    };
+    const st = { data: null, range: 3, off: new Set() };
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const tgl = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+    const fmt = d => d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const hariIni = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 
-    let gantt       = null;
-    let currentData = null;
+    /* Rentang tampilan: tahun berjalan dimulai 2 minggu sebelum hari ini; tahun lain dari 1 Jan. */
+    function rentang() {
+        const thn = parseInt($('yearSelect').value, 10), kini = hariIni();
+        if (st.range === 12) return [new Date(thn, 0, 1), new Date(thn + 1, 0, 1)];
+        let awal = thn === kini.getFullYear() ? new Date(kini.getTime() - 14 * DAY) : new Date(thn, 0, 1);
+        const akhir = new Date(awal.getFullYear(), awal.getMonth() + st.range, awal.getDate());
+        return [awal, akhir];
+    }
+    const lebarHari = () => st.range === 3 ? 30 : st.range === 6 ? 15 : 4;
 
-    /* ── Load & render ───────────────────────────────────────────── */
-    function loadGantt(year, viewMode) {
-        document.getElementById('gantt-spinner').style.display = 'block';
-        document.getElementById('gantt-empty').style.display   = 'none';
-        document.getElementById('gantt').innerHTML              = '';
-
-        fetch(`<?= base_url('gantt/data') ?>?year=${year}`)
+    function muat() {
+        $('gx-msg').hidden = false; $('gx-grid').hidden = true;
+        $('gx-msg').innerHTML = '<div class="spinner-border spinner-border-sm text-secondary"></div><div class="mt-2" style="font-size:.8rem">Memuat data…</div>';
+        fetch(`<?= base_url('gantt/data') ?>?year=${$('yearSelect').value}`)
             .then(r => r.json())
-            .then(data => {
-                document.getElementById('gantt-spinner').style.display = 'none';
-                currentData = data;
-                if (!data.tasks || data.tasks.length === 0) {
-                    document.getElementById('gantt-empty').style.display = 'block';
-                    return;
-                }
-                renderGantt(data, viewMode);
-            })
-            .catch(() => {
-                document.getElementById('gantt-spinner').style.display = 'none';
-                document.getElementById('gantt-empty').style.display   = 'block';
+            .then(d => { st.data = d; gambar(); })
+            .catch(() => { $('gx-msg').innerHTML = 'Data tidak bisa dimuat. Coba muat ulang halaman.'; });
+    }
+
+    function gambar() {
+        const d = st.data; if (!d) return;
+        const [awal, akhir] = rentang();
+        const W = lebarHari(), nHari = Math.round((akhir - awal) / DAY), lebar = nHari * W;
+        const x = dt => Math.round((dt - awal) / DAY) * W;
+
+        // Item yang bersinggungan dengan rentang, per kelompok
+        const dalam = (d.tasks || []).filter(t => tgl(t.start) < akhir && tgl(t.end) > awal);
+        const perGrup = {};
+        dalam.forEach(t => (perGrup[t.custom_class] = perGrup[t.custom_class] || []).push(t));
+
+        // Chip kategori (jumlah = di rentang ini)
+        $('gx-chips').innerHTML = GROUPS.map(g => `<button type="button" class="gx-chip ${st.off.has(g.key) ? 'off' : ''}" data-g="${g.key}" aria-pressed="${!st.off.has(g.key)}">
+            <i style="background:${g.color}"></i>${g.label} <b>${(perGrup[g.key] || []).length}</b></button>`).join('');
+        $('gx-chips').querySelectorAll('.gx-chip').forEach(b => b.onclick = () => {
+            st.off.has(b.dataset.g) ? st.off.delete(b.dataset.g) : st.off.add(b.dataset.g); gambar();
+        });
+
+        const tampil = GROUPS.filter(g => !st.off.has(g.key) && (perGrup[g.key] || []).length);
+        if (!tampil.length) {
+            $('gx-grid').hidden = true; $('gx-msg').hidden = false;
+            $('gx-msg').innerHTML = '<i class="bi bi-calendar-x fs-3 d-block mb-2"></i>Tidak ada item di rentang ini yang dapat Anda akses.';
+            $('gx-foot').textContent = ''; return;
+        }
+
+        /* ── Kepala: bulan + hari ── */
+        let skala = '';
+        for (let m = new Date(awal.getFullYear(), awal.getMonth(), 1); m < akhir; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+            const a = Math.max(0, x(m)), b = Math.min(lebar, x(new Date(m.getFullYear(), m.getMonth() + 1, 1)));
+            if (b > a) skala += `<div class="gx-month" style="left:${a}px;width:${b - a}px">${BULAN[m.getMonth()]}${st.range === 12 ? '' : ' ' + m.getFullYear()}</div>`;
+        }
+        const libur = new Map((d.holidays || []).map(h => [h.tanggal, h.nama]));
+        const kini = hariIni();
+        let bg = '';
+        for (let i = 0; i < nHari; i++) {
+            const dt = new Date(awal.getFullYear(), awal.getMonth(), awal.getDate() + i);
+            const ds = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            const wk = dt.getDay() === 0 || dt.getDay() === 6, hol = libur.has(ds), now = +dt === +kini;
+            if (W >= 15) {
+                const isi = W >= 30 ? `<small>${HARI[dt.getDay()]}</small><span>${dt.getDate()}</span>` : `<span>${dt.getDate()}</span>`;
+                skala += `<div class="gx-day ${wk || hol ? 'red' : ''} ${now ? 'now' : ''}" style="left:${i * W}px;width:${W}px" ${hol ? `title="${esc(libur.get(ds))}"` : ''}>${isi}</div>`;
+                if (wk) bg += `<div class="wk" style="left:${i * W}px;width:${W}px"></div>`;
+            }
+            if (hol) bg += `<div class="hol" style="left:${i * W}px;width:${Math.max(W, 2)}px" title="${esc(libur.get(ds))}"></div>`;
+            if (dt.getDate() === 1 && i > 0) bg += `<div class="mon" style="left:${i * W}px"></div>`;
+        }
+        (d.theme_periods || []).forEach(tp => {
+            const a = Math.max(0, x(tgl(tp.start_date))), b = Math.min(lebar, x(tgl(tp.end_date)) + W);
+            if (b > a) bg += `<div class="thm" style="left:${a}px;width:${b - a}px" title="${esc(tp.nama)}"></div>`;
+        });
+        if (kini >= awal && kini < akhir) bg += `<div class="today" style="left:${x(kini) + W / 2 - 1}px"></div>`;
+        const tinggiKepala = W >= 15 ? 60 : 26;
+
+        /* ── Badan: kelompok + baris ── */
+        let badan = '';
+        tampil.forEach(g => {
+            const list = perGrup[g.key].slice().sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
+            badan += `<div class="gx-group"><div class="lab"><i style="background:${g.color}"></i>${g.label}<b>${list.length}</b></div><div class="fill" style="width:${lebar}px"></div></div>`;
+            list.forEach(t => {
+                const s = tgl(t.start), e = tgl(t.end);
+                const a = Math.max(0, x(s)), b = Math.min(lebar, x(e)), w = Math.max(b - a, Math.min(W, 6));
+                const cls = ['gx-bar', s < awal ? 'cut-l' : '', e > akhir ? 'cut-r' : '', w < 70 ? 'tiny' : '', /\(tbc\)/i.test(t.name) ? 'tbc' : ''].join(' ');
+                badan += `<div class="gx-row"><div class="lab" title="${esc(t.name)}"><span>${esc(t.name)}</span></div>
+                    <div class="gx-track" style="width:${lebar}px">
+                      <button type="button" class="${cls}" style="left:${a}px;width:${w}px;background-color:${g.color}" data-id="${esc(t.id)}"
+                        aria-label="${esc(t.name)}, ${fmt(s)} sampai ${fmt(new Date(e - DAY))}"><span class="nm">${esc(t.name)}</span></button>
+                    </div></div>`;
             });
-    }
-
-    function renderGantt(data, viewMode) {
-        document.getElementById('gantt').innerHTML = '';
-
-        gantt = new Gantt('#gantt', data.tasks, {
-            view_mode:         viewMode || 'Day',
-            date_format:       'YYYY-MM-DD',
-            header_height:     70,
-            bar_height:        22,
-            bar_corner_radius: 4,
-            arrow_curve:       4,
-            padding:           12,
-            language:          'en',
-            popup_trigger:     'click',
-            custom_popup_html: function (task) {
-                const s   = new Date(task._start).toLocaleDateString('id-ID', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
-                const e   = new Date(+task._end - 86400000).toLocaleDateString('id-ID', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
-                const col = BAR_COLORS[task.custom_class] || '#555';
-                const grp = GROUP_LABEL[task.custom_class] || '';
-                const _esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-                return `<div style="padding:8px 10px;font-size:12px;max-width:260px;line-height:1.6">
-                    <div style="font-weight:600;margin-bottom:3px">${_esc(task.name)}</div>
-                    <div style="color:#94a3b8;font-size:11px">${s}</div>
-                    <div style="color:#94a3b8;font-size:11px">s/d ${e}</div>
-                    <div style="margin-top:6px">
-                        <span style="background:${col};color:#fff;font-size:10px;padding:2px 7px;border-radius:3px">${grp}</span>
-                    </div>
-                </div>`;
-            },
         });
 
-        setTimeout(() => {
-            injectOverlays(data);
-            scrollToToday();
-        }, 200);
+        const lab = getComputedStyle(document.querySelector('.gx-page')).getPropertyValue('--gx-label').trim();
+        $('gx-grid').style.width = `calc(${lab} + ${lebar}px)`;
+        $('gx-grid').innerHTML =
+            `<div class="gx-head"><div class="gx-corner" style="height:${tinggiKepala}px">Item</div><div class="gx-scale" style="width:${lebar}px;height:${tinggiKepala}px">${skala}</div></div>
+             <div class="gx-body"><div class="gx-bgl" style="left:${lab};width:${lebar}px">${bg}</div>${badan}</div>`;
+        $('gx-msg').hidden = true; $('gx-grid').hidden = false;
+
+        const total = (d.tasks || []).length;
+        $('gx-foot').textContent = `${dalam.length} dari ${total} item tahun ${$('yearSelect').value} ada di rentang ${fmt(awal)} – ${fmt(new Date(akhir - DAY))}.`;
+
+        // Geser ke hari ini (rentang setahun)
+        const wrap = $('gx-wrap');
+        if (st.range === 12 && kini >= awal && kini < akhir) wrap.scrollLeft = Math.max(0, x(kini) - wrap.clientWidth * 0.35);
+        else wrap.scrollLeft = 0;
+
+        // Detail saat bar diklik
+        const byId = new Map((d.tasks || []).map(t => [t.id, t]));
+        $('gx-grid').querySelectorAll('.gx-bar').forEach(btn => btn.onclick = ev => { ev.stopPropagation(); tip(btn, byId.get(btn.dataset.id)); });
     }
 
-    /* ── Scroll view ke hari ini ────────────────────────────────── */
-    function scrollToToday() {
-        if (!gantt || !gantt.gantt_start || !gantt.options) return;
-        const container = document.querySelector('.gantt-container');
-        if (!container) return;
-
-        const colW  = gantt.options.column_width;
-        const step  = gantt.options.step;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const todayX = (today - gantt.gantt_start) / 3600000 / step * colW;
-        if (todayX <= 0) return; // hari ini sebelum range chart — biarkan di awal
-
-        // Posisikan hari ini di 30% dari kiri layar agar ada konteks sebelumnya
-        const offset = Math.max(0, todayX - container.clientWidth * 0.3);
-        container.scrollLeft = offset;
+    let tipEl = null;
+    function tutupTip() { if (tipEl) { tipEl.remove(); tipEl = null; } }
+    function tip(btn, t) {
+        tutupTip(); if (!t) return;
+        const g = GROUPS.find(x => x.key === t.custom_class) || { label: '', color: '#64748b' };
+        const s = tgl(t.start), e = new Date(tgl(t.end) - DAY), hari = Math.round((tgl(t.end) - s) / DAY);
+        const link = t.id.startsWith('ev-') ? `<a href="${EVENT_URL}${encodeURIComponent(t.id.slice(3))}">Buka event →</a>` : '';
+        tipEl = document.createElement('div'); tipEl.className = 'gx-tip'; tipEl.setAttribute('role', 'dialog');
+        tipEl.innerHTML = `<div class="t">${esc(t.name)}</div><div class="m">${fmt(s)}${hari > 1 ? ' – ' + fmt(e) : ''} · ${hari} hari</div>
+            <div class="m"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${g.color};margin-right:5px"></span>${g.label}</div>${link}`;
+        document.body.appendChild(tipEl);
+        const r = btn.getBoundingClientRect(), tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+        const left = Math.min(window.innerWidth - tw - 12, Math.max(12, (window.matchMedia('(max-width:767.98px)').matches ? r.left : Math.max(r.left, 300))));
+        tipEl.style.left = left + 'px';
+        tipEl.style.top = (r.bottom + th + 12 > window.innerHeight ? r.top - th - 8 : r.bottom + 8) + 'px';
     }
+    document.addEventListener('click', e => { if (tipEl && !tipEl.contains(e.target)) tutupTip(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') tutupTip(); });
+    $('gx-wrap').addEventListener('scroll', tutupTip, { passive: true });
 
-    /* ── SVG overlay injection ───────────────────────────────────── */
-    function injectOverlays(data) {
-        const svg = document.querySelector('#gantt svg.gantt');
-        if (!svg || !gantt || !gantt.gantt_start || !gantt.options) return;
-
-        // Remove any overlays from a previous render
-        svg.querySelectorAll('.mic-overlay').forEach(el => el.remove());
-
-        const colW    = gantt.options.column_width;
-        const step    = gantt.options.step;           // hours per column
-        const hdrH    = gantt.options.header_height || 70;
-        const svgH    = parseFloat(svg.getAttribute('height') || 400);
-        const bodyH   = svgH - hdrH;
-        const isDayView = step === 24;
-
-        /* xOffset: calibrate column positions against actual bar DOM positions */
-        let xOffset = 0;
-        const firstBar = svg.querySelector('.bar-wrapper .bar');
-        if (firstBar && data.tasks && data.tasks.length > 0) {
-            const barX    = parseFloat(firstBar.getAttribute('x') || 0);
-            const rawX    = (new Date(data.tasks[0].start + 'T00:00:00') - gantt.gantt_start) / 3600000 / step * colW;
-            xOffset = barX - rawX;
-        }
-
-        function dateToX(dateStr) {
-            return (new Date(dateStr + 'T00:00:00') - gantt.gantt_start) / 3600000 / step * colW + xOffset;
-        }
-
-        /* ── Today highlight (set via JS so CSS can't override) ── */
-        const todayEl = svg.querySelector('.today-highlight');
-        if (todayEl) {
-            todayEl.style.fill    = 'rgba(34,197,94,0.25)';
-            todayEl.style.opacity = '1';
-        }
-
-        /* ── Weekend column shading (Day view only) ───────────── */
-        if (isDayView) {
-            const wkGrp = mkGroup(svg, 'before-dates');
-            const total = Math.round((gantt.gantt_end - gantt.gantt_start) / 86400000);
-            for (let i = 0; i < total; i++) {
-                const dow = new Date(gantt.gantt_start.getTime() + i * 86400000).getDay();
-                if (dow === 0 || dow === 6)
-                    addRect(wkGrp, i * colW + xOffset, hdrH, colW, bodyH, '#94a3b8', 0.08);
-            }
-        }
-
-        /* ── Month boundary lines ────────────────────────────── */
-        if (isDayView) {
-            const mbGrp  = mkGroup(svg, 'before-bars');
-            const total  = Math.round((gantt.gantt_end - gantt.gantt_start) / 86400000);
-            let prevMonth = gantt.gantt_start.getMonth();
-            for (let i = 1; i < total; i++) {
-                const d = new Date(gantt.gantt_start.getTime() + i * 86400000);
-                if (d.getMonth() !== prevMonth) {
-                    const x = i * colW + xOffset;
-                    const ln = document.createElementNS(SVG_NS, 'line');
-                    ln.setAttribute('x1', x); ln.setAttribute('y1', 0);
-                    ln.setAttribute('x2', x); ln.setAttribute('y2', svgH);
-                    ln.setAttribute('stroke', '#94a3b8');
-                    ln.setAttribute('stroke-width', '2');
-                    ln.setAttribute('opacity', '0.6');
-                    ln.setAttribute('pointer-events', 'none');
-                    mbGrp.appendChild(ln);
-                    prevMonth = d.getMonth();
-                }
-            }
-        }
-
-        /* ── Theme period blocks ──────────────────────────────── */
-        const themeGrp = mkGroup(svg, 'before-bars');
-        (data.theme_periods || []).forEach(tp => {
-            const nx = dateToX(tp.start_date);
-            const ex = dateToX(tp.end_date) + colW;
-            const bw = ex - nx;
-            if (bw <= 0) return;
-            addRect(themeGrp, nx, hdrH, bw, bodyH, '#f59e0b', 0.12, `${tp.nama}: ${tp.start_date} – ${tp.end_date}`);
-            if (bw > 24)
-                mkText(themeGrp, nx + 4, hdrH + 13, tp.nama, { size: 9, fill: '#f59e0b', opacity: 0.85, anchor: 'start' });
-        });
-
-        /* ── Holiday columns ──────────────────────────────────── */
-        const hlGrp = mkGroup(svg, 'before-dates');
-        const holidaySet = new Set((data.holidays || []).map(h => h.tanggal));
-        (data.holidays || []).forEach(h => {
-            const x = dateToX(h.tanggal);
-            addRect(hlGrp, x, hdrH,  colW, bodyH, '#ef4444', 0.18, `${h.nama} (${h.tanggal})`);
-            addRect(hlGrp, x, 0,     colW, hdrH,  '#ef4444', 0.25);
-            if (isDayView) {
-                const cx = x + colW / 2;
-                const ty = hdrH + 6;
-                const t  = mkText(hlGrp, cx, ty, h.nama, { size: 8.5, fill: '#ef4444', opacity: 0.8 });
-                t.setAttribute('transform', `rotate(90, ${cx}, ${ty})`);
-                t.setAttribute('text-anchor', 'start');
-            }
-        });
-
-        /* ── Day-abbr row + date numbers (Day view only) ─────── */
-        if (isDayView) {
-            const DAY_ABBR = ['S','M','T','W','T','F','S'];
-            const lblGrp   = mkGroup(svg, 'append');
-
-            // Move Frappe Gantt's month labels to top of header
-            svg.querySelectorAll('text.upper-text').forEach(el => el.setAttribute('y', 15));
-
-            // Read y of existing lower-text, then remove them all
-            const origLower = Array.from(svg.querySelectorAll('text.lower-text'));
-            const dateNumY  = origLower[0] ? parseFloat(origLower[0].getAttribute('y') || 60) : 60;
-            origLower.forEach(el => el.remove());
-
-            const total = Math.round((gantt.gantt_end - gantt.gantt_start) / 86400000);
-            for (let i = 0; i < total; i++) {
-                const d      = new Date(gantt.gantt_start.getTime() + i * 86400000);
-                const dow    = d.getDay();
-                const ds     = d.toISOString().slice(0, 10);
-                const isRed  = dow === 0 || dow === 6 || holidaySet.has(ds);
-                const cx     = i * colW + xOffset + colW / 2;
-                const color  = isRed ? '#ef4444' : '#94a3b8';
-
-                // Date number
-                mkText(lblGrp, cx, dateNumY, d.getDate(), { size: 11, fill: color, anchor: 'middle' });
-                // Day abbreviation (middle header row)
-                mkText(lblGrp, cx, 42, DAY_ABBR[dow], { size: 8, fill: isRed ? '#ef4444' : '#64748b', anchor: 'middle', baseline: 'middle' });
-            }
-        }
-    }
-
-    /* ── Helpers ─────────────────────────────────────────────────── */
-    function mkGroup(svg, position) {
-        const g = document.createElementNS(SVG_NS, 'g');
-        g.setAttribute('class', 'mic-overlay');
-        if (position === 'before-dates') {
-            const ref = svg.querySelector('.dates') || svg.querySelector('.date');
-            ref ? svg.insertBefore(g, ref) : svg.appendChild(g);
-        } else if (position === 'before-bars') {
-            const ref = svg.querySelector('.bars') || svg.querySelector('.bar');
-            ref ? svg.insertBefore(g, ref) : svg.appendChild(g);
-        } else {
-            svg.appendChild(g);
-        }
-        return g;
-    }
-
-    function addRect(parent, x, y, w, h, fill, opacity, title) {
-        if (w <= 0) return;
-        const r = document.createElementNS(SVG_NS, 'rect');
-        r.setAttribute('x', x); r.setAttribute('y', y);
-        r.setAttribute('width', w); r.setAttribute('height', h);
-        r.setAttribute('fill', fill); r.setAttribute('opacity', opacity);
-        r.setAttribute('pointer-events', 'none');
-        if (title) { const t = document.createElementNS(SVG_NS, 'title'); t.textContent = title; r.appendChild(t); }
-        parent.appendChild(r);
-    }
-
-    function mkText(parent, x, y, content, opts = {}) {
-        const t = document.createElementNS(SVG_NS, 'text');
-        t.setAttribute('x', x); t.setAttribute('y', y);
-        t.setAttribute('text-anchor',      opts.anchor   || 'middle');
-        t.setAttribute('font-size',        opts.size     || 11);
-        t.setAttribute('font-family',      'inherit');
-        t.setAttribute('pointer-events',   'none');
-        t.setAttribute('fill',             opts.fill     || '#94a3b8');
-        if (opts.opacity)  t.setAttribute('opacity',          opts.opacity);
-        if (opts.baseline) t.setAttribute('dominant-baseline', opts.baseline);
-        t.textContent = content;
-        parent.appendChild(t);
-        return t;
-    }
-
-    /* ── Controls ────────────────────────────────────────────────── */
-    document.getElementById('yearSelect').addEventListener('change', function () {
-        loadGantt(this.value, document.getElementById('viewMode').value);
+    document.querySelectorAll('.gx-seg button').forEach(b => b.onclick = () => {
+        document.querySelectorAll('.gx-seg button').forEach(x => x.classList.toggle('on', x === b));
+        st.range = parseInt(b.dataset.range, 10); gambar();
     });
-    document.getElementById('viewMode').addEventListener('change', function () {
-        if (currentData && currentData.tasks && currentData.tasks.length)
-            renderGantt(currentData, this.value);
-    });
+    $('yearSelect').addEventListener('change', muat);
 
-    loadGantt(<?= $year ?>, 'Day');
+    muat();
 })();
 </script>
 <?= $this->endSection() ?>
