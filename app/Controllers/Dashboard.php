@@ -23,14 +23,26 @@ class Dashboard extends BaseController
 
         $user   = $this->currentUser();
         $model  = new EventModel();
-        $events = $model->getEventsForUser($user['id'], $user['role']);
+        // Sama dengan halaman Daftar Event: approver melihat semua, lainnya approved + buatan sendiri.
+        $events = $model->getEventsForUser($user['id'], $user['role'], $this->canApproveEvents());
 
-        $counts = [
-            'total'     => count($events),
-            'active'    => count(array_filter($events, fn($e) => $e['status'] === 'active')),
-            'draft'     => count(array_filter($events, fn($e) => $e['status'] === 'draft')),
-            'completed' => count(array_filter($events, fn($e) => $e['status'] === 'completed')),
-        ];
+        // Kartu Event: hanya event yang berjalan di BULAN INI (total lintas bulan masuk laporan bulanan/tahunan).
+        // Status dihitung dari tanggal (kolom `status` di events tidak dipakai lagi: semuanya 'draft').
+        $hariIni   = date('Y-m-d');
+        $awalBulan = date('Y-m-01');
+        $akhirBulan = date('Y-m-t');
+        $counts  = ['total' => 0, 'berjalan' => 0, 'akan' => 0, 'selesai' => 0, 'menunggu' => 0];
+        foreach ($events as $e) {
+            $mulai   = (string) ($e['start_date'] ?? '');
+            if ($mulai === '') continue;
+            $selesai = date('Y-m-d', strtotime($mulai . ' +' . (max(1, (int) ($e['event_days'] ?? 1)) - 1) . ' days'));
+            if ($mulai > $akhirBulan || $selesai < $awalBulan) continue;   // tidak bersinggungan dengan bulan ini
+            $counts['total']++;
+            if ($mulai > $hariIni)                    $counts['akan']++;
+            elseif ($selesai < $hariIni)              $counts['selesai']++;
+            else                                      $counts['berjalan']++;
+            if (($e['approval_status'] ?? '') === 'pending') $counts['menunggu']++;
+        }
 
         $today      = date('Y-m-d');
         $monthStart = date('Y-m-01');
@@ -49,12 +61,21 @@ class Dashboard extends BaseController
                 'last_date' => $trafficModel->getLatestDate('pentacity'),
             ],
         ];
+        // Rata-rata harian bulan ini (weekday vs weekend) — sampai kemarin, karena hari ini belum lengkap.
+        $kemarin = date('Y-m-d', strtotime('-1 day'));
+        foreach (['ewalk', 'pentacity'] as $_m) {
+            $traffic[$_m]['avg'] = $kemarin >= $monthStart
+                ? $trafficModel->getWeekdayWeekendAvg($monthStart, $kemarin, $_m)
+                : ['weekday' => null, 'weekend' => null];
+        }
 
         // ── Lintas-dept: event hari ini & minggu ini + hari libur terdekat ──
         $weekEnd = date('Y-m-d', strtotime('+7 days'));
         $todayEvents = $upcomingEvents = [];
         foreach ($events as $e) {
             if (empty($e['start_date'])) continue;
+            // Lintas-dept: hanya event yang sudah disetujui (atau buatan sendiri), seperti sebelumnya.
+            if (($e['approval_status'] ?? 'approved') !== 'approved' && (int) ($e['created_by'] ?? 0) !== (int) $user['id']) continue;
             $start = $e['start_date'];
             $days  = max(1, (int) ($e['event_days'] ?? 1));
             $end   = date('Y-m-d', strtotime($start . ' +' . ($days - 1) . ' days'));

@@ -100,6 +100,24 @@ class DailyTrafficModel extends Model
             ->get()->getResultArray();
     }
 
+    /**
+     * Rata-rata pengunjung per hari, dipisah weekday (Sen–Jum) dan weekend (Sab–Min),
+     * hanya dari tanggal yang sudah ada datanya. Return: ['weekday' => int|null, 'weekend' => int|null]
+     */
+    public function getWeekdayWeekendAvg(string $startDate, string $endDate, string $mall): array
+    {
+        $rows = $this->db->query(
+            'SELECT IF(DAYOFWEEK(tanggal) IN (1,7), "weekend", "weekday") AS jenis, AVG(total) AS rata
+               FROM (SELECT tanggal, SUM(jumlah_pengunjung) AS total FROM daily_traffic
+                      WHERE mall = ? AND tanggal >= ? AND tanggal <= ? GROUP BY tanggal) harian
+              GROUP BY jenis',
+            [$mall, $startDate, $endDate]
+        )->getResultArray();
+        $hasil = ['weekday' => null, 'weekend' => null];
+        foreach ($rows as $r) $hasil[$r['jenis']] = (int) round((float) $r['rata']);
+        return $hasil;
+    }
+
     public function getPeriodTotal(string $startDate, string $endDate, string $mall = null): int
     {
         $builder = $this->db->table('daily_traffic')

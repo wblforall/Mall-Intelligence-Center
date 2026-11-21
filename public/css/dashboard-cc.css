@@ -420,6 +420,8 @@
 .page-dash .tf-edit { border-radius: 10px; flex: none; }
 .page-dash .tf-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; text-align: left; }
 .page-dash .tf-metric + .tf-metric { padding-left: 1rem; border-left: 1px solid var(--cc-card-border); }
+.page-dash .tf-avg { margin-top: .3rem; font-size: .72rem; line-height: 1.35; color: var(--txt-muted, #8fa3c4); white-space: nowrap; }
+.page-dash .tf-avg b { font-weight: 700; color: var(--txt, #e3ecfa); font-variant-numeric: tabular-nums; }
 .page-dash .traffic-card .tf-num {
     font-size: clamp(1.9rem, 2.3vw, 2.5rem) !important;
     font-weight: 800 !important;
@@ -654,4 +656,83 @@
 @media (max-width: 575.98px) {
     .page-dash .ai-eko-meta { white-space: normal; }
     .page-dash .ai-eko-bar > .d-flex > .ms-auto { margin-left: 0 !important; width: 100%; }
+}
+
+/* ── Ringkasan Event (satu kartu, menggantikan Total/Aktif/Draft/Selesai) ── */
+.page-dash .dash-ev { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "head stats" "bar bar";
+    align-items: center; gap: .9rem 2rem; padding: 1.1rem 1.4rem; color: var(--txt); text-decoration: none; }
+.page-dash .dash-ev:hover { color: var(--txt); }
+.page-dash .dash-ev-head { grid-area: head; display: flex; align-items: center; gap: .8rem; }
+.page-dash .dash-ev-total { font-size: 1.9rem; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.page-dash .dash-ev-total small { font-size: .8rem; font-weight: 500; color: var(--txt-muted); }
+.page-dash .dash-ev-month { font-size: 1.25rem; font-weight: 800; line-height: 1.15; }
+.page-dash .dash-ev-stats { grid-area: stats; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem 1.6rem; justify-content: flex-end; }
+.page-dash .dash-ev-stats li { display: flex; align-items: center; gap: .45rem; font-size: .88rem; color: var(--txt-muted); }
+.page-dash .dash-ev-stats li b { font-size: 1.15rem; font-weight: 800; color: var(--txt); font-variant-numeric: tabular-nums; }
+.page-dash .dash-ev-stats li > i:not(.bi) { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.page-dash .dash-ev-stats li.st-wait { color: #f2c14e; }
+.page-dash .dash-ev-stats li.st-wait b { color: #f2c14e; }
+.page-dash .dash-ev-bar { grid-area: bar; display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(255,255,255,.06); }
+.page-dash .dash-ev-bar span { display: block; height: 100%; background: var(--c); }
+.page-dash .st-run  { --c: #22c55e; }
+.page-dash .st-next { --c: #3d8bff; }
+.page-dash .st-done { --c: #94a3b8; }
+[data-theme="light"] .page-dash .dash-ev-bar { background: rgba(15,23,42,.06); }
+[data-theme="light"] .page-dash .dash-ev-stats li.st-wait, [data-theme="light"] .page-dash .dash-ev-stats li.st-wait b { color: #a16207; }
+@media (max-width: 767.98px) {
+    .page-dash .dash-ev { grid-template-columns: 1fr; grid-template-areas: "head" "stats" "bar"; }
+    .page-dash .dash-ev-stats { justify-content: flex-start; }
+}
+
+/* ── Kepala Dashboard (sapaan + jam + cuaca) ── */
+.page-dash .dash-hero2 { display: flex; justify-content: space-between; align-items: center; gap: 1rem 2rem; flex-wrap: wrap; padding: 1.4rem 1.75rem; }
+.page-dash .dh-eyebrow { font-size: .7rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-muted); }
+.page-dash .dh-greet { margin: .2rem 0 .3rem; font-size: clamp(1.4rem, 2.1vw, 1.9rem); font-weight: 800; letter-spacing: -.01em; color: var(--txt); }
+.page-dash .dh-greet b { color: #f2c14e; font-weight: 800; }
+[data-theme="light"] .page-dash .dh-greet b { color: #a16207; }
+.page-dash .dh-date { font-size: .92rem; color: var(--txt-muted); }
+.page-dash .dh-right { display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; }
+.page-dash .dh-clock { font-size: 2.1rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: .01em; color: var(--txt); }
+.page-dash .dh-clock small { margin-left: .25rem; font-size: .95rem; font-weight: 600; color: var(--txt-muted); }
+.page-dash .dh-weather { display: inline-flex; align-items: center; gap: .45rem; padding: .3rem .8rem; border-radius: 999px;
+    border: 1px solid var(--cc-card-border); font-size: .82rem; color: var(--txt-muted); }
+.page-dash .dh-weather .bi { font-size: 1rem; color: #8ec2ff; }
+.page-dash .dh-weather b { color: var(--txt); font-weight: 700; }
+.page-dash .dh-weather .dh-city { padding-left: .5rem; border-left: 1px solid var(--cc-card-border); }
+.page-dash .dash-hero2 #localTime::before, .page-dash .dash-hero2 #weatherWidget::before { display: none; }
+@media (max-width: 767.98px) {
+    .page-dash .dh-right { align-items: flex-start; }
+    .page-dash .dh-clock { font-size: 1.6rem; }
+}
+
+/* ── Agenda: satu kartu (event bulan ini + hari ini + minggu ini + hari libur) ── */
+.page-dash .dash-agenda { overflow: hidden; }
+.page-dash .dash-agenda .dash-ev { padding-bottom: 1rem; }
+.page-dash .dash-ev-stats li.ag-all a { font-size: .82rem; font-weight: 600; text-decoration: none; color: var(--accent-primary, #3d8bff); white-space: nowrap; }
+.page-dash .dash-ev-stats li.ag-all a:hover { text-decoration: underline; }
+.page-dash .ag-cols { display: grid; grid-template-columns: 1.15fr 1.25fr 1fr; border-top: 1px solid var(--cc-card-border); }
+.page-dash .ag-col { padding: 1rem 1.4rem 1.1rem; min-width: 0; }
+.page-dash .ag-col + .ag-col { border-left: 1px solid var(--cc-card-border); }
+.page-dash .ag-h { display: flex; align-items: center; gap: .5rem; margin: 0 0 .6rem; font-size: .74rem; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--txt-muted); }
+.page-dash .ag-h .bi { font-size: .9rem; color: var(--accent-primary, #3d8bff); }
+.page-dash .ag-empty { margin: 0; font-size: .85rem; color: var(--txt-muted); }
+.page-dash .ag-row { display: flex; align-items: center; gap: .6rem; padding: .38rem .45rem; margin: 0 -.45rem; border-radius: 8px;
+    font-size: .86rem; color: var(--txt); text-decoration: none; transition: background .15s; }
+.page-dash a.ag-row:hover { background: var(--cc-row-hover, rgba(127,127,127,.08)); color: var(--txt); }
+.page-dash .ag-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-dash .ag-name small { display: block; font-size: .72rem; color: var(--txt-muted); white-space: nowrap; }
+.page-dash .ag-date { flex-shrink: 0; min-width: 46px; font-size: .8rem; color: var(--txt-muted); font-variant-numeric: tabular-nums; }
+.page-dash .ag-mall { flex-shrink: 0; padding: .1rem .45rem; border-radius: 6px; font-size: .68rem; font-weight: 700; }
+.page-dash .ag-mall.m-ewalk     { background: rgba(61,139,255,.14); color: #3d8bff; }
+.page-dash .ag-mall.m-pentacity { background: rgba(20,184,166,.15); color: #14b8a6; }
+.page-dash .ag-day { flex-shrink: 0; padding: .1rem .45rem; border-radius: 6px; font-size: .68rem; font-weight: 700; background: rgba(34,197,94,.14); color: #16a34a; }
+.page-dash .ag-libur { padding-top: .3rem; padding-bottom: .3rem; }
+.page-dash .ag-tgl { flex-shrink: 0; width: 40px; text-align: center; font-size: .62rem; color: var(--txt-muted); line-height: 1.1; text-transform: uppercase; }
+.page-dash .ag-tgl b { display: block; font-size: 1.1rem; font-weight: 800; color: #dc2626; }
+[data-theme="dark"] .page-dash .ag-tgl b { color: #f87171; }
+[data-theme="dark"] .page-dash .ag-day { color: #4ade80; }
+@media (max-width: 991.98px) {
+    .page-dash .ag-cols { grid-template-columns: 1fr; }
+    .page-dash .ag-col + .ag-col { border-left: 0; border-top: 1px solid var(--cc-card-border); }
 }

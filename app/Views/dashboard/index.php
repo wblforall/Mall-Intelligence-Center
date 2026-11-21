@@ -97,137 +97,104 @@ function daysLabel(int $d): string {
 }
 ?>
 
-<!-- ══ ISPU — kualitas udara Balikpapan (data resmi KLHK) ═══════════════ -->
-<?= view('dashboard/_ispu') ?>
-
 <!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4 fade-up dash-hero" style="animation-delay:.05s">
-    <div>
-        <h4 class="fw-bold mb-0">Dashboard</h4>
-        <small class="text-muted">Selamat datang, <?= esc($user['name']) ?></small>
+<?php $_namaDepan = strtok(trim((string) $user['name']), ' ') ?: $user['name']; ?>
+<div class="mb-4 fade-up dash-hero dash-hero2" style="animation-delay:.05s">
+    <div class="dh-left">
+        <div class="dh-eyebrow">Dashboard</div>
+        <h1 class="dh-greet"><span id="dhSalam">Selamat datang</span>, <b><?= esc($_namaDepan) ?></b></h1>
+        <div class="dh-date" id="localDate"></div>
     </div>
-    <div class="text-end dash-hero-meta">
-        <div class="fw-semibold small" id="localDate"></div>
-        <div class="font-monospace small text-muted" id="localTime"></div>
-        <div id="weatherWidget" class="small text-muted mt-1">
-            <span class="spinner-border spinner-border-sm" style="width:.7rem;height:.7rem;border-width:2px"></span>
-        </div>
+    <div class="dh-right dash-hero-meta">
+        <div class="dh-clock" id="localTime" aria-live="off"></div>
+        <div class="dh-weather" id="weatherWidget"><span class="spinner-border spinner-border-sm" style="width:.7rem;height:.7rem;border-width:2px"></span></div>
     </div>
 </div>
 
-<!-- ══ Hari Ini di Mall + Hari Libur (lintas-dept) ═════════════════════════ -->
-<?php $mallLabel = ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity']; ?>
-<div class="row g-3 mb-4 fade-up dash-today-row" style="animation-delay:.08s">
-    <div class="col-lg-8">
-        <div class="card h-100">
-        <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-calendar-event me-2"></i>Hari Ini di Mall</span></div>
-        <div class="card-body py-2">
-            <?php if (empty($todayEvents)): ?>
-            <p class="text-muted small mb-0 py-2"><i class="bi bi-calendar-x me-1"></i>Tidak ada event berjalan hari ini.</p>
-            <?php else: ?>
-            <?php foreach ($todayEvents as $e): ?>
-            <a href="<?= base_url('events/'.$e['id']) ?>" class="d-flex align-items-center gap-2 text-decoration-none text-body py-1 border-bottom">
-                <span class="badge bg-<?= $e['mall']==='ewalk'?'primary':'info' ?>-subtle text-<?= $e['mall']==='ewalk'?'primary':'info' ?>"><?= $mallLabel[$e['mall']] ?? esc($e['mall']) ?></span>
-                <span class="fw-semibold small flex-grow-1"><?= esc($e['name']) ?></span>
-                <span class="badge bg-success-subtle text-success" style="font-size:.65rem">Hari ke-<?= $e['day_now'] ?>/<?= $e['day_total'] ?></span>
-            </a>
-            <?php endforeach; ?>
-            <?php endif; ?>
+<!-- ══ ISPU — kualitas udara Balikpapan (data resmi KLHK) ═══════════════
+     Hanya tampil saat musim asap: nyalakan dengan `dashboard.ispu = true` di .env
+     (dimatikan 21 Nov 2026, kondisi sudah tidak berasap). -->
+<?php if (env('dashboard.ispu', false) === true): ?>
+<?= view('dashboard/_ispu') ?>
+<?php endif; ?>
 
-            <?php if (! empty($upcomingEvents)): ?>
-            <div class="small text-muted mt-2 mb-1"><i class="bi bi-arrow-right-short"></i>Minggu ini:</div>
-            <?php foreach (array_slice($upcomingEvents, 0, 4) as $e): ?>
-            <a href="<?= base_url('events/'.$e['id']) ?>" class="d-flex align-items-center gap-2 text-decoration-none text-muted py-1" style="font-size:.8rem">
-                <span class="text-nowrap" style="min-width:54px"><?= date('d M', strtotime($e['start_date'])) ?></span>
-                <span class="badge bg-secondary-subtle text-secondary"><?= $mallLabel[$e['mall']] ?? esc($e['mall']) ?></span>
-                <span class="flex-grow-1"><?= esc($e['name']) ?></span>
-            </a>
-            <?php endforeach; ?>
-            <?php endif; ?>
+<!-- ══ Agenda: event bulan ini + hari ini + minggu ini + hari libur — SATU kartu ══ -->
+<?php
+$mallLabel = ['ewalk' => 'eWalk', 'pentacity' => 'Pentacity'];
+$evT = (int) $counts['total'];
+$evSeg = static fn (int $n): string => $evT > 0 ? number_format($n / $evT * 100, 3, '.', '') : '0';
+$evStat = [
+    ['k' => 'berjalan', 'label' => 'Berjalan',    'cls' => 'st-run'],
+    ['k' => 'akan',     'label' => 'Akan datang', 'cls' => 'st-next'],
+    ['k' => 'selesai',  'label' => 'Selesai',     'cls' => 'st-done'],
+];
+$_idBln = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+?>
+<div class="card dash-agenda mb-4 fade-up" style="animation-delay:.08s">
+    <!-- Bagian atas: ringkasan event bulan ini (status dari tanggal, sama dengan Daftar Event) -->
+    <div class="dash-ev">
+        <div class="dash-ev-head">
+            <span class="kpi-chip"><i class="bi bi-calendar-event"></i></span>
+            <div>
+                <div class="kpi-label">Event bulan ini</div>
+                <div class="dash-ev-month"><?= $_idBln[(int) date('n') - 1] . ' ' . date('Y') ?></div>
+            </div>
         </div>
+        <ul class="dash-ev-stats">
+            <?php foreach ($evStat as $es): ?>
+            <li class="<?= $es['cls'] ?>"><i></i><b><?= (int) $counts[$es['k']] ?></b> <?= $es['label'] ?></li>
+            <?php endforeach; ?>
+            <?php if ($counts['menunggu'] > 0): ?>
+            <li class="st-wait"><i class="bi bi-hourglass-split"></i><b><?= (int) $counts['menunggu'] ?></b> menunggu persetujuan</li>
+            <?php endif; ?>
+            <li class="ag-all"><a href="<?= base_url('events') ?>">Semua event <i class="bi bi-arrow-right"></i></a></li>
+        </ul>
+        <div class="dash-ev-bar" role="img" aria-label="Komposisi event: berjalan, akan datang, selesai">
+            <?php foreach ($evStat as $es): ?><span class="<?= $es['cls'] ?>" style="width:<?= $evSeg((int) $counts[$es['k']]) ?>%"></span><?php endforeach; ?>
         </div>
     </div>
-    <div class="col-lg-4">
-        <div class="card h-100">
-        <div class="card-header py-2"><span class="fw-semibold small"><i class="bi bi-calendar2-heart me-2"></i>Hari Libur Terdekat</span></div>
-        <div class="card-body py-2">
+
+    <!-- Bagian bawah: hari ini · minggu ini · hari libur -->
+    <div class="ag-cols">
+        <section class="ag-col">
+            <h3 class="ag-h"><i class="bi bi-broadcast"></i>Hari ini di mall</h3>
+            <?php if (empty($todayEvents)): ?>
+            <p class="ag-empty">Tidak ada event berjalan hari ini.</p>
+            <?php else: foreach ($todayEvents as $e): ?>
+            <a href="<?= base_url('events/'.$e['id']) ?>" class="ag-row">
+                <span class="ag-mall m-<?= esc($e['mall']) ?>"><?= $mallLabel[$e['mall']] ?? esc($e['mall']) ?></span>
+                <span class="ag-name"><?= esc($e['name']) ?></span>
+                <span class="ag-day">Hari ke-<?= $e['day_now'] ?>/<?= $e['day_total'] ?></span>
+            </a>
+            <?php endforeach; endif; ?>
+        </section>
+
+        <section class="ag-col">
+            <h3 class="ag-h"><i class="bi bi-calendar-week"></i>Minggu ini</h3>
+            <?php if (empty($upcomingEvents)): ?>
+            <p class="ag-empty">Tidak ada event dimulai minggu ini.</p>
+            <?php else: foreach (array_slice($upcomingEvents, 0, 4) as $e): ?>
+            <a href="<?= base_url('events/'.$e['id']) ?>" class="ag-row">
+                <span class="ag-date"><?= date('d M', strtotime($e['start_date'])) ?></span>
+                <span class="ag-mall m-<?= esc($e['mall']) ?>"><?= $mallLabel[$e['mall']] ?? esc($e['mall']) ?></span>
+                <span class="ag-name"><?= esc($e['name']) ?></span>
+            </a>
+            <?php endforeach; endif; ?>
+        </section>
+
+        <section class="ag-col">
+            <h3 class="ag-h"><i class="bi bi-calendar2-heart"></i>Hari libur terdekat</h3>
             <?php if (empty($upcomingHolidays)): ?>
-            <p class="text-muted small mb-0 py-2">Tidak ada data.</p>
+            <p class="ag-empty">Tidak ada data.</p>
             <?php else: foreach ($upcomingHolidays as $h):
                 $dleft = (int) ceil((strtotime($h['tanggal']) - strtotime($today)) / 86400); ?>
-            <div class="d-flex align-items-center gap-2 py-1">
-                <div class="text-center flex-shrink-0" style="min-width:42px">
-                    <div class="fw-bold text-danger" style="line-height:1"><?= date('d', strtotime($h['tanggal'])) ?></div>
-                    <div class="text-muted" style="font-size:.6rem"><?= date('M', strtotime($h['tanggal'])) ?></div>
-                </div>
-                <div class="flex-grow-1">
-                    <div class="small fw-medium" style="line-height:1.2"><?= esc($h['nama']) ?></div>
-                    <div class="text-muted" style="font-size:.62rem"><?= $dleft === 0 ? 'Hari ini' : ($dleft.' hari lagi') ?> · <?= ucfirst($h['jenis']) ?></div>
-                </div>
+            <div class="ag-row ag-libur">
+                <span class="ag-tgl"><b><?= date('d', strtotime($h['tanggal'])) ?></b><?= date('M', strtotime($h['tanggal'])) ?></span>
+                <span class="ag-name"><?= esc($h['nama']) ?><small><?= $dleft === 0 ? 'Hari ini' : ($dleft.' hari lagi') ?> · <?= ucfirst($h['jenis']) ?></small></span>
             </div>
             <?php endforeach; endif; ?>
-        </div>
-        </div>
+        </section>
     </div>
-</div>
-
-<div class="row g-3 mb-4">
-
-<!-- KPI Events -->
-<?php
-/* Proporsi dihitung dari $counts (data yang sama dengan angka KPI); total 0 → 0% (aman dari bagi nol). */
-$kTotal = max(0, (int) $counts['total']);
-$kAct   = max(0, (int) $counts['active']);
-$kDraft = max(0, (int) $counts['draft']);
-$kDone  = max(0, (int) $counts['completed']);
-$kOther = max(0, $kTotal - $kAct - $kDraft - $kDone);   // status lain (mis. berjalan/batal) — tidak disembunyikan
-$kPct   = static fn (int $n): int => $kTotal > 0 ? (int) min(100, round($n / $kTotal * 100)) : 0;
-$kSeg   = static fn (int $n): string => $kTotal > 0 ? number_format($n / $kTotal * 100, 3, '.', '') : '0';
-$kpiCards = [
-    ['cls'=>'kpi-active', 'label'=>'Aktif',   'icon'=>'bi-lightning-charge', 'n'=>$kAct,   'delay'=>'.17s'],
-    ['cls'=>'kpi-draft',  'label'=>'Draft',   'icon'=>'bi-pencil-square',    'n'=>$kDraft, 'delay'=>'.24s'],
-    ['cls'=>'kpi-done',   'label'=>'Selesai', 'icon'=>'bi-check2-circle',    'n'=>$kDone,  'delay'=>'.31s'],
-];
-?>
-<div class="col-12 dash-kpi">
-<div class="row g-3 h-100 dash-kpi-grid">
-    <div class="col-6 col-sm-3 fade-up dash-kpi-main" style="animation-delay:.1s">
-        <div class="card h-100 kpi-card kpi-total">
-            <div class="kpi-head"><span class="kpi-chip"><i class="bi bi-calendar-event"></i></span><span class="kpi-label">Total Events</span></div>
-            <div class="kpi-mid">
-                <div class="fs-2 fw-bold kpi-num" data-count="<?= $kTotal ?>"><?= $kTotal ?></div>
-                <ul class="kpi-legend">
-                    <li class="lg-active"><i></i><b><?= $kAct ?></b> aktif</li>
-                    <li class="lg-draft"><i></i><b><?= $kDraft ?></b> draft</li>
-                    <li class="lg-done"><i></i><b><?= $kDone ?></b> selesai</li>
-                    <?php if ($kOther > 0): ?><li class="lg-other"><i></i><b><?= $kOther ?></b> lainnya</li><?php endif; ?>
-                </ul>
-            </div>
-            <div class="kpi-sub"><?= $kTotal > 0 ? esc($kAct . ' aktif · ' . $kDraft . ' draft · ' . $kDone . ' selesai' . ($kOther > 0 ? ' · ' . $kOther . ' lainnya' : '')) : 'Belum ada event' ?></div>
-            <div class="kpi-seg" role="img" aria-label="Komposisi status event">
-                <span class="sg-active" style="--w:<?= $kSeg($kAct) ?>%"></span><span class="sg-draft" style="--w:<?= $kSeg($kDraft) ?>%"></span><span class="sg-done" style="--w:<?= $kSeg($kDone) ?>%"></span><span class="sg-other" style="--w:<?= $kSeg($kOther) ?>%"></span>
-            </div>
-        </div>
-    </div>
-    <?php foreach ($kpiCards as $kc): $pct = $kPct($kc['n']); ?>
-    <div class="col-6 col-sm-3 fade-up" style="animation-delay:<?= $kc['delay'] ?>">
-        <div class="card h-100 kpi-card <?= $kc['cls'] ?>">
-            <div class="kpi-head"><span class="kpi-chip"><i class="bi <?= $kc['icon'] ?>"></i></span><span class="kpi-label"><?= $kc['label'] ?></span></div>
-            <div class="kpi-mid">
-                <div class="fs-2 fw-bold kpi-num" data-count="<?= $kc['n'] ?>"><?= $kc['n'] ?></div>
-                <svg class="kpi-ring" viewBox="0 0 44 44" role="img" aria-label="<?= $pct ?>% dari total">
-                    <circle class="rg-track" cx="22" cy="22" r="18" pathLength="100"/>
-                    <circle class="rg-fill" cx="22" cy="22" r="18" pathLength="100" style="--p:<?= $pct ?>"/>
-                    <text x="22" y="22" class="rg-txt" text-anchor="middle" dominant-baseline="central"><?= $pct ?>%</text>
-                </svg>
-            </div>
-            <div class="kpi-sub"><?= $kTotal > 0 ? $pct . '% dari total' : 'belum ada event' ?></div>
-        </div>
-    </div>
-    <?php endforeach; ?>
-</div>
-</div>
-
 </div>
 
 <?php if (!empty($themePeriods)): ?>
@@ -319,6 +286,12 @@ foreach ($trafficMalls as $mall => $cfg):
             <div class="kpi-sub">
                 <?= $t['last_date'] ? 'update ' . date('d M', strtotime($t['last_date'])) : 'belum ada data' ?>
             </div>
+            <?php $_avg = $t['avg'] ?? []; if (($_avg['weekday'] ?? null) !== null || ($_avg['weekend'] ?? null) !== null): ?>
+            <div class="tf-avg" title="Rata-rata pengunjung per hari bulan ini (sampai kemarin): weekday Senin–Jumat, weekend Sabtu–Minggu">
+                Ø weekday <b><?= ($_avg['weekday'] ?? null) !== null ? number_format($_avg['weekday']) : '—' ?></b>
+                · weekend <b><?= ($_avg['weekend'] ?? null) !== null ? number_format($_avg['weekend']) : '—' ?></b>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
     <?php if ($t['month'] > 0): ?>
@@ -1551,22 +1524,7 @@ foreach ($sections as $sec):
 </div>
 <?php endif; ?>
 
-<!-- Greeting Modal -->
-<div class="modal fade" id="greetingModal" tabindex="-1" data-bs-backdrop="true" data-bs-keyboard="true">
-<div class="modal-dialog modal-dialog-centered" style="max-width:480px">
-<div class="modal-content border-0 shadow-lg text-center" style="border-radius:1.5rem;overflow:hidden">
-    <div id="greetingBg" style="padding:3.5rem 2.5rem 2rem;position:relative">
-        <div style="font-size:4.5rem;line-height:1;margin-bottom:1rem" id="greetingEmoji"></div>
-        <div class="fw-light text-white" style="font-size:1.15rem;opacity:.85" id="greetingTime"></div>
-        <div class="fw-bold text-white" style="font-size:2rem;margin-top:.35rem" id="greetingName"></div>
-        <div class="text-white mt-3" style="font-size:.9rem;opacity:.75;font-style:italic" id="greetingMsg"></div>
-    </div>
-    <div class="px-3 py-3 text-center" style="background:var(--bs-body-bg)">
-        <small class="text-muted" id="greetingDate"></small>
-    </div>
-</div>
-</div>
-</div>
+<!-- Sambutan setelah login dipindah ke layouts/main.php (layar penuh, sekaligus transisi masuk) -->
 
 </div><!-- /page-dash -->
 <?= $this->endSection() ?>
@@ -1579,19 +1537,25 @@ foreach ($sections as $sec):
     const elTime = document.getElementById('localTime');
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const fmtDate = new Intl.DateTimeFormat('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:tz });
-    const fmtTime = new Intl.DateTimeFormat('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:tz });
-    function tick() { const n = new Date(); elDate.textContent = fmtDate.format(n); elTime.textContent = fmtTime.format(n); }
+    const elSalam = document.getElementById('dhSalam');
+    const dua = v => String(v).padStart(2, '0');
+    function tick() {
+        const n = new Date(), h = n.getHours();
+        elDate.textContent = fmtDate.format(n);
+        elTime.innerHTML = `${dua(h)}.${dua(n.getMinutes())}<small>${dua(n.getSeconds())}</small>`;
+        if (elSalam) elSalam.textContent = h < 4 ? 'Selamat malam' : h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
+    }
     tick(); setInterval(tick, 1000);
 
     /* ── Weather Balikpapan (Open-Meteo) ── */
     (function () {
         const wmo = {
-            0:'Cerah ☀️', 1:'Cerah Sebagian 🌤️', 2:'Berawan ⛅', 3:'Mendung ☁️',
-            45:'Berkabut 🌫️', 48:'Berkabut 🌫️',
-            51:'Gerimis 🌦️', 53:'Gerimis 🌦️', 55:'Gerimis Lebat 🌧️',
-            61:'Hujan 🌧️', 63:'Hujan Sedang 🌧️', 65:'Hujan Lebat 🌧️',
-            80:'Hujan Lokal 🌦️', 81:'Hujan 🌧️', 82:'Hujan Lebat 🌧️',
-            95:'Badai ⛈️', 96:'Badai ⛈️', 99:'Badai ⛈️',
+            0:['Cerah','sun'], 1:['Cerah berawan','cloud-sun'], 2:['Berawan','cloud-sun'], 3:['Mendung','clouds'],
+            45:['Berkabut','cloud-fog2'], 48:['Berkabut','cloud-fog2'],
+            51:['Gerimis','cloud-drizzle'], 53:['Gerimis','cloud-drizzle'], 55:['Gerimis lebat','cloud-drizzle'],
+            61:['Hujan','cloud-rain'], 63:['Hujan sedang','cloud-rain'], 65:['Hujan lebat','cloud-rain-heavy'],
+            80:['Hujan lokal','cloud-rain'], 81:['Hujan','cloud-rain'], 82:['Hujan lebat','cloud-rain-heavy'],
+            95:['Badai','cloud-lightning-rain'], 96:['Badai','cloud-lightning-rain'], 99:['Badai','cloud-lightning-rain'],
         };
         fetch('https://api.open-meteo.com/v1/forecast?latitude=-1.2654&longitude=116.8312&current=weathercode,temperature_2m,relative_humidity_2m&timezone=Asia%2FMakassar')
             .then(r => r.json())
@@ -1599,9 +1563,9 @@ foreach ($sections as $sec):
                 const code  = d?.current?.weathercode;
                 const temp  = Math.round(d?.current?.temperature_2m);
                 const humid = d?.current?.relative_humidity_2m;
-                const label = wmo[code] ?? 'Balikpapan 🌤️';
+                const [label, ico] = wmo[code] ?? ['Cuaca', 'cloud-sun'];
                 document.getElementById('weatherWidget').innerHTML =
-                    `<span title="Kelembaban ${humid}%">${label} · <strong>${temp}°C</strong></span>`;
+                    `<i class="bi bi-${ico}" aria-hidden="true"></i><span title="Kelembapan ${humid}%">${label} · <b>${temp}°C</b></span><span class="dh-city">Balikpapan</span>`;
             })
             .catch(() => { document.getElementById('weatherWidget').textContent = ''; });
     })();
@@ -1962,89 +1926,6 @@ foreach ($sections as $sec):
     });
 
 })();
-
-/* ── Greeting popup — tampil setiap login, auto-dismiss 3 detik ── */
-<?php if (session()->getFlashdata('show_greeting')): ?>
-(function () {
-    const h = new Date().getHours();
-    const greetings = [
-        { text: 'Selamat Malam',  emoji: '🌙', bg: 'linear-gradient(135deg,#1e1b4b,#312e81)' },
-        { text: 'Selamat Pagi',   emoji: '🌅', bg: 'linear-gradient(135deg,#ea580c,#f59e0b)' },
-        { text: 'Selamat Siang',  emoji: '☀️',  bg: 'linear-gradient(135deg,#0369a1,#0ea5e9)' },
-        { text: 'Selamat Sore',   emoji: '🌇', bg: 'linear-gradient(135deg,#7c3aed,#db2777)' },
-    ];
-    const g = h < 5 ? greetings[0] : h < 12 ? greetings[1] : h < 15 ? greetings[2] : h < 19 ? greetings[3] : greetings[0];
-
-    const isPagi = h >= 5 && h < 12;
-
-    function weatherMsg(code, temp) {
-        const t = Math.round(temp);
-        if (isPagi) {
-            if (code === 0)  return `Pagi cerah ${t}°C! Awali hari dengan penuh semangat 🌅💪`;
-            if (code <= 3)   return `Pagi berawan ${t}°C, tapi energimu harus lebih cerah! Ayo gas 🔥`;
-            if (code <= 48)  return `Berkabut ${t}°C pagi ini, tetap semangat berangkat! 🌫️💪`;
-            if (code <= 55)  return `Gerimis pagi ${t}°C, ngopi dulu biar makin semangat! ☕🌧️`;
-            if (code <= 65)  return `Hujan ${t}°C, tapi jangan sampai moodmu ikut mendung ya! 💪`;
-            if (code <= 82)  return `Hujan deras ${t}°C pagi ini, aman di dalam — ayo semangat kerja! 🌧️🔥`;
-            if (code >= 95)  return `Petir-petiran ${t}°C di luar, di dalam kantor justru makin fokus! ⛈️💪`;
-            return `Pagi ${t}°C di Balikpapan, mulai hari dengan yang terbaik! 🌟`;
-        }
-        if (code === 0)  return `Cerah ${t}°C di Balikpapan, semangat produktif! ☀️`;
-        if (code <= 3)   return `Berawan ${t}°C, tapi semangat tetap cerah ya 💪`;
-        if (code <= 48)  return `Berkabut ${t}°C di luar, tetap waspada di jalan 🌫️`;
-        if (code <= 55)  return `Gerimis ${t}°C, pas banget kerja sambil ngopi ☕`;
-        if (code <= 65)  return `Hujan ${t}°C di Balikpapan, jangan lupa bawa payung 🌧️`;
-        if (code <= 82)  return `Hujan deras ${t}°C, aman kerja di dalam ya 🌧️`;
-        if (code >= 95)  return `Ada petir di luar ${t}°C, stay safe! ⛈️`;
-        return `Cuaca ${t}°C hari ini, tetap semangat! 🌤️`;
-    }
-
-    const fallbackMsgs = isPagi ? [
-        'Pagi yang baru, semangat yang baru! Ayo mulai 🔥',
-        'Awali harimu dengan niat terbaik, pasti luar biasa 💪',
-        'Ngopi dulu, lalu taklukkan harimu! ☕🚀',
-        'Pagi-pagi udah di sini, kamu emang luar biasa! 🌟',
-        'Semangatmu pagi ini menentukan hasil harimu 💯',
-    ] : [
-        'Jangan lupa ngopi dulu ya ☕',
-        'Semangat! Hari ini pasti produktif 💪',
-        'Kerja cerdas, bukan cuma kerja keras 🧠',
-        'Setiap data yang kamu input itu penting 🎯',
-        'Ingat minum air putih ya 💧',
-    ];
-
-    const userName = <?= json_encode(explode(' ', trim($user['name']))[0] . (str_word_count($user['name']) > 1 ? ' ' . explode(' ', trim($user['name']))[1] : '')) ?>;
-
-    function showGreeting(msg) {
-        document.getElementById('greetingBg').style.background = g.bg;
-        document.getElementById('greetingEmoji').textContent   = g.emoji;
-        document.getElementById('greetingTime').textContent    = g.text + ',';
-        document.getElementById('greetingName').textContent    = userName;
-        document.getElementById('greetingMsg').textContent     = msg;
-        document.getElementById('greetingDate').textContent    = new Date().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
-
-        const modal = new bootstrap.Modal(document.getElementById('greetingModal'));
-        modal.show();
-        setTimeout(() => modal.hide(), 5000);
-    }
-
-    // Fetch cuaca Balikpapan dari Open-Meteo, timeout 2 detik
-    const weatherFetch = fetch('https://api.open-meteo.com/v1/forecast?latitude=-1.2654&longitude=116.8312&current=weathercode,temperature_2m&timezone=Asia%2FMakassar')
-        .then(r => r.json()).catch(() => null);
-    const timeout = new Promise(r => setTimeout(() => r(null), 2000));
-
-    setTimeout(() => {
-        Promise.race([weatherFetch, timeout]).then(data => {
-            const code = data?.current?.weathercode;
-            const temp = data?.current?.temperature_2m;
-            const msg  = (code !== undefined && temp !== undefined)
-                ? weatherMsg(code, temp)
-                : fallbackMsgs[Math.floor(Math.random() * fallbackMsgs.length)];
-            showGreeting(msg);
-        });
-    }, 400);
-})();
-<?php endif; ?>
 
 /* ── Prakiraan cuaca 7 hari ──────────────────────────────────────────── */
 (async function loadWeather() {
