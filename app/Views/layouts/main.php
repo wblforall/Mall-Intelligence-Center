@@ -909,7 +909,7 @@ html.ada-sambut.buka .sambut-isi { transform: scale(1.04); opacity: 0; }
                     </div>
                 </div>
             </div>
-            <?php $_temaOpsi = ['auto' => ['Otomatis', 'circle-half'], 'light' => ['Terang', 'sun'], 'dark' => ['Gelap', 'moon-stars'], 'executive' => ['WBL', 'buildings']]; ?>
+            <?php $_temaOpsi = ['auto' => ['Otomatis', 'circle-half'], 'light' => ['Terang', 'sun'], 'dark' => ['Gelap', 'moon-stars'], 'executive' => ['WBL', 'gem']]; ?>
             <div class="dropdown">
                 <button type="button" class="tb-btn tb-btn-tema" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Tema: <?= esc($_temaOpsi[$_tema][0] ?? 'Gelap', 'attr') ?>" title="Tema">
                     <i class="bi bi-<?= $_temaOpsi[$_tema][1] ?? 'moon-stars' ?>"></i>
