@@ -165,3 +165,55 @@ html[data-skin="executive"] .alert-success                                      
 
 /* ── Judul & subjudul halaman yang langsung di atas foto: beri kontras ── */
 html[data-skin="executive"] .page-content .text-muted { text-shadow: 0 1px 0 rgba(255, 255, 255, .6); }
+
+/* ── Isian & pilihan: navy, bukan oranye tema terang ── */
+html[data-skin="executive"] .form-control,
+html[data-skin="executive"] .form-select {
+    background-color: rgba(255, 255, 255, .9) !important;
+    border-color: var(--x-garis) !important;
+}
+html[data-skin="executive"] .form-control:focus,
+html[data-skin="executive"] .form-select:focus {
+    border-color: rgba(31, 78, 140, .55) !important;
+    box-shadow: 0 0 0 .2rem rgba(31, 78, 140, .14) !important;
+}
+html[data-skin="executive"] .form-control::placeholder { color: rgba(78, 90, 112, .55) !important; }
+
+/* ── Dropdown cari (Tom Select, mis. pemilih departemen Budget): kaca + navy ── */
+html[data-skin="executive"] .ts-wrapper .ts-control {
+    background: rgba(255, 255, 255, .9) !important;
+    border-color: var(--x-garis) !important;
+}
+html[data-skin="executive"] .ts-wrapper.focus,
+html[data-skin="executive"] .ts-wrapper.focus .ts-control {
+    border-color: rgba(31, 78, 140, .55) !important;
+    box-shadow: 0 0 0 .2rem rgba(31, 78, 140, .14) !important;
+}
+html[data-skin="executive"] .ts-dropdown {
+    background: var(--x-kaca-kuat) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid var(--x-garis) !important;
+    box-shadow: var(--x-bayang), 0 18px 40px -22px rgba(10, 42, 110, .45) !important;
+    color: var(--x-teks) !important;
+}
+html[data-skin="executive"] .ts-dropdown .dropdown-input-wrap { border-bottom-color: var(--x-garis) !important; }
+html[data-skin="executive"] .ts-dropdown .dropdown-input {
+    background: rgba(255, 255, 255, .85) !important;
+    border-color: var(--x-garis) !important;
+    color: var(--x-teks) !important;
+}
+html[data-skin="executive"] .ts-dropdown .dropdown-input:focus {
+    border-color: rgba(31, 78, 140, .55) !important;
+    box-shadow: 0 0 0 .2rem rgba(31, 78, 140, .14) !important;
+}
+html[data-skin="executive"] .ts-dropdown .option { color: var(--x-teks) !important; }
+html[data-skin="executive"] .ts-dropdown .option.active {
+    background: rgba(31, 78, 140, .09) !important;
+    color: var(--x-navy) !important;
+}
+html[data-skin="executive"] .ts-dropdown .option.selected {
+    color: var(--x-navy) !important;
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--x-emas);
+}
