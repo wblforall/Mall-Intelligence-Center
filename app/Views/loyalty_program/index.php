@@ -999,29 +999,41 @@ $cntClosed = count($allClosed);
  * Satu tab = tiga bagian (Program Internal, Kerjasama Tenant, Dari Event).
  * Bagian kosong tidak ditampilkan; tab kosong menampilkan pesan.
  */
-$renderBagian = function (array $bagian, string $kosong) use ($realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch) {
-    $ada = false;
-    foreach ($bagian as [$judul, $ikon, $daftar, $dariEvent]) {
-        if (empty($daftar)) continue; ?>
-    <div class="d-flex align-items-center gap-2 <?= $ada ? 'mt-4' : '' ?> mb-3">
-        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi <?= $ikon ?> me-1"></i><?= $judul ?> · <?= count($daftar) ?></span>
-        <div class="flex-grow-1 border-top"></div>
-    </div>
-    <?php foreach ($daftar as $p) {
-            if ($dariEvent) renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []);
-            else renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch);
-        }
-        $ada = true;
-    }
-    if (! $ada): ?>
+$renderBagian = function (string $tab, array $bagian, string $kosong) use ($realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch) {
+    $isi = array_values(array_filter($bagian, fn($b) => ! empty($b[3])));
+    if (! $isi): ?>
     <div class="card"><div class="card-body text-center py-5 text-muted">
         <i class="bi bi-archive display-4 d-block mb-2 opacity-25"></i>
         <p class="mb-0"><?= $kosong ?></p>
     </div></div>
-    <?php endif;
+    <?php return; endif; ?>
+    <!-- Sub-tab: Internal / Kerjasama Tenant / Dari Event (hanya yang berisi) -->
+    <div class="nav nav-pills loy-subtab mb-3 gap-1" role="tablist">
+        <?php foreach ($isi as $n => [$kunci, $judul, $ikon]): ?>
+        <button type="button" class="nav-link py-1 px-3 <?= $n === 0 ? 'active' : '' ?>" data-subtab="<?= $tab ?>-<?= $kunci ?>">
+            <i class="bi <?= $ikon ?> me-1"></i><?= $judul ?> <span class="badge rounded-pill ms-1"><?= count($isi[$n][3]) ?></span>
+        </button>
+        <?php endforeach; ?>
+    </div>
+    <?php foreach ($isi as $n => [$kunci, $judul, $ikon, $daftar, $dariEvent]): ?>
+    <div class="loy-bagian <?= $n === 0 ? '' : 'd-none' ?>" id="bagian-<?= $tab ?>-<?= $kunci ?>">
+        <?php foreach ($daftar as $p) {
+            if ($dariEvent) renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []);
+            else renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch);
+        } ?>
+    </div>
+    <?php endforeach;
 };
 ?>
 
+<style>
+/* Sub-tab Loyalty: pil kecil di bawah tab utama; warna ikut tema (--bs-primary). */
+.loy-subtab .nav-link { font-size: .82rem; font-weight: 600; color: var(--bs-secondary-color); border: 1px solid var(--bs-border-color); background: transparent; }
+.loy-subtab .nav-link:hover { color: var(--bs-primary); border-color: rgba(var(--bs-primary-rgb), .35); }
+.loy-subtab .nav-link.active { color: #fff; background: var(--bs-primary); border-color: var(--bs-primary); }
+.loy-subtab .nav-link .badge { background: rgba(var(--bs-primary-rgb), .12); color: var(--bs-primary); font-weight: 600; }
+.loy-subtab .nav-link.active .badge { background: rgba(255, 255, 255, .25); color: #fff; }
+</style>
 <!-- Tabs: Program Aktif | Closed — masing-masing dibagi Internal, Kerjasama Tenant, Dari Event -->
 <ul class="nav nav-tabs mb-3" id="loyaltyTabs">
     <li class="nav-item">
@@ -1040,19 +1052,19 @@ $renderBagian = function (array $bagian, string $kosong) use ($realisasi, $canEd
 
 <!-- Tab: Program Aktif -->
 <div id="tab-aktif">
-    <?php $renderBagian([
-        ['Program Internal', 'bi-star-fill text-primary', $internalActive, false],
-        ['Kerjasama Tenant', 'bi-shop text-success', $tenantActive, false],
-        ['Dari Event', 'bi-calendar-event text-warning-emphasis', $eventOpen, true],
+    <?php $renderBagian('aktif', [
+        ['internal', 'Program Internal', 'bi-star-fill', $internalActive, false],
+        ['tenant',   'Kerjasama Tenant', 'bi-shop', $tenantActive, false],
+        ['event',    'Dari Event', 'bi-calendar-event', $eventOpen, true],
     ], 'Tidak ada program yang sedang berjalan. Program yang sudah selesai atau terkunci ada di tab Closed.'); ?>
 </div>
 
 <!-- Tab: Closed (nonaktif atau terkunci) -->
 <div id="tab-closed" class="d-none">
-    <?php $renderBagian([
-        ['Program Internal', 'bi-star-fill text-primary', $internalInactive, false],
-        ['Kerjasama Tenant', 'bi-shop text-success', $tenantInactive, false],
-        ['Dari Event', 'bi-calendar-event text-warning-emphasis', $eventClosed, true],
+    <?php $renderBagian('closed', [
+        ['internal', 'Program Internal', 'bi-star-fill', $internalInactive, false],
+        ['tenant',   'Kerjasama Tenant', 'bi-shop', $tenantInactive, false],
+        ['event',    'Dari Event', 'bi-calendar-event', $eventClosed, true],
     ], 'Tidak ada program yang closed.'); ?>
 </div>
 
@@ -1323,6 +1335,18 @@ $renderBagian = function (array $bagian, string $kosong) use ($realisasi, $canEd
         history.replaceState(null, '', '#' + name);
     }
     tabs.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.tab)));
+    // Sub-tab di dalam tab (Internal / Kerjasama Tenant / Dari Event)
+    function activateSub(id) {
+        const btn = document.querySelector('[data-subtab="' + id + '"]');
+        if (!btn) return;
+        const grup = btn.closest('.loy-subtab');
+        grup.querySelectorAll('[data-subtab]').forEach(b => {
+            const on = b === btn;
+            b.classList.toggle('active', on);
+            document.getElementById('bagian-' + b.dataset.subtab)?.classList.toggle('d-none', !on);
+        });
+    }
+    document.querySelectorAll('[data-subtab]').forEach(b => b.addEventListener('click', () => activateSub(b.dataset.subtab)));
     const hash = location.hash.replace('#', '');
     if (validTabs.includes(hash) || tabLama[hash]) activate(hash);
     else if (hash.startsWith('program-')) {
@@ -1332,6 +1356,8 @@ $renderBagian = function (array $bagian, string $kosong) use ($realisasi, $canEd
         const pane  = kartu && kartu.closest('#tab-aktif, #tab-closed');
         if (pane) {
             activate(pane.id.replace('tab-', ''));
+            const bagian = kartu.closest('.loy-bagian');
+            if (bagian) activateSub(bagian.id.replace('bagian-', ''));
             requestAnimationFrame(() => kartu.scrollIntoView({ block: 'start' }));
         }
     }
@@ -1349,10 +1375,15 @@ $renderBagian = function (array $bagian, string $kosong) use ($realisasi, $canEd
             const active = document.querySelector('[data-tab].active');
             const name = active ? active.dataset.tab : 'aktif';
             panes.forEach(p => p.classList.toggle('d-none', p.id !== 'tab-' + name));
+            document.querySelectorAll('.loy-subtab').forEach(g => {
+                const akt = g.querySelector('[data-subtab].active');
+                g.querySelectorAll('[data-subtab]').forEach(b => document.getElementById('bagian-' + b.dataset.subtab)?.classList.toggle('d-none', b !== akt));
+            });
             cards.forEach(c => c.style.display = '');
             return;
         }
         panes.forEach(p => p.classList.remove('d-none'));   // mode cari: tampilkan semua tab
+        document.querySelectorAll('.loy-bagian').forEach(b => b.classList.remove('d-none'));
         cards.forEach(c => {
             c.style.display = (c.dataset.progSearch || '').includes(q) ? '' : 'none';
         });
