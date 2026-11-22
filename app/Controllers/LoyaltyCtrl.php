@@ -195,6 +195,17 @@ class LoyaltyCtrl extends BaseController
         return ['berlaku' => self::bulanBerlaku($bulan), 'relevan' => $relevan, 'belum' => $belum];
     }
 
+    /**
+     * Program masih berjalan = status aktif DAN (bila standalone) belum dikunci.
+     * Kunci = dievaluasi & ditutup; tidak mengubah kolom status. Dipakai KPI &
+     * tab "Program Aktif" di loyalty_program/index agar angkanya sama.
+     */
+    public static function berjalan(array $p): bool
+    {
+        return ($p['status'] ?? 'active') === 'active'
+            && ! (($p['source'] ?? '') === 'standalone' && ! empty($p['locked']));
+    }
+
     private function mergePrograms(): array
     {
         $standalone = (new LoyaltyProgramModel())->getAll();
@@ -267,7 +278,7 @@ class LoyaltyCtrl extends BaseController
         $targetMemberKpi  = 0;
         $totalTerpakaiKpi = 0;
         foreach ($programs as $p) {
-            if ($p['status'] !== 'active') continue;
+            if (! self::berjalan($p)) continue;   // sama dengan tab "Program Aktif" (terkunci = selesai)
             $key = ($p['source'] === 'standalone' ? 's_' : 'e_') . $p['id'];
             $totalMemberKpi  += (int)($realisasi[$key]['total'] ?? 0);
             $targetMemberKpi += (int)($p['target_peserta'] ?? 0);
@@ -279,7 +290,7 @@ class LoyaltyCtrl extends BaseController
         }
 
         $totalBudget = array_sum(array_column($programs, 'budget'));
-        $activeCount = count(array_filter($programs, fn($p) => $p['status'] === 'active'));
+        $activeCount = count(array_filter($programs, [self::class, 'berjalan']));
 
         return view('loyalty_program/index', [
             'user'             => $this->currentUser(),

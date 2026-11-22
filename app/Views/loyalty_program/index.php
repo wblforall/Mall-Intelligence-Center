@@ -19,7 +19,7 @@ function slPct(int $actual, int $target): float {
 
 // Program SELESAI = nonaktif ATAU sudah dikunci (dikunci = dievaluasi & ditutup).
 // Kunci tidak mengubah kolom status, jadi tanpa ini program terkunci tertinggal di tab aktif.
-$selesai          = fn($p) => $p['status'] === 'inactive' || ($p['source'] === 'standalone' && ! empty($p['locked']));
+$selesai          = fn($p) => ! \App\Controllers\LoyaltyCtrl::berjalan($p);   // satu definisi dengan KPI di controller
 $internalActive   = array_filter($programs, fn($p) => $p['source'] === 'standalone' && ! $selesai($p) && ($p['jenis'] ?? 'internal') === 'internal');
 $internalInactive = array_filter($programs, fn($p) => $p['source'] === 'standalone' &&   $selesai($p) && ($p['jenis'] ?? 'internal') === 'internal');
 $tenantActive     = array_filter($programs, fn($p) => $p['source'] === 'standalone' && ! $selesai($p) && ($p['jenis'] ?? 'internal') === 'tenant');
@@ -69,7 +69,7 @@ $allClosed        = array_filter($programs, $selesai);
                     <span class="small text-muted">Program Aktif</span>
                 </div>
                 <div class="fw-bold fs-4 text-primary" data-count="<?= $activeCount ?>"><?= $activeCount ?></div>
-                <div class="small text-muted">dari <?= count($programs) ?> total &middot; <?= count($allTenant) ?> kerjasama tenant</div>
+                <div class="small text-muted">dari <?= count($programs) ?> total &middot; <?= count($tenantActive) ?> kerjasama tenant</div>
             </div>
         </div>
     </div>
@@ -991,118 +991,69 @@ function renderLoyaltyCard(array $p, array $realisasi, bool $canEdit, array $had
 <?php } // end renderLoyaltyCard ?>
 
 <?php
-$isAdmin       = ($user['role'] ?? '') === 'admin';
-$cntInternal   = count($allInternal);
-$cntTenant     = count($allTenant);
-$cntEvent      = count($allEvent);
-$cntTenantAktif= count($tenantActive);
-$cntInternalAktif = count($internalActive);
-$cntClosed     = count($allClosed);
+$isAdmin   = ($user['role'] ?? '') === 'admin';
+$cntAktif  = count($internalActive) + count($tenantActive) + count($eventOpen);
+$cntClosed = count($allClosed);
+
+/**
+ * Satu tab = tiga bagian (Program Internal, Kerjasama Tenant, Dari Event).
+ * Bagian kosong tidak ditampilkan; tab kosong menampilkan pesan.
+ */
+$renderBagian = function (array $bagian, string $kosong) use ($realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch) {
+    $ada = false;
+    foreach ($bagian as [$judul, $ikon, $daftar, $dariEvent]) {
+        if (empty($daftar)) continue; ?>
+    <div class="d-flex align-items-center gap-2 <?= $ada ? 'mt-4' : '' ?> mb-3">
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi <?= $ikon ?> me-1"></i><?= $judul ?> · <?= count($daftar) ?></span>
+        <div class="flex-grow-1 border-top"></div>
+    </div>
+    <?php foreach ($daftar as $p) {
+            if ($dariEvent) renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []);
+            else renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch);
+        }
+        $ada = true;
+    }
+    if (! $ada): ?>
+    <div class="card"><div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-archive display-4 d-block mb-2 opacity-25"></i>
+        <p class="mb-0"><?= $kosong ?></p>
+    </div></div>
+    <?php endif;
+};
 ?>
 
-<!-- Tabs -->
+<!-- Tabs: Program Aktif | Closed — masing-masing dibagi Internal, Kerjasama Tenant, Dari Event -->
 <ul class="nav nav-tabs mb-3" id="loyaltyTabs">
     <li class="nav-item">
-        <button class="nav-link active fw-semibold" data-tab="internal">
-            <i class="bi bi-star-fill text-primary me-1"></i>Program Internal
-            <?php if ($cntInternal > 0): ?>
-            <span class="badge bg-primary ms-1"><?= $cntInternal ?></span>
-            <?php endif; ?>
-        </button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link fw-semibold" data-tab="tenant">
-            <i class="bi bi-shop text-success me-1"></i>Kerjasama Tenant
-            <?php if ($cntTenant > 0): ?>
-            <span class="badge bg-success ms-1"><?= $cntTenant ?></span>
-            <?php endif; ?>
-        </button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link fw-semibold" data-tab="event">
-            <i class="bi bi-calendar-event text-warning-emphasis me-1"></i>Dari Event
-            <?php if ($cntEvent > 0): ?>
-            <span class="badge bg-warning text-dark ms-1"><?= $cntEvent ?></span>
-            <?php endif; ?>
+        <button class="nav-link active fw-semibold" data-tab="aktif">
+            <i class="bi bi-lightning-charge-fill text-primary me-1"></i>Program Aktif
+            <?php if ($cntAktif > 0): ?><span class="badge bg-primary ms-1"><?= $cntAktif ?></span><?php endif; ?>
         </button>
     </li>
     <li class="nav-item">
         <button class="nav-link fw-semibold" data-tab="closed">
             <i class="bi bi-archive text-secondary me-1"></i>Closed
-            <?php if ($cntClosed > 0): ?>
-            <span class="badge bg-secondary ms-1"><?= $cntClosed ?></span>
-            <?php endif; ?>
+            <?php if ($cntClosed > 0): ?><span class="badge bg-secondary ms-1"><?= $cntClosed ?></span><?php endif; ?>
         </button>
     </li>
 </ul>
 
-<!-- Tab: Internal -->
-<div id="tab-internal">
-    <?php if (!empty($internalActive)): ?>
-    <?php foreach ($internalActive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
-    <?php endif; ?>
-        <?php if ($cntInternal === 0): ?>
-    <div class="card"><div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-star display-4 d-block mb-2 opacity-25"></i>
-        <p class="mb-0">Tidak ada program internal yang berjalan. Program yang sudah selesai atau terkunci ada di tab Closed.</p>
-    </div></div>
-    <?php endif; ?>
+<!-- Tab: Program Aktif -->
+<div id="tab-aktif">
+    <?php $renderBagian([
+        ['Program Internal', 'bi-star-fill text-primary', $internalActive, false],
+        ['Kerjasama Tenant', 'bi-shop text-success', $tenantActive, false],
+        ['Dari Event', 'bi-calendar-event text-warning-emphasis', $eventOpen, true],
+    ], 'Tidak ada program yang sedang berjalan. Program yang sudah selesai atau terkunci ada di tab Closed.'); ?>
 </div>
 
-<!-- Tab: Kerjasama Tenant -->
-<div id="tab-tenant" class="d-none">
-    <?php if (!empty($tenantActive)): ?>
-    <?php foreach ($tenantActive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
-    <?php endif; ?>
-        <?php if ($cntTenant === 0): ?>
-    <div class="card"><div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-shop display-4 d-block mb-2 opacity-25"></i>
-        <p class="mb-0">Tidak ada program kerjasama tenant yang berjalan. Yang sudah selesai ada di tab Closed.</p>
-    </div></div>
-    <?php endif; ?>
-</div>
-
-<!-- Tab: Dari Event -->
-<div id="tab-event" class="d-none">
-    <?php foreach ($eventOpen as $p): renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []); endforeach; ?>
-        <?php if ($cntEvent === 0): ?>
-    <div class="card"><div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-calendar-event display-4 d-block mb-2 opacity-25"></i>
-        <p class="mb-0">Tidak ada program dari event yang berjalan. Yang sudah selesai ada di tab Closed.</p>
-    </div></div>
-    <?php endif; ?>
-</div>
-
-<!-- Tab: Closed -->
+<!-- Tab: Closed (nonaktif atau terkunci) -->
 <div id="tab-closed" class="d-none">
-    <?php if ($cntClosed === 0): ?>
-    <div class="card"><div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-archive display-4 d-block mb-2 opacity-25"></i>
-        <p class="mb-0">Tidak ada program yang closed.</p>
-    </div></div>
-    <?php else: ?>
-    <?php if (!empty($internalInactive)): ?>
-    <div class="d-flex align-items-center gap-2 mb-3">
-        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-star-fill me-1 text-primary"></i>Program Internal</span>
-        <div class="flex-grow-1 border-top"></div>
-    </div>
-    <?php foreach ($internalInactive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
-    <?php endif; ?>
-    <?php if (!empty($tenantInactive)): ?>
-    <div class="d-flex align-items-center gap-2 my-3">
-        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-shop me-1 text-success"></i>Kerjasama Tenant</span>
-        <div class="flex-grow-1 border-top"></div>
-    </div>
-    <?php foreach ($tenantInactive as $p): renderLoyaltyCard($p, $realisasi, $canEdit, $hadiahItems, $hadiahRealisasi, $voucherItems, $voucherRealisasi, $isAdmin, $stockBarang, $stockVoucherBatch); endforeach; ?>
-    <?php endif; ?>
-    <?php if (!empty($eventClosed)): ?>
-    <div class="d-flex align-items-center gap-2 my-3">
-        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-calendar-event me-1 text-warning-emphasis"></i>Dari Event</span>
-        <div class="flex-grow-1 border-top"></div>
-    </div>
-    <?php foreach ($eventClosed as $p): renderLoyaltyCard($p, $realisasi, $canEdit, [], [], [], []); endforeach; ?>
-    <?php endif; ?>
-    <?php endif; ?>
+    <?php $renderBagian([
+        ['Program Internal', 'bi-star-fill text-primary', $internalInactive, false],
+        ['Kerjasama Tenant', 'bi-shop text-success', $tenantInactive, false],
+        ['Dari Event', 'bi-calendar-event text-warning-emphasis', $eventClosed, true],
+    ], 'Tidak ada program yang closed.'); ?>
 </div>
 
 <?php endif; ?>
@@ -1359,32 +1310,26 @@ $cntClosed     = count($allClosed);
 // Tabs
 (function() {
     const tabs = document.querySelectorAll('[data-tab]');
-    const validTabs = ['internal', 'tenant', 'event', 'closed'];
+    const validTabs = ['aktif', 'closed'];
+    const tabLama = { internal: 'aktif', tenant: 'aktif', event: 'aktif' };   // tautan lama #internal dst.
     function activate(name) {
-        if (!validTabs.includes(name)) name = 'internal';
+        name = tabLama[name] || name;
+        if (!validTabs.includes(name)) name = 'aktif';
         tabs.forEach(btn => {
             const isActive = btn.dataset.tab === name;
             btn.classList.toggle('active', isActive);
             document.getElementById('tab-' + btn.dataset.tab).classList.toggle('d-none', !isActive);
         });
         history.replaceState(null, '', '#' + name);
-        // Pre-select jenis di Add modal sesuai tab aktif
-        if (name === 'tenant') {
-            const r = document.getElementById('addJenisTenant');
-            if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
-        } else {
-            const r = document.getElementById('addJenisInternal');
-            if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
-        }
     }
     tabs.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.tab)));
     const hash = location.hash.replace('#', '');
-    if (validTabs.includes(hash)) activate(hash);
+    if (validTabs.includes(hash) || tabLama[hash]) activate(hash);
     else if (hash.startsWith('program-')) {
         // Kembali dari aksi (kunci, ubah, dsb.) ke #program-s-ID: buka tab yang memuat program itu
         // (program terkunci sudah pindah ke Closed), lalu gulir ke kartunya.
         const kartu = document.getElementById(hash);
-        const pane  = kartu && kartu.closest('#tab-internal, #tab-tenant, #tab-event, #tab-closed');
+        const pane  = kartu && kartu.closest('#tab-aktif, #tab-closed');
         if (pane) {
             activate(pane.id.replace('tab-', ''));
             requestAnimationFrame(() => kartu.scrollIntoView({ block: 'start' }));
@@ -1397,12 +1342,12 @@ $cntClosed     = count($allClosed);
     const input = document.getElementById('progSearch');
     if (!input) return;
     const cards = [...document.querySelectorAll('.loyalty-prog')];
-    const panes = [...document.querySelectorAll('#tab-internal, #tab-tenant, #tab-event, #tab-closed')];
+    const panes = [...document.querySelectorAll('#tab-aktif, #tab-closed')];
     input.addEventListener('input', () => {
         const q = input.value.trim().toLowerCase();
         if (!q) {
             const active = document.querySelector('[data-tab].active');
-            const name = active ? active.dataset.tab : 'internal';
+            const name = active ? active.dataset.tab : 'aktif';
             panes.forEach(p => p.classList.toggle('d-none', p.id !== 'tab-' + name));
             cards.forEach(c => c.style.display = '');
             return;
