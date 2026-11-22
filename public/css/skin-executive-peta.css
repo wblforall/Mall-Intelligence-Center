@@ -1,0 +1,327 @@
+/* DIBUAT OTOMATIS oleh scripts/petakan_neo_ke_wbl.py — JANGAN diedit tangan.
+   Aksen oranye tema Terang (Neo) → navy tema WBL. Dimuat sebelum skin-executive.css. */
+
+/* ── dari public/css/theme.css ── */
+html[data-skin="executive"] {
+    --card-border: rgba(31, 78, 140,0.12);
+    --sidebar-hover:       rgba(31, 78, 140,.07);
+    --sidebar-active-bg:   rgba(31, 78, 140,.12);
+    --sidebar-active-color:#0A2A6E;
+    --accent-primary: #1F4E8C;
+    --accent-violet:  #3D6DB0;
+    --c-p1: #1F4E8C;
+    --c-icon-primary-bg:  rgba(31, 78, 140,.12);
+    --c-icon-primary-fg:  #0A2A6E;
+    --c-icon-muted-bg:    rgba(31, 78, 140,.08);
+    --c-icon-muted-fg:    rgba(31, 78, 140,.5);
+    --c-badge-neutral-bg: rgba(31, 78, 140,.1);
+    --c-badge-neutral-fg: #0A2A6E;
+    --c-action-logout-bg:  rgba(31, 78, 140,.08);
+    --c-action-logout-fg:  rgba(31, 78, 140,.55);
+    --c-action-update-bg:  rgba(31, 78, 140,.12);
+    --c-action-update-fg:  #0A2A6E;
+    --c-inner-bg:            rgba(31, 78, 140,.05);
+    --c-inner-border:        rgba(31, 78, 140,.12);
+    --c-placeholder-bg:      rgba(31, 78, 140,.04);
+    --c-avatar-bg:           rgba(31, 78, 140,.15);
+    --c-avatar-fg:           #0A2A6E;
+    --c-modal-detail-bg:     rgba(31, 78, 140,.05);
+    --c-modal-detail-border: rgba(31, 78, 140,.12);
+    --c-modal-th-bg:         rgba(31, 78, 140,.07);
+    --bs-primary:               #1F4E8C;
+    --bs-primary-rgb:           31, 78, 140;
+    --bs-primary-bg-subtle:     rgba(31, 78, 140,.12);
+    --bs-primary-border-subtle: rgba(31, 78, 140,.25);
+    --bs-primary-text-emphasis: #0A2A6E;
+    --bs-border-color:          rgba(31, 78, 140,.14);
+    --bs-link-color:            #0A2A6E;
+    --bs-link-hover-color:      #0A2A6E;
+}
+html[data-skin="executive"] .card {
+    border: 1px solid rgba(31, 78, 140,.12) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04), 0 4px 16px rgba(31, 78, 140,.07) !important;
+}
+html[data-skin="executive"] .card-header {
+    background: rgba(31, 78, 140,.04) !important;
+    border-bottom: 1px solid rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .card-footer {
+    background: rgba(31, 78, 140,.03) !important;
+    border-top: 1px solid rgba(31, 78, 140,.08) !important;
+}
+html[data-skin="executive"] .topbar {
+    border-bottom: 1px solid rgba(31, 78, 140,.12) !important;
+    box-shadow: 0 1px 12px rgba(31, 78, 140,.08) !important;
+}
+html[data-skin="executive"] .table {
+    --bs-table-striped-bg:   rgba(31, 78, 140,.03);
+    --bs-table-hover-bg:     rgba(31, 78, 140,.05);
+    --bs-table-border-color: rgba(31, 78, 140,.09);
+}
+html[data-skin="executive"] .table th {
+    color: rgba(31, 78, 140,.55) !important;
+    border-color: rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .table td {
+    border-color: rgba(31, 78, 140,.08) !important;
+}
+html[data-skin="executive"] .table-light,
+html[data-skin="executive"] thead.table-light,
+html[data-skin="executive"] tr.table-light,
+html[data-skin="executive"] tr.table-light > td,
+html[data-skin="executive"] tr.table-light > th {
+    --bs-table-bg:    rgba(31, 78, 140,.06) !important;
+    background: rgba(31, 78, 140,.06) !important;
+    border-color: rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .table-primary,
+html[data-skin="executive"] tr.table-primary > td,
+html[data-skin="executive"] tr.table-primary > th {
+    --bs-table-bg:       rgba(31, 78, 140,.1) !important;
+    --bs-table-hover-bg: rgba(31, 78, 140,.17) !important;
+    background: rgba(31, 78, 140,.1) !important;
+    color: #0A2A6E !important;
+    border-color: rgba(31, 78, 140,.15) !important;
+}
+html[data-skin="executive"] .table-hover > tbody > tr.table-primary:hover > * {
+    background: rgba(31, 78, 140,.17) !important;
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .form-control,
+html[data-skin="executive"] .form-select {
+    border-color: rgba(31, 78, 140,.22) !important;
+}
+html[data-skin="executive"] .form-control:focus,
+html[data-skin="executive"] .form-select:focus {
+    border-color: rgba(31, 78, 140,.5) !important;
+    box-shadow: 0 0 0 .2rem rgba(31, 78, 140,.12) !important;
+}
+html[data-skin="executive"] .form-control::placeholder {
+    color: rgba(31, 78, 140,.32) !important;
+}
+html[data-skin="executive"] .form-text {
+    color: rgba(31, 78, 140,.5) !important;
+}
+html[data-skin="executive"] .input-group-text {
+    background: rgba(31, 78, 140,.07);
+    border-color: rgba(31, 78, 140,.2);
+    color: rgba(31, 78, 140,.6);
+}
+html[data-skin="executive"] .btn-light {
+    background: rgba(31, 78, 140,.06) !important;
+    border-color: rgba(31, 78, 140,.14) !important;
+}
+html[data-skin="executive"] .btn-light:hover {
+    background: rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .btn-secondary {
+    background: rgba(31, 78, 140,.1) !important;
+    border-color: rgba(31, 78, 140,.18) !important;
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .btn-outline-primary {
+    color: #0A2A6E !important;
+    border-color: rgba(31, 78, 140,.4) !important;
+}
+html[data-skin="executive"] .btn-outline-primary:hover {
+    background: rgba(31, 78, 140,.08) !important;
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .dropdown-menu {
+    border: 1px solid rgba(31, 78, 140,.14) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.1), 0 2px 6px rgba(31, 78, 140,.08) !important;
+}
+html[data-skin="executive"] .dropdown-item:hover {
+    background: rgba(31, 78, 140,.06) !important;
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .dropdown-divider {
+    border-color: rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .modal-content {
+    border: 1px solid rgba(31, 78, 140,.14) !important;
+}
+html[data-skin="executive"] .modal-header {
+    border-bottom: 1px solid rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .modal-footer {
+    border-top:    1px solid rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .nav-tabs {
+    border-bottom-color: rgba(31, 78, 140,.15) !important;
+}
+html[data-skin="executive"] .nav-tabs .nav-link {
+    color: rgba(31, 78, 140,.45) !important;
+}
+html[data-skin="executive"] .nav-tabs .nav-link:hover {
+    color: #0A2A6E !important;
+    background: rgba(31, 78, 140,.05) !important;
+    border-color: rgba(31, 78, 140,.1) rgba(31, 78, 140,.1) transparent !important;
+}
+html[data-skin="executive"] .nav-tabs .nav-link.active {
+    border-color: rgba(31, 78, 140,.18) rgba(31, 78, 140,.18) transparent !important;
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .bg-primary-subtle {
+    background: rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .bg-secondary-subtle {
+    background: rgba(31, 78, 140,.07) !important;
+}
+html[data-skin="executive"] .bg-light {
+    background: rgba(31, 78, 140,.05) !important;
+}
+html[data-skin="executive"] .text-primary {
+    color: #1F4E8C !important;
+}
+html[data-skin="executive"] .text-primary-emphasis {
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .bg-primary-subtle.text-primary {
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .border,
+html[data-skin="executive"] .border-top,
+html[data-skin="executive"] .border-bottom,
+html[data-skin="executive"] .border-end {
+    border-color: rgba(31, 78, 140,.14) !important;
+}
+html[data-skin="executive"] .border-start:not(.border-4) {
+    border-color: rgba(31, 78, 140,.14) !important;
+}
+html[data-skin="executive"] .progress {
+    background: rgba(31, 78, 140,.1);
+}
+html[data-skin="executive"] .page-link {
+    border-color: rgba(31, 78, 140,.18);
+    color: #1F4E8C;
+}
+html[data-skin="executive"] .page-link:hover {
+    background: rgba(31, 78, 140,.06);
+    color: #0A2A6E;
+}
+html[data-skin="executive"] .page-item.disabled .page-link {
+    background: rgba(31, 78, 140,.03);
+}
+html[data-skin="executive"] .list-group-item {
+    border-color: rgba(31, 78, 140,.12);
+}
+html[data-skin="executive"] .list-group-item:hover {
+    background: rgba(31, 78, 140,.04);
+}
+html[data-skin="executive"] .accordion-item {
+    border-color: rgba(31, 78, 140,.14);
+}
+html[data-skin="executive"] .accordion-button {
+    background: rgba(31, 78, 140,.04);
+}
+html[data-skin="executive"] .accordion-button:not(.collapsed) {
+    background: rgba(31, 78, 140,.08);
+    color: #0A2A6E;
+}
+html[data-skin="executive"] .accordion-body {
+    background: rgba(31, 78, 140,.02);
+}
+html[data-skin="executive"] .breadcrumb-item a {
+    color: #1F4E8C;
+}
+html[data-skin="executive"] hr {
+    border-color: rgba(31, 78, 140,.12) !important;
+}
+html[data-skin="executive"] code {
+    color: #0A2A6E;
+    background: rgba(31, 78, 140,.1);
+}
+html[data-skin="executive"] ::-webkit-scrollbar-track {
+    background: rgba(31, 78, 140,.03);
+}
+html[data-skin="executive"] ::-webkit-scrollbar-thumb {
+    background: rgba(31, 78, 140,.2);
+}
+html[data-skin="executive"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(31, 78, 140,.35);
+}
+html[data-skin="executive"] .sidebar {
+    border-right: 1px solid rgba(31, 78, 140,.12) !important;
+    box-shadow: 2px 0 16px rgba(31, 78, 140,.07) !important;
+}
+html[data-skin="executive"] .sidebar .brand {
+    border-bottom-color: rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .sidebar .nav-label {
+    color: rgba(31, 78, 140,.4) !important;
+}
+html[data-skin="executive"] .sidebar .nav-link:hover {
+    background: rgba(31, 78, 140,.07) !important;
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .sidebar .nav-link.active {
+    background: rgba(31, 78, 140,.12) !important;
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .sidebar .subnav .nav-link {
+    border-left-color: rgba(31, 78, 140,.1) !important;
+}
+html[data-skin="executive"] .sidebar .subnav .nav-link:hover {
+    color: #1F4E8C !important;
+    border-left-color: #1F4E8C !important;
+}
+html[data-skin="executive"] .sidebar .subnav .nav-link.active {
+    color: #0A2A6E !important;
+    border-left-color: #0A2A6E !important;
+}
+html[data-skin="executive"] .sidebar .sidebar-footer {
+    border-top-color: rgba(31, 78, 140,.1) !important;
+}
+
+/* ── dari public/css/sidebar-nav.css ── */
+html[data-skin="executive"] #sidebar.sidebar {
+    --sbn-border: rgba(31, 78, 140, .16);
+    --sbn-shadow: 0 14px 40px rgba(10, 42, 110, .16), 0 0 0 1px rgba(31, 78, 140, .06);
+    --sbn-hover: rgba(31, 78, 140, .08);
+    --sbn-tile: rgba(31, 78, 140, .09);
+    --sbn-tile-fg: #0A2A6E;
+    --sbn-panel: rgba(31, 78, 140, .05);
+    --sbn-panel-line: rgba(31, 78, 140, .09);
+    --sbn-has-active-fg: #0A2A6E;
+    --sbn-has-active-tile: rgba(31, 78, 140, .17);
+    --sbn-focus: #0A2A6E;
+    --sbn-input-bg: rgba(31, 78, 140, .06);
+    --sbn-input-border: rgba(31, 78, 140, .2);
+    --sbn-tip-fg: #F2F5FA;
+}
+html[data-skin="executive"] .sb-tip {
+    --sbn-tip-fg: #F2F5FA;
+}
+
+/* ── dari app/Views/budget_dept/_kepala.php ── */
+html[data-skin="executive"] .flatpickr-calendar {
+    border-color: rgba(31, 78, 140,.18) !important;
+}
+html[data-skin="executive"] .flatpickr-monthSelect-month:hover {
+    background: rgba(31, 78, 140,.08) !important;
+}
+html[data-skin="executive"] .ts-dropdown .dropdown-input:focus {
+    border-color: rgba(31, 78, 140,.5) !important;
+    box-shadow: 0 0 0 .2rem rgba(31, 78, 140,.12) !important;
+}
+html[data-skin="executive"] .ts-wrapper.focus {
+    border-color: rgba(31, 78, 140,.5) !important;
+    box-shadow: 0 0 0 .2rem rgba(31, 78, 140,.12) !important;
+}
+html[data-skin="executive"] .ts-dropdown {
+    border-color: rgba(31, 78, 140,.18) !important;
+}
+html[data-skin="executive"] .ts-dropdown .option.active {
+    background: rgba(31, 78, 140,.08) !important;
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .ts-dropdown .option.selected {
+    color: #0A2A6E !important;
+}
+html[data-skin="executive"] .ts-dropdown .dropdown-input-wrap {
+    border-bottom-color: rgba(31, 78, 140,.12);
+}
+html[data-skin="executive"] .ts-dropdown .dropdown-input {
+    border-color: rgba(31, 78, 140,.25) !important;
+}

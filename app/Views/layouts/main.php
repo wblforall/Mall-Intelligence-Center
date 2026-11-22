@@ -29,6 +29,8 @@ $_temaDasar = in_array($_tema, ['light', 'executive'], true) ? 'light' : 'dark';
 <link href="<?= base_url('css/theme.css') ?>?v=<?= @filemtime(FCPATH.'css/theme.css') ?: 1 ?>" rel="stylesheet">
 <link href="<?= base_url('css/sidebar-nav.css') ?>?v=<?= @filemtime(FCPATH.'css/sidebar-nav.css') ?: 1 ?>" rel="stylesheet">
 <?php if ($_tema === 'executive'): ?>
+<!-- Peta otomatis aksen oranye Neo → navy (scripts/petakan_neo_ke_wbl.py); aturan WBL tulisan tangan di bawahnya menang. -->
+<link href="<?= base_url('css/skin-executive-peta.css') ?>?v=<?= @filemtime(FCPATH.'css/skin-executive-peta.css') ?: 1 ?>" rel="stylesheet">
 <link href="<?= base_url('css/skin-executive.css') ?>?v=<?= @filemtime(FCPATH.'css/skin-executive.css') ?: 1 ?>" rel="stylesheet">
 <?php endif; ?>
 <style>
