@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Libraries\AksesAiMonitor;
+
 use App\Libraries\ActivityLog;
 use App\Libraries\AiCopotPassword;
 use App\Libraries\AiEnrollKey;
@@ -13,16 +15,15 @@ use App\Models\AiSessionModel;
  * Pemantauan AI — halaman LIHAT pemakaian Claude Code tim.
  *
  * Pemantauan ini TERBUKA: tim diberi tahu, skrip laptop tak disembunyikan dan
- * bisa dimatikan pemakainya (lihat AiLog & public/ai-monitor/). Siapa yang
- * boleh membuka halaman ini diatur lewat hak akses menu 'ai_monitor', sama
- * seperti menu standalone lain.
+ * bisa dimatikan pemakainya (lihat AiLog & public/ai-monitor/). Yang boleh
+ * MEMBUKA halaman ini hanya akun di App\Libraries\AksesAiMonitor::PEMANTAU
+ * (keputusan 23 Nov 2026) — bukan semua admin, bukan hak menu 'ai_monitor'.
  *
  * Membuka transkrip = membaca percakapan orang, maka method sesi() mencatat
  * SIAPA yang melihat lewat ActivityLog — pemantau pun ikut terpantau.
  */
 class AiMonitor extends BaseController
 {
-    private const MENU = 'ai_monitor';
 
     /** Zona waktu operasional MIC — "hari ini" mengikuti jam Balikpapan. */
     private const TZ = 'Asia/Makassar';
@@ -146,7 +147,7 @@ class AiMonitor extends BaseController
 
     public function dashboard()
     {
-        if (! $this->canViewMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -207,7 +208,7 @@ class AiMonitor extends BaseController
 
     public function index()
     {
-        if (! $this->canViewMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -254,7 +255,7 @@ class AiMonitor extends BaseController
 
     public function karyawan($employeeId)
     {
-        if (! $this->canViewMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -301,7 +302,7 @@ class AiMonitor extends BaseController
 
     public function sesi($sessionId)
     {
-        if (! $this->canViewMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -342,7 +343,7 @@ class AiMonitor extends BaseController
 
     public function komputer()
     {
-        if (! $this->canViewMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -391,7 +392,7 @@ class AiMonitor extends BaseController
 
     public function komputerDetail($deviceId)
     {
-        if (! $this->canViewMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -444,7 +445,7 @@ class AiMonitor extends BaseController
 
     public function laporan()
     {
-        if (! $this->canViewMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -514,11 +515,11 @@ class AiMonitor extends BaseController
     //
     // Mendaftarkan laptop dan menerbitkan token adalah hak yang lebih tinggi
     // dari sekadar melihat: pemegangnya menentukan laptop siapa yang dipantau.
-    // Maka dipagari canEditMenu (admin tetap bypass), bukan canViewMenu.
+    // Dipagari AksesAiMonitor::boleh() seperti halaman lihat (hanya pemantau).
 
     public function perangkat()
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 
@@ -559,7 +560,7 @@ class AiMonitor extends BaseController
 
     public function setujuiPerangkat()
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 
@@ -592,7 +593,7 @@ class AiMonitor extends BaseController
 
     public function tautkanPemilik()
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 
@@ -623,7 +624,7 @@ class AiMonitor extends BaseController
 
     public function blokir()
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 
@@ -654,7 +655,7 @@ class AiMonitor extends BaseController
 
     public function bukaBlokir()
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 
@@ -688,7 +689,7 @@ class AiMonitor extends BaseController
     // persetujuan". Untuk benar-benar melepas agen dari laptop, pakai copot.
     public function hapusPerangkat()
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 
@@ -718,7 +719,7 @@ class AiMonitor extends BaseController
 
     public function regenEnrollKey()
     {
-        if (! $this->isAdmin()) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor/perangkat')->with('error', 'Hanya admin yang boleh meregenerasi kunci.');
         }
 
@@ -739,7 +740,7 @@ class AiMonitor extends BaseController
 
     public function setCopotPassword()
     {
-        if (! $this->isAdmin()) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor/perangkat')->with('error', 'Hanya admin yang boleh mengubah password copot.');
         }
 
@@ -767,7 +768,7 @@ class AiMonitor extends BaseController
 
     public function ubahLabel()
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 
@@ -793,7 +794,7 @@ class AiMonitor extends BaseController
 
     public function buatPerangkat()
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 
@@ -826,7 +827,7 @@ class AiMonitor extends BaseController
 
     public function nonaktifPerangkat($id)
     {
-        if (! $this->canEditMenu(self::MENU)) {
+        if (! AksesAiMonitor::boleh()) {
             return redirect()->to('/ai-monitor')->with('error', 'Akses ditolak.');
         }
 

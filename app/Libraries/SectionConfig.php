@@ -32,10 +32,8 @@ class SectionConfig
         // RAB Event & Promotion: tingkat "menyetujui" = admin E&P yang mengunggah PDF
         // RAB / laporan realisasi yang sudah lengkap tanda tangan e-Sign-nya.
         'rab'                => 'RAB — unggah berkas bertanda tangan',
-        // Pemantauan AI — memantau pemakaian Claude Code di laptop tim, secara
-        // terbuka. Didaftarkan di sini supaya otomatis muncul di layar hak
-        // akses user/departemen: admin yang memutuskan siapa boleh melihat.
-        'ai_monitor'         => 'Pemantauan AI',
+        // Pemantauan AI TIDAK lagi diatur lewat hak menu: hanya akun di
+        // App\Libraries\AksesAiMonitor::PEMANTAU (keputusan 23 Nov 2026).
         // Label menyebut "lintas sistem" dengan sengaja: inilah izin yang
         // menentukan siapa boleh memberi orang akses ke PAM e-Sign, CLARA,
         // FlowStore, dan OpsJobs — termasuk peran `unit_admin` yang bisa

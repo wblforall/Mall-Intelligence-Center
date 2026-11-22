@@ -40,7 +40,7 @@
 </div>
 
 <?php // ── Password copot (uninstall) — KHUSUS admin ─────────────────── ?>
-<?php if (session()->get('role_is_admin') || session()->get('user_role') === 'admin'): ?>
+<?php if (\App\Libraries\AksesAiMonitor::boleh()): ?>
 <div class="card mb-3 border-danger-subtle">
     <div class="card-header py-2 d-flex align-items-center justify-content-between">
         <span class="fw-semibold small"><i class="bi bi-shield-lock me-1"></i>Password Copot (Uninstall)</span>

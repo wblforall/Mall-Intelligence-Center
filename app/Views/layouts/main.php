@@ -571,9 +571,9 @@ html.ada-sambut.buka .sambut-isi { transform: scale(1.04); opacity: 0; }
         <?php endif; ?>
 
         <?php
-        // Pemantauan AI — pemakaian Claude Code tim, terbuka. Satu link ke
-        // rekap; akses diatur lewat hak menu 'ai_monitor'.
-        if ($navCanView('ai_monitor')):
+        // Pemantauan AI — pemakaian Claude Code tim, terbuka. Hanya akun di
+        // AksesAiMonitor::PEMANTAU yang melihat menu ini (keputusan 23 Nov 2026).
+        if (\App\Libraries\AksesAiMonitor::boleh()):
         ?>
         <div class="nav-label">Pemantauan AI</div>
         <a href="<?= base_url('ai-monitor/dashboard') ?>" class="nav-link <?= str_starts_with(uri_string(), 'ai-monitor/dashboard') ? 'active' : '' ?>">
@@ -585,11 +585,9 @@ html.ada-sambut.buka .sambut-isi { transform: scale(1.04); opacity: 0; }
         <a href="<?= base_url('ai-monitor/komputer') ?>" class="nav-link <?= str_starts_with(uri_string(), 'ai-monitor/komputer') ? 'active' : '' ?>">
             <i class="bi bi-pc-display"></i> Rekap per Komputer
         </a>
-        <?php if ($navCanEdit('ai_monitor')): ?>
         <a href="<?= base_url('ai-monitor/perangkat') ?>" class="nav-link <?= str_starts_with(uri_string(), 'ai-monitor/perangkat') ? 'active' : '' ?>">
             <i class="bi bi-laptop"></i> Perangkat &amp; Token
         </a>
-        <?php endif; ?>
         <?php endif; ?>
 
 
