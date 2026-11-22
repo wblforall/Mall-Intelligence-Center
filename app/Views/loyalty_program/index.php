@@ -17,16 +17,19 @@ function slPct(int $actual, int $target): float {
     return $target > 0 ? min(100, round($actual / $target * 100, 1)) : 0;
 }
 
-$internalActive   = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'active'   && ($p['jenis'] ?? 'internal') === 'internal');
-$internalInactive = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'inactive' && ($p['jenis'] ?? 'internal') === 'internal');
-$tenantActive     = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'active'   && ($p['jenis'] ?? 'internal') === 'tenant');
-$tenantInactive   = array_filter($programs, fn($p) => $p['source'] === 'standalone' && $p['status'] === 'inactive' && ($p['jenis'] ?? 'internal') === 'tenant');
+// Program SELESAI = nonaktif ATAU sudah dikunci (dikunci = dievaluasi & ditutup).
+// Kunci tidak mengubah kolom status, jadi tanpa ini program terkunci tertinggal di tab aktif.
+$selesai          = fn($p) => $p['status'] === 'inactive' || ($p['source'] === 'standalone' && ! empty($p['locked']));
+$internalActive   = array_filter($programs, fn($p) => $p['source'] === 'standalone' && ! $selesai($p) && ($p['jenis'] ?? 'internal') === 'internal');
+$internalInactive = array_filter($programs, fn($p) => $p['source'] === 'standalone' &&   $selesai($p) && ($p['jenis'] ?? 'internal') === 'internal');
+$tenantActive     = array_filter($programs, fn($p) => $p['source'] === 'standalone' && ! $selesai($p) && ($p['jenis'] ?? 'internal') === 'tenant');
+$tenantInactive   = array_filter($programs, fn($p) => $p['source'] === 'standalone' &&   $selesai($p) && ($p['jenis'] ?? 'internal') === 'tenant');
 $eventOpen        = array_filter($programs, fn($p) => $p['source'] === 'event' && $p['status'] === 'active');
 $eventClosed      = array_filter($programs, fn($p) => $p['source'] === 'event' && $p['status'] === 'inactive');
 $allInternal      = array_merge($internalActive, $internalInactive);
 $allTenant        = array_merge($tenantActive, $tenantInactive);
 $allEvent         = array_merge($eventOpen, $eventClosed);
-$allClosed        = array_filter($programs, fn($p) => $p['status'] === 'inactive');
+$allClosed        = array_filter($programs, $selesai);
 ?>
 
 <!-- Header -->
@@ -1041,7 +1044,7 @@ $cntClosed     = count($allClosed);
     <?php if (!empty($internalInactive)): ?>
     <?php if (!empty($internalActive)): ?>
     <div class="d-flex align-items-center gap-2 my-3">
-        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-pause-circle me-1"></i>Non-aktif</span>
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-pause-circle me-1"></i>Non-aktif / terkunci</span>
         <div class="flex-grow-1 border-top"></div>
     </div>
     <?php endif; ?>
@@ -1063,7 +1066,7 @@ $cntClosed     = count($allClosed);
     <?php if (!empty($tenantInactive)): ?>
     <?php if (!empty($tenantActive)): ?>
     <div class="d-flex align-items-center gap-2 my-3">
-        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-pause-circle me-1"></i>Non-aktif</span>
+        <span class="text-muted" style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase"><i class="bi bi-pause-circle me-1"></i>Non-aktif / terkunci</span>
         <div class="flex-grow-1 border-top"></div>
     </div>
     <?php endif; ?>
