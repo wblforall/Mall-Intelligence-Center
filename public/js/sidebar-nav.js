@@ -199,7 +199,8 @@
         });
     });
 
-    // Terbuka saat muat: grup berisi halaman aktif → petunjuk server → pilihan terakhir
+    // Terbuka saat muat: grup berisi halaman aktif → petunjuk server → grup terakhir yang terbuka
+    // (menu tanpa grup seperti Dashboard mempertahankan grup yang sedang terbuka).
     (function initOpen() {
         var target = groups.filter(function (g) { return g.hasActive; })[0]
             || groups.filter(function (g) { return g.hint; })[0];
@@ -207,7 +208,12 @@
             var k = lsGet(KEY_OPEN);
             target = k ? groups.filter(function (g) { return g.key === k; })[0] : null;
         }
-        if (target) openOnly(target);
+        if (target) {
+            openOnly(target);
+            // Ingat grup yang terbuka (juga yang terbuka otomatis karena halaman aktif),
+            // supaya pindah ke menu tanpa grup (mis. Dashboard) tidak menutupnya.
+            storeOpen(target.key);
+        }
     })();
 
     /* ── 4. Favorit ───────────────────────────────────────────── */
@@ -488,11 +494,24 @@
 
     /* ── 8. Akhir ─────────────────────────────────────────────── */
     syncMiniUi();
+    // Posisi gulir sidebar dibawa ke halaman berikutnya, supaya menu yang baru
+    // diklik tetap di tempat yang sama (dulu: gulir kembali ke atas lalu kepala
+    // grup ditarik ke atas daftar → sidebar terasa "melompat").
+    var KEY_GULIR = 'micSbGulir';
+    function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+    function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+    function simpanGulir() { ssSet(KEY_GULIR, String(Math.round(nav.scrollTop))); }
+    nav.addEventListener('click', function (e) { if (e.target.closest('a[href]')) simpanGulir(); }, true);
+    window.addEventListener('pagehide', simpanGulir);
     function revealOpen() {
-        var g = nav.querySelector('.sb-group.is-open') || nav.querySelector('.sb-row.is-active');
+        var simpan = parseInt(ssGet(KEY_GULIR), 10);
+        if (!isNaN(simpan)) nav.scrollTop = simpan;
+        // Geser seperlunya hanya bila menu aktif (atau grup terbuka) tak terlihat.
+        var g = nav.querySelector('.sb-row.is-active') || nav.querySelector('.sb-group.is-open');
         if (!g) return;
         var nr = nav.getBoundingClientRect(), gr = g.getBoundingClientRect();
-        if (gr.bottom > nr.bottom || gr.top < nr.top) nav.scrollTop += gr.top - nr.top - 8;   // kepala grup di atas daftar
+        if (gr.top < nr.top) nav.scrollTop -= (nr.top - gr.top) + 8;
+        else if (gr.bottom > nr.bottom) nav.scrollTop += (gr.bottom - nr.bottom) + 8;
     }
     revealOpen();
     requestAnimationFrame(function () { requestAnimationFrame(function () { html.classList.add('sb-ready'); }); });
