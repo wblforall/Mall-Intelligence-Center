@@ -34,7 +34,7 @@
     function isRail() { return html.classList.contains('sb-mini') && DESK.matches; }
 
     var ICONS = {
-        'traffic': 'bi-person-walking', 'parkir': 'bi-p-circle-fill', 'pest-control': 'bi-bug-fill',
+        'traffic': 'bi-person-walking', 'traffic-pengunjung-mall': 'bi-person-walking', 'parkir': 'bi-p-circle-fill', 'pest-control': 'bi-bug-fill',
         'pemantauan-ai': 'bi-robot', 'human-resources': 'bi-people-fill',
         'people-development': 'bi-mortarboard-fill', 'talent': 'bi-gem', 'penilaian': 'bi-clipboard-check-fill',
         'legal': 'bi-shield-check', 'progress-report': 'bi-kanban-fill', 'budget': 'bi-wallet2',

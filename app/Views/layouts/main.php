@@ -512,7 +512,7 @@ html.ada-sambut.buka .sambut-isi { transform: scale(1.04); opacity: 0; }
         $canSeeTraffic  = $canViewTraffic || $canEditTraffic; // inputter (edit-only, mis. Security) tetap lihat menu
         if ($canSeeTraffic):
         ?>
-        <div class="nav-label">Traffic</div>
+        <div class="nav-label">Traffic Pengunjung Mall</div>
         <a href="<?= base_url('traffic') ?>" class="nav-link <?= uri_string() === 'traffic' ? 'active' : '' ?>">
             <i class="bi bi-person-walking"></i> Daily Traffic
         </a>
