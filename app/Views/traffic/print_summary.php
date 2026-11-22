@@ -12,6 +12,11 @@
 .kpi-penta .kpi-num { color: #15803d; }
 .kpi-amber .kpi-num { color: #a16207; }
 .kpi-row { margin-bottom: 12px; }
+.kpi-split { margin-top: 5px; padding-top: 4px; border-top: 1px solid #e2e8f0; font-size: 9.5px; color: #334155; font-weight: 600; }
+.kpi-split > div { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.kpi-split small { font-weight: 400; color: #64748b; font-size: 8.5px; }
+.kpi-split .wd, .kpi-split .we { display: inline-block; min-width: 50px; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.kpi-split .wd { color: #6366f1; } .kpi-split .we { color: #d97706; }
 .kpi-row .kpi-sub + .kpi-sub { margin-top: 1px; }
 
 /* Sorotan (jam tersibuk, hari terbaik, pintu terpadat, pembanding) */
@@ -141,18 +146,23 @@ $doorPentaVals   = array_map('intval', array_column($doorPenta, 'total'));
 
 <!-- KPI -->
 <?php $vsAksen = $changePct === null ? '#94a3b8' : ($changePct >= 0 ? '#16a34a' : '#dc2626'); ?>
+<?php
+// Rincian weekdays (Sen–Kam) & weekend (Jum–Min) di dalam kotak mal; rata-rata per mal dibagi hari ber-data mal itu.
+$_split = function (int $wd, int $we, int $hWd, int $hWe) use ($n): string {
+    if ($wd + $we <= 0) return '';
+    $a = fn ($v, $h) => $h > 0 ? $n((int) round($v / $h)) : '0';
+    return '<div class="kpi-split"><div><span class="wd">Weekdays</span> ' . $n($wd) . ' <small>· ' . $a($wd, $hWd) . '/hari</small></div>'
+         . '<div><span class="we">Weekend</span> ' . $n($we) . ' <small>· ' . $a($we, $hWe) . '/hari</small></div></div>';
+};
+?>
 <div class="kpi-row">
-    <div class="kpi-box kpi-total">
-        <div class="kpi-label">Total Pengunjung</div>
-        <div class="kpi-num"><?= $n($totalVisitor) ?></div>
-        <div class="kpi-sub">eWalk + Pentacity</div>
-    </div>
     <div class="kpi-box kpi-ewalk">
         <div class="kpi-label">eWalk</div>
         <div class="kpi-num"><?= $n($totalEwalk) ?></div>
         <?php if ($totalVisitor > 0): ?>
         <div class="kpi-sub"><?= round($totalEwalk / $totalVisitor * 100) ?>% dari total</div>
         <?php endif; ?>
+        <?= $_split($wdEwalk, $weEwalk, $hariMal['wdEw'] ?? $wdDays, $hariMal['weEw'] ?? $weDays) ?>
     </div>
     <div class="kpi-box kpi-penta">
         <div class="kpi-label">Pentacity</div>
@@ -160,22 +170,13 @@ $doorPentaVals   = array_map('intval', array_column($doorPenta, 'total'));
         <?php if ($totalVisitor > 0): ?>
         <div class="kpi-sub"><?= round($totalPenta / $totalVisitor * 100) ?>% dari total</div>
         <?php endif; ?>
+        <?= $_split($wdPenta, $wePenta, $hariMal['wdPt'] ?? $wdDays, $hariMal['wePt'] ?? $weDays) ?>
     </div>
-    <div class="kpi-box kpi-amber">
-        <div class="kpi-label">Kendaraan</div>
-        <div class="kpi-num"><?= $n($totalVehicle) ?></div>
-        <div class="kpi-sub"><?= $n($vehicles['mobil']) ?> mobil · <?= $n($vehicles['motor']) ?> motor</div>
-        <?php if ($hasExtraVehicle): ?>
-        <div class="kpi-sub"><?php
-            $parts = [];
-            if ($vehicles['mobil_box']  > 0) $parts[] = $n($vehicles['mobil_box'])  . ' box';
-            if ($vehicles['truck']      > 0) $parts[] = $n($vehicles['truck'])      . ' truk';
-            if ($vehicles['bus']        > 0) $parts[] = $n($vehicles['bus'])        . ' bus';
-            if ($vehicles['mobil_free'] > 0) $parts[] = $n($vehicles['mobil_free']) . ' mobil free';
-            if ($vehicles['motor_free'] > 0) $parts[] = $n($vehicles['motor_free']) . ' motor free';
-            echo implode(' · ', $parts);
-        ?></div>
-        <?php endif; ?>
+    <div class="kpi-box kpi-total">
+        <div class="kpi-label">Total Pengunjung</div>
+        <div class="kpi-num"><?= $n($totalVisitor) ?></div>
+        <div class="kpi-sub">eWalk + Pentacity</div>
+        <?= $_split($wdTotal, $weTotal, $wdDays, $weDays) ?>
     </div>
     <div class="kpi-box kpi-avg">
         <div class="kpi-label">Rata-rata / Hari</div>
@@ -257,29 +258,6 @@ if ($totalVisitor > 0) {
 </div></div>
 <?php else: ?>
 <div class="catatan">Belum ada data pengunjung pada periode ini, sehingga ringkasan temuan belum dapat disusun.</div>
-<?php endif; ?>
-
-<?php if ($wdTotal + $weTotal > 0): ?>
-<div class="sec-title rapat"><span>Weekdays vs Weekend</span>
-    <span class="sec-sub"><?= $fromFmt ?> — <?= $toFmt ?></span></div>
-<div class="kpi-row ringkas">
-    <div class="kpi-box" style="--aksen:#6366f1">
-        <div class="kpi-label" style="color:#6366f1">Weekdays — Senin s/d Kamis</div>
-        <div class="wd-baris">
-            <div><div class="kpi-num"><?= $n($wdTotal) ?></div><div class="kpi-sub">total pengunjung</div></div>
-            <div><div class="kpi-num wd-kecil"><?= $n($wdAvg) ?></div><div class="kpi-sub">rata-rata/hari (<?= $wdDays ?> hari aktif)</div></div>
-            <div><div class="kpi-sub">eWalk: <?= $n($wdEwalk) ?> &nbsp;·&nbsp; Pentacity: <?= $n($wdPenta) ?></div></div>
-        </div>
-    </div>
-    <div class="kpi-box" style="--aksen:#f59e0b">
-        <div class="kpi-label" style="color:#d97706">Weekend — Jumat s/d Minggu</div>
-        <div class="wd-baris">
-            <div><div class="kpi-num"><?= $n($weTotal) ?></div><div class="kpi-sub">total pengunjung</div></div>
-            <div><div class="kpi-num wd-kecil"><?= $n($weAvg) ?></div><div class="kpi-sub">rata-rata/hari (<?= $weDays ?> hari aktif)</div></div>
-            <div><div class="kpi-sub">eWalk: <?= $n($weEwalk) ?> &nbsp;·&nbsp; Pentacity: <?= $n($wePenta) ?></div></div>
-        </div>
-    </div>
-</div>
 <?php endif; ?>
 
 <!-- Grafik: Traffic Harian (lebar) + per Jam (lebih sempit) -->

@@ -177,6 +177,9 @@ class Traffic extends BaseController
         // Weekday (Mon–Thu) vs Weekend (Fri–Sun)
         $wdEwalk = $wdPenta = $wdDays = 0;
         $weEwalk = $wePenta = $weDays = 0;
+        // Hari ber-data per mal: rata-rata/hari tiap mal dibagi harinya sendiri,
+        // agar hari tanpa input di satu mal tidak menurunkan rata-ratanya.
+        $wdDaysEw = $wdDaysPt = $weDaysEw = $weDaysPt = 0;
         foreach ($chartDates as $i => $_) {
             $date = date('Y-m-d', strtotime($from . " +{$i} days"));
             $dow  = (int) date('N', strtotime($date));
@@ -185,9 +188,13 @@ class Traffic extends BaseController
             if ($dow <= 4) {
                 $wdEwalk += $ew; $wdPenta += $pt;
                 if ($ew + $pt > 0) $wdDays++;
+                if ($ew > 0) $wdDaysEw++;
+                if ($pt > 0) $wdDaysPt++;
             } else {
                 $weEwalk += $ew; $wePenta += $pt;
                 if ($ew + $pt > 0) $weDays++;
+                if ($ew > 0) $weDaysEw++;
+                if ($pt > 0) $weDaysPt++;
             }
         }
         $wdTotal = $wdEwalk + $wdPenta;
@@ -228,6 +235,7 @@ class Traffic extends BaseController
             'insightPeakHour'  => $peakHourIdx !== null ? $chartHours[$peakHourIdx] : null,
             'insightPeakVal'   => $peakHourIdx !== null ? $hourCombined[$peakHourIdx] : 0,
             'insightBestDay'   => $bestDayIdx !== null ? $chartDates[$bestDayIdx] : null,
+            'insightBestDate'  => $bestDayIdx !== null ? date('Y-m-d', strtotime($from . ' +' . (int) $bestDayIdx . ' days')) : null,
             'insightBestVal'   => $bestDayIdx !== null ? $dailyCombined[$bestDayIdx] : 0,
             'insightChangePct' => $changePct,
             'insightPrevTotal' => $prevTotal,
@@ -236,6 +244,7 @@ class Traffic extends BaseController
             'periodEvents'     => (new EventModel())->getByPeriod($from, $to),
             'wdTotal'          => $wdTotal, 'wdEwalk' => $wdEwalk, 'wdPenta' => $wdPenta, 'wdAvg' => $wdAvg, 'wdDays' => $wdDays,
             'weTotal'          => $weTotal, 'weEwalk' => $weEwalk, 'wePenta' => $wePenta, 'weAvg' => $weAvg, 'weDays' => $weDays,
+            'hariMal'          => ['wdEw' => $wdDaysEw, 'wdPt' => $wdDaysPt, 'weEw' => $weDaysEw, 'wePt' => $weDaysPt],
         ]);
     }
 
@@ -401,15 +410,20 @@ class Traffic extends BaseController
         // Weekday (Mon–Thu) vs Weekend (Fri–Sun)
         $wdEwalk = $wdPenta = $wdDays = 0;
         $weEwalk = $wePenta = $weDays = 0;
+        $wdDaysEw = $wdDaysPt = $weDaysEw = $weDaysPt = 0; // hari ber-data per mal (rata-rata per mal)
         $cursor  = $from;
         foreach ($days as $row) {
             $dow = (int) date('N', strtotime($cursor));
             if ($dow <= 4) {
                 $wdEwalk += $row['ewalk']; $wdPenta += $row['pentacity'];
                 if ($row['total'] > 0) $wdDays++;
+                if ($row['ewalk'] > 0) $wdDaysEw++;
+                if ($row['pentacity'] > 0) $wdDaysPt++;
             } else {
                 $weEwalk += $row['ewalk']; $wePenta += $row['pentacity'];
                 if ($row['total'] > 0) $weDays++;
+                if ($row['ewalk'] > 0) $weDaysEw++;
+                if ($row['pentacity'] > 0) $weDaysPt++;
             }
             $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'));
         }
@@ -419,6 +433,7 @@ class Traffic extends BaseController
         $weAvg   = $weDays > 0 ? (int) round($weTotal / $weDays) : 0;
 
         return view('traffic/print_summary', [
+            'hariMal'      => ['wdEw' => $wdDaysEw, 'wdPt' => $wdDaysPt, 'weEw' => $weDaysEw, 'wePt' => $weDaysPt],
             'from'         => $from,
             'to'           => $to,
             'totalVisitor' => $totalVisitor,

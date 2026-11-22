@@ -1,6 +1,9 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('styles') ?>
 <style>
+    .analisa-grid { display: grid; gap: .5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (min-width: 768px)  { .analisa-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (min-width: 1200px) { .analisa-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* Panel kembar (weekday/weekend, per-pintu): saat stack di HP, ganti garis kanan jadi garis bawah */
 @media (max-width: 575.98px) {
     .split-col { border-right: 0 !important; border-bottom: 1px solid var(--bs-border-color) !important; }
@@ -66,18 +69,28 @@
 </div>
 </div>
 
+<?php
+// Rincian weekdays (Sen–Kam) & weekend (Jum–Min) di bawah angka tiap kartu.
+$_rpHari = fn ($n) => number_format((int) $n, 0, ',', '.');
+// $hWd/$hWe = hari ber-data yang dipakai membagi (per mal: harinya sendiri; Total: gabungan).
+$_splitHari = function (int $wd, int $we, ?int $hWd = null, ?int $hWe = null) use ($wdDays, $weDays, $_rpHari): string {
+    if ($wd + $we <= 0) return '';
+    $hWd ??= $wdDays; $hWe ??= $weDays;
+    $avgWd = $hWd > 0 ? (int) round($wd / $hWd) : 0;
+    $avgWe = $hWe > 0 ? (int) round($we / $hWe) : 0;
+    return '<div class="split-hari mt-2 pt-2 border-top text-start">'
+        . '<div class="d-flex justify-content-between small"><span><span class="badge bg-primary-subtle text-primary border me-1" style="font-size:.65rem">Weekdays</span></span>'
+        . '<span class="fw-semibold">' . $_rpHari($wd) . '</span></div>'
+        . '<div class="d-flex justify-content-between text-muted" style="font-size:.72rem"><span>Sen–Kam</span><span>' . $_rpHari($avgWd) . '/hari</span></div>'
+        . '<div class="d-flex justify-content-between small mt-1"><span><span class="badge bg-warning-subtle text-warning-emphasis border me-1" style="font-size:.65rem">Weekend</span></span>'
+        . '<span class="fw-semibold">' . $_rpHari($we) . '</span></div>'
+        . '<div class="d-flex justify-content-between text-muted" style="font-size:.72rem"><span>Jum–Min</span><span>' . $_rpHari($avgWe) . '/hari</span></div>'
+        . '</div>';
+};
+?>
 <!-- KPI Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3 anim-fade-up" style="animation-delay:.05s">
-        <div class="card text-center h-100">
-            <div class="card-body py-3">
-                <div class="small text-muted mb-1">Total Pengunjung</div>
-                <div class="fw-bold fs-4" data-count="<?= $totalVisitor ?>"><?= number_format($totalVisitor, 0, ',', '.') ?></div>
-                <div class="small text-muted">eWalk + Pentacity</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 anim-fade-up" style="animation-delay:.12s">
+    <div class="col-6 col-md-4 anim-fade-up" style="animation-delay:.05s">
         <div class="card text-center h-100" style="border-top:3px solid var(--c-ewalk)">
             <div class="card-body py-3">
                 <div class="small text-muted mb-1"><i class="bi bi-building text-primary me-1"></i>eWalk</div>
@@ -85,10 +98,11 @@
                 <?php if ($totalVisitor > 0): ?>
                 <div class="small text-muted"><?= round($totalEwalk / $totalVisitor * 100) ?>% total</div>
                 <?php endif; ?>
+                <?= $_splitHari($wdEwalk, $weEwalk, $hariMal['wdEw'] ?? null, $hariMal['weEw'] ?? null) ?>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3 anim-fade-up" style="animation-delay:.19s">
+    <div class="col-6 col-md-4 anim-fade-up" style="animation-delay:.12s">
         <div class="card text-center h-100" style="border-top:3px solid var(--c-penta)">
             <div class="card-body py-3">
                 <div class="small text-muted mb-1"><i class="bi bi-building text-success me-1"></i>Pentacity</div>
@@ -96,116 +110,54 @@
                 <?php if ($totalVisitor > 0): ?>
                 <div class="small text-muted"><?= round($totalPenta / $totalVisitor * 100) ?>% total</div>
                 <?php endif; ?>
+                <?= $_splitHari($wdPenta, $wePenta, $hariMal['wdPt'] ?? null, $hariMal['wePt'] ?? null) ?>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3 anim-fade-up" style="animation-delay:.26s">
+    <div class="col-12 col-md-4 anim-fade-up" style="animation-delay:.19s">
         <div class="card text-center h-100">
             <div class="card-body py-3">
-                <div class="small text-muted mb-1"><i class="bi bi-car-front me-1"></i>Kendaraan</div>
-                <div class="fw-bold fs-5" data-count="<?= $totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree ?>"><?= number_format($totalMobil + $totalMotor + $totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree, 0, ',', '.') ?></div>
-                <div class="small text-muted"><?= number_format($totalMobil) ?> mobil · <?= number_format($totalMotor) ?> motor</div>
-                <?php if ($totalMobilBox + $totalTruck + $totalBus + $totalMobilFree + $totalMotorFree > 0): ?>
-                <div class="small text-muted mt-1">
-                    <?php $extra = array_filter([
-                        $totalMobilBox > 0 ? number_format($totalMobilBox).' box'        : null,
-                        $totalTruck    > 0 ? number_format($totalTruck)   .' truk'       : null,
-                        $totalBus      > 0 ? number_format($totalBus)     .' bus'        : null,
-                        $totalMobilFree > 0 ? number_format($totalMobilFree).' mobil free' : null,
-                        $totalMotorFree > 0 ? number_format($totalMotorFree).' motor free' : null,
-                    ]); echo implode(' · ', $extra); ?>
-                </div>
-                <?php endif; ?>
+                <div class="small text-muted mb-1">Total Pengunjung</div>
+                <div class="fw-bold fs-4" data-count="<?= $totalVisitor ?>"><?= number_format($totalVisitor, 0, ',', '.') ?></div>
+                <div class="small text-muted">eWalk + Pentacity</div>
+                <?= $_splitHari($wdTotal, $weTotal) ?>
+                <?php if ($wdDays + $weDays > 0): ?><div class="text-muted mt-1" style="font-size:.68rem"><?= $wdDays ?> hari weekdays · <?= $weDays ?> hari weekend aktif</div><?php endif; ?>
             </div>
         </div>
     </div>
 </div>
-
-<?php if ($wdTotal + $weTotal > 0): ?>
-<div class="card mb-4 anim-fade-up" style="animation-delay:.3s">
-<div class="card-body py-0 px-0">
-<div class="row g-0">
-
-    <!-- Weekdays -->
-    <div class="col-12 col-sm-6 border-end split-col px-4 py-3">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="badge bg-primary-subtle text-primary border" style="font-size:.75rem">Weekdays</span>
-            <span class="text-muted small">Senin – Kamis</span>
-            <?php if ($wdDays > 0): ?><span class="text-muted" style="font-size:.7rem">(<?= $wdDays ?> hari aktif)</span><?php endif; ?>
-        </div>
-        <div class="d-flex gap-4 align-items-end">
-            <div>
-                <div class="text-muted small mb-0">Total</div>
-                <div class="fw-bold fs-5"><?= number_format($wdTotal) ?></div>
-            </div>
-            <div>
-                <div class="text-muted small mb-0">Rata-rata/hari</div>
-                <div class="fw-semibold"><?= number_format($wdAvg) ?></div>
-            </div>
-            <?php if ($wdEwalk > 0 || $wdPenta > 0): ?>
-            <div class="ms-auto text-end">
-                <div class="text-primary small">eWalk: <?= number_format($wdEwalk) ?></div>
-                <div class="text-success small">Pentacity: <?= number_format($wdPenta) ?></div>
-            </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- Weekend -->
-    <div class="col-12 col-sm-6 px-4 py-3">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="badge bg-warning-subtle text-warning-emphasis border" style="font-size:.75rem">Weekend</span>
-            <span class="text-muted small">Jumat – Minggu</span>
-            <?php if ($weDays > 0): ?><span class="text-muted" style="font-size:.7rem">(<?= $weDays ?> hari aktif)</span><?php endif; ?>
-        </div>
-        <div class="d-flex gap-4 align-items-end">
-            <div>
-                <div class="text-muted small mb-0">Total</div>
-                <div class="fw-bold fs-5"><?= number_format($weTotal) ?></div>
-            </div>
-            <div>
-                <div class="text-muted small mb-0">Rata-rata/hari</div>
-                <div class="fw-semibold"><?= number_format($weAvg) ?></div>
-            </div>
-            <?php if ($weEwalk > 0 || $wePenta > 0): ?>
-            <div class="ms-auto text-end">
-                <div class="text-primary small">eWalk: <?= number_format($weEwalk) ?></div>
-                <div class="text-success small">Pentacity: <?= number_format($wePenta) ?></div>
-            </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
-</div>
-</div>
-</div>
-<?php endif; ?>
 
 <?php if ($totalVisitor > 0):
     $dominant  = $totalEwalk >= $totalPenta ? 'eWalk' : 'Pentacity';
     $domColor  = $totalEwalk >= $totalPenta ? 'primary' : 'success';
     $domPct    = round(max($totalEwalk, $totalPenta) / $totalVisitor * 100);
-    $prevLabel = date('d M', strtotime($insightPrevFrom)) . '–' . date('d M Y', strtotime($insightPrevTo));
+    // Format Indonesia: angka bertitik, bulan & hari berbahasa Indonesia.
+    $_bln  = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    $_hari = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    $_tgl  = fn ($t, $thn = true) => (int) date('j', strtotime($t)) . ' ' . $_bln[(int) date('n', strtotime($t))] . ($thn ? ' ' . date('Y', strtotime($t)) : '');
+    $_ang  = fn ($n) => number_format((float) $n, 0, ',', '.');
+    $prevLabel = $_tgl($insightPrevFrom, date('Y', strtotime($insightPrevFrom)) !== date('Y', strtotime($insightPrevTo))) . ' – ' . $_tgl($insightPrevTo);
+    $bestLabel = ! empty($insightBestDate) ? $_hari[(int) date('w', strtotime($insightBestDate))] . ', ' . $_tgl($insightBestDate, false) : $insightBestDay;
 
     if ($insightChangePct === null) {
         $vsIcon = 'bi-dash-circle'; $vsColor = 'secondary'; $vsVal = '—'; $vsSub = 'belum ada data';
     } elseif ($insightChangePct >= 0) {
         $vsIcon = 'bi-arrow-up-circle-fill'; $vsColor = 'success';
-        $vsVal  = '+' . $insightChangePct . '%';
-        $vsSub  = number_format($insightPrevTotal) . ' orang';
+        $vsVal  = '+' . str_replace('.', ',', (string) $insightChangePct) . '%';
+        $vsSub  = $_ang($insightPrevTotal) . ' orang periode lalu';
     } else {
         $vsIcon = 'bi-arrow-down-circle-fill'; $vsColor = 'danger';
-        $vsVal  = $insightChangePct . '%';
-        $vsSub  = number_format($insightPrevTotal) . ' orang';
+        $vsVal  = str_replace('.', ',', (string) $insightChangePct) . '%';
+        $vsSub  = $_ang($insightPrevTotal) . ' orang periode lalu';
     }
 
     $stats = array_filter([
-        ['icon'=>'bi-people',              'color'=>'indigo',   'label'=>'Rata-rata/hari',       'val'=>number_format($insightAvgDaily), 'sub'=>'pengunjung'],
-        $insightPeakHour ? ['icon'=>'bi-clock-history', 'color'=>'orange',   'label'=>'Jam tersibuk',         'val'=>$insightPeakHour,               'sub'=>number_format($insightPeakVal).' orang'] : null,
-        $insightBestDay  ? ['icon'=>'bi-trophy',        'color'=>'success',  'label'=>'Hari terbaik',         'val'=>$insightBestDay,                'sub'=>number_format($insightBestVal).' orang']  : null,
+        ['icon'=>'bi-people',              'color'=>'indigo',   'label'=>'Rata-rata/hari',       'val'=>$_ang($insightAvgDaily), 'sub'=>'pengunjung'],
+        $insightPeakHour ? ['icon'=>'bi-clock-history', 'color'=>'orange',   'label'=>'Jam tersibuk',         'val'=>$insightPeakHour,               'sub'=>$_ang($insightPeakVal).' orang'] : null,
+        $insightBestDay  ? ['icon'=>'bi-trophy',        'color'=>'success',  'label'=>'Hari terbaik',         'val'=>$bestLabel,                    'sub'=>$_ang($insightBestVal).' orang']  : null,
         ($totalEwalk > 0 || $totalPenta > 0) ? ['icon'=>'bi-building', 'color'=>$domColor, 'label'=>'Mall dominan', 'val'=>$dominant, 'sub'=>$domPct.'% traffic'] : null,
-        !empty($doorEwalk) ? ['icon'=>'bi-door-open',  'color'=>'primary',  'label'=>'Pintu tersibuk eWalk',     'val'=>esc($doorEwalk[0]['pintu']),    'sub'=>number_format($doorEwalk[0]['total']).' orang'] : null,
-        !empty($doorPenta) ? ['icon'=>'bi-door-open',  'color'=>'success',  'label'=>'Pintu tersibuk Pentacity', 'val'=>esc($doorPenta[0]['pintu']),   'sub'=>number_format($doorPenta[0]['total']).' orang'] : null,
+        !empty($doorEwalk) ? ['icon'=>'bi-door-open',  'color'=>'primary',  'label'=>'Pintu tersibuk eWalk',     'val'=>esc($doorEwalk[0]['pintu']),    'sub'=>$_ang($doorEwalk[0]['total']).' orang'] : null,
+        !empty($doorPenta) ? ['icon'=>'bi-door-open',  'color'=>'success',  'label'=>'Pintu tersibuk Pentacity', 'val'=>esc($doorPenta[0]['pintu']),   'sub'=>$_ang($doorPenta[0]['total']).' orang'] : null,
         ['icon'=>$vsIcon, 'color'=>$vsColor, 'label'=>'vs '.$prevLabel, 'val'=>$vsVal, 'sub'=>$vsSub],
     ]);
 
@@ -221,19 +173,29 @@
     <div class="d-flex align-items-center gap-2 mb-3">
         <i class="bi bi-stars" style="color:var(--bs-primary)"></i>
         <span class="fw-semibold small" style="color:var(--bs-primary)">Analisa Otomatis</span>
-        <span class="text-muted small ms-1"><?= date('d M Y', strtotime($from)) ?> — <?= date('d M Y', strtotime($to)) ?></span>
+        <span class="text-muted small ms-1"><?= $_tgl($from) ?> – <?= $_tgl($to) ?></span>
     </div>
-    <div class="row g-2">
+    <?php
+    // Item terakhir melebar mengisi sisa baris agar tidak ada kotak yatim (2/3/4 kolom).
+    $_n = count($stats);
+    $_span = fn ($c) => ($_n % $c) === 0 ? 1 : $c - ($_n % $c) + 1;
+    ?>
+    <style>
+        .analisa-grid > :last-child { grid-column: span <?= $_span(2) ?>; }
+        @media (min-width: 768px)  { .analisa-grid > :last-child { grid-column: span <?= $_span(3) ?>; } }
+        @media (min-width: 1200px) { .analisa-grid > :last-child { grid-column: span <?= $_span(4) ?>; } }
+    </style>
+    <div class="analisa-grid">
     <?php foreach ($stats as $i => $s):
         $c = $colorMap[$s['color']] ?? $colorMap['secondary']; ?>
-    <div class="col-6 col-md-4 col-xl-auto flex-xl-fill anim-fade-up" style="animation-delay:<?= (.38 + $i * .06) ?>s">
+    <div class="anim-fade-up" style="min-width:0;animation-delay:<?= (.38 + $i * .06) ?>s">
         <div class="d-flex align-items-center gap-2 p-2 rounded-2 h-100" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)">
             <div class="rounded-2 p-2 flex-shrink-0" style="background:<?= $c['bg'] ?>">
                 <i class="bi <?= $s['icon'] ?>" style="color:<?= $c['fg'] ?>;font-size:.9rem"></i>
             </div>
-            <div class="min-w-0">
+            <div style="min-width:0">
                 <div class="text-muted lh-1 mb-1" style="font-size:.7rem"><?= $s['label'] ?></div>
-                <div class="fw-bold lh-1" style="font-size:.9rem;color:<?= $c['fg'] ?>"><?= $s['val'] ?></div>
+                <div class="fw-bold lh-sm text-break" style="font-size:.9rem;color:<?= $c['fg'] ?>"><?= $s['val'] ?></div>
                 <div class="text-muted lh-1 mt-1" style="font-size:.7rem"><?= $s['sub'] ?></div>
             </div>
         </div>
@@ -361,7 +323,7 @@
         $evEnd = date('d M Y', strtotime($ev['start_date'] . ' +' . ($ev['event_days'] - 1) . ' days'));
         $evStart = date('d M Y', strtotime($ev['start_date']));
     ?>
-    <span class="badge bg-primary-subtle text-primary border d-inline-flex align-items-center gap-1" style="font-size:.78rem;font-weight:500">
+    <span class="badge bg-primary-subtle text-primary border d-inline-flex flex-wrap align-items-center gap-1 text-start" style="font-size:.78rem;font-weight:500;white-space:normal;max-width:100%">
         <?= esc($ev['name']) ?>
         <span class="fw-normal text-muted" style="font-size:.72rem"><?= $evStart ?> – <?= $evEnd ?></span>
     </span>
